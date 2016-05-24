@@ -1,0 +1,21 @@
+#!/usr/bin/python
+from xmlrpclib import *
+from sys import *
+import pprint                                                                                                                                                                                                                                 
+
+l = len(argv)
+if l < 3 or argv[1] == '--help':
+	print "usage: %s uri cmd [args] " % argv[0]
+	exit(1)
+
+try:
+	s = ServerProxy(argv[1])
+	data=s.di('yeti',*argv[2:])
+	print "request: %s\nresponse:" % argv[2]
+	pp = pprint.PrettyPrinter(indent=4)
+	pp.pprint(data)
+except Fault as err:
+	print "Fault code: %d" % err.faultCode
+	print "Fault string: %s" % err.faultString
+except BaseException as err:
+	print "Err: %s" % err

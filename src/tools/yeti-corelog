@@ -1,0 +1,7 @@
+#!/bin/bash
+
+bin=/usr/sbin/sems
+core=$1
+sc=/usr/sbin/yeti_core_log.gdb
+
+gdb $bin $core -q -x $sc 2>/dev/null

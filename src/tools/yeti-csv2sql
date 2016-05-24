@@ -1,0 +1,50 @@
+#!/usr/bin/python
+import sys
+import pprint
+
+def usage():
+	print "usage: {} filename [filename2 ...]".format(sys.argv[0])
+	raise SystemExit(0)
+
+def process_file(filename):
+	with open(filename,'r') as f:
+		p = pprint.PrettyPrinter(indent=4)
+		fields = []
+		info = {}
+		nf = 1
+		cdrs_count = 0
+		for l in f:
+			if l[0]=='#':
+				l = l.lstrip('#').rstrip()
+				[name,val] = l.split(": ")
+				if name == "fields_descr":
+					for f in val.split(','):
+						fields.append(f.rstrip("'").lstrip("'"))
+				else:
+					info[name] = val
+			else:
+				if nf:
+					#p.pprint(info)
+					#print "\ncdr_fields: {}\n\n".format(fields)
+					nf = 0	
+				sql = 'SELECT * FROM switch.writecdr(';
+				l = l.rstrip()
+				sql+=l+");"	
+				print sql
+				#cdr = {}
+				#for i,fld in enumerate(vals):
+					#fld = fld.rstrip("'").lstrip("'")
+					#cdr[fields[i]] = fld
+					#form sql here
+					#sql+="'"+fld+"',"
+				#process_cdr(cdr)
+				cdrs_count+=1
+		#print "\nprocessed: {}".format(cdrs_count)	
+
+if len(sys.argv) < 2:
+	usage()
+
+print "BEGIN;"
+for fn in sys.argv[1:]:
+	process_file(fn)
+print "COMMIT;"
