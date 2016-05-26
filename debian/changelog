@@ -1,3 +1,9 @@
+sems-yeti (1.7.0-2) stable; urgency=low
+
+  * fix linking with libsems
+
+ -- dev <dev@yeti-switch.org>  Thu, 26 May 2016 20:27:54 +0000
+
 sems-yeti (1.7.0) stable; urgency=low
 
   * initial

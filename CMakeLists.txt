@@ -75,6 +75,6 @@ set(yeti_config_dist_files yeti oodprofile.yeti)
 set(sems_module_name yeti)
 file(GLOB_RECURSE yeti_SRCS "src/*.cpp")
 include_directories(${HIREDIS_INCLUDE_DIR} ${PQXX_INCLUDE_DIRECTORIES} ${YETICC_INCLUDE_DIRS} ${SEMS_INCLUDE_DIRS})
-set(sems_module_libs ${HIREDIS_LIBRARIES} ${PQXX_LIBRARIES} ${YETICC_LIBRARIES})
+set(sems_module_libs ${HIREDIS_LIBRARIES} ${PQXX_LIBRARIES} ${YETICC_LIBRARIES} ${SEMS_LIBRARIES})
 
 include(${SEMS_CMAKE_DIR}/module.rules.txt)
