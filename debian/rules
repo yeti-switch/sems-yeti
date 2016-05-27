@@ -10,3 +10,6 @@ dh_args=--buildsystem=cmake --builddirectory=$(BUILD_DIR)
 
 #override_dh_shlibdeps:
 #	@echo "skip shlibdeps"
+
+override_dh_strip:
+	#do not strip binaries
