@@ -983,8 +983,6 @@ void SBCCallLeg::onCallConnected(const AmSipReply& reply) {
     if (call_profile.cc_interfaces.size()) {
       gettimeofday(&call_connect_ts, NULL);
     }
-
-    logCallStart(reply);
   }
 }
 
@@ -1045,7 +1043,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
 
 void SBCCallLeg::onCallFailed(CallFailureReason reason, const AmSipReply *reply)
 {
-  switch (reason) {
+  /*switch (reason) {
     case CallRefused:
       if (reply) logCallStart(*reply);
       break;
@@ -1053,7 +1051,7 @@ void SBCCallLeg::onCallFailed(CallFailureReason reason, const AmSipReply *reply)
     case CallCanceled:
       logCanceledCall();
       break;
-  }
+  }*/
 }
 
 bool SBCCallLeg::onBeforeRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr)
