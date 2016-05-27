@@ -1,3 +1,9 @@
+sems-yeti (1.7.0-3) stable; urgency=low
+
+  * fix libsems macro usage
+
+ -- dev <dev@yeti-switch.org>  Fri, 27 May 2016 11:43:07 +0000
+
 sems-yeti (1.7.0-2) stable; urgency=low
 
   * fix linking with libsems
