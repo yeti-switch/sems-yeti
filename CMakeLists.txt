@@ -18,7 +18,7 @@ find_package(SEMS REQUIRED)
 list(APPEND CMAKE_CXX_FLAGS_DEBUG -D_DEBUG)
 list(APPEND CMAKE_C_FLAGS_DEBUG -D_DEBUG)
 
-add_definitions("-D__FILENAME__='\"$(subst ${CMAKE_SOURCE_DIR}/,,$(abspath $<))\"'")
+add_definitions(${SEMS_FILENAME_DEF})
 add_definitions(${SEMS_CFLAGS})
 
 execute_process(
