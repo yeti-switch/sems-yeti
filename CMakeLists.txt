@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.0)
 project(yeti)
 
+# Don't do automatic escaping of variables
+cmake_policy(SET CMP0005 OLD)
+
 if(NOT EXISTS ${CMAKE_SOURCE_DIR}/.git)
 	MESSAGE(FATAL_ERROR "git repository required")
 endif(NOT EXISTS ${CMAKE_SOURCE_DIR}/.git)
