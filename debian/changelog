@@ -1,3 +1,9 @@
+sems-yeti (1.7.0-7) stable; urgency=low
+
+  * logging: fix filename macro
+
+ -- dev <dev@yeti-switch.org>  Tue, 31 May 2016 14:31:15 +0300
+
 sems-yeti (1.7.0-6) stable; urgency=low
 
   * fix logging messages filename
