@@ -1,3 +1,10 @@
+sems-yeti (1.7.1) stable; urgency=low
+
+  * fix in-dialog requests processing
+  * show core version for 'show version' rpc command
+
+ -- dev <dev@yeti-switch.org>  Mon, 06 Jun 2016 17:08:56 +0300
+
 sems-yeti (1.7.0-9) stable; urgency=low
 
   * fix logging
