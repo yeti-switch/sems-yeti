@@ -500,7 +500,12 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req) {
     }
   }
 
-  if (yeti->onInDialogRequest(this, req) == StopProcessing) return;
+  if ( getCallStatus() != Disconnected
+       && getCallStatus() != Disconnecting
+       && !getOtherId().empty())
+  {
+    if(yeti->onInDialogRequest(this, req) == StopProcessing) return;
+  }
 
   if (fwd && req.method == SIP_METH_INVITE) {
     DBG("replying 100 Trying to INVITE to be fwd'ed\n");
