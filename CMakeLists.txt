@@ -21,7 +21,7 @@ find_package(SEMS REQUIRED)
 list(APPEND CMAKE_CXX_FLAGS_DEBUG -D_DEBUG)
 list(APPEND CMAKE_C_FLAGS_DEBUG -D_DEBUG)
 
-add_definitions("-D__FILENAME__='\"yeti:$(subst ${CMAKE_CURRENT_SOURCE_DIR}/src/,,$(absp    ath $<))\"'")
+add_definitions("-D__FILENAME__='\"yeti:$(subst ${CMAKE_CURRENT_SOURCE_DIR}/src/,,$(abspath $<))\"'")
 add_definitions(${SEMS_CFLAGS})
 
 execute_process(
