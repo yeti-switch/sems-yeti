@@ -685,6 +685,7 @@ void Yeti::showVersion(const AmArg& args, AmArg& ret) {
 	ret["build_commit"] = YETI_COMMIT;
 	ret["compiled_at"] = YETI_BUILD_DATE;
 	ret["compiled_by"] = YETI_BUILD_USER;
+	ret["core_build"] = SEMS_VERSION;
 }
 
 void Yeti::reloadResources(const AmArg& args, AmArg& ret){
