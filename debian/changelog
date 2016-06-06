@@ -1,3 +1,9 @@
+sems-yeti (1.7.0-9) stable; urgency=low
+
+  * fix logging
+
+ -- dev <dev@yeti-switch.org>  Mon, 06 Jun 2016 13:42:15 +0300
+
 sems-yeti (1.7.0-8) stable; urgency=low
 
   * build with new core
