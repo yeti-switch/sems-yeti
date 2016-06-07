@@ -99,7 +99,7 @@ SBCCallLeg::SBCCallLeg(const SBCCallProfile& call_profile, AmSipDialog* p_dlg,
     ext_cc_timer_id(SBC_TIMER_ID_CALL_TIMERS_END + 1),
     logger(NULL),
 	sensor(NULL),
-    LogicData(NULL),
+	call_ctx(NULL),
     yeti(getExtCCInterface())
 {
   set_sip_relay_only(false);
@@ -137,7 +137,7 @@ SBCCallLeg::SBCCallLeg(SBCCallLeg* caller, AmSipDialog* p_dlg,
     ext_cc_timer_id(SBC_TIMER_ID_CALL_TIMERS_END + 1),
     logger(NULL),
 	sensor(NULL),
-    LogicData(caller->getLogicData()),
+	call_ctx(caller->getCallCtx()),
     yeti(getExtCCInterface())
 {
   // FIXME: do we want to inherit cc_vars from caller?

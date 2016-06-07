@@ -3,7 +3,7 @@
 #include "time.h"
 
 #include "../SqlCallProfile.h"
-#include "../SBCCallLeg.h"
+//#include "../SBCCallLeg.h"
 #include "../resources/Resource.h"
 #include "AmRtpStream.h"
 #include "AmISUP.h"
@@ -121,8 +121,8 @@ struct Cdr: public
 	void update(const AmSipRequest &req);
 	void update(const AmISUP &isup);
 	void update(const AmSipReply &reply);
-    void update(SBCCallLeg &leg);
-	void update(SBCCallLeg *call,AmRtpStream *stream);
+	void update_init_aleg(const string &leg_local_tag, const string &leg_global_tag, const string &leg_orig_call_id);
+	void update_init_bleg(const string &leg_term_call_id);
 	void update(UpdateAction act);
 	void update(const ResourceList &rl);
 	void update_failed_resource(const Resource &r);

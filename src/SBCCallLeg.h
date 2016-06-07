@@ -2,11 +2,11 @@
 #define __SBCCALL_LEG_H
 
 #include "SBC.h"
+#include "CallCtx.h"
 #include "ExtendedCCInterface.h"
 #include "sbc_events.h"
 #include "RateLimit.h"
 #include "ampi/RadiusClientAPI.h"
-//#include "yeti.h"
 
 class PayloadIdMapping
 {
@@ -47,7 +47,8 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   ParamReplacerCtx ctx;
 
   string global_tag;
-  void *LogicData;
+  CallCtx *call_ctx;
+
   // auth
   AmSessionEventHandler* auth;
 
@@ -160,8 +161,8 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   PayloadIdMapping &getTranscoderMapping() { return  transcoder_payload_mapping; }
 
   const string &getGlobalTag() const { return global_tag; }
-  void *getLogicData() { return LogicData; }
-  void setLogicData(void *p) { LogicData = p; }
+  CallCtx *getCallCtx() { return call_ctx; }
+  void setCallCtx(CallCtx *p) { call_ctx = p; }
 
   void setRTPMeasurements(const list<atomic_int*>& rtp_meas) { rtp_pegs = rtp_meas; }
   const RateLimit* getRTPRateLimit() { return rtp_relay_rate_limit.get(); }

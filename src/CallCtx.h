@@ -61,6 +61,4 @@ struct CallCtx: public
 	template <bool for_write> Cdr *getCdrSafe();
 };
 
-CallCtx *getCtx(SBCCallLeg *call);
-
 #endif // CALLCTX_H

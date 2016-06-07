@@ -4,6 +4,7 @@
 #include "../RTPParameters.h"
 #include "TrustedHeaders.h"
 #include "jsonArg.h"
+#include "sip/defs.h"
 
 #define DTMF_EVENTS_MAX 50
 
@@ -164,27 +165,6 @@ void Cdr::update(const AmISUP &isup){
     isup_propagation_delay = isup.propagation_delay;
 }
 
-void Cdr::update(SBCCallLeg *call,AmRtpStream *stream){
-	//AmRtpStream::ErrorsStats err_stats;
-	DBG("Cdr::%s(SBCCallLeg [%p], AmRtpStream [%p])",FUNC_NAME,
-		call,stream);
-	if(writed) return;
-	lock();
-	//stream->getErrorsStats(err_stats);
-	if(call->isALeg()){
-		stream->getPayloadsHistory(legA_payloads);
-		stream->getErrorsStats(legA_stream_errors);
-		legA_bytes_recvd = stream->getRcvdBytes();
-		legA_bytes_sent = stream->getSentBytes();
-	} else {
-		stream->getPayloadsHistory(legB_payloads);
-		stream->getErrorsStats(legB_stream_errors);
-		legB_bytes_recvd = stream->getRcvdBytes();
-		legB_bytes_sent = stream->getSentBytes();
-	}
-	unlock();
-}
-
 void Cdr::update(const AmSipReply &reply){
 	DBG("Cdr::%s(AmSipReply)",FUNC_NAME);
     if(writed) return;
@@ -215,21 +195,22 @@ void Cdr::update(const AmSipReply &reply){
     unlock();
 }
 
-void Cdr::update(SBCCallLeg &leg){
-	DBG("Cdr::%s(SBCCallLeg)",FUNC_NAME);
-    if(writed) return;
-    lock();
-    if(leg.isALeg()){
-        //A leg related variables
-		local_tag = leg.getLocalTag();
-		global_tag = leg.getGlobalTag();
-        orig_call_id = leg.getCallID();
-    } else {
-        //B leg related variables
-        SBCCallProfile &profile = leg.getCallProfile();
-        term_call_id = profile.callid.empty()? leg.getCallID() : profile.callid;
-    }
-    unlock();
+void Cdr::update_init_aleg(const string &leg_local_tag, const string &leg_global_tag, const string &leg_orig_call_id)
+{
+	if(writed) return;
+	lock();
+	local_tag = leg_local_tag;
+	global_tag = leg_global_tag;
+	orig_call_id = leg_orig_call_id;
+	unlock();
+}
+
+void Cdr::update_init_bleg(const string &leg_term_call_id)
+{
+	if(writed) return;
+	lock();
+	term_call_id = leg_term_call_id;
+	unlock();
 }
 
 void Cdr::update(UpdateAction act){

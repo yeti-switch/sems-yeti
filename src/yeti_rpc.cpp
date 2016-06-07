@@ -764,7 +764,7 @@ static void SBCCallLeg2AmArg(SBCCallLeg *leg, AmArg &s)
 		s["dlg_ruri"] = dlg->getRemoteUri();
 	}
 
-	CallCtx *ctx = getCtx(leg);
+	CallCtx *ctx = leg->getCallCtx();
 	if(ctx){
 		s["attempt_num"] = ctx->attempt_num;
 		ctx->lock();

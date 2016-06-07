@@ -1,4 +1,6 @@
 #include "CallCtx.h"
+#include "AmSession.h"
+#include "sip/defs.h"
 
 
 int fake_logger::log(const char* buf, int len,
@@ -32,10 +34,6 @@ int fake_logger::relog(msg_logger *logger){
         &msg.local_ip,
         &msg.remote_ip,
         cstring(),code);
-}
-
-CallCtx *getCtx(SBCCallLeg *call){
-	return reinterpret_cast<CallCtx *>(call->getLogicData());
 }
 
 SqlCallProfile *CallCtx::getFirstProfile(){

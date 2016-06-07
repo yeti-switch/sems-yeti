@@ -19,7 +19,7 @@
 #define FILE_RECORDER_RAW_EXT        ".wav"
 
 #define getCtx_void \
-	CallCtx *ctx = getCtx(call);\
+	CallCtx *ctx = call->getCallCtx();\
 	if(NULL==ctx){\
 		ERROR("CallCtx = nullptr ");\
 		log_stacktrace(L_ERR);\
@@ -27,7 +27,7 @@
 	}
 
 #define getCtx_chained \
-	CallCtx *ctx = getCtx(call);\
+	CallCtx *ctx = call->getCallCtx();\
 	if(NULL==ctx){\
 		ERROR("CallCtx = nullptr ");\
 		log_stacktrace(L_ERR);\
@@ -35,7 +35,7 @@
 	}
 
 inline Cdr *getCdr(CallCtx *ctx) { return ctx->cdr; }
-inline Cdr *getCdr(SBCCallLeg *call) { return getCdr(getCtx(call)); }
+inline Cdr *getCdr(SBCCallLeg *call) { return getCdr(call->getCallCtx()); }
 
 inline void replace(string& s, const string& from, const string& to){
 	size_t pos = 0;
@@ -147,7 +147,7 @@ SBCCallLeg *Yeti::getCallLeg(	const AmSipRequest& req,
 
 	SBCCallLeg* b2b_dlg = leg_creator->create(call_profile);
 
-	b2b_dlg->setLogicData(reinterpret_cast<void *>(call_ctx));
+	b2b_dlg->setCallCtx(call_ctx);
 
 	return b2b_dlg;
 }
@@ -158,7 +158,7 @@ SBCCallLeg *Yeti::getCallLeg(	const AmSipRequest& req,
 
 bool Yeti::init(SBCCallLeg *call, const map<string, string> &values) {
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
-	CallCtx *ctx = getCtx(call);
+	CallCtx *ctx = call->getCallCtx();
 	Cdr *cdr = getCdr(ctx);
 
 	ctx->inc();
@@ -176,15 +176,17 @@ bool Yeti::init(SBCCallLeg *call, const map<string, string> &values) {
 		cdr->update_sbc(profile);
 
 		call->setSensor(Sensors::instance()->getSensor(profile.aleg_sensor_id));
-
+		cdr->update_init_aleg(call->getLocalTag(),
+							  call->getGlobalTag(),
+							  call->getCallID());
 	} else {
 		if(!profile.callid.empty()){
 			string id = AmSession::getNewId();
 			replace(profile.callid,"%uuid",id);
 		}
 		call->setSensor(Sensors::instance()->getSensor(profile.bleg_sensor_id));
+		cdr->update_init_bleg(profile.callid.empty()? call->getCallID() : profile.callid);
 	}
-	cdr->update(*call);
 
 	if(profile.record_audio){
 		ostringstream ss;
@@ -341,7 +343,7 @@ void Yeti::onDestroyLeg(SBCCallLeg *call){
 	getCtx_void
 
 	ctx->lock();
-	call->setLogicData(NULL);
+	call->setCallCtx(NULL);
 
 	if(call->getCallProfile().record_audio){
 		AmAudioFileRecorderProcessor::instance()->removeRecorder(call->getLocalTag());
@@ -435,7 +437,7 @@ CCChainProcessing Yeti::onInitialInvite(SBCCallLeg *call, InitialInviteHandlerPa
 
 	AmSipRequest &req = *params.aleg_modified_invite;
 
-	CallCtx *ctx = getCtx(call);
+	CallCtx *ctx = call->getCallCtx();
 	Cdr *cdr = getCdr(ctx);
 
 	SBCCallProfile &call_profile = call->getCallProfile();
@@ -468,7 +470,7 @@ void Yeti::onRoutingReady(SBCCallLeg *call, AmSipRequest &aleg_modified_invite, 
 	AmSipRequest &req = aleg_modified_invite;
 	AmSipRequest &b_req = modified_invite;
 
-	CallCtx *ctx = getCtx(call);
+	CallCtx *ctx = call->getCallCtx();
 	Cdr *cdr = getCdr(ctx);
 	ResourceCtlResponse rctl_ret;
 	ResourceList::iterator ri;
@@ -836,7 +838,7 @@ CCChainProcessing Yeti::onDtmf(SBCCallLeg *call, AmDtmfEvent* e){
 
 	AmSipDtmfEvent *sip_dtmf = NULL;
 	SBCCallProfile &p = call->getCallProfile();
-	CallCtx *ctx = getCtx(call);
+	CallCtx *ctx = call->getCallCtx();
 	bool aleg = call->isALeg();
 	int rx_proto = 0;
 	bool allowed = false;
@@ -1110,8 +1112,23 @@ void Yeti::onCallEnded(SBCCallLeg *call){
 
 void Yeti::onRTPStreamDestroy(SBCCallLeg *call,AmRtpStream *stream){
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
-    getCtx_void
-	getCdr(ctx)->update(call,stream);
+	getCtx_void
+	with_cdr_for_read {
+		if(cdr->writed) return;
+		cdr->lock();
+		if(call->isALeg()){
+			stream->getPayloadsHistory(cdr->legA_payloads);
+			stream->getErrorsStats(cdr->legA_stream_errors);
+			cdr->legA_bytes_recvd = stream->getRcvdBytes();
+			cdr->legA_bytes_sent = stream->getSentBytes();
+		} else {
+			stream->getPayloadsHistory(cdr->legB_payloads);
+			stream->getErrorsStats(cdr->legB_stream_errors);
+			cdr->legB_bytes_recvd = stream->getRcvdBytes();
+			cdr->legB_bytes_sent = stream->getSentBytes();
+		}
+		cdr->unlock();
+	}
 }
 
 #if 0
@@ -1164,7 +1181,7 @@ void Yeti::onSdpCompleted(SBCCallLeg *call, AmSdp& offer, AmSdp& answer){
 bool Yeti::getSdpOffer(SBCCallLeg *call, AmSdp& offer){
 	DBG("%s(%p)",FUNC_NAME,this);
 
-	CallCtx *ctx = getCtx(call);
+	CallCtx *ctx = call->getCallCtx();
 	if(!ctx) {
 		DBG("getSdpOffer[%s] missed call context",call->getLocalTag().c_str());
 		return false;
@@ -1197,7 +1214,7 @@ bool Yeti::getSdpOffer(SBCCallLeg *call, AmSdp& offer){
 
 int Yeti::relayEvent(SBCCallLeg *call, AmEvent *e){
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
-	CallCtx *ctx = getCtx(call);
+	CallCtx *ctx = call->getCallCtx();
 	if(NULL==ctx) {
 		ERROR("Yeti::relayEvent(%p) zero ctx. ignore event",call);
 		delete e;
@@ -1556,7 +1573,7 @@ bool Yeti::chooseNextProfile(SBCCallLeg *call){
 	ResourceList::iterator ri;
 	bool has_profile = false;
 
-	ctx = getCtx(call);
+	ctx = call->getCallCtx();
 	cdr = getCdr(ctx);
 
 	profile = ctx->getNextProfile(false);
