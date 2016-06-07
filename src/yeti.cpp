@@ -159,15 +159,6 @@ int Yeti::onLoad() {
 	self_iface.cc_name = "yeti";
 	self_iface.cc_values.clear();
 
-	profile = new SBCCallProfile();
-	string profile_file_name = AmConfig::ModConfigPath + "oodprofile.yeti.conf";
-	if(!profile->readFromConfiguration("transparent",profile_file_name)){
-		ERROR("can't read profile for OoD requests '%s'",profile_file_name.c_str());
-		return -1;
-	}
-	profile->cc_vars.clear();
-	profile->cc_interfaces.clear();
-
 	if(TrustedHeaders::instance()->configure(cfg)){
 		ERROR("TrustedHeaders configure failed");
 		return -1;

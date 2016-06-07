@@ -67,7 +67,6 @@ class Yeti : public AmDynInvoke, public SBCLogicInterface, public ExtendedCCInte
 		  response_code(rc),response_reason(rr){}
   };
 
-  SBCCallProfile *profile;  //profile for OoD requests
   CCInterface self_iface;
   CdrList cdr_list;
   ResourceControl rctl;
@@ -216,9 +215,6 @@ class Yeti : public AmDynInvoke, public SBCLogicInterface, public ExtendedCCInte
   void onRoutingReady(SBCCallLeg *call, AmSipRequest &aleg_modified_invite, AmSipRequest &modified_invite);
 
         //!SBCLogicInterface handlers
-  SBCCallProfile& getCallProfile( const AmSipRequest& req,
-                                          ParamReplacerCtx& ctx );
-
   SBCCallLeg *getCallLeg( const AmSipRequest& req,
                           ParamReplacerCtx& ctx,
                           CallLegCreator *leg_creator );

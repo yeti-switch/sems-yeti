@@ -74,7 +74,7 @@ configure_file(${CMAKE_SOURCE_DIR}/src/yeti_version.h.cmake ${CMAKE_SOURCE_DIR}/
 file(GLOB_RECURSE yeti_SRCS "src/*.cpp")
 
 set(yeti_config_files "")
-set(yeti_config_dist_files yeti oodprofile.yeti)
+set(yeti_config_dist_files yeti)
 
 set(sems_module_name yeti)
 file(GLOB_RECURSE yeti_SRCS "src/*.cpp")

@@ -77,12 +77,6 @@ static const char *callStatus2str(const CallLeg::CallStatus state)
 /****************************************
  * 		SBCLogicInterface handlers		*
  ****************************************/
-SBCCallProfile& Yeti::getCallProfile(	const AmSipRequest& req,
-										ParamReplacerCtx& ctx )
-{
-	return *profile;
-}
-
 
 inline void answer_100_trying(const AmSipRequest &req, CallCtx *ctx)
 {
