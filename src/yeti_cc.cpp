@@ -1381,47 +1381,6 @@ int Yeti::relayEvent(SBCCallLeg *call, AmEvent *e){
 	return 0;
 }
 
-void Yeti::onSipReply(	const AmSipRequest& req,
-						const AmSipReply& reply,
-						AmBasicSipDialog::Status old_dlg_status,
-						void *user_data)
-{
-	DBG("%s() called",FUNC_NAME);
-}
-
-void Yeti::onB2BRequest(const AmSipRequest& req, void *user_data) {
-	DBG("%s() called",FUNC_NAME);
-}
-
-void Yeti::onB2BReply(const AmSipReply& reply, void *user_data) {
-	DBG("%s() called",FUNC_NAME);
-}
-
-void Yeti::onSipRequest(const AmSipRequest& req, void *user_data) {
-	DBG("%s() called",FUNC_NAME);
-}
-
-/****************************************
- * 			OoD handlers				*
- ****************************************/
-
-bool Yeti::init(SBCCallProfile &profile, SimpleRelayDialog *relay, void *&user_data) {
-DBG("%s() called",FUNC_NAME);
-return true;
-}
-
-void Yeti::initUAC(const AmSipRequest &req, void *user_data) {
-DBG("%s() called",FUNC_NAME);
-}
-
-void Yeti::initUAS(const AmSipRequest &req, void *user_data) {
-DBG("%s() called",FUNC_NAME);
-}
-
-void Yeti::finalize(void *user_data) {
-DBG("%s() called",FUNC_NAME);
-}
-
 /****************************************
  *				aux funcs				*
  ****************************************/

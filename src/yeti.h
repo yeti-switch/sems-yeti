@@ -245,18 +245,5 @@ class Yeti : public AmDynInvoke, public ExtendedCCInterface, AmObject
   bool getSdpOffer(SBCCallLeg *call, AmSdp& offer);
 
   int relayEvent(SBCCallLeg *call, AmEvent *e);
-
-        //!OoD handlers
-  bool init(SBCCallProfile &profile, SimpleRelayDialog *relay, void *&user_data);
-  void initUAC(const AmSipRequest &req, void *user_data);
-  void initUAS(const AmSipRequest &req, void *user_data);
-  void finalize(void *user_data);
-  void onSipRequest(const AmSipRequest& req, void *user_data);
-  void onSipReply(const AmSipRequest& req,
-        const AmSipReply& reply,
-        AmBasicSipDialog::Status old_dlg_status,
-                void *user_data);
-  void onB2BRequest(const AmSipRequest& req, void *user_data);
-  void onB2BReply(const AmSipReply& reply, void *user_data);
 };
 

@@ -103,21 +103,6 @@ class ExtendedCCInterface
       - equal to 0 means "continue processing" */
     virtual int relayEvent(SBCCallLeg *call, AmEvent *e) { return 0; }
 
-    // using extended CC modules with simple relay
-
-    virtual bool init(SBCCallProfile &profile, SimpleRelayDialog *relay, void *&user_data) { return true; }
-    virtual void initUAC(const AmSipRequest &req, void *user_data) { }
-    virtual void initUAS(const AmSipRequest &req, void *user_data) { }
-    virtual void finalize(void *user_data) { }
-    virtual void onSipRequest(const AmSipRequest& req, void *user_data) { }
-    virtual void onSipReply(const AmSipRequest& req,
-		  const AmSipReply& reply,
-		  AmBasicSipDialog::Status old_dlg_status,
-                  void *user_data) { }
-    virtual void onB2BRequest(const AmSipRequest& req, void *user_data) { }
-    virtual void onB2BReply(const AmSipReply& reply, void *user_data) { }
-
-
 };
 
 #endif
