@@ -155,10 +155,6 @@ int Yeti::onLoad() {
 
 	calls_show_limit = cfg.getParameterInt("calls_show_limit",100);
 
-	self_iface.cc_module = "yeti";
-	self_iface.cc_name = "yeti";
-	self_iface.cc_values.clear();
-
 	if(TrustedHeaders::instance()->configure(cfg)){
 		ERROR("TrustedHeaders configure failed");
 		return -1;

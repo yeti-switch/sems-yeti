@@ -44,9 +44,6 @@ using std::map;
 using std::set;
 using std::pair;
 
-typedef map<string, AmArg>   SBCVarMapT;
-typedef SBCVarMapT::iterator SBCVarMapIteratorT;
-typedef SBCVarMapT::const_iterator SBCVarMapConstIteratorT;
 class PlaceholdersHash: public std::map<string,string>
 {
   public:
@@ -69,19 +66,6 @@ const char *dump_level2str(int dump_level);
 #define DTMF_TX_MODE_INBOUND			0x8		// inbound dtmf
 
 #define DTMF_RX_MODE_ALL	(DTMF_RX_MODE_RFC2833|DTMF_RX_MODE_INFO|DTMF_RX_MODE_INBOUND)
-
-struct CCInterface {
-  string cc_name;
-  string cc_module;
-  map<string, string> cc_values;
-
-  CCInterface(string cc_name)
-  : cc_name(cc_name) { }
-  CCInterface() { }
-};
-
-typedef std::list<CCInterface> CCInterfaceListT;
-typedef CCInterfaceListT::iterator CCInterfaceListIteratorT;
 
 template <class T>
 class ref_counted_ptr
@@ -240,10 +224,6 @@ struct SBCCallProfile
 
   bool auth_aleg_enabled;
   UACAuthCred auth_aleg_credentials;
-
-  CCInterfaceListT cc_interfaces;
-
-  SBCVarMapT cc_vars;
 
   ReplyTranslationMap reply_translations;
 
@@ -495,8 +475,6 @@ struct SBCCallProfile
 		       const AmSipRequest& req,
 		       AmConfigReader& sst_cfg);
 
-  void eval_cc_list(ParamReplacerCtx& ctx, const AmSipRequest& req);
-  
   void fix_append_hdrs(ParamReplacerCtx& ctx, const AmSipRequest& req);
 
   void fix_reg_contact(ParamReplacerCtx& ctx, const AmSipRequest& req,

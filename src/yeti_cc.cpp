@@ -135,8 +135,6 @@ CallCtx *Yeti::getCallCtx(const AmSipRequest& req,
 		return NULL;
 	}
 
-	profile->cc_interfaces.push_back(self_iface);
-
 	return call_ctx;
 }
 
@@ -1632,7 +1630,6 @@ bool Yeti::chooseNextProfile(SBCCallLeg *call){
 		return false;
 	} else {
 		DBG("%s() update call profile for legA",FUNC_NAME);
-		profile->cc_interfaces.push_back(self_iface);
 		cdr->update(profile->rl);
 		call->updateCallProfile(*profile);
 		return true;

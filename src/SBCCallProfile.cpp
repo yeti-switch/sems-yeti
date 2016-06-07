@@ -268,63 +268,6 @@ bool SBCCallProfile::readFromConfiguration(const string& name,
   auth_aleg_credentials.user = cfg.getParameter("auth_aleg_user");
   auth_aleg_credentials.pwd = cfg.getParameter("auth_aleg_pwd");
 
-  if (!cfg.getParameter("call_control").empty()) {
-    vector<string> cc_sections = explode(cfg.getParameter("call_control"), ",");
-    for (vector<string>::iterator it =
-	   cc_sections.begin(); it != cc_sections.end(); it++) {
-      DBG("reading call control '%s'\n", it->c_str());
-      cc_interfaces.push_back(CCInterface(*it));
-      CCInterface& cc_if = cc_interfaces.back();
-
-      cc_if.cc_module = cfg.getParameter(*it + "_module");
-
-      AmArg mandatory_values;
-
-      // check if module is loaded and if, get mandatory config values
-      if (cc_if.cc_module.find('$') == string::npos && 
-	  cc_if.cc_name.find('$') == string::npos) {
-	AmDynInvokeFactory* df = AmPlugIn::instance()->getFactory4Di(cc_if.cc_module);
-	if (NULL == df) {
-	  ERROR("Call control module '%s' used in call profile "
-		"'%s' is not loaded\n", cc_if.cc_module.c_str(), name.c_str());
-	  return false;
-	}
-	AmDynInvoke* di = df->getInstance();
-	AmArg args;
-	try {
-	  di->invoke(CC_INTERFACE_MAND_VALUES_METHOD, args, mandatory_values);
-	} catch (AmDynInvoke::NotImplemented& ni) { }
-      }
-
-      size_t cc_name_prefix_len = it->length()+1;
-
-      // read interface values
-      for (std::map<string,string>::const_iterator cfg_it =
-	     cfg.begin(); cfg_it != cfg.end(); cfg_it++) {
-	if (cfg_it->first.substr(0, cc_name_prefix_len) != *it+"_")
-	  continue;
-
-	if (cfg_it->first.size() <= cc_name_prefix_len ||
-	    cfg_it->first == *it+"_module")
-	  continue;
-
-	cc_if.cc_values[cfg_it->first.substr(cc_name_prefix_len)] = cfg_it->second;
-      }
-
-      if (isArgArray(mandatory_values)) {
-	for (size_t i=0;i<mandatory_values.size();i++) {
-	  if (!isArgCStr(mandatory_values[i])) continue;
-	  if (cc_if.cc_values.find(mandatory_values[i].asCStr()) == cc_if.cc_values.end()) {
-	    ERROR("value '%s' for SBC profile '%s' in '%s' not defined. set %s_%s=...\n",
-		  mandatory_values[i].asCStr(), name.c_str(), profile_file_name.c_str(),
-		  it->c_str(), mandatory_values[i].asCStr());
-	    return false;
-	  }
-	}
-      }
-    }
-  }
-
   vector<string> reply_translations_v =
     explode(cfg.getParameter("reply_translations"), "|");
   for (vector<string>::iterator it =
@@ -537,16 +480,6 @@ bool SBCCallProfile::readFromConfiguration(const string& name,
 
 	INFO("SIP auth %sabled\n", auth_enabled?"en":"dis");
 	INFO("SIP auth for A leg %sabled\n", auth_aleg_enabled?"en":"dis");
-
-    if (cc_interfaces.size()) {
-      string cc_if_names;
-      for (CCInterfaceListIteratorT it =
-	     cc_interfaces.begin(); it != cc_interfaces.end(); it++) {
-	cc_if_names = it->cc_name+",";
-	cc_if_names.erase(cc_if_names.size()-1,1);
-	INFO("Call Control: %s\n", cc_if_names.c_str());
-      }
-    }
 
     if (reply_translations.size()) {
       string reply_trans_codes;
@@ -1054,123 +987,6 @@ int SBCCallProfile::refuse(ParamReplacerCtx& ctx, const AmSipRequest& req) const
   AmSipDialog::reply_error(req, refuse_with_code, refuse_with_reason, hdrs);
 
   return 0;
-}
-
-static void fixupCCInterface(const string& val, CCInterface& cc_if)
-{
-  DBG("instantiating CC interface from '%s'\n", val.c_str());
-  size_t spos, last = val.length() - 1;
-  if (val.length() == 0) {
-    spos = string::npos;
-    cc_if.cc_module = "";
-  } else {
-    spos = val.find(";", 0);
-    cc_if.cc_module = val.substr(0, spos);
-  }
-  DBG("    module='%s'\n", cc_if.cc_module.c_str());
-  while (spos < last) {
-    size_t epos = val.find("=", spos + 1);
-    if (epos == string::npos) {
-      cc_if.cc_values.insert(make_pair(val.substr(spos + 1), ""));
-      DBG("    '%s'='%s'\n", val.substr(spos + 1).c_str(), "");
-      return;
-    }
-    if (epos == last) {
-      cc_if.cc_values.insert(make_pair(val.substr(spos + 1, epos - spos - 1), ""));
-      DBG("    '%s'='%s'\n", val.substr(spos + 1, epos - spos - 1).c_str(), "");
-      return;
-    }
-    // if value starts with " char, it continues until another " is found
-    if (val[epos + 1] == '"') {
-      if (epos + 1 == last) {
-	cc_if.cc_values.insert(make_pair(val.substr(spos+1, epos-spos-1), ""));
-
-	DBG("    '%s'='%s'\n", 
-	    val.substr(spos+1, epos-spos-1).c_str(), "");
-	return;
-      }
-      size_t qpos = val.find('"', epos + 2);
-      if (qpos == string::npos) {
-	cc_if.cc_values.insert(make_pair(val.substr(spos+1, epos-spos-1), 
-					 val.substr(epos + 2)));
-	DBG("    '%s'='%s'\n", 
-	    val.substr(spos+1, epos-spos-1).c_str(), 
-	    val.substr(epos + 2).c_str());
-
-	return;
-      }
-      cc_if.cc_values.insert(make_pair(val.substr(spos+1, epos-spos-1), 
-				       val.substr(epos+2, qpos-epos-2)));
-      DBG("    '%s'='%s'\n", 
-	  val.substr(spos+1, epos-spos-1).c_str(), 
-	  val.substr(epos+2, qpos-epos-2).c_str());
-
-      if (qpos < last) {
-	spos = val.find(";", qpos + 1);
-      } else {
-	return;
-      }
-    } else {
-      size_t new_spos = val.find(";", epos + 1);
-      if (new_spos == string::npos) {
-	cc_if.cc_values.insert(make_pair(val.substr(spos+1, epos-spos-1), 
-					 val.substr(epos+1)));
-
-	DBG("    '%s'='%s'\n", 
-	    val.substr(spos+1, epos-spos-1).c_str(), 
-	    val.substr(epos+1).c_str());
-
-	return;
-      }
-
-      cc_if.cc_values.insert(make_pair(val.substr(spos+1, epos-spos-1), 
-				       val.substr(epos+1, new_spos-epos-1)));
-
-      DBG("    '%s'='%s'\n", 
-	  val.substr(spos+1, epos-spos-1).c_str(), 
-	  val.substr(epos+1, new_spos-epos-1).c_str());
-
-      spos = new_spos;
-    }
-  }
-}
-
-void SBCCallProfile::eval_cc_list(ParamReplacerCtx& ctx, const AmSipRequest& req)
-{
-  unsigned int cc_dynif_count = 0;
-
-  // fix up replacements in cc list
-  CCInterfaceListIteratorT cc_rit = cc_interfaces.begin();
-  while (cc_rit != cc_interfaces.end()) {
-    CCInterfaceListIteratorT curr_if = cc_rit;
-    cc_rit++;
-    //      CCInterfaceListIteratorT next_cc = cc_rit+1;
-    if (curr_if->cc_name.find('$') != string::npos) {
-      curr_if->cc_name = ctx.replaceParameters(curr_if->cc_name, 
-					       "cc_interfaces", req);
-      vector<string> dyn_ccinterfaces = explode(curr_if->cc_name, ",");
-      if (!dyn_ccinterfaces.size()) {
-	DBG("call_control '%s' did not produce any call control instances\n",
-	    curr_if->cc_name.c_str());
-	cc_interfaces.erase(curr_if);
-      } else {
-	// fill first CC interface (replacement item)
-	vector<string>::iterator it = dyn_ccinterfaces.begin();
-	curr_if->cc_name = "cc_dyn_"+int2str(cc_dynif_count++);
-	fixupCCInterface(trim(*it, " \t"), *curr_if);
-	it++;
-
-	// insert other CC interfaces (in order!)
-	while (it != dyn_ccinterfaces.end()) {
-	  CCInterfaceListIteratorT new_cc =
-	    cc_interfaces.insert(cc_rit, CCInterface());
-	  fixupCCInterface(trim(*it, " \t"), *new_cc);
-	  new_cc->cc_name = "cc_dyn_"+int2str(cc_dynif_count++);
-	  it++;
-	}
-      }
-    }
-  }
 }
 
 /** removes headers with empty values from headers list separated by "\r\n" */

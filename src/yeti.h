@@ -65,7 +65,6 @@ class Yeti : public AmDynInvoke, public ExtendedCCInterface, AmObject
 		  response_code(rc),response_reason(rr){}
   };
 
-  CCInterface self_iface;
   CdrList cdr_list;
   ResourceControl rctl;
   SqlRouter router;

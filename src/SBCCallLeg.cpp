@@ -95,8 +95,6 @@ SBCCallLeg::SBCCallLeg(const SBCCallProfile& call_profile, AmSipDialog* p_dlg,
     auth(NULL),
     call_profile(call_profile),
     placeholders_hash(call_profile.placeholders_hash),
-    cc_timer_id(SBC_TIMER_ID_CALL_TIMERS_START),
-    ext_cc_timer_id(SBC_TIMER_ID_CALL_TIMERS_END + 1),
     logger(NULL),
 	sensor(NULL),
 	call_ctx(NULL),
@@ -104,10 +102,6 @@ SBCCallLeg::SBCCallLeg(const SBCCallProfile& call_profile, AmSipDialog* p_dlg,
 {
   set_sip_relay_only(false);
   dlg->setRel100State(Am100rel::REL100_IGNORED);
-
-  memset(&call_start_ts, 0, sizeof(struct timeval));
-  memset(&call_connect_ts, 0, sizeof(struct timeval));
-  memset(&call_end_ts, 0, sizeof(struct timeval));
 
   if(call_profile.rtprelay_bw_limit_rate > 0 &&
      call_profile.rtprelay_bw_limit_peak > 0) {
@@ -134,7 +128,6 @@ SBCCallLeg::SBCCallLeg(SBCCallLeg* caller, AmSipDialog* p_dlg,
     placeholders_hash(caller->getPlaceholders()),
     CallLeg(caller,p_dlg,p_subs),
     global_tag(caller->getGlobalTag()),
-    ext_cc_timer_id(SBC_TIMER_ID_CALL_TIMERS_END + 1),
     logger(NULL),
 	sensor(NULL),
 	call_ctx(caller->getCallCtx()),
@@ -175,15 +168,10 @@ SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
   : CallLeg(p_dlg,p_subs),
     m_state(BB_Init),
     auth(NULL),
-    cc_timer_id(SBC_TIMER_ID_CALL_TIMERS_START),
 	logger(NULL),
     sensor(NULL),
     yeti(getExtCCInterface())
-{
-  memset(&call_start_ts, 0, sizeof(struct timeval));
-  memset(&call_connect_ts, 0, sizeof(struct timeval));
-  memset(&call_end_ts, 0, sizeof(struct timeval));
-}
+{ }
 
 void SBCCallLeg::onStart()
 {
@@ -984,18 +972,10 @@ void SBCCallLeg::onCallConnected(const AmSipReply& reply) {
 
     if (!startCallTimers())
       return;
-
-    if (call_profile.cc_interfaces.size()) {
-      gettimeofday(&call_connect_ts, NULL);
-    }
   }
 }
 
 void SBCCallLeg::onStop() {
-  if (call_profile.cc_interfaces.size()) {
-    gettimeofday(&call_end_ts, NULL);
-  }
-
   if (a_leg && m_state == BB_Connected) { // m_state might be valid for A leg only
     stopCallTimers();
   }

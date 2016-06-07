@@ -82,7 +82,6 @@ class SBCFactory: public AmSessionFactory,
 
   void getRegexMapNames(const AmArg& args, AmArg& ret);
   void setRegexMap(const AmArg& args, AmArg& ret);
-  void loadCallcontrolModules(const AmArg& args, AmArg& ret);
   void postControlCmd(const AmArg& args, AmArg& ret);
 
  public:

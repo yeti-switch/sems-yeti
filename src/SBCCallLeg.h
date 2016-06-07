@@ -32,12 +32,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   map<int, double> call_timers;
 
-  //vector<ExtendedCCInterface*> cc_ext;
   ExtendedCCInterface *yeti;
-
-  // current timer ID - cc module setting timer will use this
-  int cc_timer_id;
-  int ext_cc_timer_id; // for assigning IDs to timers through "extended CC interface"
 
   AmSipRequest aleg_modified_req;
   AmSipRequest modified_req;
@@ -72,8 +67,6 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   msg_sensor *sensor;
 
   void setLogger(msg_logger *_logger);
-
-  void fixupCCInterface(const string& val, CCInterface& cc_if);
 
   /** handler called when call is stopped (see AmSession) */
   virtual void onStop();
@@ -179,9 +172,6 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void onSipRequest(const AmSipRequest& req);
   bool isALeg() { return a_leg; }
 
-  // timers accessible from CC modules
-  int startTimer(double timeout) { setTimer(ext_cc_timer_id, timeout); return ext_cc_timer_id++; }
-
   virtual void setMediaSession(AmB2BMedia *new_session);
   virtual void computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &mask);
   virtual void processLocalReInvite(AmSipRequest &req);
@@ -192,11 +182,6 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   msg_sensor *getSensor() { return sensor; }
 
  protected:
-
-  // Call duration measurements
-  struct timeval call_start_ts;
-  struct timeval call_connect_ts;
-  struct timeval call_end_ts;
 
   void setOtherId(const AmSipReply& reply);
   void setOtherId(const string& n_other_id) { CallLeg::setOtherId(n_other_id); }
