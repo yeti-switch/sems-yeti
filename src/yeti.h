@@ -3,7 +3,6 @@
 #include "yeti_version.h"
 #include "AmApi.h"
 #include "SBCCallProfile.h"
-#include "SBCLogicInterface.h"
 #include "SBCCallLeg.h"
 #include "sip/msg_sensor.h"
 
@@ -16,7 +15,6 @@
 #include "SqlRouter.h"
 #include "hash/CdrList.h"
 #include "cdr/CdrWriter.h"
-//#include "SBC.h"
 #include "resources/ResourceControl.h"
 #include "CallCtx.h"
 #include "CodesTranslator.h"
@@ -55,7 +53,7 @@ class YetiCfgReader : public AmConfigReader, public yeti::cfg::reader {
 	}
 };
 
-class Yeti : public AmDynInvoke, public SBCLogicInterface, public ExtendedCCInterface, AmObject
+class Yeti : public AmDynInvoke, public ExtendedCCInterface, AmObject
 {
   static Yeti* _instance;
 
@@ -215,9 +213,8 @@ class Yeti : public AmDynInvoke, public SBCLogicInterface, public ExtendedCCInte
   void onRoutingReady(SBCCallLeg *call, AmSipRequest &aleg_modified_invite, AmSipRequest &modified_invite);
 
         //!SBCLogicInterface handlers
-  SBCCallLeg *getCallLeg( const AmSipRequest& req,
-                          ParamReplacerCtx& ctx,
-                          CallLegCreator *leg_creator );
+  CallCtx *getCallCtx(const AmSipRequest& req,
+                          ParamReplacerCtx& ctx);
 
         //!ExtendedCCInterface handlers
   bool init(SBCCallLeg *call, const map<string, string> &values);

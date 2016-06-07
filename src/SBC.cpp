@@ -141,12 +141,11 @@ int SBCFactory::onLoad()
     return -1;
   }
 
-  Yeti *yeti = Yeti::instance();
+  yeti = Yeti::instance();
   if(yeti->onLoad()){
-      ERROR("yeti confgiration error\n");
+      ERROR("yeti configuration error\n");
       return -1;
   }
-  logic = dynamic_cast<SBCLogicInterface *>(yeti);
   yeti_invoke = dynamic_cast<AmDynInvoke *>(yeti);
 
   registrations_enabled = cfg.getParameter("registrations_enabled","yes")=="yes";
@@ -209,10 +208,13 @@ AmSession* SBCFactory::onInvite(const AmSipRequest& req, const string& app_name,
   ParamReplacerCtx ctx;
   ctx.app_param = getHeader(req.hdrs, PARAM_HDR, true);
 
-  SBCCallLeg* b2b_dlg = logic->getCallLeg(req,ctx,callLegCreator.get());
+  CallCtx *call_ctx = yeti->getCallCtx(req,ctx);
+  if(!call_ctx) return NULL;
 
-  if(!b2b_dlg)
-      return NULL;
+  SBCCallLeg* b2b_dlg = callLegCreator.get()->create(*call_ctx->getCurrentProfile());
+  if(!b2b_dlg) return NULL;
+
+  b2b_dlg->setCallCtx(call_ctx);
 
   SBCCallProfile& call_profile = b2b_dlg->getCallProfile();
 

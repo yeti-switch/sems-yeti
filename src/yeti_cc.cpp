@@ -94,9 +94,9 @@ inline void answer_100_trying(const AmSipRequest &req, CallCtx *ctx)
 	}
 }
 
-SBCCallLeg *Yeti::getCallLeg(	const AmSipRequest& req,
-								ParamReplacerCtx& ctx,
-								CallLegCreator *leg_creator )
+
+CallCtx *Yeti::getCallCtx(const AmSipRequest& req,
+						ParamReplacerCtx& ctx)
 {
 	DBG("%s()",FUNC_NAME);
 	timeval t;
@@ -135,16 +135,11 @@ SBCCallLeg *Yeti::getCallLeg(	const AmSipRequest& req,
 		return NULL;
 	}
 
-	SBCCallProfile& call_profile = *profile;
-
 	profile->cc_interfaces.push_back(self_iface);
 
-	SBCCallLeg* b2b_dlg = leg_creator->create(call_profile);
-
-	b2b_dlg->setCallCtx(call_ctx);
-
-	return b2b_dlg;
+	return call_ctx;
 }
+
 
 /****************************************
  * 			InDialog handlers			*

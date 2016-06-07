@@ -343,13 +343,7 @@ void Yeti::invoke(const string& method, const AmArg& args, AmArg& ret)
 {
 	DBG("Yeti: %s(%s)\n", method.c_str(), AmArg::print(args).c_str());
 
-	if(method == "getLogicInterfaceHandler"){
-		SBCLogicInterface *i = (SBCLogicInterface *)this;
-		ret[0] = (AmObject *)i;
-	} else if(method == "getExtendedInterfaceHandler"){
-		ExtendedCCInterface *i = (ExtendedCCInterface *)this;
-		ret[0] = (AmObject *)i;
-	} else if (method == "dropCall"){
+	if (method == "dropCall"){
 		INFO ("dropCall received via rpc2di");
 		DropCall(args,ret);
 	} else if (method == "getCall"){

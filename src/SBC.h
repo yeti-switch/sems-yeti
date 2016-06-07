@@ -35,10 +35,9 @@
 #include "RegexMapper.h"
 #include "AmEventQueueProcessor.h"
 
-#include "SBCLogicInterface.h"
-class SBCLogicInterface;
-
 #include "ExtendedCCInterface.h"
+#include "yeti.h"
+class Yeti;
 
 #include "CallLeg.h"
 class SBCCallLeg;
@@ -72,7 +71,7 @@ class SBCFactory: public AmSessionFactory,
     public AmDynInvokeFactory
 {
 
-  SBCLogicInterface *logic;
+  Yeti *yeti;
   AmDynInvoke *yeti_invoke;
   bool registrations_enabled;
 
