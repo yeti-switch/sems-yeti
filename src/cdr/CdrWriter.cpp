@@ -569,7 +569,7 @@ int CdrThread::writecdr(cdr_writer_connection* conn, Cdr& cdr){
 	DBG("%s[%p](conn = %p,cdr = %p)",FUNC_NAME,this,conn,&cdr);
 	int ret = 1;
 
-	Yeti::global_config &gc = Yeti::instance()->config;
+	Yeti::global_config &gc = Yeti::instance().config;
 	AmArg fields_values;
 
 	if(conn==NULL){
@@ -691,7 +691,7 @@ int CdrThread::writecdrtofile(Cdr* cdr){
 		return -1;
 	}
 	ofstream &s = *wfp.get();
-	Yeti::global_config &gc = Yeti::instance()->config;
+	Yeti::global_config &gc = Yeti::instance().config;
 
 	s << std::dec <<
 	quote(gc.node_id) <<

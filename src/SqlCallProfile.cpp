@@ -701,7 +701,7 @@ bool SqlCallProfile::eval_resources(){
 }
 
 bool SqlCallProfile::eval_radius(){
-	if(Yeti::instance()->config.use_radius){
+	if(Yeti::instance().config.use_radius){
 		AmDynInvoke* radius_client = NULL;
 		if(aleg_radius_acc_profile_id){
 			AmArg rules;

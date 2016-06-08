@@ -428,7 +428,7 @@ bool Yeti::check_event_id(int event_id,AmArg &ret){
 		dbc.cfg2dbcfg(cfg,prefix);
 		pqxx::connection c(dbc.conn_str());
 		c.set_variable("search_path",
-					   Yeti::instance()->config.routing_schema+", public");
+					   Yeti::instance().config.routing_schema+", public");
 #if PQXX_VERSION_MAJOR == 3 && PQXX_VERSION_MINOR == 1
 		pqxx::prepare::declaration d =
 #endif

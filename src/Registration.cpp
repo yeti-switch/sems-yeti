@@ -15,7 +15,7 @@ Registration* Registration::instance(){
 }
 
 void Registration::reg2arg(const RegInfo &reg,AmArg &arg){
-	const Yeti::global_config &gc = Yeti::instance()->config;
+	const Yeti::global_config &gc = Yeti::instance().config;
 	arg["node_id"] = gc.node_id;
 	arg["pop_id"] = gc.pop_id;
 	arg["id"] = reg.id;
@@ -60,7 +60,7 @@ int Registration::load_registrations(){
 	try {
 		pqxx::result r;
 		vector<RegInfo> new_registrations;
-		Yeti::global_config &gc = Yeti::instance()->config;
+		Yeti::global_config &gc = Yeti::instance().config;
 
 		pqxx::connection c(dbc.conn_str());
 		c.set_variable("search_path",gc.routing_schema+", public");
@@ -106,7 +106,7 @@ int Registration::load_registrations(){
 
 int Registration::configure(AmConfigReader &cfg){
 
-	db_schema = Yeti::instance()->config.routing_schema;
+	db_schema = Yeti::instance().config.routing_schema;
 	configure_db(cfg);
 
 	check_interval = cfg.getParameterInt("reg_check_interval",CHECK_INTERVAL_DEFAULT);

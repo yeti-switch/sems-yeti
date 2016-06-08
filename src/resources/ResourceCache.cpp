@@ -90,7 +90,7 @@ void ResourceCache::run(){
 
 	setThreadName("yeti-res-wr");
 
-	Yeti::global_config &gc = Yeti::instance()->config;
+	Yeti::global_config &gc = Yeti::instance().config;
 
 	read_pool.start();
 	write_pool.start();
@@ -293,7 +293,7 @@ bool ResourceCache::init_resources(bool initial){
 	redisContext *write_ctx = NULL;
 	redisReply *reply = NULL;
 	list <int> desired_response;
-	int node_id = Yeti::instance()->config.node_id;
+	int node_id = Yeti::instance().config.node_id;
 
 	try {
 		write_ctx = write_pool.getConnection();

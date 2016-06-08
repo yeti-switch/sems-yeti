@@ -32,7 +32,8 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   map<int, double> call_timers;
 
-  ExtendedCCInterface *yeti;
+  ExtendedCCInterface &yeti;
+  SqlRouter &router;
 
   AmSipRequest aleg_modified_req;
   AmSipRequest modified_req;
@@ -97,11 +98,15 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
  public:
 
-  SBCCallLeg(const SBCCallProfile& call_profile, AmSipDialog* dlg=NULL,
-	     AmSipSubscription* p_subs=NULL);
-  SBCCallLeg(SBCCallLeg* caller, AmSipDialog* dlg=NULL,
-	     AmSipSubscription* p_subs=NULL);
-  SBCCallLeg(AmSipDialog* dlg=NULL,AmSipSubscription* p_subs=NULL);
+  SBCCallLeg(const SBCCallProfile& call_profile,
+        SqlRouter &router,
+        AmSipDialog* dlg=NULL,
+        AmSipSubscription* p_subs=NULL);
+  SBCCallLeg(SBCCallLeg* caller,
+        SqlRouter &router,
+        AmSipDialog* dlg=NULL,
+        AmSipSubscription* p_subs=NULL);
+  SBCCallLeg(SqlRouter &router, AmSipDialog* dlg=NULL, AmSipSubscription* p_subs=NULL);
   ~SBCCallLeg();
 
   void process(AmEvent* ev);

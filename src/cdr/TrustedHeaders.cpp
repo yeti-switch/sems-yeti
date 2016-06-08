@@ -28,7 +28,7 @@ int _TrustedHeaders::load_config(){
 			pqxx::prepare::invocation invoc = t.prepared("load_trusted_headers");
 
 			//invoc("Call-ID");
-			invoc(Yeti::instance()->config.node_id);
+			invoc(Yeti::instance().config.node_id);
 
 			r = invoc.exec();
 			for(pqxx::result::size_type i = 0; i < r.size();++i){
@@ -54,7 +54,7 @@ int _TrustedHeaders::count(){
 }
 
 int _TrustedHeaders::configure(AmConfigReader &cfg){
-	db_schema = Yeti::instance()->config.routing_schema;
+	db_schema = Yeti::instance().config.routing_schema;
 	configure_db(cfg);
 	if(load_config()){
 		ERROR("can't load trusted headers config");

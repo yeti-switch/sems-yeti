@@ -29,15 +29,20 @@ struct CallLegCreator;
 
 Yeti* Yeti::_instance=0;
 
-Yeti* Yeti::instance() {
+Yeti *Yeti::create_instance(SqlRouter &router)
+{
 	if(!_instance)
-		_instance = new Yeti();
+		_instance = new Yeti(router);
 	return _instance;
 }
 
-Yeti::Yeti() {
-	//DBG("Yeti()");
+Yeti& Yeti::instance() {
+	return *_instance;
 }
+
+Yeti::Yeti(SqlRouter &router)
+  : router(router)
+{}
 
 
 Yeti::~Yeti() {

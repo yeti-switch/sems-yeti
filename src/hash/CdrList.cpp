@@ -85,7 +85,7 @@ int CdrList::getCall(const string &local_tag,AmArg &call,const SqlRouter *router
 	int ret = 0;
 	lock();
 	if((cdr = get_by_local_tag(local_tag))){
-		Yeti::global_config &gc = Yeti::instance()->config;
+		Yeti::global_config &gc = Yeti::instance().config;
 		const get_calls_ctx ctx(gc.node_id,gc.pop_id,router);
 		cdr2arg<Unfiltered>(call,cdr,ctx);
 		ret = 1;
@@ -97,7 +97,7 @@ int CdrList::getCall(const string &local_tag,AmArg &call,const SqlRouter *router
 void CdrList::getCalls(AmArg &calls,int limit,const SqlRouter *router){
 	entry *e;
 	int i = limit;
-	Yeti::global_config &gc = Yeti::instance()->config;
+	Yeti::global_config &gc = Yeti::instance().config;
 
 	const get_calls_ctx ctx(gc.node_id,gc.pop_id,router);
 
@@ -121,7 +121,7 @@ void CdrList::getCallsFields(AmArg &calls,int limit,const SqlRouter *router, con
 
 	calls.assertArray();
 	int i = limit;
-	Yeti::global_config &gc = Yeti::instance()->config;
+	Yeti::global_config &gc = Yeti::instance().config;
 
 	cmp_rules filter_rules;
 	vector<string> fields;

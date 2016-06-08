@@ -34,7 +34,7 @@ _Sensors::~_Sensors(){
 }
 
 int _Sensors::configure(AmConfigReader &cfg){
-	db_schema = Yeti::instance()->config.routing_schema;
+	db_schema = Yeti::instance().config.routing_schema;
 	configure_db(cfg);
 	if(load_sensors_config()){
 		ERROR("can't load sensors config");

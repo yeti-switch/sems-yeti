@@ -39,6 +39,8 @@
 #include "yeti.h"
 class Yeti;
 
+#include "SqlRouter.h"
+
 #include "CallLeg.h"
 class SBCCallLeg;
 
@@ -50,8 +52,8 @@ using std::string;
 #define SBC_TIMER_ID_CALL_TIMERS_END     99
 
 struct CallLegCreator {
-  virtual SBCCallLeg* create(const SBCCallProfile& call_profile);
-  virtual SBCCallLeg* create(SBCCallLeg* caller);
+  virtual SBCCallLeg* create(const SBCCallProfile& call_profile, SqlRouter &router);
+  virtual SBCCallLeg* create(SBCCallLeg* caller, SqlRouter &router);
 };
 
 class SimpleRelayDialog;
@@ -71,7 +73,9 @@ class SBCFactory: public AmSessionFactory,
     public AmDynInvokeFactory
 {
 
-  Yeti *yeti;
+  //Yeti *yeti;
+  auto_ptr<Yeti> yeti;
+  SqlRouter router;
   AmDynInvoke *yeti_invoke;
   bool registrations_enabled;
 
@@ -126,6 +130,6 @@ class SBCFactory: public AmSessionFactory,
 
 extern void assertEndCRLF(string& s);
 
-ExtendedCCInterface *getExtCCInterface();
+ExtendedCCInterface &getExtCCInterface();
 
 #endif

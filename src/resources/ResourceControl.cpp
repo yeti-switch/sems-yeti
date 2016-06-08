@@ -67,7 +67,7 @@ ResourceControl::ResourceControl():
 }
 
 int ResourceControl::configure(AmConfigReader &cfg){
-	db_schema = Yeti::instance()->config.routing_schema;
+	db_schema = Yeti::instance().config.routing_schema;
 	reject_on_error = cfg.getParameterInt("reject_on_cache_error",-1);
 	if(reject_on_error == -1){
 		ERROR("missed 'reject_on_error' parameter");

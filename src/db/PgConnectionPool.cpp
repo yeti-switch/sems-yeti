@@ -435,7 +435,7 @@ void PgConnectionPool::getConfig(AmArg &arg){
 }
 
 void PgConnectionPool::connection_init(PgConnection *c){
-	const Yeti::global_config &gc = Yeti::instance()->config;
+	const Yeti::global_config &gc = Yeti::instance().config;
 	const string &routing_schema = gc.routing_schema;
 	if(!routing_schema.empty()){
 		c->set_variable("search_path",routing_schema+", public");

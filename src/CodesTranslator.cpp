@@ -31,7 +31,7 @@ CodesTranslator* CodesTranslator::instance()
 }
 
 int CodesTranslator::configure(AmConfigReader &cfg){
-	db_schema = Yeti::instance()->config.routing_schema;
+	db_schema = Yeti::instance().config.routing_schema;
 	configure_db(cfg);
 	if(load_translations_config()){
 		ERROR("can't load resources config");
@@ -299,7 +299,7 @@ bool CodesTranslator::translate_db_code(unsigned int code,
 		internal_code = c.internal_code;
 		internal_reason = c.internal_reason;
 		if(c.silently_drop
-			&& !Yeti::instance()->config.early_100_trying)
+			&& !Yeti::instance().config.early_100_trying)
 		{
 			response_code = NO_REPLY_DISCONNECT_CODE;
 			response_reason = "";

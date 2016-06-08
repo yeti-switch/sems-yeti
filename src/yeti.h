@@ -67,7 +67,7 @@ class Yeti : public AmDynInvoke, public ExtendedCCInterface, AmObject
 
   CdrList cdr_list;
   ResourceControl rctl;
-  SqlRouter router;
+  SqlRouter &router;
   AmArg rpc_cmds;
   YetiCfgReader cfg;
   //config values
@@ -99,9 +99,10 @@ class Yeti : public AmDynInvoke, public ExtendedCCInterface, AmObject
   void setSystemDumpLevel(int dump_level);
 
  public:
-  Yeti();
+  Yeti(SqlRouter &router);
   ~Yeti();
-  static Yeti* instance();
+  static Yeti* create_instance(SqlRouter &router);
+  static Yeti& instance();
   void invoke(const string& method, const AmArg& args, AmArg& ret);
   int onLoad();
   void init_rpc_cmds();

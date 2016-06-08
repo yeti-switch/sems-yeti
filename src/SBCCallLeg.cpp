@@ -88,8 +88,10 @@ void PayloadIdMapping::reset()
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 // A leg constructor (from SBCDialog)
-SBCCallLeg::SBCCallLeg(const SBCCallProfile& call_profile, AmSipDialog* p_dlg,
-		       AmSipSubscription* p_subs)
+SBCCallLeg::SBCCallLeg(const SBCCallProfile& call_profile,
+	SqlRouter &router,
+	AmSipDialog* p_dlg,
+	AmSipSubscription* p_subs)
   : CallLeg(p_dlg,p_subs),
     m_state(BB_Init),
     auth(NULL),
@@ -98,7 +100,8 @@ SBCCallLeg::SBCCallLeg(const SBCCallProfile& call_profile, AmSipDialog* p_dlg,
     logger(NULL),
 	sensor(NULL),
 	call_ctx(NULL),
-    yeti(getExtCCInterface())
+	yeti(getExtCCInterface()),
+	router(router)
 {
   set_sip_relay_only(false);
   dlg->setRel100State(Am100rel::REL100_IGNORED);
@@ -121,8 +124,11 @@ SBCCallLeg::SBCCallLeg(const SBCCallProfile& call_profile, AmSipDialog* p_dlg,
 }
 
 // B leg constructor (from SBCCalleeSession)
-SBCCallLeg::SBCCallLeg(SBCCallLeg* caller, AmSipDialog* p_dlg,
-		       AmSipSubscription* p_subs)
+SBCCallLeg::SBCCallLeg(
+	SBCCallLeg* caller,
+	SqlRouter &router,
+	AmSipDialog* p_dlg,
+	AmSipSubscription* p_subs)
   : auth(NULL),
     call_profile(caller->getCallProfile()),
     placeholders_hash(caller->getPlaceholders()),
@@ -131,7 +137,8 @@ SBCCallLeg::SBCCallLeg(SBCCallLeg* caller, AmSipDialog* p_dlg,
     logger(NULL),
 	sensor(NULL),
 	call_ctx(caller->getCallCtx()),
-    yeti(getExtCCInterface())
+	yeti(getExtCCInterface()),
+	router(router)
 {
   // FIXME: do we want to inherit cc_vars from caller?
   // Can be pretty dangerous when caller stored pointer to object - we should
@@ -155,7 +162,7 @@ SBCCallLeg::SBCCallLeg(SBCCallLeg* caller, AmSipDialog* p_dlg,
     rtp_relay_rate_limit.reset(new RateLimit(*caller->rtp_relay_rate_limit.get()));
   }
 
-  if(!yeti->init(this,map<string, string>())){
+  if(!yeti.init(this,map<string, string>())){
     ERROR("init leg");
     throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
   }
@@ -164,13 +171,14 @@ SBCCallLeg::SBCCallLeg(SBCCallLeg* caller, AmSipDialog* p_dlg,
   //setSensor(caller->getSensor());
 }
 
-SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
+SBCCallLeg::SBCCallLeg(SqlRouter &router, AmSipDialog* p_dlg, AmSipSubscription* p_subs)
   : CallLeg(p_dlg,p_subs),
     m_state(BB_Init),
     auth(NULL),
 	logger(NULL),
     sensor(NULL),
-    yeti(getExtCCInterface())
+    yeti(getExtCCInterface()),
+    router(router)
 { }
 
 void SBCCallLeg::onStart()
@@ -383,7 +391,7 @@ void SBCCallLeg::applyBProfile()
 
 int SBCCallLeg::relayEvent(AmEvent* ev)
 {
-  int res = yeti->relayEvent(this, ev);
+  int res = yeti.relayEvent(this, ev);
   if (res > 0) return 0;
   if (res < 0) return res;
 
@@ -453,7 +461,7 @@ SBCCallLeg::~SBCCallLeg()
 
 void SBCCallLeg::onBeforeDestroy()
 {
-  yeti->onDestroyLeg(this);
+  yeti.onDestroyLeg(this);
 }
 
 UACAuthCred* SBCCallLeg::getCredentials() {
@@ -492,7 +500,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req) {
        && getCallStatus() != Disconnecting
        && !getOtherId().empty())
   {
-    if(yeti->onInDialogRequest(this, req) == StopProcessing) return;
+    if(yeti.onInDialogRequest(this, req) == StopProcessing) return;
   }
 
   if (fwd && req.method == SIP_METH_INVITE) {
@@ -550,13 +558,13 @@ void SBCCallLeg::onSipReply(const AmSipRequest& req, const AmSipReply& reply,
     }
   }
 
-  if(yeti->onInDialogReply(this, reply) == StopProcessing) return;
+  if(yeti.onInDialogReply(this, reply) == StopProcessing) return;
 
   CallLeg::onSipReply(req, reply, old_dlg_status);
 }
 
 void SBCCallLeg::onSendRequest(AmSipRequest& req, int &flags) {
-  yeti->onSendRequest(this, req, flags);
+  yeti.onSendRequest(this, req, flags);
   if(a_leg) {
     if (!call_profile.aleg_append_headers_req.empty()) {
 
@@ -618,19 +626,19 @@ void SBCCallLeg::onSendRequest(AmSipRequest& req, int &flags) {
 
 void SBCCallLeg::onRemoteDisappeared(const AmSipReply& reply)
 {
-  if (yeti->onRemoteDisappeared(this, reply) == StopProcessing) return;
+  if (yeti.onRemoteDisappeared(this, reply) == StopProcessing) return;
   CallLeg::onRemoteDisappeared(reply);
 }
 
 void SBCCallLeg::onBye(const AmSipRequest& req)
 {
-  if (yeti->onBye(this, req) == StopProcessing) return;
+  if (yeti.onBye(this, req) == StopProcessing) return;
   CallLeg::onBye(req);
 }
 
 void SBCCallLeg::onOtherBye(const AmSipRequest& req)
 {
-  if (yeti->onOtherBye(this, req) == StopProcessing) return;
+  if (yeti.onOtherBye(this, req) == StopProcessing) return;
   CallLeg::onOtherBye(req);
 }
 
@@ -638,7 +646,7 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
 {
   DBG("received DTMF on %c-leg (%i;%i)\n", a_leg ? 'A': 'B', e->event(), e->duration());
 
-  if (yeti->onDtmf(this, e)  == StopProcessing) return;
+  if (yeti.onDtmf(this, e)  == StopProcessing) return;
 
   AmB2BMedia *ms = getMediaSession();
   if(ms) {
@@ -679,7 +687,7 @@ void SBCCallLeg::onControlCmd(string& cmd, AmArg& params) {
 
 
 void SBCCallLeg::process(AmEvent* ev) {
-  if (yeti->onEvent(this, ev) == StopProcessing) return;
+  if (yeti.onEvent(this, ev) == StopProcessing) return;
 
   if (a_leg) {
     // was for caller (SBCDialog):
@@ -762,7 +770,7 @@ void SBCCallLeg::onInvite(const AmSipRequest& req){
 	ctx.call_profile = &call_profile;
 	ctx.app_param = getHeader(req.hdrs, PARAM_HDR, true);
 
-    yeti->init(this,map<string, string>());
+	yeti.init(this,map<string, string>());
 
 	modified_req = req;
 	aleg_modified_req = req;
@@ -797,7 +805,7 @@ void SBCCallLeg::onInvite(const AmSipRequest& req){
 
 	// call extend call controls
 	InitialInviteHandlerParams params(to, ruri, from, &req, &aleg_modified_req, &modified_req);
-    if(yeti->onInitialInvite(this, params) == StopProcessing) return;
+	if(yeti.onInitialInvite(this, params) == StopProcessing) return;
 }
 
 void SBCCallLeg::onRoutingReady()
@@ -925,7 +933,7 @@ void SBCCallLeg::onRoutingReady()
 }
 
 void SBCCallLeg::onInviteException(int code,string reason,bool no_reply){
-    yeti->onInviteException(this,code,reason,no_reply);
+    yeti.onInviteException(this,code,reason,no_reply);
 }
 
 void SBCCallLeg::onEarlyEventException(unsigned int code,const string &reason)
@@ -948,7 +956,7 @@ void SBCCallLeg::connectCallee(const string& remote_party,
   // FIXME: no fork for now
 
   SBCCallLeg* callee_session = SBCFactory::instance()->
-    getCallLegCreator()->create(this);
+    getCallLegCreator()->create(this,router);
 
   callee_session->setLocalParty(from, from);
   callee_session->setRemoteParty(remote_party, remote_uri);
@@ -966,7 +974,7 @@ void SBCCallLeg::connectCallee(const string& remote_party,
 }
 
 void SBCCallLeg::onCallConnected(const AmSipReply& reply) {
-  yeti->onCallConnected(this, reply);
+  yeti.onCallConnected(this, reply);
   if (a_leg) { // FIXME: really?
     m_state = BB_Connected;
 
@@ -982,7 +990,7 @@ void SBCCallLeg::onStop() {
 
   m_state = BB_Teardown;
 
-  yeti->onCallEnded(this);
+  yeti.onCallEnded(this);
 }
 
 void SBCCallLeg::saveCallTimer(int timer, double timeout) {
@@ -1018,12 +1026,12 @@ void SBCCallLeg::stopCallTimers() {
 
 void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
 {
-  yeti->onStateChange(this, cause);
+  yeti.onStateChange(this, cause);
 }
 
 void SBCCallLeg::onBLegRefused(AmSipReply& reply)
 {
-  if (yeti->onBLegRefused(this, reply) == StopProcessing) return;
+  if (yeti.onBLegRefused(this, reply) == StopProcessing) return;
 }
 
 void SBCCallLeg::onCallFailed(CallFailureReason reason, const AmSipReply *reply)
@@ -1057,7 +1065,7 @@ void SBCCallLeg::onAfterRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr)
 }
 
 void SBCCallLeg::onRTPStreamDestroy(AmRtpStream *stream){
-    yeti->onRTPStreamDestroy(this, stream);
+    yeti.onRTPStreamDestroy(this, stream);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -1279,7 +1287,7 @@ bool SBCCallLeg::reinvite(const AmSdp &sdp, unsigned &request_cseq)
 }
 
 #define CALL_EXT_CC_MODULES(method) \
-    yeti->method(this);
+    yeti.method(this);
 
 void SBCCallLeg::holdRequested()
 {
@@ -1558,11 +1566,11 @@ void SBCCallLeg::computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &
 int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote){
     AmSdp offer(local),answer(remote);
     //give extended interfaces chance to transform sdp before relay mask will be computed
-    yeti->onSdpCompleted(this, offer, answer);
+    yeti.onSdpCompleted(this, offer, answer);
     return CallLeg::onSdpCompleted(offer, answer);
 }
 
 bool SBCCallLeg::getSdpOffer(AmSdp& offer){
-    if(yeti->getSdpOffer(this,offer)) return true;
+	if(yeti.getSdpOffer(this,offer)) return true;
 	return CallLeg::getSdpOffer(offer);
 }

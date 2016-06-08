@@ -193,7 +193,7 @@ int SqlRouter::configure(AmConfigReader &cfg){
 	}\
 	var = cfg.getParameter(#var);
 
-	routing_schema = Yeti::instance()->config.routing_schema;
+	routing_schema = Yeti::instance().config.routing_schema;
 	GET_VARIABLE(routing_function);
 
 	GET_VARIABLE(writecdr_schema);
@@ -378,7 +378,7 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(const AmSipRequest &req, pqxx::conne
 	pqxx::result r;
 	pqxx::nontransaction tnx(*conn);
 	ProfilesCacheEntry *entry = NULL;
-	Yeti::global_config &gc = Yeti::instance()->config;
+	Yeti::global_config &gc = Yeti::instance().config;
 	AmArg fields_values;
 
 	const char *sptr;
