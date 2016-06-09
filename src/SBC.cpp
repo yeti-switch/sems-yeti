@@ -64,6 +64,7 @@ SBC - feature-wishlist
 #include <algorithm>
 
 #include "yeti.h"
+#include "SipCtrlInterface.h"
 
 using std::map;
 
@@ -84,9 +85,9 @@ void assertEndCRLF(string& s) {
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-SBCCallLeg* CallLegCreator::create(const SBCCallProfile& call_profile)
+SBCCallLeg* CallLegCreator::create(CallCtx *call_ctx)
 {
-  return new SBCCallLeg(call_profile, new AmSipDialog());
+  return new SBCCallLeg(call_ctx, new AmSipDialog());
 }
 
 SBCCallLeg* CallLegCreator::create(SBCCallLeg* caller)
@@ -191,42 +192,80 @@ int SBCFactory::onLoad()
   return 0;
 }
 
+inline void answer_100_trying(const AmSipRequest &req, CallCtx *ctx)
+{
+	AmSipReply reply;
+	reply.code = 100;
+	reply.reason = "Connecting";
+	reply.tt = req.tt;
+
+	if (AmConfig::Signature.length())
+		reply.hdrs += SIP_HDR_COLSP(SIP_HDR_SERVER) + AmConfig::Signature + CRLF;
+
+	if(SipCtrlInterface::send(reply,string(""),ctx->early_trying_logger,NULL)){
+		ERROR("Could not send early 100 Trying. call-id=%s, cseq = %i\n",
+			  req.callid.c_str(),req.cseq);
+	}
+}
+
 AmSession* SBCFactory::onInvite(const AmSipRequest& req, const string& app_name,
 				const map<string,string>& app_params)
 {
-  ParamReplacerCtx ctx;
-  ctx.app_param = getHeader(req.hdrs, PARAM_HDR, true);
+    ParamReplacerCtx ctx;
+    CallCtx *call_ctx;
+    timeval t;
 
-  CallCtx *call_ctx = yeti->getCallCtx(req,ctx);
-  if(!call_ctx) return NULL;
+    gettimeofday(&t,NULL);
 
-  SBCCallLeg* b2b_dlg = callLegCreator.get()->create(*call_ctx->getCurrentProfile());
-  if(!b2b_dlg) return NULL;
+    call_ctx = new CallCtx();
+    if(yeti->config.early_100_trying)
+        answer_100_trying(req,call_ctx);
 
-  b2b_dlg->setCallCtx(call_ctx);
-
-  SBCCallProfile& call_profile = b2b_dlg->getCallProfile();
-
-  //msg_logger* logger = b2b_dlg->getCallProfile().get_logger(req);
-  //if (logger && call_profile.log_sip) req.log(logger);
-
-  if (call_profile.auth_aleg_enabled) {
-    // adding auth handler
-    AmSessionEventHandlerFactory* uac_auth_f =
-      AmPlugIn::instance()->getFactory4Seh("uac_auth");
-    if (NULL == uac_auth_f)  {
-      INFO("uac_auth module not loaded. uac auth for caller session NOT enabled.\n");
-    } else {
-      AmSessionEventHandler* h = uac_auth_f->getHandler(b2b_dlg);
-
-      // we cannot use the generic AmSessionEventHandler hooks,
-      // because the hooks don't work in AmB2BSession
-      b2b_dlg->setAuthHandler(h);
-      DBG("uac auth enabled for caller session.\n");
+    PROF_START(gprof);
+    router.getprofiles(req,*call_ctx);
+    SqlCallProfile *profile = call_ctx->getFirstProfile();
+    if(NULL == profile){
+        delete call_ctx;
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
-  }
+    PROF_END(gprof);
+    PROF_PRINT("get profiles",gprof);
 
-  return b2b_dlg;
+    Cdr *cdr = call_ctx->cdr;
+    cdr->set_start_time(t);
+
+    ctx.call_profile = profile;
+    if(yeti->check_and_refuse(profile,cdr,req,ctx,true)) {
+        if(!call_ctx->SQLexception) { //avoid to write cdr on failed getprofile()
+            router.write_cdr(cdr,true);
+        } else {
+            delete cdr;
+        }
+        delete call_ctx;
+        return NULL;
+    }
+
+    SBCCallLeg* leg = callLegCreator->create(call_ctx);
+    if(!leg) return NULL;
+
+    SBCCallProfile& call_profile = leg->getCallProfile();
+
+    if (call_profile.auth_aleg_enabled) {
+        // adding auth handler
+        AmSessionEventHandlerFactory* uac_auth_f =
+            AmPlugIn::instance()->getFactory4Seh("uac_auth");
+        if (NULL == uac_auth_f)  {
+            INFO("uac_auth module not loaded. uac auth for caller session NOT enabled.\n");
+        } else {
+            AmSessionEventHandler* h = uac_auth_f->getHandler(leg);
+            // we cannot use the generic AmSessionEventHandler hooks,
+            // because the hooks don't work in AmB2BSession
+            leg->setAuthHandler(h);
+            DBG("uac auth enabled for caller session.\n");
+        }
+    }
+
+    return leg;
 }
 
 void SBCFactory::onOoDRequest(const AmSipRequest& req)

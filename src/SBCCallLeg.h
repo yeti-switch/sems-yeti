@@ -98,7 +98,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
  public:
 
-  SBCCallLeg(const SBCCallProfile& call_profile,
+  SBCCallLeg(CallCtx *call_ctx,
         AmSipDialog* dlg=NULL,
         AmSipSubscription* p_subs=NULL);
   SBCCallLeg(SBCCallLeg* caller,
@@ -157,6 +157,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   PayloadIdMapping &getTranscoderMapping() { return  transcoder_payload_mapping; }
 
   const string &getGlobalTag() const { return global_tag; }
+
   CallCtx *getCallCtx() { return call_ctx; }
   void setCallCtx(CallCtx *p) { call_ctx = p; }
 

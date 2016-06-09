@@ -51,10 +51,6 @@ class YetiCC
     /*! choose next profile, create cdr and check resources */
     bool connectCallee(CallCtx *call_ctx,SBCCallLeg *call,const AmSipRequest &orig_req);
     bool chooseNextProfile(SBCCallLeg *call);
-    /*! return true if call refused */
-    bool check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
-                          const AmSipRequest& req,ParamReplacerCtx& ctx,
-                          bool send_reply = false);
     void onRadiusReply(SBCCallLeg *call, const RadiusReplyEvent &ev);
     void onInterimRadiusTimer(SBCCallLeg *call);
 
@@ -75,8 +71,10 @@ class YetiCC
 
     void onRoutingReady(SBCCallLeg *call, AmSipRequest &aleg_modified_invite, AmSipRequest &modified_invite);
 
-    CallCtx *getCallCtx(const AmSipRequest& req,
-                            ParamReplacerCtx& ctx);
+    /*! return true if call refused */
+    bool check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
+                          const AmSipRequest& req,ParamReplacerCtx& ctx,
+                          bool send_reply = false);
 
     bool init(SBCCallLeg *call, const map<string, string> &values);
 

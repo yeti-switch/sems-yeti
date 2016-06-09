@@ -88,18 +88,19 @@ void PayloadIdMapping::reset()
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 // A leg constructor (from SBCDialog)
-SBCCallLeg::SBCCallLeg(const SBCCallProfile& call_profile,
+SBCCallLeg::SBCCallLeg(
+	CallCtx *call_ctx,
 	AmSipDialog* p_dlg,
 	AmSipSubscription* p_subs)
   : CallLeg(p_dlg,p_subs),
     m_state(BB_Init),
     auth(NULL),
-    call_profile(call_profile),
-    placeholders_hash(call_profile.placeholders_hash),
     logger(NULL),
 	sensor(NULL),
-	call_ctx(NULL),
-	yeti(Yeti::instance())
+	yeti(Yeti::instance()),
+	call_ctx(call_ctx),
+	call_profile(*call_ctx->getCurrentProfile()),
+	placeholders_hash(call_profile.placeholders_hash)
 {
   set_sip_relay_only(false);
   dlg->setRel100State(Am100rel::REL100_IGNORED);
