@@ -10,6 +10,7 @@
 #include "AmSipMsg.h"
 
 #include "radius_hooks.h"
+#include "Sensors.h"
 
 #define FILE_RECORDER_COMPRESSED_EXT ".mp3"
 #define FILE_RECORDER_RAW_EXT        ".wav"

@@ -89,7 +89,6 @@ void PayloadIdMapping::reset()
 
 // A leg constructor (from SBCDialog)
 SBCCallLeg::SBCCallLeg(const SBCCallProfile& call_profile,
-	SqlRouter &router,
 	AmSipDialog* p_dlg,
 	AmSipSubscription* p_subs)
   : CallLeg(p_dlg,p_subs),
@@ -100,8 +99,7 @@ SBCCallLeg::SBCCallLeg(const SBCCallProfile& call_profile,
     logger(NULL),
 	sensor(NULL),
 	call_ctx(NULL),
-	yeti(getExtCCInterface()),
-	router(router)
+	yeti(Yeti::instance())
 {
   set_sip_relay_only(false);
   dlg->setRel100State(Am100rel::REL100_IGNORED);
@@ -126,7 +124,6 @@ SBCCallLeg::SBCCallLeg(const SBCCallProfile& call_profile,
 // B leg constructor (from SBCCalleeSession)
 SBCCallLeg::SBCCallLeg(
 	SBCCallLeg* caller,
-	SqlRouter &router,
 	AmSipDialog* p_dlg,
 	AmSipSubscription* p_subs)
   : auth(NULL),
@@ -137,8 +134,7 @@ SBCCallLeg::SBCCallLeg(
     logger(NULL),
 	sensor(NULL),
 	call_ctx(caller->getCallCtx()),
-	yeti(getExtCCInterface()),
-	router(router)
+	yeti(Yeti::instance())
 {
   // FIXME: do we want to inherit cc_vars from caller?
   // Can be pretty dangerous when caller stored pointer to object - we should
@@ -171,14 +167,13 @@ SBCCallLeg::SBCCallLeg(
   //setSensor(caller->getSensor());
 }
 
-SBCCallLeg::SBCCallLeg(SqlRouter &router, AmSipDialog* p_dlg, AmSipSubscription* p_subs)
+SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
   : CallLeg(p_dlg,p_subs),
     m_state(BB_Init),
     auth(NULL),
 	logger(NULL),
     sensor(NULL),
-    yeti(getExtCCInterface()),
-    router(router)
+    yeti(Yeti::instance())
 { }
 
 void SBCCallLeg::onStart()
@@ -956,7 +951,7 @@ void SBCCallLeg::connectCallee(const string& remote_party,
   // FIXME: no fork for now
 
   SBCCallLeg* callee_session = SBCFactory::instance()->
-    getCallLegCreator()->create(this,router);
+    getCallLegCreator()->create(this);
 
   callee_session->setLocalParty(from, from);
   callee_session->setRemoteParty(remote_party, remote_uri);

@@ -3,10 +3,11 @@
 
 #include "SBC.h"
 #include "CallCtx.h"
-#include "ExtendedCCInterface.h"
 #include "sbc_events.h"
 #include "RateLimit.h"
 #include "ampi/RadiusClientAPI.h"
+
+#include "yeti.h"
 
 class PayloadIdMapping
 {
@@ -32,8 +33,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   map<int, double> call_timers;
 
-  ExtendedCCInterface &yeti;
-  SqlRouter &router;
+  Yeti &yeti;
 
   AmSipRequest aleg_modified_req;
   AmSipRequest modified_req;
@@ -99,14 +99,12 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
  public:
 
   SBCCallLeg(const SBCCallProfile& call_profile,
-        SqlRouter &router,
         AmSipDialog* dlg=NULL,
         AmSipSubscription* p_subs=NULL);
   SBCCallLeg(SBCCallLeg* caller,
-        SqlRouter &router,
         AmSipDialog* dlg=NULL,
         AmSipSubscription* p_subs=NULL);
-  SBCCallLeg(SqlRouter &router, AmSipDialog* dlg=NULL, AmSipSubscription* p_subs=NULL);
+  SBCCallLeg(AmSipDialog* dlg=NULL, AmSipSubscription* p_subs=NULL);
   ~SBCCallLeg();
 
   void process(AmEvent* ev);

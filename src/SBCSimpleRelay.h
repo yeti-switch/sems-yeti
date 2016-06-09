@@ -33,7 +33,6 @@
 #include "AmEventQueue.h"
 
 #include "SBC.h"
-#include "ExtendedCCInterface.h"
 
 #include <map>
 #include <list>

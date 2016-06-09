@@ -6,6 +6,7 @@
 #include "../yeti.h"
 #include "../alarms.h"
 #include "../cdr/TrustedHeaders.h"
+#include "../yeti_version.h"
 
 const static_field cdr_static_fields[] = {
 	{ "is_master", "boolean" },

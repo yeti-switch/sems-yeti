@@ -84,14 +84,14 @@ void assertEndCRLF(string& s) {
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-SBCCallLeg* CallLegCreator::create(const SBCCallProfile& call_profile, SqlRouter &router)
+SBCCallLeg* CallLegCreator::create(const SBCCallProfile& call_profile)
 {
-  return new SBCCallLeg(call_profile, router, new AmSipDialog());
+  return new SBCCallLeg(call_profile, new AmSipDialog());
 }
 
-SBCCallLeg* CallLegCreator::create(SBCCallLeg* caller, SqlRouter &router)
+SBCCallLeg* CallLegCreator::create(SBCCallLeg* caller)
 {
-  return new SBCCallLeg(caller, router);
+  return new SBCCallLeg(caller);
 }
 
 SimpleRelayCreator::Relay 
@@ -141,7 +141,7 @@ int SBCFactory::onLoad()
     return -1;
   }
 
-  yeti.reset(Yeti::create_instance(router,cdr_list,rctl));
+  yeti.reset(Yeti::create_instance(YetiBaseParams(router,cdr_list,rctl)));
   if(yeti->onLoad()){
       ERROR("yeti configuration error\n");
       return -1;
@@ -200,8 +200,7 @@ AmSession* SBCFactory::onInvite(const AmSipRequest& req, const string& app_name,
   CallCtx *call_ctx = yeti->getCallCtx(req,ctx);
   if(!call_ctx) return NULL;
 
-  SBCCallLeg* b2b_dlg = callLegCreator.get()->create(
-    *call_ctx->getCurrentProfile(),router);
+  SBCCallLeg* b2b_dlg = callLegCreator.get()->create(*call_ctx->getCurrentProfile());
   if(!b2b_dlg) return NULL;
 
   b2b_dlg->setCallCtx(call_ctx);
@@ -348,10 +347,5 @@ void SBCFactory::postControlCmd(const AmArg& args, AmArg& ret) {
     ret.push(202);
     ret.push("Accepted");
   }
-}
-
-ExtendedCCInterface &getExtCCInterface()
-{
-    return dynamic_cast<ExtendedCCInterface &>(Yeti::instance());
 }
 

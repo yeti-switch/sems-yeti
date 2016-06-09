@@ -35,14 +35,12 @@
 #include "RegexMapper.h"
 #include "AmEventQueueProcessor.h"
 
-#include "ExtendedCCInterface.h"
 #include "yeti.h"
 class Yeti;
 
 #include "SqlRouter.h"
 #include "hash/CdrList.h"
 #include "resources/ResourceControl.h"
-
 
 #include "CallLeg.h"
 class SBCCallLeg;
@@ -55,8 +53,8 @@ using std::string;
 #define SBC_TIMER_ID_CALL_TIMERS_END     99
 
 struct CallLegCreator {
-  virtual SBCCallLeg* create(const SBCCallProfile& call_profile, SqlRouter &router);
-  virtual SBCCallLeg* create(SBCCallLeg* caller, SqlRouter &router);
+  virtual SBCCallLeg* create(const SBCCallProfile& call_profile);
+  virtual SBCCallLeg* create(SBCCallLeg* caller);
 };
 
 class SimpleRelayDialog;
@@ -134,7 +132,5 @@ class SBCFactory: public AmSessionFactory,
 };
 
 extern void assertEndCRLF(string& s);
-
-ExtendedCCInterface &getExtCCInterface();
 
 #endif

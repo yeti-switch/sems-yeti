@@ -7,6 +7,8 @@
 #include <yeti/yeticc.h>
 #include "AmConfigReader.h"
 
+#include <ctime>
+
 #include "log.h"
 
 #define YETI_ENABLE_PROFILING 1
@@ -38,19 +40,31 @@ class YetiCfgReader : public AmConfigReader, public yeti::cfg::reader {
     }
 };
 
-class YetiBase {
-  protected:
+struct YetiBaseParams {
     SqlRouter &router;
     CdrList &cdr_list;
     ResourceControl &rctl;
-  public:
-    YetiBase(
+
+    YetiBaseParams(
         SqlRouter &router,
         CdrList &cdr_list,
         ResourceControl &rctl)
       : router(router),
         cdr_list(cdr_list),
         rctl(rctl)
+    { }
+};
+
+class YetiBase {
+  protected:
+    SqlRouter &router;
+    CdrList &cdr_list;
+    ResourceControl &rctl;
+  public:
+    YetiBase(YetiBaseParams &params)
+      : router(params.router),
+        cdr_list(params.cdr_list),
+        rctl(params.rctl)
     { }
 
     struct global_config {
@@ -66,4 +80,5 @@ class YetiBase {
     } config;
 
     YetiCfgReader cfg;
+    time_t start_time;
 };

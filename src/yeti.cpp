@@ -18,8 +18,8 @@
 #include "RegisterDialog.h"
 #include "Registration.h"
 #include "cdr/TrustedHeaders.h"
-#include "SBC.h"
-struct CallLegCreator;
+#include "CodecsGroup.h"
+#include "Sensors.h"
 
 #define YETI_CFG_PART "signalling"
 #define YETI_CFG_DEFAULT_TIMEOUT 5000
@@ -29,13 +29,10 @@ struct CallLegCreator;
 
 Yeti* Yeti::_instance=0;
 
-Yeti *Yeti::create_instance(
-    SqlRouter &router,
-    CdrList &cdr_list,
-    ResourceControl &rctl)
+Yeti *Yeti::create_instance(YetiBaseParams params)
 {
 	if(!_instance)
-		_instance = new Yeti(router,cdr_list,rctl);
+		_instance = new Yeti(params);
 	return _instance;
 }
 
@@ -43,21 +40,17 @@ Yeti& Yeti::instance() {
 	return *_instance;
 }
 
-Yeti::Yeti(
-    SqlRouter &router,
-    CdrList &cdr_list,
-    ResourceControl &rctl)
-  : YetiBase(router,cdr_list,rctl),
-    YetiRpc(*dynamic_cast<YetiBase*>(this)),
-    YetiRadius(*dynamic_cast<YetiBase*>(this)),
-    YetiCC(*dynamic_cast<YetiBase*>(this))
+Yeti::Yeti(YetiBaseParams &params)
+  : YetiBase(params),
+    YetiRpc(*this),
+    YetiRadius(*this),
+    YetiCC(*this)
 {}
 
 
 Yeti::~Yeti() {
-    DBG("~Yeti()");
-	Registration::instance()->stop();
-	rctl.stop();
+    Registration::instance()->stop();
+    rctl.stop();
     router.stop();
 }
 

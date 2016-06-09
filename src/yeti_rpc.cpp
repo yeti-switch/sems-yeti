@@ -18,6 +18,12 @@
 
 #include "ampi/HttpClientAPI.h"
 
+#include "SBCCallLeg.h"
+
+#include "CodecsGroup.h"
+#include "Sensors.h"
+#include "yeti_version.h"
+
 static const bool RPC_CMD_SUCC = true;
 
 static timeval last_shutdown_time;
