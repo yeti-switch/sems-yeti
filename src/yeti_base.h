@@ -55,28 +55,27 @@ struct YetiBaseParams {
     { }
 };
 
-class YetiBase {
-  protected:
-    SqlRouter &router;
-    CdrList &cdr_list;
-    ResourceControl &rctl;
-  public:
+struct YetiBase {
     YetiBase(YetiBaseParams &params)
       : router(params.router),
         cdr_list(params.cdr_list),
         rctl(params.rctl)
     { }
 
+    SqlRouter &router;
+    CdrList &cdr_list;
+    ResourceControl &rctl;
+
     struct global_config {
-      int node_id;
-      int pop_id;
-      bool use_radius;
-      bool early_100_trying;
-      string routing_schema;
-      string msg_logger_dir;
-      string audio_recorder_dir;
-      bool audio_recorder_compress;
-      string log_dir;
+        int node_id;
+        int pop_id;
+        bool use_radius;
+        bool early_100_trying;
+        string routing_schema;
+        string msg_logger_dir;
+        string audio_recorder_dir;
+        bool audio_recorder_compress;
+        string log_dir;
     } config;
 
     YetiCfgReader cfg;

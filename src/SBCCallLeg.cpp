@@ -24,6 +24,8 @@
 
 #include <algorithm>
 
+#include "AmAudioFileRecorder.h"
+
 using namespace std;
 
 #define TRACE DBG
@@ -99,6 +101,9 @@ SBCCallLeg::SBCCallLeg(
 	sensor(NULL),
 	yeti(Yeti::instance()),
 	call_ctx(call_ctx),
+	router(yeti.router),
+	cdr_list(yeti.cdr_list),
+	rctl(yeti.rctl),
 	call_profile(*call_ctx->getCurrentProfile()),
 	placeholders_hash(call_profile.placeholders_hash)
 {
@@ -135,7 +140,10 @@ SBCCallLeg::SBCCallLeg(
     logger(NULL),
 	sensor(NULL),
 	call_ctx(caller->getCallCtx()),
-	yeti(Yeti::instance())
+	yeti(Yeti::instance()),
+	router(yeti.router),
+	cdr_list(yeti.cdr_list),
+	rctl(yeti.rctl)
 {
   // FIXME: do we want to inherit cc_vars from caller?
   // Can be pretty dangerous when caller stored pointer to object - we should
@@ -174,7 +182,10 @@ SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
     auth(NULL),
 	logger(NULL),
     sensor(NULL),
-    yeti(Yeti::instance())
+    yeti(Yeti::instance()),
+    router(yeti.router),
+    cdr_list(yeti.cdr_list),
+    rctl(yeti.rctl)
 { }
 
 void SBCCallLeg::onStart()
@@ -457,7 +468,33 @@ SBCCallLeg::~SBCCallLeg()
 
 void SBCCallLeg::onBeforeDestroy()
 {
-  yeti.onDestroyLeg(this);
+	DBG("%s(%p|%s,leg%s)",FUNC_NAME,
+		this,getLocalTag().c_str(),isALeg()?"A":"B");
+
+	CallCtx *ctx = call_ctx;
+	if(!ctx) return;
+
+	call_ctx->lock();
+	call_ctx = NULL;
+
+	if(call_profile.record_audio) {
+		AmAudioFileRecorderProcessor::instance()->removeRecorder(getLocalTag());
+	}
+
+	if(ctx->dec_and_test()) {
+		DBG("last leg destroy");
+		SqlCallProfile *p = ctx->getCurrentProfile();
+		if(NULL!=p) rctl.put(p->resource_handler);
+		Cdr *cdr = ctx->cdr;
+		if(cdr) {
+			cdr_list.erase(cdr);
+			router.write_cdr(cdr,true);
+		}
+		ctx->unlock();
+		delete ctx;
+	} else {
+		ctx->unlock();
+	}
 }
 
 UACAuthCred* SBCCallLeg::getCredentials() {

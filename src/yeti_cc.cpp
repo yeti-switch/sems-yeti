@@ -250,41 +250,6 @@ void YetiCC::onStateChange(SBCCallLeg *call, const CallLeg::StatusChangeCause &c
 
 }
 
-void YetiCC::onDestroyLeg(SBCCallLeg *call){
-	DBG("%s(%p|%s,leg%s)",FUNC_NAME,
-		call,call->getLocalTag().c_str(),call->isALeg()?"A":"B");
-
-	getCtx_void
-
-	ctx->lock();
-	call->setCallCtx(NULL);
-
-	if(call->getCallProfile().record_audio){
-		AmAudioFileRecorderProcessor::instance()->removeRecorder(call->getLocalTag());
-	}
-
-	if(ctx->dec_and_test()){
-		onLastLegDestroy(ctx,call);
-		ctx->unlock();
-		delete ctx;
-	} else {
-		ctx->unlock();
-	}
-}
-
-void YetiCC::onLastLegDestroy(CallCtx *ctx,SBCCallLeg *call){
-	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
-
-	SqlCallProfile *p = ctx->getCurrentProfile();
-	if(NULL!=p) rctl.put(p->resource_handler);
-
-	Cdr *cdr = getCdr(ctx);
-	if(cdr){
-		cdr_list.erase(cdr);
-		router.write_cdr(cdr,true);
-	}
-}
-
 CCChainProcessing YetiCC::onBLegRefused(SBCCallLeg *call, AmSipReply& reply) {
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
     getCtx_chained

@@ -98,6 +98,10 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
  public:
 
+  SqlRouter &router;
+  CdrList &cdr_list;
+  ResourceControl &rctl;
+
   SBCCallLeg(CallCtx *call_ctx,
         AmSipDialog* dlg=NULL,
         AmSipSubscription* p_subs=NULL);

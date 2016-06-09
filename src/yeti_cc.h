@@ -46,7 +46,6 @@ class YetiCC
             response_code(rc),response_reason(rr){}
     };
 
-    void onLastLegDestroy(CallCtx *ctx,SBCCallLeg *call);
     /*! create new B leg (serial fork)*/
     /*! choose next profile, create cdr and check resources */
     bool connectCallee(CallCtx *call_ctx,SBCCallLeg *call,const AmSipRequest &orig_req);
@@ -80,7 +79,6 @@ class YetiCC
 
     void onSendRequest(SBCCallLeg *call,AmSipRequest& req, int &flags);
     void onStateChange(SBCCallLeg *call, const CallLeg::StatusChangeCause &cause);
-    void onDestroyLeg(SBCCallLeg *call);
     CCChainProcessing onBLegRefused(SBCCallLeg *call,AmSipReply& reply);
 
     CCChainProcessing onInitialInvite(SBCCallLeg *call, InitialInviteHandlerParams &params);
