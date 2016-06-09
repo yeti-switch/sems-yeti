@@ -1,5 +1,6 @@
 #include "sems.h"
 #include "yeti.h"
+#include "yeti_rpc.h"
 #include "Registration.h"
 #include "codecs_bench.h"
 #include "alarms.h"
@@ -21,7 +22,7 @@ static const bool RPC_CMD_SUCC = true;
 
 static timeval last_shutdown_time;
 
-typedef void (Yeti::*YetiRpcHandler)(const AmArg& args, AmArg& ret);
+typedef YetiRpc::rpc_handler YetiRpc::*YetiRpcHandler;
 
 #define handler_log() DBG("execute handler: %s(%s)",FUNC_NAME,args.print(args).c_str());
 
@@ -50,14 +51,14 @@ struct rpc_entry: public AmObject {
   bool hasLeaf(const char *leaf){ return hasLeafs()&&leaves.hasMember(leaf); }
 };
 
-void Yeti::init_rpc_cmds(){
+void YetiRpc::init_rpc_cmds(){
 #define reg_leaf(parent,leaf,name,descr) \
 	e = new rpc_entry(descr);\
 	parent[name] = e;\
 	AmArg &leaf = e->leaves;
 
 #define reg_method(parent,name,descr,func,func_descr) \
-	e = new rpc_entry(descr,&Yeti::func,func_descr);\
+	e = new rpc_entry(descr,&YetiRpc::func,func_descr);\
 	parent[name] = e;
 
 #define reg_leaf_method(parent,leaf,name,descr,func,func_descr) \
@@ -65,7 +66,7 @@ void Yeti::init_rpc_cmds(){
 	AmArg &leaf = e->leaves;
 
 #define reg_method_arg(parent,name,descr,func,func_descr,arg, arg_descr) \
-	e = new rpc_entry(descr,&Yeti::func,func_descr,arg, arg_descr);\
+	e = new rpc_entry(descr,&YetiRpc::func,func_descr,arg, arg_descr);\
 	parent[name] = e;
 
 #define reg_leaf_method_arg(parent,leaf,name,descr,func,func_descr,arg, arg_descr) \
@@ -254,7 +255,7 @@ void Yeti::init_rpc_cmds(){
 #undef reg_leaf_method_arg
 }
 
-void Yeti::process_rpc_cmds(const AmArg cmds, const string& method, const AmArg& args, AmArg& ret){
+void YetiRpc::process_rpc_cmds(const AmArg cmds, const string& method, const AmArg& args, AmArg& ret){
 	const char *list_method = "_list";
 	//DBG("process_rpc_cmds(%p,%s,...)",&cmds,method.c_str());
 	if(method==list_method){
@@ -339,7 +340,7 @@ void Yeti::process_rpc_cmds(const AmArg cmds, const string& method, const AmArg&
 	throw AmDynInvoke::NotImplemented("no matches with methods tree");
 }
 
-void Yeti::invoke(const string& method, const AmArg& args, AmArg& ret)
+void YetiRpc::invoke(const string& method, const AmArg& args, AmArg& ret)
 {
 	DBG("Yeti: %s(%s)\n", method.c_str(), AmArg::print(args).c_str());
 
@@ -420,7 +421,7 @@ void Yeti::invoke(const string& method, const AmArg& args, AmArg& ret)
  * 				aux funcs				*
  ****************************************/
 
-bool Yeti::check_event_id(int event_id,AmArg &ret){
+bool YetiRpc::check_event_id(int event_id,AmArg &ret){
 	bool succ = false;
 	try {
 		DbConfig dbc;
@@ -428,7 +429,7 @@ bool Yeti::check_event_id(int event_id,AmArg &ret){
 		dbc.cfg2dbcfg(cfg,prefix);
 		pqxx::connection c(dbc.conn_str());
 		c.set_variable("search_path",
-					   Yeti::instance().config.routing_schema+", public");
+					   config.routing_schema+", public");
 #if PQXX_VERSION_MAJOR == 3 && PQXX_VERSION_MINOR == 1
 		pqxx::prepare::declaration d =
 #endif
@@ -456,7 +457,7 @@ bool Yeti::check_event_id(int event_id,AmArg &ret){
 	return succ;
 }
 
-bool Yeti::assert_event_id(const AmArg &args,AmArg &ret){
+bool YetiRpc::assert_event_id(const AmArg &args,AmArg &ret){
 	if(args.size()){
 		int event_id;
 		args.assertArrayFmt("s");
@@ -473,12 +474,12 @@ bool Yeti::assert_event_id(const AmArg &args,AmArg &ret){
  * 				rpc handlers			*
  ****************************************/
 
-void Yeti::GetCallsCount(const AmArg& args, AmArg& ret) {
+void YetiRpc::GetCallsCount(const AmArg& args, AmArg& ret) {
 	handler_log();
 	ret = (long int)cdr_list.get_count();
 }
 
-void Yeti::GetCall(const AmArg& args, AmArg& ret) {
+void YetiRpc::GetCall(const AmArg& args, AmArg& ret) {
 	string local_tag;
 	handler_log();
 
@@ -492,7 +493,7 @@ void Yeti::GetCall(const AmArg& args, AmArg& ret) {
 	}
 }
 
-void Yeti::GetCalls(const AmArg& args, AmArg& ret) {
+void YetiRpc::GetCalls(const AmArg& args, AmArg& ret) {
 	handler_log();
 	if(args.size()){
 		string local_tag = args[0].asCStr();
@@ -504,7 +505,7 @@ void Yeti::GetCalls(const AmArg& args, AmArg& ret) {
 	}
 }
 
-void Yeti::GetCallsFields(const AmArg &args, AmArg &ret){
+void YetiRpc::GetCallsFields(const AmArg &args, AmArg &ret){
 	handler_log();
 
 	if(!args.size()){
@@ -518,11 +519,11 @@ void Yeti::GetCallsFields(const AmArg &args, AmArg &ret){
 	}
 }
 
-void Yeti::showCallsFields(const AmArg &args, AmArg &ret){
+void YetiRpc::showCallsFields(const AmArg &args, AmArg &ret){
 	cdr_list.getFields(ret,&router);
 }
 
-void Yeti::GetRegistration(const AmArg& args, AmArg& ret){
+void YetiRpc::GetRegistration(const AmArg& args, AmArg& ret){
 	string reg_id_str;
 	int reg_id;
 	handler_log();
@@ -540,7 +541,7 @@ void Yeti::GetRegistration(const AmArg& args, AmArg& ret){
 	}
 }
 
-void Yeti::RenewRegistration(const AmArg& args, AmArg& ret){
+void YetiRpc::RenewRegistration(const AmArg& args, AmArg& ret){
 	string reg_id_str;
 	int reg_id;
 	handler_log();
@@ -559,7 +560,7 @@ void Yeti::RenewRegistration(const AmArg& args, AmArg& ret){
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::GetRegistrations(const AmArg& args, AmArg& ret){
+void YetiRpc::GetRegistrations(const AmArg& args, AmArg& ret){
 	handler_log();
 	if(args.size()){
 		GetRegistration(args,ret);
@@ -568,30 +569,30 @@ void Yeti::GetRegistrations(const AmArg& args, AmArg& ret){
 	Registration::instance()->list_registrations(ret);
 }
 
-void Yeti::GetRegistrationsCount(const AmArg& args, AmArg& ret){
+void YetiRpc::GetRegistrationsCount(const AmArg& args, AmArg& ret){
 	handler_log();
 	ret = Registration::instance()->get_registrations_count();
 }
 
-void Yeti::ClearStats(const AmArg& args, AmArg& ret){
+void YetiRpc::ClearStats(const AmArg& args, AmArg& ret){
 	handler_log();
 	router.clearStats();
 	rctl.clearStats();
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::ClearCache(const AmArg& args, AmArg& ret){
+void YetiRpc::ClearCache(const AmArg& args, AmArg& ret){
 	handler_log();
 	router.clearCache();
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::ShowCache(const AmArg& args, AmArg& ret){
+void YetiRpc::ShowCache(const AmArg& args, AmArg& ret){
 	handler_log();
 	router.showCache(ret);
 }
 
-void Yeti::GetStats(const AmArg& args, AmArg& ret){
+void YetiRpc::GetStats(const AmArg& args, AmArg& ret){
 	time_t now;
 	handler_log();
 
@@ -624,7 +625,7 @@ void Yeti::GetStats(const AmArg& args, AmArg& ret){
 	CodesTranslator::instance()->getStats(ret["translator"]);
 }
 
-void Yeti::GetConfig(const AmArg& args, AmArg& ret) {
+void YetiRpc::GetConfig(const AmArg& args, AmArg& ret) {
 	handler_log();
 
 	ret["calls_show_limit"] = calls_show_limit;
@@ -638,7 +639,7 @@ void Yeti::GetConfig(const AmArg& args, AmArg& ret) {
 	CodecsGroups::instance()->GetConfig(ret["codecs_groups"]);
 }
 
-void Yeti::DropCall(const AmArg& args, AmArg& ret){
+void YetiRpc::DropCall(const AmArg& args, AmArg& ret){
 	SBCControlEvent* evt;
 	string local_tag;
 	handler_log();
@@ -661,7 +662,7 @@ void Yeti::DropCall(const AmArg& args, AmArg& ret){
 			}
 		cdr_list.unlock();
 		if(cdr){
-			ERROR("Yeti::DropCall() call %s not in AmSessionContainer but in CdrList. "
+			ERROR("YetiRpc::DropCall() call %s not in AmSessionContainer but in CdrList. "
 				  "remove it from CdrList and write CDR using active router instance",local_tag.c_str());
 			router.write_cdr(cdr,true);
 			ret = "Dropped from active_calls (no presented in sessions container)";
@@ -673,7 +674,7 @@ void Yeti::DropCall(const AmArg& args, AmArg& ret){
 	}
 }
 
-void Yeti::showVersion(const AmArg& args, AmArg& ret) {
+void YetiRpc::showVersion(const AmArg& args, AmArg& ret) {
 	handler_log();
 	ret["build"] = YETI_VERSION;
 	ret["build_commit"] = YETI_COMMIT;
@@ -682,7 +683,7 @@ void Yeti::showVersion(const AmArg& args, AmArg& ret) {
 	ret["core_build"] = SEMS_VERSION;
 }
 
-void Yeti::reloadResources(const AmArg& args, AmArg& ret){
+void YetiRpc::reloadResources(const AmArg& args, AmArg& ret){
 	handler_log();
 	if(!assert_event_id(args,ret))
 		return;
@@ -693,7 +694,7 @@ void Yeti::reloadResources(const AmArg& args, AmArg& ret){
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::reloadTranslations(const AmArg& args, AmArg& ret){
+void YetiRpc::reloadTranslations(const AmArg& args, AmArg& ret){
 	handler_log();
 	if(!assert_event_id(args,ret))
 		return;
@@ -704,7 +705,7 @@ void Yeti::reloadTranslations(const AmArg& args, AmArg& ret){
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::reloadRegistrations(const AmArg& args, AmArg& ret){
+void YetiRpc::reloadRegistrations(const AmArg& args, AmArg& ret){
 	handler_log();
 	if(!assert_event_id(args,ret))
 		return;
@@ -715,7 +716,7 @@ void Yeti::reloadRegistrations(const AmArg& args, AmArg& ret){
 	}
 }
 
-void Yeti::reloadCodecsGroups(const AmArg& args, AmArg& ret){
+void YetiRpc::reloadCodecsGroups(const AmArg& args, AmArg& ret){
 	handler_log();
 	if(!assert_event_id(args,ret))
 		return;
@@ -726,7 +727,7 @@ void Yeti::reloadCodecsGroups(const AmArg& args, AmArg& ret){
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::requestReloadSensors(const AmArg& args, AmArg& ret){
+void YetiRpc::requestReloadSensors(const AmArg& args, AmArg& ret){
 	handler_log();
 	if(!assert_event_id(args,ret))
 		return;
@@ -738,7 +739,7 @@ void Yeti::requestReloadSensors(const AmArg& args, AmArg& ret){
 	}
 }
 
-void Yeti::showSensorsState(const AmArg& args, AmArg& ret){
+void YetiRpc::showSensorsState(const AmArg& args, AmArg& ret){
 	handler_log();
 	Sensors::instance()->GetConfig(ret);
 }
@@ -790,7 +791,7 @@ static void dump_sessions_info(
 	SBCCallLeg2AmArg(leg,ret[key]);
 }
 
-void Yeti::showSessionsInfo(const AmArg& args, AmArg& ret){
+void YetiRpc::showSessionsInfo(const AmArg& args, AmArg& ret){
 	handler_log();
 	ret.assertStruct();
 	if(!args.size()){
@@ -816,7 +817,7 @@ void Yeti::showSessionsInfo(const AmArg& args, AmArg& ret){
 	}
 }
 
-void Yeti::showSessionsCount(const AmArg& args, AmArg& ret){
+void YetiRpc::showSessionsCount(const AmArg& args, AmArg& ret){
 	handler_log();
 	(void)args;
 	ret = (int)AmSession::getSessionNum();
@@ -834,37 +835,37 @@ static inline AmDynInvoke* get_radius_interace(){
 	return radius_client;
 }
 
-void Yeti::showRadiusAuthProfiles(const AmArg& args, AmArg& ret){
+void YetiRpc::showRadiusAuthProfiles(const AmArg& args, AmArg& ret){
 	handler_log();
 	(void)args;
 	get_radius_interace()->invoke("showAuthConnections",args,ret);
 }
 
-void Yeti::showRadiusAccProfiles(const AmArg& args, AmArg& ret){
+void YetiRpc::showRadiusAccProfiles(const AmArg& args, AmArg& ret){
 	handler_log();
 	(void)args;
 	get_radius_interace()->invoke("showAccConnections",args,ret);
 }
 
-void Yeti::showRadiusAuthStat(const AmArg& args, AmArg& ret){
+void YetiRpc::showRadiusAuthStat(const AmArg& args, AmArg& ret){
 	handler_log();
 	(void)args;
 	get_radius_interace()->invoke("showAuthStat",args,ret);
 }
 
-void Yeti::showRadiusAccStat(const AmArg& args, AmArg& ret){
+void YetiRpc::showRadiusAccStat(const AmArg& args, AmArg& ret){
 	handler_log();
 	(void)args;
 	get_radius_interace()->invoke("showAccStat",args,ret);
 }
 
-void Yeti::showRecorderStats(const AmArg& args, AmArg& ret){
+void YetiRpc::showRecorderStats(const AmArg& args, AmArg& ret){
 	handler_log();
 	(void)args;
 	AmAudioFileRecorderProcessor::instance()->getStats(ret);
 }
 
-void Yeti::showUploadDestinations(const AmArg& args, AmArg& ret){
+void YetiRpc::showUploadDestinations(const AmArg& args, AmArg& ret){
     handler_log();
     AmDynInvokeFactory* f = AmPlugIn::instance()->getFactory4Di("http_client");
     if(NULL==f){
@@ -877,7 +878,7 @@ void Yeti::showUploadDestinations(const AmArg& args, AmArg& ret){
     i->invoke("show",args,ret);
 }
 
-void Yeti::showUploadStats(const AmArg& args, AmArg& ret){
+void YetiRpc::showUploadStats(const AmArg& args, AmArg& ret){
     handler_log();
     AmDynInvokeFactory* f = AmPlugIn::instance()->getFactory4Di("http_client");
     if(NULL==f){
@@ -890,7 +891,7 @@ void Yeti::showUploadStats(const AmArg& args, AmArg& ret){
     i->invoke("stats",args,ret);
 }
 
-void Yeti:: requestUpload(const AmArg& args, AmArg& ret) {
+void YetiRpc:: requestUpload(const AmArg& args, AmArg& ret) {
     handler_log();
 
     args.assertArrayFmt("sss");
@@ -911,7 +912,7 @@ void Yeti:: requestUpload(const AmArg& args, AmArg& ret) {
     }
 }
 
-void Yeti::requestRadiusAuthProfilesReload(const AmArg& args, AmArg& ret){
+void YetiRpc::requestRadiusAuthProfilesReload(const AmArg& args, AmArg& ret){
 	handler_log();
 	(void)args;
 	AmArg lret;
@@ -926,7 +927,7 @@ void Yeti::requestRadiusAuthProfilesReload(const AmArg& args, AmArg& ret){
 	ret = "auth profiles reloaded";
 }
 
-void Yeti::requestRadiusAccProfilesReload(const AmArg& args, AmArg& ret){
+void YetiRpc::requestRadiusAccProfilesReload(const AmArg& args, AmArg& ret){
 	handler_log();
 	(void)args;
 	AmArg lret;
@@ -941,18 +942,18 @@ void Yeti::requestRadiusAccProfilesReload(const AmArg& args, AmArg& ret){
 	ret = "acc profiles reloaded";
 }
 
-void Yeti::closeCdrFiles(const AmArg& args, AmArg& ret){
+void YetiRpc::closeCdrFiles(const AmArg& args, AmArg& ret){
 	handler_log();
 	router.closeCdrFiles();
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::showMediaStreams(const AmArg& args, AmArg& ret){
+void YetiRpc::showMediaStreams(const AmArg& args, AmArg& ret){
 	handler_log();
 	AmMediaProcessor::instance()->getInfo(ret);
 }
 
-void Yeti::showPayloads(const AmArg& args, AmArg& ret){
+void YetiRpc::showPayloads(const AmArg& args, AmArg& ret){
 	vector<SdpPayload> payloads;
 	unsigned char *buf;
 	int size = 0;
@@ -987,7 +988,7 @@ void Yeti::showPayloads(const AmArg& args, AmArg& ret){
 		delete[] buf;
 }
 
-void Yeti::showInterfaces(const AmArg& args, AmArg& ret){
+void YetiRpc::showInterfaces(const AmArg& args, AmArg& ret){
 	handler_log();
 
 	AmArg &sig = ret["sip"];
@@ -1028,13 +1029,13 @@ void Yeti::showInterfaces(const AmArg& args, AmArg& ret){
 	}
 }
 
-void Yeti::showRouterCdrWriterOpenedFiles(const AmArg& args, AmArg& ret){
+void YetiRpc::showRouterCdrWriterOpenedFiles(const AmArg& args, AmArg& ret){
 	handler_log();
 	(void)args;
 	router.showOpenedFiles(ret);
 }
 
-void Yeti::requestSystemLogDump(const AmArg& args, AmArg& ret){
+void YetiRpc::requestSystemLogDump(const AmArg& args, AmArg& ret){
 	handler_log();
 
 	//load factory
@@ -1047,7 +1048,7 @@ void Yeti::requestSystemLogDump(const AmArg& args, AmArg& ret){
 	struct timeval t;
 	gettimeofday(&t,NULL);
 
-	string path = Yeti::config.log_dir + "/";
+	string path = config.log_dir + "/";
 	path += int2str((unsigned int)t.tv_sec) + "-";
 	path += int2hex(get_random());
 	path += int2hex(t.tv_sec) + int2hex(t.tv_usec);
@@ -1086,59 +1087,59 @@ static void setLoggingFacilityLogLevel(const AmArg& args, AmArg& ret,const strin
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::showSystemLogLevel(const AmArg& args, AmArg& ret){
+void YetiRpc::showSystemLogLevel(const AmArg& args, AmArg& ret){
 	handler_log();
 	ret["log_level"] = log_level;
 	addLoggingFacilityLogLevel(ret["facilities"],"syslog");
 	addLoggingFacilityLogLevel(ret["facilities"],"di_log");
 }
 
-void Yeti::setSystemLogSyslogLevel(const AmArg& args, AmArg& ret){
+void YetiRpc::setSystemLogSyslogLevel(const AmArg& args, AmArg& ret){
 	handler_log();
 	setLoggingFacilityLogLevel(args,ret,"syslog");
 }
 
-void Yeti::setSystemLogDiLogLevel(const AmArg& args, AmArg& ret){
+void YetiRpc::setSystemLogDiLogLevel(const AmArg& args, AmArg& ret){
 	handler_log();
 	setLoggingFacilityLogLevel(args,ret,"di_log");
 }
 
-void Yeti::setSystemDumpLevel(int dump_level){
+void YetiRpc::setSystemDumpLevel(int dump_level){
 	INFO("change system dump_level from %s to %s",
 		 dump_level2str(AmConfig::DumpLevel),
 		 dump_level2str(dump_level));
 	AmConfig::DumpLevel = dump_level;
 }
 
-void Yeti::setSystemDumpLevelNone(const AmArg& args, AmArg& ret){
+void YetiRpc::setSystemDumpLevelNone(const AmArg& args, AmArg& ret){
 	(void)args;
 	handler_log();
 	setSystemDumpLevel(0);
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::setSystemDumpLevelSignalling(const AmArg& args, AmArg& ret){
+void YetiRpc::setSystemDumpLevelSignalling(const AmArg& args, AmArg& ret){
 	(void)args;
 	handler_log();
 	setSystemDumpLevel(LOG_SIP_MASK);
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::setSystemDumpLevelRtp(const AmArg& args, AmArg& ret){
+void YetiRpc::setSystemDumpLevelRtp(const AmArg& args, AmArg& ret){
 	(void)args;
 	handler_log();
 	setSystemDumpLevel(LOG_RTP_MASK);
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::setSystemDumpLevelFull(const AmArg& args, AmArg& ret){
+void YetiRpc::setSystemDumpLevelFull(const AmArg& args, AmArg& ret){
 	(void)args;
 	handler_log();
 	setSystemDumpLevel(LOG_FULL_MASK);
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::showSystemStatus(const AmArg& args, AmArg& ret){
+void YetiRpc::showSystemStatus(const AmArg& args, AmArg& ret){
 	handler_log();
 	ret["shutdown_mode"] = (bool)AmConfig::ShutdownMode;
 	ret["shutdown_request_time"] = !timerisset(&last_shutdown_time) ?
@@ -1154,7 +1155,7 @@ void Yeti::showSystemStatus(const AmArg& args, AmArg& ret){
 	ret["uptime"] = difftime(now,start_time);
 }
 
-void Yeti::showSystemAlarms(const AmArg& args, AmArg& ret){
+void YetiRpc::showSystemAlarms(const AmArg& args, AmArg& ret){
 	handler_log();
 	alarms *a = alarms::instance();
 	for(int id = 0; id < alarms::MAX_ALARMS; id++){
@@ -1163,7 +1164,7 @@ void Yeti::showSystemAlarms(const AmArg& args, AmArg& ret){
 	}
 }
 
-void Yeti::showSystemDumpLevel(const AmArg& args, AmArg& ret){
+void YetiRpc::showSystemDumpLevel(const AmArg& args, AmArg& ret){
 	(void)args;
 	handler_log();
 	ret = dump_level2str(AmConfig::DumpLevel);
@@ -1188,33 +1189,33 @@ static void set_system_shutdown(bool shutdown){
 	}
 }
 
-void Yeti::requestSystemShutdown(const AmArg& args, AmArg& ret){
+void YetiRpc::requestSystemShutdown(const AmArg& args, AmArg& ret){
 	handler_log();
 	graceful_suicide();
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::requestSystemShutdownImmediate(const AmArg& args, AmArg& ret){
+void YetiRpc::requestSystemShutdownImmediate(const AmArg& args, AmArg& ret){
 	handler_log();
 	immediate_suicide();
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::requestSystemShutdownGraceful(const AmArg& args, AmArg& ret){
+void YetiRpc::requestSystemShutdownGraceful(const AmArg& args, AmArg& ret){
 	handler_log();
 	gettimeofday(&last_shutdown_time,NULL);
 	set_system_shutdown(true);
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::requestSystemShutdownCancel(const AmArg& args, AmArg& ret){
+void YetiRpc::requestSystemShutdownCancel(const AmArg& args, AmArg& ret){
 	handler_log();
 	timerclear(&last_shutdown_time);
 	set_system_shutdown(false);
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::getResourceState(const AmArg& args, AmArg& ret){
+void YetiRpc::getResourceState(const AmArg& args, AmArg& ret){
 	handler_log();
 	int type, id;
 
@@ -1236,12 +1237,12 @@ void Yeti::getResourceState(const AmArg& args, AmArg& ret){
 	}
 }
 
-void Yeti::showResources(const AmArg& args, AmArg& ret){
+void YetiRpc::showResources(const AmArg& args, AmArg& ret){
 	handler_log();
 	rctl.showResources(ret);
 }
 
-void Yeti::showResourceByHandler(const AmArg& args, AmArg& ret){
+void YetiRpc::showResourceByHandler(const AmArg& args, AmArg& ret){
 	handler_log();
 	if(!args.size()){
 		throw AmSession::Exception(500,"specify handler id");
@@ -1249,7 +1250,7 @@ void Yeti::showResourceByHandler(const AmArg& args, AmArg& ret){
 	rctl.showResourceByHandler(args.get(0).asCStr(),ret);
 }
 
-void Yeti::showResourceByLocalTag(const AmArg& args, AmArg& ret){
+void YetiRpc::showResourceByLocalTag(const AmArg& args, AmArg& ret){
 	handler_log();
 	if(!args.size()){
 		throw AmSession::Exception(500,"specify local_tag");
@@ -1257,7 +1258,7 @@ void Yeti::showResourceByLocalTag(const AmArg& args, AmArg& ret){
 	rctl.showResourceByLocalTag(args.get(0).asCStr(),ret);
 }
 
-void Yeti::showResourcesById(const AmArg& args, AmArg& ret){
+void YetiRpc::showResourcesById(const AmArg& args, AmArg& ret){
 	handler_log();
 
 	int id;
@@ -1270,12 +1271,12 @@ void Yeti::showResourcesById(const AmArg& args, AmArg& ret){
 	rctl.showResourcesById(id,ret);
 }
 
-void Yeti::showResourceTypes(const AmArg& args, AmArg& ret){
+void YetiRpc::showResourceTypes(const AmArg& args, AmArg& ret){
 	handler_log();
 	rctl.GetConfig(ret,true);
 }
 
-void Yeti::requestResourcesInvalidate(const AmArg& args, AmArg& ret){
+void YetiRpc::requestResourcesInvalidate(const AmArg& args, AmArg& ret){
 	handler_log();
 	if(rctl.invalidate_resources()){
 		ret = RPC_CMD_SUCC;
@@ -1284,7 +1285,7 @@ void Yeti::requestResourcesInvalidate(const AmArg& args, AmArg& ret){
 	}
 }
 
-void Yeti::showSessions(const AmArg& args, AmArg& ret){
+void YetiRpc::showSessions(const AmArg& args, AmArg& ret){
 	handler_log();
 
 	ret["limit"] = (long int)AmConfig::SessionLimit;
@@ -1292,7 +1293,7 @@ void Yeti::showSessions(const AmArg& args, AmArg& ret){
 	ret["limit_error_reason"] = AmConfig::SessionLimitErrReason;
 }
 
-void Yeti::setSessionsLimit(const AmArg& args, AmArg& ret){
+void YetiRpc::setSessionsLimit(const AmArg& args, AmArg& ret){
 	handler_log();
 	if(args.size()<3){
 		throw AmSession::Exception(500,"missed parameter");
@@ -1315,13 +1316,13 @@ void Yeti::setSessionsLimit(const AmArg& args, AmArg& ret){
 }
 
 
-void Yeti::requestResolverClear(const AmArg& args, AmArg& ret){
+void YetiRpc::requestResolverClear(const AmArg& args, AmArg& ret){
 	handler_log();
 	resolver::instance()->clear_cache();
 	ret = RPC_CMD_SUCC;
 }
 
-void Yeti::requestResolverGet(const AmArg& args, AmArg& ret){
+void YetiRpc::requestResolverGet(const AmArg& args, AmArg& ret){
 	handler_log();
 	if(!args.size()){
 		throw AmSession::Exception(500,"missed parameter");

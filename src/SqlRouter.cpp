@@ -70,7 +70,6 @@ SqlRouter::~SqlRouter()
 
 void SqlRouter::stop()
 {
-
   if(master_pool)
     master_pool->stop();
   if(slave_pool)

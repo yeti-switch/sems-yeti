@@ -1,7 +1,3 @@
-/*
- * contains CC, extCC handlers implementation
-*/
-
 #include "yeti.h"
 #include "cdr/Cdr.h"
 #include "SDPFilter.h"
@@ -95,7 +91,7 @@ inline void answer_100_trying(const AmSipRequest &req, CallCtx *ctx)
 }
 
 
-CallCtx *Yeti::getCallCtx(const AmSipRequest& req,
+CallCtx *YetiCC::getCallCtx(const AmSipRequest& req,
 						ParamReplacerCtx& ctx)
 {
 	DBG("%s()",FUNC_NAME);
@@ -143,7 +139,7 @@ CallCtx *Yeti::getCallCtx(const AmSipRequest& req,
  * 			InDialog handlers			*
  ****************************************/
 
-bool Yeti::init(SBCCallLeg *call, const map<string, string> &values) {
+bool YetiCC::init(SBCCallLeg *call, const map<string, string> &values) {
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 	CallCtx *ctx = call->getCallCtx();
 	Cdr *cdr = getCdr(ctx);
@@ -195,7 +191,7 @@ bool Yeti::init(SBCCallLeg *call, const map<string, string> &values) {
 	return true;
 }
 
-void Yeti::onSendRequest(SBCCallLeg *call,AmSipRequest& req, int &flags){
+void YetiCC::onSendRequest(SBCCallLeg *call,AmSipRequest& req, int &flags){
 	bool aleg = call->isALeg();
 	DBG("Yeti::onSendRequest(%p|%s) a_leg = %d",
 		call,call->getLocalTag().c_str(),aleg);
@@ -205,7 +201,7 @@ void Yeti::onSendRequest(SBCCallLeg *call,AmSipRequest& req, int &flags){
 	}
 }
 
-void Yeti::onStateChange(SBCCallLeg *call, const CallLeg::StatusChangeCause &cause){
+void YetiCC::onStateChange(SBCCallLeg *call, const CallLeg::StatusChangeCause &cause){
 	string reason;
 	getCtx_void
 	SBCCallLeg::CallStatus status = call->getCallStatus();
@@ -323,7 +319,7 @@ void Yeti::onStateChange(SBCCallLeg *call, const CallLeg::StatusChangeCause &cau
 
 }
 
-void Yeti::onDestroyLeg(SBCCallLeg *call){
+void YetiCC::onDestroyLeg(SBCCallLeg *call){
 	DBG("%s(%p|%s,leg%s)",FUNC_NAME,
 		call,call->getLocalTag().c_str(),call->isALeg()?"A":"B");
 
@@ -345,7 +341,7 @@ void Yeti::onDestroyLeg(SBCCallLeg *call){
 	}
 }
 
-void Yeti::onLastLegDestroy(CallCtx *ctx,SBCCallLeg *call){
+void YetiCC::onLastLegDestroy(CallCtx *ctx,SBCCallLeg *call){
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 
 	SqlCallProfile *p = ctx->getCurrentProfile();
@@ -358,7 +354,7 @@ void Yeti::onLastLegDestroy(CallCtx *ctx,SBCCallLeg *call){
 	}
 }
 
-CCChainProcessing Yeti::onBLegRefused(SBCCallLeg *call, AmSipReply& reply) {
+CCChainProcessing YetiCC::onBLegRefused(SBCCallLeg *call, AmSipReply& reply) {
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
     getCtx_chained
 	Cdr* cdr = getCdr(ctx);
@@ -419,7 +415,7 @@ CCChainProcessing Yeti::onBLegRefused(SBCCallLeg *call, AmSipReply& reply) {
 	return ContinueProcessing;
 }
 
-CCChainProcessing Yeti::onInitialInvite(SBCCallLeg *call, InitialInviteHandlerParams &params) {
+CCChainProcessing YetiCC::onInitialInvite(SBCCallLeg *call, InitialInviteHandlerParams &params) {
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 
 	AmSipRequest &req = *params.aleg_modified_invite;
@@ -449,7 +445,7 @@ CCChainProcessing Yeti::onInitialInvite(SBCCallLeg *call, InitialInviteHandlerPa
 	return ContinueProcessing;
 }
 
-void Yeti::onRoutingReady(SBCCallLeg *call, AmSipRequest &aleg_modified_invite, AmSipRequest &modified_invite)
+void YetiCC::onRoutingReady(SBCCallLeg *call, AmSipRequest &aleg_modified_invite, AmSipRequest &modified_invite)
 {
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 
@@ -596,7 +592,7 @@ void Yeti::onRoutingReady(SBCCallLeg *call, AmSipRequest &aleg_modified_invite, 
 	return;
 }
 
-void Yeti::onInviteException(SBCCallLeg *call,int code,string reason,bool no_reply){
+void YetiCC::onInviteException(SBCCallLeg *call,int code,string reason,bool no_reply){
 	DBG("%s(%p,leg%s) %d:'%s' no_reply = %d",FUNC_NAME,call,call->isALeg()?"A":"B",
 		code,reason.c_str(),no_reply);
     getCtx_void
@@ -614,7 +610,7 @@ void Yeti::onInviteException(SBCCallLeg *call,int code,string reason,bool no_rep
 	cdr->unlock();
 }
 
-CCChainProcessing Yeti::onInDialogRequest(SBCCallLeg *call, const AmSipRequest &req) {
+CCChainProcessing YetiCC::onInDialogRequest(SBCCallLeg *call, const AmSipRequest &req) {
 	bool aleg = call->isALeg();
 	SBCCallProfile &p = call->getCallProfile();
 	AmSipDialog* dlg = call->dlg;
@@ -727,7 +723,7 @@ CCChainProcessing Yeti::onInDialogRequest(SBCCallLeg *call, const AmSipRequest &
 	return ContinueProcessing;
 }
 
-CCChainProcessing Yeti::onInDialogReply(SBCCallLeg *call, const AmSipReply &reply) {
+CCChainProcessing YetiCC::onInDialogReply(SBCCallLeg *call, const AmSipReply &reply) {
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 
 	if(!call->isALeg()){
@@ -739,7 +735,7 @@ CCChainProcessing Yeti::onInDialogReply(SBCCallLeg *call, const AmSipReply &repl
 	return ContinueProcessing;
 }
 
-CCChainProcessing Yeti::onEvent(SBCCallLeg *call, AmEvent *e) {
+CCChainProcessing YetiCC::onEvent(SBCCallLeg *call, AmEvent *e) {
 	DBG("%s(%p|%s,leg%s)",FUNC_NAME,call,
 		call->getLocalTag().c_str(),call->isALeg()?"A":"B");
 
@@ -819,7 +815,7 @@ CCChainProcessing Yeti::onEvent(SBCCallLeg *call, AmEvent *e) {
 	return ContinueProcessing;
 }
 
-CCChainProcessing Yeti::onDtmf(SBCCallLeg *call, AmDtmfEvent* e){
+CCChainProcessing YetiCC::onDtmf(SBCCallLeg *call, AmDtmfEvent* e){
 	DBG("%s(call = %p,event = %d,duration = %d)",
 		FUNC_NAME,call,e->event(),e->duration());
 
@@ -886,7 +882,7 @@ CCChainProcessing Yeti::onDtmf(SBCCallLeg *call, AmDtmfEvent* e){
 	}
 }
 
-CCChainProcessing Yeti::onRtpTimeout(SBCCallLeg *call,const AmRtpTimeoutEvent &rtp_event){
+CCChainProcessing YetiCC::onRtpTimeout(SBCCallLeg *call,const AmRtpTimeoutEvent &rtp_event){
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 	unsigned int internal_code,response_code;
 	string internal_reason,response_reason;
@@ -912,7 +908,7 @@ CCChainProcessing Yeti::onRtpTimeout(SBCCallLeg *call,const AmRtpTimeoutEvent &r
 	return ContinueProcessing;
 }
 
-CCChainProcessing Yeti::onSystemEvent(SBCCallLeg *call,AmSystemEvent* event){
+CCChainProcessing YetiCC::onSystemEvent(SBCCallLeg *call,AmSystemEvent* event){
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 	if (event->sys_event == AmSystemEvent::ServerShutdown) {
 		onServerShutdown(call);
@@ -920,7 +916,7 @@ CCChainProcessing Yeti::onSystemEvent(SBCCallLeg *call,AmSystemEvent* event){
 	return ContinueProcessing;
 }
 
-CCChainProcessing Yeti::onTimerEvent(SBCCallLeg *call,int timer_id){
+CCChainProcessing YetiCC::onTimerEvent(SBCCallLeg *call,int timer_id){
 	DBG("%s(%p,%d,leg%s)",FUNC_NAME,call,timer_id,call->isALeg()?"A":"B");
     getCtx_chained
     with_cdr_for_read {
@@ -945,7 +941,7 @@ CCChainProcessing Yeti::onTimerEvent(SBCCallLeg *call,int timer_id){
 	return ContinueProcessing;
 }
 
-CCChainProcessing Yeti::onControlEvent(SBCCallLeg *call,SBCControlEvent *event){
+CCChainProcessing YetiCC::onControlEvent(SBCCallLeg *call,SBCControlEvent *event){
 	DBG("%s(%p,leg%s) cmd = %s, event_id = %d",FUNC_NAME,call,call->isALeg()?"A":"B",
 			event->cmd.c_str(),event->event_id);
 	if(event->cmd=="teardown"){
@@ -954,7 +950,7 @@ CCChainProcessing Yeti::onControlEvent(SBCCallLeg *call,SBCControlEvent *event){
 	return ContinueProcessing;
 }
 
-void Yeti::onServerShutdown(SBCCallLeg *call){
+void YetiCC::onServerShutdown(SBCCallLeg *call){
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
     getCtx_void
     with_cdr_for_read {
@@ -964,7 +960,7 @@ void Yeti::onServerShutdown(SBCCallLeg *call){
 	rctl.put(call->getCallProfile().resource_handler);
 }
 
-CCChainProcessing Yeti::onTearDown(SBCCallLeg *call){
+CCChainProcessing YetiCC::onTearDown(SBCCallLeg *call){
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
     getCtx_chained
     with_cdr_for_read {
@@ -975,7 +971,7 @@ CCChainProcessing Yeti::onTearDown(SBCCallLeg *call){
 	return ContinueProcessing;
 }
 
-void Yeti::terminateLegOnReplyException(SBCCallLeg *call,const AmSipReply& reply,const InternalException &e){
+void YetiCC::terminateLegOnReplyException(SBCCallLeg *call,const AmSipReply& reply,const InternalException &e){
 	getCtx_void
 	if(!call->isALeg()){
 		if(!call->getOtherId().empty()){ //ignore not connected B legs
@@ -995,27 +991,27 @@ void Yeti::terminateLegOnReplyException(SBCCallLeg *call,const AmSipReply& reply
 	call->stopCall(CallLeg::StatusChangeCause::InternalError);
 }
 
-CCChainProcessing Yeti::putOnHold(SBCCallLeg *call) {
+CCChainProcessing YetiCC::putOnHold(SBCCallLeg *call) {
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 	return ContinueProcessing;
 }
 
-CCChainProcessing Yeti::resumeHeld(SBCCallLeg *call, bool send_reinvite) {
+CCChainProcessing YetiCC::resumeHeld(SBCCallLeg *call, bool send_reinvite) {
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 	return ContinueProcessing;
 }
 
-CCChainProcessing Yeti::createHoldRequest(SBCCallLeg *call, AmSdp &sdp) {
+CCChainProcessing YetiCC::createHoldRequest(SBCCallLeg *call, AmSdp &sdp) {
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 	return ContinueProcessing;
 }
 
-CCChainProcessing Yeti::handleHoldReply(SBCCallLeg *call, bool succeeded) {
+CCChainProcessing YetiCC::handleHoldReply(SBCCallLeg *call, bool succeeded) {
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 	return ContinueProcessing;
 }
 
-CCChainProcessing Yeti::onRemoteDisappeared(SBCCallLeg *call, const AmSipReply &reply){
+CCChainProcessing YetiCC::onRemoteDisappeared(SBCCallLeg *call, const AmSipReply &reply){
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
     getCtx_chained
 	if(call->isALeg()){
@@ -1033,7 +1029,7 @@ CCChainProcessing Yeti::onRemoteDisappeared(SBCCallLeg *call, const AmSipReply &
 	return ContinueProcessing;
 }
 
-CCChainProcessing Yeti::onBye(SBCCallLeg *call, const AmSipRequest &req){
+CCChainProcessing YetiCC::onBye(SBCCallLeg *call, const AmSipRequest &req){
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
     getCtx_chained
     with_cdr_for_read {
@@ -1055,7 +1051,7 @@ CCChainProcessing Yeti::onBye(SBCCallLeg *call, const AmSipRequest &req){
 	return ContinueProcessing;
 }
 
-CCChainProcessing Yeti::onOtherBye(SBCCallLeg *call, const AmSipRequest &req){
+CCChainProcessing YetiCC::onOtherBye(SBCCallLeg *call, const AmSipRequest &req){
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
     getCtx_chained
 	if(call->isALeg()){
@@ -1073,7 +1069,7 @@ CCChainProcessing Yeti::onOtherBye(SBCCallLeg *call, const AmSipRequest &req){
 	return ContinueProcessing;
 }
 
-void Yeti::onCallConnected(SBCCallLeg *call, const AmSipReply& reply){
+void YetiCC::onCallConnected(SBCCallLeg *call, const AmSipReply& reply){
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 	getCtx_void
 
@@ -1086,7 +1082,7 @@ void Yeti::onCallConnected(SBCCallLeg *call, const AmSipReply& reply){
 	radius_accounting_start(call,*cdr,call_profile);
 }
 
-void Yeti::onCallEnded(SBCCallLeg *call){
+void YetiCC::onCallEnded(SBCCallLeg *call){
 	getCtx_void
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 	if(!call->isALeg())
@@ -1097,7 +1093,7 @@ void Yeti::onCallEnded(SBCCallLeg *call){
 	}
 }
 
-void Yeti::onRTPStreamDestroy(SBCCallLeg *call,AmRtpStream *stream){
+void YetiCC::onRTPStreamDestroy(SBCCallLeg *call,AmRtpStream *stream){
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 	getCtx_void
 	with_cdr_for_read {
@@ -1139,7 +1135,7 @@ static void copyMediaPayloads(vector<SdpMedia> &dst, const vector<SdpMedia> &src
 }
 #endif
 
-void Yeti::onSdpCompleted(SBCCallLeg *call, AmSdp& offer, AmSdp& answer){
+void YetiCC::onSdpCompleted(SBCCallLeg *call, AmSdp& offer, AmSdp& answer){
 	bool aleg = call->isALeg();
 
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,aleg?"A":"B");
@@ -1165,7 +1161,7 @@ void Yeti::onSdpCompleted(SBCCallLeg *call, AmSdp& offer, AmSdp& answer){
 	dump_SdpMedia(answer.media,"answer");
 }
 
-bool Yeti::getSdpOffer(SBCCallLeg *call, AmSdp& offer){
+bool YetiCC::getSdpOffer(SBCCallLeg *call, AmSdp& offer){
 	DBG("%s(%p)",FUNC_NAME,this);
 
 	CallCtx *ctx = call->getCallCtx();
@@ -1199,7 +1195,7 @@ bool Yeti::getSdpOffer(SBCCallLeg *call, AmSdp& offer){
 	return true;
 }
 
-int Yeti::relayEvent(SBCCallLeg *call, AmEvent *e){
+int YetiCC::relayEvent(SBCCallLeg *call, AmEvent *e){
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
 	CallCtx *ctx = call->getCallCtx();
 	if(NULL==ctx) {
@@ -1385,7 +1381,7 @@ int Yeti::relayEvent(SBCCallLeg *call, AmEvent *e){
  *				aux funcs				*
  ****************************************/
 
-bool Yeti::connectCallee(CallCtx *call_ctx,SBCCallLeg *call,const AmSipRequest &orig_req){
+bool YetiCC::connectCallee(CallCtx *call_ctx,SBCCallLeg *call,const AmSipRequest &orig_req){
 
 	SBCCallProfile &call_profile = call->getCallProfile();
 	ParamReplacerCtx ctx(&call_profile);
@@ -1507,7 +1503,7 @@ bool Yeti::connectCallee(CallCtx *call_ctx,SBCCallLeg *call,const AmSipRequest &
 	return false;
 }
 
-bool Yeti::chooseNextProfile(SBCCallLeg *call){
+bool YetiCC::chooseNextProfile(SBCCallLeg *call){
 	DBG("%s()",FUNC_NAME);
 
 	string refuse_reason;
@@ -1595,7 +1591,7 @@ bool Yeti::chooseNextProfile(SBCCallLeg *call){
 	}
 }
 
-bool Yeti::check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
+bool YetiCC::check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
 							const AmSipRequest& req,ParamReplacerCtx& ctx,
 							bool send_reply){
 	bool need_reply;
@@ -1632,7 +1628,7 @@ bool Yeti::check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
 	return true;
 }
 
-void Yeti::onRadiusReply(SBCCallLeg *call, const RadiusReplyEvent &ev)
+void YetiCC::onRadiusReply(SBCCallLeg *call, const RadiusReplyEvent &ev)
 {
 	DBG("got radius reply for %s",call->getLocalTag().c_str());
 	getCtx_void
@@ -1661,7 +1657,7 @@ void Yeti::onRadiusReply(SBCCallLeg *call, const RadiusReplyEvent &ev)
 	}
 }
 
-void Yeti::onInterimRadiusTimer(SBCCallLeg *call)
+void YetiCC::onInterimRadiusTimer(SBCCallLeg *call)
 {
 	DBG("interim accounting timer fired for %s",call->getLocalTag().c_str());
 	getCtx_void

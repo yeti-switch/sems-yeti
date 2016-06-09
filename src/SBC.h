@@ -40,6 +40,9 @@
 class Yeti;
 
 #include "SqlRouter.h"
+#include "hash/CdrList.h"
+#include "resources/ResourceControl.h"
+
 
 #include "CallLeg.h"
 class SBCCallLeg;
@@ -72,10 +75,12 @@ class SBCFactory: public AmSessionFactory,
     public AmDynInvoke,
     public AmDynInvokeFactory
 {
-
-  //Yeti *yeti;
   auto_ptr<Yeti> yeti;
+
   SqlRouter router;
+  CdrList cdr_list;
+  ResourceControl rctl;
+
   AmDynInvoke *yeti_invoke;
   bool registrations_enabled;
 

@@ -141,7 +141,7 @@ int SBCFactory::onLoad()
     return -1;
   }
 
-  yeti.reset(Yeti::create_instance(router));
+  yeti.reset(Yeti::create_instance(router,cdr_list,rctl));
   if(yeti->onLoad()){
       ERROR("yeti configuration error\n");
       return -1;
