@@ -12,9 +12,6 @@
 #include "radius_hooks.h"
 #include "Sensors.h"
 
-#define FILE_RECORDER_COMPRESSED_EXT ".mp3"
-#define FILE_RECORDER_RAW_EXT        ".wav"
-
 #define getCtx_void \
 	CallCtx *ctx = call->getCallCtx();\
 	if(NULL==ctx){\
@@ -69,58 +66,6 @@ static const char *callStatus2str(const CallLeg::CallStatus state)
 #define with_cdr_for_write \
     Cdr *cdr = ctx->getCdrSafe<true>();\
     if(cdr)
-
-bool YetiCC::init(SBCCallLeg *call, const map<string, string> &values) {
-	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
-	CallCtx *ctx = call->getCallCtx();
-	Cdr *cdr = getCdr(ctx);
-
-	ctx->inc();
-
-	SBCCallProfile &profile = call->getCallProfile();
-	bool a_leg = call->isALeg();
-
-	if(a_leg){
-		ostringstream ss;
-		ss <<	config.msg_logger_dir << '/' <<
-				call->getLocalTag() << "_" <<
-				int2str(config.node_id) << ".pcap";
-		profile.set_logger_path(ss.str());
-
-		cdr->update_sbc(profile);
-
-		call->setSensor(Sensors::instance()->getSensor(profile.aleg_sensor_id));
-		cdr->update_init_aleg(call->getLocalTag(),
-							  call->getGlobalTag(),
-							  call->getCallID());
-	} else {
-		if(!profile.callid.empty()){
-			string id = AmSession::getNewId();
-			replace(profile.callid,"%uuid",id);
-		}
-		call->setSensor(Sensors::instance()->getSensor(profile.bleg_sensor_id));
-		cdr->update_init_bleg(profile.callid.empty()? call->getCallID() : profile.callid);
-	}
-
-	if(profile.record_audio){
-		ostringstream ss;
-		ss	<< config.audio_recorder_dir << '/'
-			<< call->getGlobalTag() << "_"
-			<< int2str(config.node_id) <<  "_leg"
-			<< (a_leg ? "a" : "b")
-			<< (config.audio_recorder_compress ?
-				FILE_RECORDER_COMPRESSED_EXT :
-				FILE_RECORDER_RAW_EXT);
-
-		profile.audio_record_path = ss.str();
-
-		AmAudioFileRecorderProcessor::instance()->addRecorder(
-			call->getLocalTag(),
-			profile.audio_record_path);
-		call->setRecordAudio(true);
-	}
-	return true;
-}
 
 void YetiCC::onSendRequest(SBCCallLeg *call,AmSipRequest& req, int &flags){
 	bool aleg = call->isALeg();

@@ -25,41 +25,23 @@
 #include <algorithm>
 
 #include "AmAudioFileRecorder.h"
+#include "radius_hooks.h"
+#include "Sensors.h"
 
 using namespace std;
 
 #define TRACE DBG
 
-// helper functions
+#define FILE_RECORDER_COMPRESSED_EXT ".mp3"
+#define FILE_RECORDER_RAW_EXT        ".wav"
 
-/*static const SdpPayload *findPayload(const std::vector<SdpPayload>& payloads, const SdpPayload &payload, int transport)
-{
-  string pname = payload.encoding_name;
-  transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
-
-  for (vector<SdpPayload>::const_iterator p = payloads.begin(); p != payloads.end(); ++p) {
-    // fix for clients using non-standard names for static payload type (SPA504g: G729a)
-    if (transport == TP_RTPAVP && payload.payload_type < 20) {
-      if (payload.payload_type != p->payload_type) continue;
-    }
-    else {
-      string s = p->encoding_name;
-      transform(s.begin(), s.end(), s.begin(), ::tolower);
-      if (s != pname) continue;
-    }
-
-    if (p->clock_rate != payload.clock_rate) continue;
-    if ((p->encoding_param >= 0) && (payload.encoding_param >= 0) && 
-        (p->encoding_param != payload.encoding_param)) continue;
-    return &(*p);
-  }
-  return NULL;
-}*/
-
-/*static bool containsPayload(const std::vector<SdpPayload>& payloads, const SdpPayload &payload, int transport)
-{
-  return findPayload(payloads, payload, transport) != NULL;
-}*/
+inline void replace(string& s, const string& from, const string& to){
+	size_t pos = 0;
+	while ((pos = s.find(from, pos)) != string::npos) {
+		s.replace(pos, from.length(), to);
+		pos += s.length();
+	}
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -167,13 +149,9 @@ SBCCallLeg::SBCCallLeg(
     rtp_relay_rate_limit.reset(new RateLimit(*caller->rtp_relay_rate_limit.get()));
   }
 
-  if(!yeti.init(this,map<string, string>())){
-    ERROR("init leg");
-    throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-  }
+  init();
 
   setLogger(caller->getLogger());
-  //setSensor(caller->getSensor());
 }
 
 SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
@@ -187,6 +165,51 @@ SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
 { }
+
+void SBCCallLeg::init()
+{
+    call_ctx->inc();
+
+    Cdr *cdr = call_ctx->cdr;
+
+    if(a_leg) {
+        ostringstream ss;
+        ss << yeti.config.msg_logger_dir << '/' <<
+              getLocalTag() << "_" <<
+              int2str(yeti.config.node_id) << ".pcap";
+        call_profile.set_logger_path(ss.str());
+
+        cdr->update_sbc(call_profile);
+        setSensor(Sensors::instance()->getSensor(call_profile.aleg_sensor_id));
+        cdr->update_init_aleg(getLocalTag(),
+                              global_tag,
+                              getCallID());
+    } else {
+        if(!call_profile.callid.empty()){
+            string id = AmSession::getNewId();
+            replace(call_profile.callid,"%uuid",id);
+        }
+        setSensor(Sensors::instance()->getSensor(call_profile.bleg_sensor_id));
+        cdr->update_init_bleg(call_profile.callid.empty()? getCallID() : call_profile.callid);
+    }
+
+    if(call_profile.record_audio){
+        ostringstream ss;
+        ss	<< yeti.config.audio_recorder_dir << '/'
+            << global_tag << "_"
+            << int2str(yeti.config.node_id) <<  "_leg"
+            << (a_leg ? "a" : "b")
+            << (yeti.config.audio_recorder_compress ?
+                FILE_RECORDER_COMPRESSED_EXT :
+                FILE_RECORDER_RAW_EXT);
+        call_profile.audio_record_path = ss.str();
+
+        AmAudioFileRecorderProcessor::instance()->addRecorder(
+            getLocalTag(),
+            call_profile.audio_record_path);
+        setRecordAudio(true);
+    }
+}
 
 void SBCCallLeg::onStart()
 {
@@ -469,7 +492,7 @@ SBCCallLeg::~SBCCallLeg()
 void SBCCallLeg::onBeforeDestroy()
 {
 	DBG("%s(%p|%s,leg%s)",FUNC_NAME,
-		this,getLocalTag().c_str(),isALeg()?"A":"B");
+		this,getLocalTag().c_str(),a_leg?"A":"B");
 
 	CallCtx *ctx = call_ctx;
 	if(!ctx) return;
@@ -803,7 +826,7 @@ void SBCCallLeg::onInvite(const AmSipRequest& req){
 	ctx.call_profile = &call_profile;
 	ctx.app_param = getHeader(req.hdrs, PARAM_HDR, true);
 
-	yeti.init(this,map<string, string>());
+	init();
 
 	modified_req = req;
 	aleg_modified_req = req;
@@ -820,11 +843,6 @@ void SBCCallLeg::onInvite(const AmSipRequest& req){
 	  if(!openLogger(log_path)){
 		  WARN("can't open msg_logger_path: '%s'",log_path.c_str());
 	  }
-	  /*if(openLogger(log_path)){
-		  if(call_profile.log_sip || call_profile.aleg_sensor_level_id&LOG_SIP_MASK){
-			  req.log(getLogger(),getSensor());
-		  }
-	  }*/
 	}
 
 	req.log(call_profile.log_sip?getLogger():NULL,
@@ -839,6 +857,22 @@ void SBCCallLeg::onInvite(const AmSipRequest& req){
 	// call extend call controls
 	InitialInviteHandlerParams params(to, ruri, from, &req, &aleg_modified_req, &modified_req);
 	if(yeti.onInitialInvite(this, params) == StopProcessing) return;
+
+	call_ctx->cdr->update(req);
+	call_ctx->initial_invite = new AmSipRequest(aleg_modified_req);
+
+	if(yeti.config.early_100_trying){
+		msg_logger *logger = getLogger();
+		if(logger){
+			call_ctx->early_trying_logger->relog(logger);
+		}
+	} else {
+		dlg->reply(req,100,"Connecting");
+	}
+
+	if(!radius_auth(this,*call_ctx->cdr,call_profile,req)){
+		yeti.onRoutingReady(this,aleg_modified_req,modified_req);
+	}
 }
 
 void SBCCallLeg::onRoutingReady()

@@ -75,8 +75,6 @@ class YetiCC
                           const AmSipRequest& req,ParamReplacerCtx& ctx,
                           bool send_reply = false);
 
-    bool init(SBCCallLeg *call, const map<string, string> &values);
-
     void onSendRequest(SBCCallLeg *call,AmSipRequest& req, int &flags);
     void onStateChange(SBCCallLeg *call, const CallLeg::StatusChangeCause &cause);
     CCChainProcessing onBLegRefused(SBCCallLeg *call,AmSipReply& reply);

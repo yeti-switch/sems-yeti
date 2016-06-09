@@ -96,6 +96,8 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   void alterHoldRequestImpl(AmSdp &sdp); // do the SDP update (called by alterHoldRequest)
 
+  void init();
+
  public:
 
   SqlRouter &router;
