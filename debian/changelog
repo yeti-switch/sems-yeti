@@ -1,3 +1,9 @@
+sems-yeti (1.7.2) stable; urgency=low
+
+  * intermediate refactoring
+
+ -- dev <dev@yeti-switch.org>  Fri, 10 Jun 2016 14:30:01 +0300
+
 sems-yeti (1.7.1) stable; urgency=low
 
   * fix in-dialog requests processing
