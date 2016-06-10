@@ -854,10 +854,6 @@ void SBCCallLeg::onInvite(const AmSipRequest& req){
 	  throw AmSession::Exception(400,"Failed to parse R-URI");
 	}
 
-	// call extend call controls
-	InitialInviteHandlerParams params(to, ruri, from, &req, &aleg_modified_req, &modified_req);
-	if(yeti.onInitialInvite(this, params) == StopProcessing) return;
-
 	call_ctx->cdr->update(req);
 	call_ctx->initial_invite = new AmSipRequest(aleg_modified_req);
 
