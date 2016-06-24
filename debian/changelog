@@ -1,3 +1,10 @@
+sems-yeti (1.7.3) stable; urgency=low
+
+  * fix UPDATE processing (exception on local processing)
+  * fix CANCEL processing (wrong CDR)
+
+ -- dev <dev@yeti-switch.org>  Fri, 24 Jun 2016 16:37:46 +0300
+
 sems-yeti (1.7.2) stable; urgency=low
 
   * intermediate refactoring
