@@ -469,7 +469,44 @@ CCChainProcessing YetiCC::onInDialogRequest(SBCCallLeg *call, const AmSipRequest
 			  && ((aleg && !p.aleg_relay_update)
 				  || (!aleg && !p.bleg_relay_update)))
 	{
-		dlg->reply(req, 200, "OK", NULL, "", SIP_FLAGS_VERBATIM);
+		getCtx_chained
+
+		const AmMimeBody* sdp_body = req.body.hasContentType(SIP_APPLICATION_SDP);
+		if(!sdp_body){
+			DBG("got UPDATE without body. local processing enabled. generate 200OK without SDP");
+			AmSipRequest upd_req(req);
+			call->processLocalRequest(upd_req);
+			return StopProcessing;
+		}
+
+		AmSdp sdp;
+		int res = sdp.parse((const char *)sdp_body->getPayload());
+		if(0 != res) {
+			DBG("SDP parsing failed: %d. respond with 488\n",res);
+			dlg->reply(req,488,"Not Acceptable Here");
+			return StopProcessing;
+		}
+
+		AmSipRequest upd_req(req);
+		try {
+			int res = processSdpOffer(
+				p,
+				upd_req.body, upd_req.method,
+				ctx->get_self_negotiated_media(aleg),
+				aleg ? p.static_codecs_aleg_id : p.static_codecs_bleg_id,
+				true,
+				aleg ? p.aleg_single_codec : p.bleg_single_codec
+			);
+			if (res < 0) {
+				dlg->reply(req,488,"Not Acceptable Here");
+				return StopProcessing;
+			}
+		} catch(InternalException &e){
+			dlg->reply(req,e.response_code,e.response_reason);
+			return StopProcessing;
+		}
+
+		call->processLocalRequest(upd_req);
 		return StopProcessing;
 	} else if(req.method == SIP_METH_PRACK
 			  && ((aleg && !p.aleg_relay_prack)
@@ -493,7 +530,7 @@ CCChainProcessing YetiCC::onInDialogRequest(SBCCallLeg *call, const AmSipRequest
 			DBG("replying 100 Trying to INVITE to be processed locally");
 			dlg->reply(req, 100, SIP_REPLY_TRYING);
 			AmSipRequest inv_req(req);
-			call->processLocalReInvite(inv_req);
+			call->processLocalRequest(inv_req);
 			return StopProcessing;
 		}
 
@@ -548,7 +585,7 @@ CCChainProcessing YetiCC::onInDialogRequest(SBCCallLeg *call, const AmSipRequest
 			return StopProcessing;
 		}
 
-		call->processLocalReInvite(inv_req);
+		call->processLocalRequest(inv_req);
 		return StopProcessing;
 	}
 
