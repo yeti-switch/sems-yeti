@@ -9,7 +9,6 @@ Package: sems-modules-yeti
 Section: net
 Architecture: amd64
 Depends: sems, sems-modules-base, ${shlibs:Depends}, ${misc:Depends}
-Conflicts: sems-g729-ipp-icc
 Description: YETI SBC application module for SEMS
 	YETI is an open source project based on SBC module of SEMS.
 	The main goal is to move routing logic and entire softswitch behaviour to a separated layer.
