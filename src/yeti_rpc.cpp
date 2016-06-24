@@ -1152,6 +1152,7 @@ void YetiRpc::showSystemStatus(const AmArg& args, AmArg& ret){
 					"nil" : timeval2str(last_shutdown_time);
 
 	ret["version"] = YETI_VERSION;
+	ret["core_version"] = SEMS_VERSION;
 	ret["calls"] = (long int)cdr_list.get_count();
 	ret["sessions"] = (int)AmSession::getSessionNum();
 	ret["dump_level"] = dump_level2str(AmConfig::DumpLevel);
