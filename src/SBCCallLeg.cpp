@@ -552,10 +552,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req) {
     }
   }
 
-  if ( getCallStatus() != Disconnected
-       && getCallStatus() != Disconnecting
-       && !getOtherId().empty())
-  {
+  if(!(m_state==BB_Init && req.method==SIP_METH_INVITE)) { //ignore initial INVITE
     if(yeti.onInDialogRequest(this, req) == StopProcessing) return;
   }
 
