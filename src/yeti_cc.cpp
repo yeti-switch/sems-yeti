@@ -212,6 +212,7 @@ CCChainProcessing YetiCC::onBLegRefused(SBCCallLeg *call, AmSipReply& reply) {
 	string intermediate_reason;
 
 	if(call->isALeg()){
+		call->removeTimer(YETI_FAKE_RINGING_TIMER);
 
 		cdr->update(reply);
 		cdr->update_bleg_reason(reply.reason,reply.code);
