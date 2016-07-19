@@ -191,6 +191,8 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   msg_logger *getLogger() { return logger; }
   msg_sensor *getSensor() { return sensor; }
 
+  void b2bInitial1xx(AmSipReply& reply, bool forward);
+
  protected:
 
   void setOtherId(const AmSipReply& reply);

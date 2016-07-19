@@ -1634,3 +1634,9 @@ bool SBCCallLeg::getSdpOffer(AmSdp& offer){
 	if(yeti.getSdpOffer(this,offer)) return true;
 	return CallLeg::getSdpOffer(offer);
 }
+
+void SBCCallLeg::b2bInitial1xx(AmSipReply& reply, bool forward)
+{
+	yeti.onB2Binitial1xx(this,reply,forward);
+	return CallLeg::b2bInitial1xx(reply,forward);
+}

@@ -151,7 +151,6 @@ class CallLeg: public AmB2BSession
     void onB2BReconnect(ReconnectLegEvent *e);
     void onB2BReplace(ReplaceLegEvent *e);
     void onB2BReplaceInProgress(ReplaceInProgressEvent *e);
-    void b2bInitial1xx(AmSipReply& reply, bool forward);
     void b2bInitial2xx(AmSipReply& reply, bool forward);
     void b2bInitialErr(AmSipReply& reply, bool forward);
 
@@ -218,6 +217,8 @@ class CallLeg: public AmB2BSession
      void offerRejected();
 
   protected:
+
+    virtual void b2bInitial1xx(AmSipReply& reply, bool forward);
 
 	void setInviteTransactionTimeout(unsigned int timeout) { inv_timers_override.stimer_b = timeout; }
 	void setInviteRetransmitTimeout(unsigned int timeout) { inv_timers_override.stimer_m = timeout; }

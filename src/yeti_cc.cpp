@@ -87,13 +87,16 @@ void YetiCC::onStateChange(SBCCallLeg *call, const CallLeg::StatusChangeCause &c
 	DBG("Yeti::onStateChange(%p|%s) a_leg = %d",
 		call,call->getLocalTag().c_str(),call->isALeg());
 
+	const SBCCallProfile &profile = call->getCallProfile();
+
 	switch(status){
 	case CallLeg::Ringing: {
-		const SBCCallProfile &profile = call->getCallProfile();
 		if(!aleg) {
 			if(profile.ringing_timeout > 0)
 				call->setTimer(YETI_RINGING_TIMEOUT_TIMER,profile.ringing_timeout);
 		} else {
+			if(profile.fake_ringing_timeout)
+				call->removeTimer(YETI_FAKE_RINGING_TIMER);
 			if(profile.force_one_way_early_media) {
 				DBG("force one-way audio for early media (mute legB)");
 				AmB2BMedia *m = call->getMediaSession();
@@ -108,6 +111,8 @@ void YetiCC::onStateChange(SBCCallLeg *call, const CallLeg::StatusChangeCause &c
 		if(!aleg) {
 			call->removeTimer(YETI_RINGING_TIMEOUT_TIMER);
 		} else {
+			if(profile.fake_ringing_timeout)
+				call->removeTimer(YETI_FAKE_RINGING_TIMER);
 			if(ctx->bleg_early_media_muted) {
 				AmB2BMedia *m = call->getMediaSession();
 				if(m) m->unmute(false);
@@ -116,6 +121,9 @@ void YetiCC::onStateChange(SBCCallLeg *call, const CallLeg::StatusChangeCause &c
 		break;
 	case CallLeg::Disconnected:
 		call->removeTimer(YETI_RADIUS_INTERIM_TIMER);
+		if(aleg && profile.fake_ringing_timeout) {
+			call->removeTimer(YETI_FAKE_RINGING_TIMER);
+		}
 		break;
 	default:
 		break;
@@ -811,6 +819,9 @@ CCChainProcessing YetiCC::onTimerEvent(SBCCallLeg *call,int timer_id){
         case YETI_RADIUS_INTERIM_TIMER:
             onInterimRadiusTimer(call);
             return StopProcessing;
+        case YETI_FAKE_RINGING_TIMER:
+            onFakeRingingTimer(call);
+            return StopProcessing;
         default:
             cdr->update_internal_reason(DisconnectByTS,"Timer "+int2str(timer_id)+" fired",200);
             break;
@@ -847,6 +858,20 @@ CCChainProcessing YetiCC::onTearDown(SBCCallLeg *call){
         cdr->update_bleg_reason("Bye",200);
     }
 	return ContinueProcessing;
+}
+
+void YetiCC::onB2Binitial1xx(SBCCallLeg *call, AmSipReply& reply, bool forward)
+{
+	if(call->isALeg()) {
+		if(reply.code==100) {
+			const SBCCallProfile &profile = call->getCallProfile();
+			if(profile.fake_ringing_timeout)
+				call->setTimer(YETI_FAKE_RINGING_TIMER,profile.fake_ringing_timeout);
+			return;
+		}
+		getCtx_void
+		ctx->ringing_sent = true;
+	}
 }
 
 void YetiCC::terminateLegOnReplyException(SBCCallLeg *call,const AmSipReply& reply,const InternalException &e){
@@ -1544,3 +1569,12 @@ void YetiCC::onInterimRadiusTimer(SBCCallLeg *call)
 	}
 }
 
+void YetiCC::onFakeRingingTimer(SBCCallLeg *call)
+{
+	DBG("fake ringing timer fired for %s",call->getLocalTag().c_str());
+	getCtx_void
+	if(!ctx->ringing_sent) {
+		call->dlg->reply(*ctx->initial_invite,180,SIP_REPLY_RINGING);
+		ctx->ringing_sent = true;
+	}
+}
