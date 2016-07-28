@@ -16,9 +16,6 @@ struct PendingReinvite
   bool establishing;
 };
 
-enum HoldMethod { SendonlyStream, InactiveStream, ZeroedConnection };
-bool isHoldRequest(AmSdp &sdp, HoldMethod &method);
-
 /** composed AmB2BCalleeSession & AmB2BCallerSession
  * represents indepenedently A or B leg of a call,
  * old clases left for compatibility
