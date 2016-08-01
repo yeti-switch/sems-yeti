@@ -184,12 +184,14 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   virtual void setMediaSession(AmB2BMedia *new_session);
   virtual void computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &mask);
-  virtual void processLocalReInvite(AmSipRequest &req);
+  virtual void processLocalRequest(AmSipRequest &req);
 
   void setSensor(msg_sensor *_sensor);
 
   msg_logger *getLogger() { return logger; }
   msg_sensor *getSensor() { return sensor; }
+
+  void b2bInitial1xx(AmSipReply& reply, bool forward);
 
  protected:
 

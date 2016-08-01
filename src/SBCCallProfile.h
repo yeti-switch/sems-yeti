@@ -278,6 +278,8 @@ struct SBCCallProfile
   bool record_audio;
   string audio_record_path;
 
+  int fake_ringing_timeout;
+
   struct TranscoderSettings {
     // non-replaced parameters
 	string /*callee_codec_capabilities_str, audio_codecs_str,
@@ -442,7 +444,8 @@ struct SBCCallProfile
 	suppress_early_media(false),
 	radius_profile_id(0),
 	aleg_radius_acc_profile_id(0),
-	bleg_radius_acc_profile_id(0)
+	bleg_radius_acc_profile_id(0),
+	fake_ringing_timeout(0)
   { }
 
   bool readFromConfiguration(const string& name, const string profile_file_name);

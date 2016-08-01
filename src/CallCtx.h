@@ -37,6 +37,7 @@ struct CallCtx: public
 	bool on_hold;
 	bool bleg_early_media_muted;
 	bool ringing_timeout;
+	bool ringing_sent;
 
 	fake_logger *early_trying_logger;
 

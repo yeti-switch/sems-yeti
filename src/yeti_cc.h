@@ -52,6 +52,7 @@ class YetiCC
     bool chooseNextProfile(SBCCallLeg *call);
     void onRadiusReply(SBCCallLeg *call, const RadiusReplyEvent &ev);
     void onInterimRadiusTimer(SBCCallLeg *call);
+    void onFakeRingingTimer(SBCCallLeg *call);
 
     CCChainProcessing onRtpTimeout(SBCCallLeg *call,const AmRtpTimeoutEvent &rtp_event);
     void onServerShutdown(SBCCallLeg *call);
@@ -95,6 +96,8 @@ class YetiCC
     CCChainProcessing onOtherBye(SBCCallLeg *call, const AmSipRequest &req);
     void onCallConnected(SBCCallLeg *call, const AmSipReply& reply);
     void onCallEnded(SBCCallLeg *call);
+
+    void onB2Binitial1xx(SBCCallLeg *call, AmSipReply& reply, bool forward);
 
     void onRTPStreamDestroy(SBCCallLeg *call,AmRtpStream *stream);
     void onSdpCompleted(SBCCallLeg *call, AmSdp& offer, AmSdp& answer);

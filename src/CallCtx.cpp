@@ -137,6 +137,7 @@ CallCtx::CallCtx():
 	cdr(NULL),
 	SQLexception(false),
 	ringing_timeout(false),
+	ringing_sent(false),
 	bleg_early_media_muted(false),
 	on_hold(false),
 	early_trying_logger(new fake_logger())

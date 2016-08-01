@@ -296,6 +296,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 
 	assign_bool_safe(suppress_early_media,"suppress_early_media",false,false);
 	assign_bool_safe(force_one_way_early_media,"force_one_way_early_media",false,false);
+	assign_int_safe_silent(fake_ringing_timeout,"fake_180_timer",0,0);
 
 	assign_int_safe_silent(radius_profile_id,"radius_auth_profile_id",0,0);
 	assign_int_safe_silent(aleg_radius_acc_profile_id,"aleg_radius_acc_profile_id",0,0);
@@ -467,6 +468,8 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 		DBG("ringing_timeout: %i\n", ringing_timeout);
 		DBG("invite_timeout: %i\n", inv_transaction_timeout);
 		DBG("src_vailover_timeout: %i\n", inv_srv_failover_timeout);
+		DBG("fake_180_timer: %i\n",fake_ringing_timeout);
+
 		DBG("dead_rtp_time: %i\n",dead_rtp_time);
 		DBG("global_tag: %s\n", global_tag.c_str());
 

@@ -552,10 +552,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req) {
     }
   }
 
-  if ( getCallStatus() != Disconnected
-       && getCallStatus() != Disconnecting
-       && !getOtherId().empty())
-  {
+  if(!(m_state==BB_Init && req.method==SIP_METH_INVITE)) { //ignore initial INVITE
     if(yeti.onInDialogRequest(this, req) == StopProcessing) return;
   }
 
@@ -1450,7 +1447,7 @@ void SBCCallLeg::alterHoldRequest(AmSdp &sdp)
   alterHoldRequestImpl(sdp);
 }
 
-void SBCCallLeg::processLocalReInvite(AmSipRequest &req) {
+void SBCCallLeg::processLocalRequest(AmSipRequest &req) {
 	DBG("%s() local_tag = %s",FUNC_NAME,getLocalTag().c_str());
 	updateLocalBody(req.body);
 	dlg->reply(req,200,"OK",&req.body,"",SIP_FLAGS_VERBATIM);
@@ -1636,4 +1633,10 @@ int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote){
 bool SBCCallLeg::getSdpOffer(AmSdp& offer){
 	if(yeti.getSdpOffer(this,offer)) return true;
 	return CallLeg::getSdpOffer(offer);
+}
+
+void SBCCallLeg::b2bInitial1xx(AmSipReply& reply, bool forward)
+{
+	yeti.onB2Binitial1xx(this,reply,forward);
+	return CallLeg::b2bInitial1xx(reply,forward);
 }
