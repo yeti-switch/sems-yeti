@@ -49,7 +49,6 @@ Yeti::Yeti(YetiBaseParams &params)
 
 
 Yeti::~Yeti() {
-    Registration::instance()->stop();
     rctl.stop();
     router.stop();
 }
@@ -212,7 +211,6 @@ int Yeti::onLoad() {
 		ERROR("Registration agent configure failed");
 		return -1;
 	}
-	Registration::instance()->start();
 
 	start_time = time(NULL);
 

@@ -190,8 +190,6 @@ void YetiRpc::init_rpc_cmds(){
 
 		reg_leaf(request,request_registrations,"registrations","uac registrations");
 			reg_method(request_registrations,"reload","reload reqistrations preferences",reloadRegistrations,"");
-			reg_method_arg(request_registrations,"renew","renew registration",RenewRegistration,
-						   "","<ID>","renew registration by id");
 
 		reg_leaf(request,request_stats,"stats","runtime statistics");
 			reg_method(request_stats,"clear","clear all counters",ClearStats,"");
@@ -377,9 +375,6 @@ void YetiRpc::invoke(const string& method, const AmArg& args, AmArg& ret)
 	} else if (method == "getRegistration"){
 		INFO("getRegistration via rpc2di");
 		GetRegistration(args,ret);
-	} else if (method == "renewRegistration"){
-		INFO("renewRegistration via rpc2di");
-		RenewRegistration(args,ret);
 	} else if (method == "getRegistrations"){
 		INFO("getRegistrations via rpc2di");
 		GetRegistrations(args,ret);
@@ -530,40 +525,21 @@ void YetiRpc::showCallsFields(const AmArg &args, AmArg &ret){
 }
 
 void YetiRpc::GetRegistration(const AmArg& args, AmArg& ret){
-	string reg_id_str;
-	int reg_id;
 	handler_log();
-	if (!args.size()) {
-		throw AmSession::Exception(500,"Parameters error: expected id of requested registration");
+
+	AmDynInvokeFactory* di_f = AmPlugIn::instance()->getFactory4Di("registrar_client");
+	if (di_f == NULL) {
+		ERROR("unable to get a registrar_client");
+		throw AmSession::Exception(500,"unable to get a registrar_client");
 	}
 
-	reg_id_str = args[0].asCStr();
-	if(!str2int(reg_id_str,reg_id)){
-		throw AmSession::Exception(500,"Non integer value passed as registrations id");
+	AmDynInvoke* registrar_client_i = di_f->getInstance();
+	if (registrar_client_i==NULL) {
+		ERROR("unable to get registrar client invoke instance");
+		throw AmSession::Exception(500,"unable to get registrar client invoke instance");
 	}
 
-	if(!Registration::instance()->get_registration_info(reg_id,ret)){
-		throw AmSession::Exception(404,"Have no registration with such id");
-	}
-}
-
-void YetiRpc::RenewRegistration(const AmArg& args, AmArg& ret){
-	string reg_id_str;
-	int reg_id;
-	handler_log();
-	if (!args.size()) {
-		throw AmSession::Exception(500,"Parameters error: expected id of active registration");
-	}
-
-	reg_id_str = args[0].asCStr();
-	if(!str2int(reg_id_str,reg_id)){
-		throw AmSession::Exception(500,"Non integer value passed as registrations id");
-	}
-
-	if(!Registration::instance()->reregister(reg_id)){
-		throw AmSession::Exception(404,"Have no registration with such id and in appropriate state");
-	}
-	ret = RPC_CMD_SUCC;
+	registrar_client_i->invoke("showRegistration", args, ret);
 }
 
 void YetiRpc::GetRegistrations(const AmArg& args, AmArg& ret){
@@ -577,7 +553,21 @@ void YetiRpc::GetRegistrations(const AmArg& args, AmArg& ret){
 
 void YetiRpc::GetRegistrationsCount(const AmArg& args, AmArg& ret){
 	handler_log();
-	ret = Registration::instance()->get_registrations_count();
+
+	(void)args;
+
+	AmDynInvokeFactory* di_f = AmPlugIn::instance()->getFactory4Di("registrar_client");
+	if (di_f == NULL) {
+		ERROR("unable to get a registrar_client");
+		throw AmSession::Exception(500,"unable to get a registrar_client");
+	}
+
+	AmDynInvoke* registrar_client_i = di_f->getInstance();
+	if (registrar_client_i==NULL) {
+		throw AmSession::Exception(500,"unable to get registrar client invoke instance");
+	}
+
+	registrar_client_i->invoke("getRegistrationsCount", AmArg(), ret);
 }
 
 void YetiRpc::ClearStats(const AmArg& args, AmArg& ret){

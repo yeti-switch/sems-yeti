@@ -46,7 +46,6 @@ class YetiRpc
     rpc_handler GetCallsFields;
     rpc_handler GetCallsCount;
     rpc_handler GetRegistration;
-    rpc_handler RenewRegistration;
     rpc_handler GetRegistrations;
     rpc_handler GetRegistrationsCount;
     rpc_handler showVersion;
