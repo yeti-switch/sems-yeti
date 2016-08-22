@@ -552,7 +552,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req) {
     }
   }
 
-  if(!(m_state==BB_Init && req.method==SIP_METH_INVITE)) { //ignore initial INVITE
+  if(!req.to_tag.empty()) {
     if(yeti.onInDialogRequest(this, req) == StopProcessing) return;
   }
 
