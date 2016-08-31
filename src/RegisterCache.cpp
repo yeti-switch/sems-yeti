@@ -952,8 +952,8 @@ bool _RegisterCache::throttleRegister(RegisterCacheCtx& ctx,
       return false; // fwd
     }
 
-    alias_updates.push_back(make_pair<string,long int>(reg_binding.alias,
-						       contact_expires));
+	pair<string,long int> p(reg_binding.alias,contact_expires);
+	alias_updates.push_back(std::move(p));
   }
 
   // reply 200 w/ contacts

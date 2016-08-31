@@ -77,7 +77,7 @@ bool Yeti::read_config(){
 
 	AmConfigReader ycfg;
 	if(ycfg.loadFile(AmConfig::ModConfigPath + string(MOD_NAME ".conf"))) {
-		ERROR("No configuration for "MOD_NAME" present (%s)\n",
+		ERROR("No configuration for " MOD_NAME " present (%s)\n",
 			(AmConfig::ModConfigPath + string(MOD_NAME ".conf")).c_str());
 		return false;
 	}

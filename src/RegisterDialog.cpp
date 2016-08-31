@@ -239,8 +239,8 @@ int RegisterDialog::fixUacContacts(const AmSipRequest& req)
 	continue;
       }
 
-      alias_updates.push_back(make_pair<string,long int>(reg_binding.alias,
-							 contact_expires));
+	  pair<string,long int> p(reg_binding.alias,contact_expires);
+	  alias_updates.push_back(std::move(p));
     }
 
     if(!uac_contacts.empty() && reg_caching && reg_cache_reply) {
