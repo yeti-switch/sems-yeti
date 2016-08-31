@@ -1,3 +1,9 @@
+sems-yeti (1.7.8) stable; urgency=low
+
+  * fix CDR fields on reINVITE reply call termination
+
+ -- dev <dev@yeti-switch.org>  Wed, 31 Aug 2016 17:32:51 +0300
+
 sems-yeti (1.7.7) stable; urgency=low
 
   * fix reINVITE local processing
