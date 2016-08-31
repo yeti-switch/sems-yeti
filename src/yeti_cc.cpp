@@ -916,6 +916,8 @@ CCChainProcessing YetiCC::handleHoldReply(SBCCallLeg *call, bool succeeded) {
 }
 
 CCChainProcessing YetiCC::onRemoteDisappeared(SBCCallLeg *call, const AmSipReply &reply){
+	const static string reinvite_failed("reINVITE failed");
+
 	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
     getCtx_chained
 	if(call->isALeg()){
@@ -929,6 +931,16 @@ CCChainProcessing YetiCC::onRemoteDisappeared(SBCCallLeg *call, const AmSipReply
         with_cdr_for_read {
             cdr->update_internal_reason(DisconnectByTS,reply.reason,reply.code);
         }
+	}
+	if(call->getCallStatus()==CallLeg::Connected) {
+		with_cdr_for_read {
+			cdr->update_internal_reason(
+				DisconnectByTS,
+				reinvite_failed, 200
+			);
+			cdr->update_aleg_reason("Bye",200);
+			cdr->update_bleg_reason("Bye",200);
+		}
 	}
 	return ContinueProcessing;
 }
