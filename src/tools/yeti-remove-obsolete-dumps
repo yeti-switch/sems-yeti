@@ -1,0 +1,19 @@
+#!/bin/bash
+
+days=0  			#should be one less from desired depth (read man find -atime comment)
+dir=/var/spool/sems/dump	#sems pcap dumps dir
+
+case $1 in
+        list)
+                find $dir -name "*.pcap" -mtime +$days -printf "%a %f\n" 
+                exit 0
+                ;;
+        clean)
+                find $dir -name "*.pcap" -mtime +$days -delete 
+                exit 0
+                ;;
+        *)
+                echo "usage: $0 list|clean"
+                exit 0
+                ;;
+esac

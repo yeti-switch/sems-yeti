@@ -1,0 +1,39 @@
+#!/usr/bin/python
+from xmlrpclib import *
+from sys import *
+
+l = len(argv)
+
+def ss(v,keys,key):
+	kk = key[:]
+	for i,k in enumerate(keys):
+		v = v[k]
+		if i+1 == len(keys):
+			if type(v) is (int or float or long):
+				print "{} = {} ".format(".".join(key),v)
+			else:
+				print "invalid key type {} for key '{}'".format(type(v),".".join(key))
+		else:
+			if type(v) is list:
+				for j,l in  enumerate(v):
+					kk[i+1] = "{}[{}]".format(key[i+1],j)
+					ss(l,keys[i+1:],kk)
+				break
+	return
+
+
+if l < 3 or argv[1] == '--help':
+	print "usage: %s uri counter1 [counter2, ...] " % argv[0]
+	exit(1)
+
+try:
+	s = ServerProxy(argv[1])
+	data=s.di('yeti','getStats')
+	for key in argv[2:]:
+		kk = key.split('.')
+		ss(data[kk[0]],kk[1:],kk)
+except Fault as err:
+	print "Fault code: %d" % err.faultCode
+	print "Fault string: %s" % err.faultString
+except BaseException as err:
+	print "Err: %s" % err

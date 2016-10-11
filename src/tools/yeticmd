@@ -1,0 +1,171 @@
+#!/usr/bin/python
+
+#aptitude install python-yaml
+
+import os, sys, signal, xmlrpclib, pprint, ConfigParser
+from cmd import Cmd
+
+def walk_over_keys(v,keys,key):
+	kk = key[:]
+	for i,k in enumerate(keys):
+		if k == '*':	#walk over arrays key
+			if type(v) is not list:
+				print "invalid keyword '*' for non list type {}".format(type(v))
+				return
+			else:
+				if i+1 == len(keys):
+					print "keyword '*' must precede valid key"
+					return
+				for j,l in  enumerate(v):
+					kk[i+1] = "{}[{}]".format(key[i+1],j)
+					walk_over_keys(l,keys[i+1:],kk)
+				break
+		if k not in v:
+			print "invalid item '{}'".format(k)
+			return
+		v = v[k]
+		if i+1 == len(keys):
+			pprint.PrettyPrinter(indent=4).pprint(v)
+	return
+
+class shell(Cmd):
+	prompt = 'YETI> '
+	doc_header = ''
+	cfg_path = '/etc/sems/etc/yeticmd.yaml'
+	cfg = dict()
+	node_id = None
+
+
+	def sigint_handler(self, signum, frame):
+		self.stdout.write('\n'+self.prompt)
+		self.stdout.flush()
+
+	def rpc_do(self,args):
+		if self.node_id is None:
+			return None
+		addr = self.cfg['nodes'][self.node_id]
+		s = xmlrpclib.ServerProxy(addr) 
+		data = s.di('yeti',*args)
+		return data
+
+	def rpc_complete(self,args):
+		try:
+			a = args[:]
+			a.append('_list')	
+			return [c[0]+' ' for c in self.rpc_do(a)]
+		except BaseException as err:
+			return None
+
+
+	def rpc_command(self,line):
+		try:
+			if self.node_id is None:
+				raise BaseException("you should choose node first")
+			cc = [c.strip() for c in line.split('&')]
+			for c in cc:
+				args = c.split('|')
+				cmds = args[0].split()
+				keys = args[1].strip() if len(args) > 1 else None
+			
+				if len(cc) > 1:	
+					print "{}...".format(args[0])
+				data = self.rpc_do(cmds)
+	
+				if keys is not None and len(keys) > 0:
+					chunks = [k.strip() for k in keys.split(',')]
+					for k in chunks:
+						if len(chunks) > 1:
+							print "{}:".format(k)
+						kk = k.split('.')
+						walk_over_keys(data[1],kk[:],kk)
+				else:
+					if keys is not None:
+						data = data[1]
+					pprint.PrettyPrinter(indent=4).pprint(data)
+					
+		except BaseException as err:
+			print err
+
+	def default(self,line):
+		self.rpc_command(line)
+
+	def do_EOF(self,line):
+		print ''
+		sys.exit()
+
+	def do_all(self,line):
+		'apply rpc_cmd for all nodes from config'
+		tmp_node_id = self.node_id
+		for n in self.cfg['nodes']:
+			print "\n--- {} ---".format(n)
+			self.node_id = n
+			self.rpc_command(line)
+		self.node_id = tmp_node_id	
+
+	def complete_all(self, text, line, begidx, endidx):
+		return self.completedefault(text,' '.join(line.split()[1:]),begidx,endidx)
+
+	def completenames(self, text, *ignored):
+		dotext = 'do_'+text
+		r = [a[3:] for a in self.get_names() if a.startswith(dotext)]
+		if self.node_id is None:
+			return r
+		return r+[a for a in self.rpc_complete([]) if a.startswith(text)]
+
+	def completedefault(self, text, line, begidx, endidx):
+		if self.node_id is None:
+			return []
+		q = line.split()
+		if len(q) and q[0] in [ a[3:] for a in self.get_names() ]:
+			return []
+		c = self.rpc_complete(q)
+		if c is None:
+			p = self.rpc_complete(q[:-1])
+			c = [] if p is None else p
+		return [a for a in c if a.startswith(text)]
+
+	def emptyline(self):
+		pass
+
+	def do_exit(self,arg):
+		'exit shell'
+		sys.exit()
+	
+	def do_list(self,arg):
+		'list available nodes'
+		for (n,a) in self.cfg['nodes'].items():
+			print "{}{}\t{}".format("*" if n == self.node_id else '',n,a)
+		pass
+
+	def do_use(self,arg):
+		'use <node_id> - set current node'
+		try:
+			if not len(arg):
+				raise BaseException('cmd requires node_id')
+			if int(arg) not in self.cfg['nodes']:
+				raise BaseException('invalid node id. use list to see available')
+			prev_node_id = self.node_id
+			self.node_id = int(arg)
+			self.prompt = "YETI:{}> ".format(self.node_id)
+			print "node changed from {} to {}".format(prev_node_id,self.node_id)
+		except BaseException as err:
+			print err
+		pass
+
+	def read_cfg(self):
+		import yaml
+		self.cfg = yaml.load(open(self.cfg_path))
+
+	def preloop(self):	
+		self.read_cfg()		
+		if 'default_node' in self.cfg:
+			self.do_use(str(self.cfg['default_node']))
+		signal.signal(signal.SIGINT, self.sigint_handler)
+	
+if __name__ == '__main__':
+	try:
+		shell().cmdloop()
+	except IOError as e:
+		print e
+	except KeyboardInterrupt as e:
+		print ''

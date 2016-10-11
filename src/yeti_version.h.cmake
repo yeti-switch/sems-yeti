@@ -1,0 +1,6 @@
+#pragma once
+
+#define YETI_VERSION "${BUILD_VERSION}"
+#define YETI_COMMIT "${BUILD_COMMIT}"
+#define YETI_BUILD_DATE "${BUILD_DATE}"
+#define YETI_BUILD_USER "${BUILD_USER}"
