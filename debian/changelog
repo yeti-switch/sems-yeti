@@ -1,3 +1,9 @@
+sems-yeti (1.7.12) stable; urgency=low
+
+  * build with libsems 1.7.15
+
+ -- dev <dev@yeti-switch.org>  Wed, 26 Oct 2016 16:37:16 +0300
+
 sems-yeti (1.7.11) stable; urgency=low
 
   * init
