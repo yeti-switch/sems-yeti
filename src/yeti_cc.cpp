@@ -1528,10 +1528,12 @@ void YetiCC::onRadiusReply(SBCCallLeg *call, const RadiusReplyEvent &ev)
 			break;
 		case RadiusReplyEvent::Error:
 			if(ev.reject_on_error){
-				DBG("radius error. reject");
+				ERROR("[%s] radius error %d. reject",
+					call->getLocalTag().c_str(),ev.error_code);
 				throw InternalException(ev.error_code);
 			} else {
-				DBG("radius error, but radius profile configured to ignore errors.");
+				ERROR("[%s] radius error %d, but radius profile configured to ignore errors.",
+					call->getLocalTag().c_str(),ev.error_code);
 				onRoutingReady(call,call->getAlegModifiedReq(),call->getModifiedReq());
 			}
 			break;
