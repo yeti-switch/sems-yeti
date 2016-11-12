@@ -183,7 +183,7 @@ int Registration::reload_registration(AmConfigReader &cfg, const AmArg &args)
 	try {
 		registrar_client_i->invoke("removeRegistrationById", args, tmp);
 	} catch(AmSession::Exception &e) {
-		DBG("exception on removeRegistrationById(%d): %d %s. continue anyway",
+		DBG("exception on removeRegistrationById(%s): %d %s. continue anyway",
 			reg_id.c_str(),e.code,e.reason.c_str());
 	}
 
