@@ -16,14 +16,17 @@ static void on_resources_initialized_static(){
 	_instance->on_resources_initialized();
 }
 
-void ResourceControl::handler_info(HandlersIt &i, AmArg &a){
+void ResourceControl::handler_info(const HandlersIt &i, const struct timeval &now, AmArg &a) const
+{
 	a["handler"] = i->first;
-	i->second.info(a);
+	i->second.info(a, now);
 }
 
-void ResourceControl::handlers_entry::info(AmArg &a) const {
+void ResourceControl::handlers_entry::info(AmArg &a,const struct timeval &now) const
+{
 	a["onwer_tag"] = owner_tag;
 	a["valid"] = valid;
+	a["lifetime"] = now.tv_sec-created_at.tv_sec;
 	AmArg &r = a["resources"];
 	for(ResourceList::const_iterator j = resources.begin(); j!=resources.end();++j){
 		r.push(j->print());
@@ -235,10 +238,7 @@ ResourceCtlResponse ResourceControl::get(
 		case RES_SUCC: {
 			handler = AmSession::getNewId();
 			handlers_lock.lock();
-			handlers.insert(std::pair<string,handlers_entry>(handler,
-															 handlers_entry(
-																 rl,
-																 owner_tag)));
+			handlers.emplace(handler,handlers_entry(rl,owner_tag));
 			handlers_lock.unlock();
 			DBG("ResourceControl::get() return resources handler '%s' for %p",
 				handler.c_str(),&rl);
@@ -388,11 +388,13 @@ void ResourceControl::getResourceState(int type, int id, AmArg &ret){
 }
 
 void ResourceControl::showResources(AmArg &ret){
+	struct timeval now;
 	handlers_lock.lock();
+	gettimeofday(&now,NULL);
 	for(HandlersIt i = handlers.begin();i!=handlers.end();++i){
 		//const handlers_entry &e = i->second;
 		ret.push(AmArg());
-		handler_info(i,ret.back());
+		handler_info(i,now,ret.back());
 	}
 	handlers_lock.unlock();
 }
@@ -402,9 +404,13 @@ void ResourceControl::showResourceByHandler(const string &h, AmArg &ret){
 	HandlersIt i = handlers.find(h);
 	if(i==handlers.end()){
 		handlers_lock.unlock();
-        throw AmSession::Exception(500,"no such handler");
+		throw AmSession::Exception(500,"no such handler");
 	}
-	handler_info(i,ret);
+
+	struct timeval now;
+	gettimeofday(&now,NULL);
+	handler_info(i,now,ret);
+
 	handlers_lock.unlock();
 }
 
@@ -419,16 +425,23 @@ void ResourceControl::showResourceByLocalTag(const string &tag, AmArg &ret){
 	}
 	if(i==handlers.end()){
 		handlers_lock.unlock();
-        throw AmSession::Exception(500,"no such handler");
+		throw AmSession::Exception(500,"no such handler");
 	}
-	handler_info(i,ret);
+
+	struct timeval now;
+	gettimeofday(&now,NULL);
+	handler_info(i,now,ret);
+
 	handlers_lock.unlock();
 }
 
 void ResourceControl::showResourcesById(int id, AmArg &ret){
+	struct timeval now;
+
 	handlers_lock.lock();
 
 	ret.assertArray();
+	gettimeofday(&now,NULL);
 
 	HandlersIt i = handlers.begin();
 	for(;i!=handlers.end();++i){
@@ -438,7 +451,7 @@ void ResourceControl::showResourcesById(int id, AmArg &ret){
 			const Resource &r = *j;
 			if(r.id==id){
 				ret.push(AmArg());
-				handler_info(i,ret.back());
+				handler_info(i,now,ret.back());
 				break; //loop over resources
 			}
 		}

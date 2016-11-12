@@ -56,18 +56,22 @@ class ResourceControl
 	struct handlers_entry {
 		ResourceList resources;
 		string owner_tag;
+		struct timeval created_at;
 		bool valid;
 
-		handlers_entry(const ResourceList &l,const string &tag):
-			resources(l), owner_tag(tag), valid(true) {}
+		handlers_entry(const ResourceList &l,const string &tag)
+			: resources(l), owner_tag(tag), valid(true)
+		{
+			gettimeofday(&created_at, NULL);
+		}
 		void invalidate() { valid = false; }
 		bool is_valid() { return valid; }
-		void info(AmArg &a) const;
+		void info(AmArg &a, const struct timeval &now) const;
 	};
 	typedef map<string,handlers_entry> Handlers;
 	typedef Handlers::const_iterator HandlersIt;
 
-	void handler_info(HandlersIt &i, AmArg &a);
+	void handler_info(const HandlersIt &i, const struct timeval &now, AmArg &a) const;
 
 	Handlers handlers;
 	AmMutex handlers_lock;
