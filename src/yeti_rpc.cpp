@@ -151,14 +151,19 @@ void YetiRpc::init_rpc_cmds(){
 
 		reg_leaf(show,show_radius,"radius","radius module");
 			reg_leaf(show_radius,show_radius_auth,"authorization","auth functionality");
-				reg_method(show_radius_auth,"profiles","radius profiles configuration",showRadiusAuthProfiles,"");
-				reg_method(show_radius_auth,"statistics","radius connections statistic",showRadiusAuthStat,"");
+				reg_method_arg(show_radius_auth,"profiles","radius profiles configuration",showRadiusAuthProfiles,"",
+							   "<id>","show configuration for certain auth profile");
+				reg_method_arg(show_radius_auth,"statistics","radius connections statistic",showRadiusAuthStat,"",
+							   "<id>","show stats for certain auth profile");
 			reg_leaf(show_radius,show_radius_acc,"accounting","accounting functionality");
-				reg_method(show_radius_acc,"profiles","radius accounting profiles configuration",showRadiusAccProfiles,"");
-				reg_method(show_radius_acc,"statistics","radius connections statistic",showRadiusAccStat,"");
-			reg_leaf(show,show_upload,"upload","upload");
-				reg_method(show_upload,"destinations","show configured destinations for http_client",showUploadDestinations,"");
-				reg_method(show_upload,"stats","show http_client stats",showUploadStats,"");
+				reg_method_arg(show_radius_acc,"profiles","radius accounting profiles configuration",showRadiusAccProfiles,"",
+							   "<id>","show configuration for certain accounting profile");
+				reg_method_arg(show_radius_acc,"statistics","radius connections statistic",showRadiusAccStat,"",
+							   "<id>","show stats for certain accounting profile");
+
+		reg_leaf(show,show_upload,"upload","upload");
+			reg_method(show_upload,"destinations","show configured destinations for http_client",showUploadDestinations,"");
+			reg_method(show_upload,"stats","show http_client stats",showUploadStats,"");
 
 		reg_leaf(show,show_recorder,"recorder","audio recorder instance");
 			reg_method(show_recorder,"stats","show audio recorder processor stats",showRecorderStats,"");
