@@ -1517,6 +1517,12 @@ bool YetiCC::check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
 void YetiCC::onRadiusReply(SBCCallLeg *call, const RadiusReplyEvent &ev)
 {
 	DBG("got radius reply for %s",call->getLocalTag().c_str());
+
+	if(AmBasicSipDialog::Cancelling==call->dlg->getStatus()) {
+		DBG("[%s] ignore radius reply in Cancelling state",call->getLocalTag().c_str());
+		return;
+	}
+
 	getCtx_void
 	try {
 		switch(ev.result){

@@ -909,7 +909,7 @@ void CallLeg::onInvite2xx(const AmSipReply& reply)
 void CallLeg::onCancel(const AmSipRequest& req)
 {
   // initial INVITE handling
-  if ((call_status == Ringing) || (call_status == NoReply)) {
+  if ((call_status == Ringing) || (call_status == NoReply) || (call_status == Disconnected)) {
     if (a_leg) {
       // terminate whole B2B call if the caller receives CANCEL
       onCallFailed(CallCanceled, NULL);
