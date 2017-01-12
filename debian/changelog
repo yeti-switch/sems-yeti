@@ -1,3 +1,9 @@
+sems-yeti (1.7.15-1) stable; urgency=low
+
+  * build with libsems 1.7.22
+
+ -- dev <dev@yeti-switch.org>  Thu, 12 Jan 2017 19:05:20 +0200
+
 sems-yeti (1.7.15) stable; urgency=low
 
   * 8171947 immediate leg hangup on CANCEL while waiting for RADIUS auth reply.
