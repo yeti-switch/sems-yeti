@@ -1,3 +1,9 @@
+sems-yeti (1.7.15-2) stable; urgency=low
+
+  * rpc: fix core version output
+
+ -- dev <dev@yeti-switch.org>  Fri, 13 Jan 2017 19:59:20 +0200
+
 sems-yeti (1.7.15-1) stable; urgency=low
 
   * build with libsems 1.7.22
