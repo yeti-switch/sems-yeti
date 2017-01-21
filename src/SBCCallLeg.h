@@ -98,6 +98,8 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   void init();
 
+  void terminateLegOnReplyException(const AmSipReply& reply,const InternalException &e);
+
  public:
 
   SqlRouter &router;

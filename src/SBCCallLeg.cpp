@@ -28,6 +28,8 @@
 #include "radius_hooks.h"
 #include "Sensors.h"
 
+#include "sdp_filter.h"
+
 using namespace std;
 
 #define TRACE DBG
@@ -42,6 +44,21 @@ inline void replace(string& s, const string& from, const string& to){
 		pos += s.length();
 	}
 }
+
+#define getCtx_void \
+    if(NULL==call_ctx) {\
+        ERROR("CallCtx = nullptr ");\
+        log_stacktrace(L_ERR);\
+        return;\
+    }
+
+#define with_cdr_for_read \
+    Cdr *cdr = call_ctx->getCdrSafe<false>();\
+    if(cdr)
+
+#define with_cdr_for_write \
+    Cdr *cdr = call_ctx->getCdrSafe<true>();\
+    if(cdr)
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -209,6 +226,28 @@ void SBCCallLeg::init()
             call_profile.audio_record_path);
         setRecordAudio(true);
     }
+}
+
+void SBCCallLeg::terminateLegOnReplyException(const AmSipReply& reply,const InternalException &e)
+{
+    getCtx_void
+
+    if(!a_leg) {
+        if(!getOtherId().empty()) { //ignore not connected B legs
+            with_cdr_for_read {
+                cdr->update_internal_reason(DisconnectByTS,e.internal_reason,e.internal_code);
+                cdr->update(reply);
+            }
+        }
+        relayError(reply.cseq_method,reply.cseq,true,e.response_code,e.response_reason.c_str());
+        disconnect(false,false);
+    } else {
+        with_cdr_for_read {
+            cdr->update_internal_reason(DisconnectByTS,e.internal_reason,e.internal_code);
+            cdr->update(reply);
+        }
+    }
+    stopCall(CallLeg::StatusChangeCause::InternalError);
 }
 
 void SBCCallLeg::onStart()
@@ -421,64 +460,193 @@ void SBCCallLeg::applyBProfile()
 
 int SBCCallLeg::relayEvent(AmEvent* ev)
 {
-  int res = yeti.relayEvent(this, ev);
-  if (res > 0) return 0;
-  if (res < 0) return res;
-
-
-    switch (ev->event_id) {
-      case B2BSipRequest:
-        {
-          B2BSipRequestEvent* req_ev = dynamic_cast<B2BSipRequestEvent*>(ev);
-          assert(req_ev);
-
-          inplaceHeaderPatternFilter(
-            req_ev->req.hdrs,
-            a_leg ? call_profile.headerfilter_a2b : call_profile.headerfilter_b2a
-          );
-
-	  if((a_leg && call_profile.keep_vias)
-	     || (!a_leg && call_profile.bleg_keep_vias)) {
-	    req_ev->req.hdrs = req_ev->req.vias + req_ev->req.hdrs;
-	  }
-        }
-        break;
-
-      case B2BSipReply:
-        {
-          B2BSipReplyEvent* reply_ev = dynamic_cast<B2BSipReplyEvent*>(ev);
-          assert(reply_ev);
-
-          if(call_profile.transparent_dlg_id &&
-	     (reply_ev->reply.from_tag == dlg->getExtLocalTag()))
-            reply_ev->reply.from_tag = dlg->getLocalTag();
-          /*
-
-          if (call_profile.headerfilter.size() ||
-              call_profile.reply_translations.size()) {
-            // header filter
-            if (call_profile.headerfilter.size()) {
-              inplaceHeaderFilter(reply_ev->reply.hdrs, call_profile.headerfilter);
-            }
-
-            // reply translations
-            map<unsigned int, pair<unsigned int, string> >::iterator it =
-              call_profile.reply_translations.find(reply_ev->reply.code);
-
-            if (it != call_profile.reply_translations.end()) {
-              DBG("translating reply %u %s => %u %s\n",
-                  reply_ev->reply.code, reply_ev->reply.reason.c_str(),
-                  it->second.first, it->second.second.c_str());
-              reply_ev->reply.code = it->second.first;
-              reply_ev->reply.reason = it->second.second;
-            }
-          }*/
-        }
-
-        break;
+    if(NULL==call_ctx) {
+        ERROR("Yeti::relayEvent(%p) zero ctx. ignore event",this);
+        return -1;
     }
 
-  return CallLeg::relayEvent(ev);
+    AmOfferAnswer::OAState dlg_oa_state = dlg->getOAState();
+
+    switch (ev->event_id) {
+    case B2BSipRequest: {
+        B2BSipRequestEvent* req_ev = dynamic_cast<B2BSipRequestEvent*>(ev);
+        assert(req_ev);
+
+        AmSipRequest &req = req_ev->req;
+
+        DBG("Yeti::relayEvent(%p) filtering request '%s' (c/t '%s') oa_state = %d\n",
+            this,req.method.c_str(), req.body.getCTStr().c_str(),
+            dlg_oa_state);
+
+        try {
+            int res;
+            if(req.method==SIP_METH_ACK){
+                //ACK can contain only answer
+                dump_SdpMedia(call_ctx->bleg_negotiated_media,"bleg_negotiated media_pre");
+                dump_SdpMedia(call_ctx->aleg_negotiated_media,"aleg_negotiated media_pre");
+
+                res = processSdpAnswer(
+                    this,
+                    req.body, req.method,
+                    call_ctx->get_other_negotiated_media(a_leg),
+                    a_leg ? call_profile.bleg_single_codec : call_profile.aleg_single_codec,
+                    call_profile.filter_noaudio_streams,
+                    //ACK request MUST contain SDP answer if we sent offer in reply
+                    dlg_oa_state==AmOfferAnswer::OA_OfferSent
+                );
+
+                dump_SdpMedia(call_ctx->bleg_negotiated_media,"bleg_negotiated media_post");
+                dump_SdpMedia(call_ctx->aleg_negotiated_media,"aleg_negotiated media_post");
+
+            } else {
+                res = processSdpOffer(
+                    call_profile,
+                    req.body, req.method,
+                    call_ctx->get_self_negotiated_media(a_leg),
+                    a_leg ? call_profile.static_codecs_aleg_id : call_profile.static_codecs_bleg_id
+                );
+                if(res>=0){
+                    res = filterSdpOffer(
+                        this,
+                        call_profile,
+                        req.body, req.method,
+                        a_leg ? call_profile.static_codecs_bleg_id : call_profile.static_codecs_aleg_id
+                    );
+                }
+            }
+            if (res < 0) {
+                delete ev;
+                return res;
+            }
+        } catch(InternalException &exception){
+            DBG("got internal exception %d on request processing",exception.icode);
+            delete ev;
+            return -448;
+        }
+
+        inplaceHeaderPatternFilter(
+            req.hdrs,
+            a_leg ? call_profile.headerfilter_a2b : call_profile.headerfilter_b2a);
+
+        if((a_leg && call_profile.keep_vias)
+            || (!a_leg && call_profile.bleg_keep_vias))
+        {
+            req.hdrs = req.vias +req.hdrs;
+        }
+    } break;
+    case B2BSipReply: {
+        B2BSipReplyEvent* reply_ev = dynamic_cast<B2BSipReplyEvent*>(ev);
+        assert(reply_ev);
+
+        AmSipReply &reply = reply_ev->reply;
+
+        DBG("Yeti::relayEvent(%p) filtering body for reply %d cseq.method '%s' (c/t '%s') oa_state = %d\n",
+            this,reply.code,reply_ev->trans_method.c_str(), reply.body.getCTStr().c_str(),
+            dlg_oa_state);
+
+        //append headers for 200 OK reply in direction B -> A
+        inplaceHeaderPatternFilter(
+            reply.hdrs,
+            a_leg ? call_profile.headerfilter_a2b : call_profile.headerfilter_b2a
+        );
+
+        do {
+            if(!a_leg){
+                if(reply.code==200
+                   && !call_profile.aleg_append_headers_reply.empty())
+                {
+                    size_t start_pos = 0;
+                    while (start_pos<call_profile.aleg_append_headers_reply.length()) {
+                        int res;
+                        size_t name_end, val_begin, val_end, hdr_end;
+                        if ((res = skip_header(call_profile.aleg_append_headers_reply, start_pos, name_end, val_begin,
+                                val_end, hdr_end)) != 0) {
+                            ERROR("skip_header for '%s' pos: %ld, return %d",
+                                    call_profile.aleg_append_headers_reply.c_str(),start_pos,res);
+                            throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+                        }
+                        string hdr_name = call_profile.aleg_append_headers_reply.substr(start_pos, name_end-start_pos);
+                        start_pos = hdr_end;
+                        while(!getHeader(reply.hdrs,hdr_name).empty()){
+                            removeHeader(reply.hdrs,hdr_name);
+                        }
+                    }
+                    assertEndCRLF(call_profile.aleg_append_headers_reply);
+                    reply.hdrs+=call_profile.aleg_append_headers_reply;
+                }
+
+                if(call_profile.suppress_early_media
+                    && reply.code>=180
+                    && reply.code < 190)
+                {
+                    DBG("convert B->A reply %d %s to %d %s and clear body",
+                        reply.code,reply.reason.c_str(),
+                        180,SIP_REPLY_RINGING);
+
+                    //patch code and reason
+                    reply.code = 180;
+                    reply.reason = SIP_REPLY_RINGING;
+                    //сlear body
+                    reply.body.clear();
+                    break;
+                }
+            }
+
+            try {
+                int res;
+                if(dlg_oa_state==AmOfferAnswer::OA_OfferRecved){
+                    DBG("relayEvent(): process offer in reply");
+                    res = processSdpOffer(
+                        call_profile,
+                        reply.body, reply.cseq_method,
+                        call_ctx->get_self_negotiated_media(a_leg),
+                        a_leg ? call_profile.static_codecs_aleg_id : call_profile.static_codecs_bleg_id,
+                        false,
+                        a_leg ? call_profile.aleg_single_codec : call_profile.bleg_single_codec
+                    );
+                    if(res>=0){
+                        res = filterSdpOffer(
+                            this,
+                            call_profile,
+                            reply.body, reply.cseq_method,
+                            a_leg ? call_profile.static_codecs_bleg_id : call_profile.static_codecs_aleg_id
+                        );
+                    }
+                } else {
+                    DBG("relayEvent(): process asnwer in reply");
+                    res = processSdpAnswer(
+                        this,
+                        reply.body, reply.cseq_method,
+                        call_ctx->get_other_negotiated_media(a_leg),
+                        a_leg ? call_profile.bleg_single_codec : call_profile.aleg_single_codec,
+                        call_profile.filter_noaudio_streams,
+                        //final positive reply MUST contain SDP answer if we sent offer
+                        (dlg_oa_state==AmOfferAnswer::OA_OfferSent
+                            && reply.code >= 200 && reply.code < 300)
+                    );
+                }
+
+                if(res<0){
+                    terminateLegOnReplyException(reply,InternalException(DC_REPLY_SDP_GENERIC_EXCEPTION));
+                    delete ev;
+                    return -488;
+                }
+            } catch(InternalException &exception){
+                DBG("got internal exception %d on reply processing",exception.icode);
+                terminateLegOnReplyException(reply,exception);
+                delete ev;
+                return -488;
+            }
+        } while(0);
+
+        //yeti_part
+        if(call_profile.transparent_dlg_id &&
+           (reply_ev->reply.from_tag == dlg->getExtLocalTag()))
+           reply_ev->reply.from_tag = dlg->getLocalTag();
+
+    } break;
+    } //switch (ev->event_id)
+    return CallLeg::relayEvent(ev);
 }
 
 SBCCallLeg::~SBCCallLeg()

@@ -102,8 +102,6 @@ class YetiCC
     void onSdpCompleted(SBCCallLeg *call, AmSdp& offer, AmSdp& answer);
     bool getSdpOffer(SBCCallLeg *call, AmSdp& offer);
 
-    int relayEvent(SBCCallLeg *call, AmEvent *e);
-
     void holdRequested(SBCCallLeg *call) { }
     void holdAccepted(SBCCallLeg *call) { }
     void holdRejected(SBCCallLeg *call) { }
