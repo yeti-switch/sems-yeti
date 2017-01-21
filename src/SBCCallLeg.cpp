@@ -53,6 +53,13 @@ inline void replace(string& s, const string& from, const string& to)
         return;\
     }
 
+#define getCtx_chained \
+    if(NULL==call_ctx) {\
+        ERROR("CallCtx = nullptr ");\
+        log_stacktrace(L_ERR);\
+        break;\
+    }
+
 #define with_cdr_for_read \
     Cdr *cdr = call_ctx->getCdrSafe<false>();\
     if(cdr)
@@ -726,11 +733,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
                   && ((a_leg && !call_profile.aleg_relay_update)
                       || (!a_leg && !call_profile.bleg_relay_update)))
         {
-            if(NULL==call_ctx) {
-                ERROR("CallCtx = nullptr ");
-                log_stacktrace(L_ERR);
-                return;
-            }
+            getCtx_chained;
 
             const AmMimeBody* sdp_body = req.body.hasContentType(SIP_APPLICATION_SDP);
             if(!sdp_body){
@@ -777,11 +780,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
             return;
         } else if(req.method == SIP_METH_INVITE)
         {
-            if(NULL==call_ctx) {
-                ERROR("CallCtx = nullptr ");
-                log_stacktrace(L_ERR);
-                return;
-            }
+            getCtx_chained;
 
             if((a_leg && call_profile.aleg_relay_reinvite)
                 || (!a_leg && call_profile.bleg_relay_reinvite))
@@ -857,11 +856,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
 
         if(a_leg){
             if(req.method==SIP_METH_CANCEL){
-                if(NULL==call_ctx) {
-                    ERROR("CallCtx = nullptr ");
-                    log_stacktrace(L_ERR);
-                    return;
-                }
+                getCtx_chained;
                 with_cdr_for_read {
                     cdr->update_internal_reason(DisconnectByORG,"Request terminated (Cancel)",487);
                 }
@@ -924,7 +919,14 @@ void SBCCallLeg::onSipReply(const AmSipRequest& req, const AmSipReply& reply,
         }
     }
 
-    if(yeti.onInDialogReply(this, reply) == StopProcessing) return;
+    do {
+        if(!a_leg) {
+            getCtx_chained
+            with_cdr_for_read {
+                cdr->update(reply);
+            }
+        }
+    } while(0);
 
     CallLeg::onSipReply(req, reply, old_dlg_status);
 }

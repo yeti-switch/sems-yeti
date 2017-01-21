@@ -430,18 +430,6 @@ void YetiCC::onInviteException(SBCCallLeg *call,int code,string reason,bool no_r
 	cdr->unlock();
 }
 
-CCChainProcessing YetiCC::onInDialogReply(SBCCallLeg *call, const AmSipReply &reply) {
-	DBG("%s(%p,leg%s)",FUNC_NAME,call,call->isALeg()?"A":"B");
-
-	if(!call->isALeg()){
-		getCtx_chained
-		with_cdr_for_read {
-			cdr->update(reply);
-		}
-	}
-	return ContinueProcessing;
-}
-
 CCChainProcessing YetiCC::onEvent(SBCCallLeg *call, AmEvent *e) {
 	DBG("%s(%p|%s,leg%s)",FUNC_NAME,call,
 		call->getLocalTag().c_str(),call->isALeg()?"A":"B");
