@@ -81,7 +81,6 @@ class YetiCC
     CCChainProcessing onBLegRefused(SBCCallLeg *call,AmSipReply& reply);
 
     void onInviteException(SBCCallLeg *call,int code,string reason,bool no_reply);
-    CCChainProcessing onInDialogRequest(SBCCallLeg *call, const AmSipRequest &req);
     CCChainProcessing onInDialogReply(SBCCallLeg *call, const AmSipReply &reply);
     CCChainProcessing onEvent(SBCCallLeg *call, AmEvent *e);
     CCChainProcessing onDtmf(SBCCallLeg *call, AmDtmfEvent* e);

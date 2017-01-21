@@ -710,9 +710,164 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
         }
     }
 
-    if(call_ctx->initial_invite) {
-        if(yeti.onInDialogRequest(this, req) == StopProcessing) return;
-    }
+    do {
+        if(!call_ctx->initial_invite)
+            break;
+
+        DBG("onInDialogRequest(%p|%s,leg%s) '%s'",this,getLocalTag().c_str(),a_leg?"A":"B",req.method.c_str());
+
+        if(req.method == SIP_METH_OPTIONS
+            && ((a_leg && !call_profile.aleg_relay_options)
+                || (!a_leg && !call_profile.bleg_relay_options)))
+        {
+            dlg->reply(req, 200, "OK", NULL, "", SIP_FLAGS_VERBATIM);
+            return;
+        } else if(req.method == SIP_METH_UPDATE
+                  && ((a_leg && !call_profile.aleg_relay_update)
+                      || (!a_leg && !call_profile.bleg_relay_update)))
+        {
+            if(NULL==call_ctx) {
+                ERROR("CallCtx = nullptr ");
+                log_stacktrace(L_ERR);
+                return;
+            }
+
+            const AmMimeBody* sdp_body = req.body.hasContentType(SIP_APPLICATION_SDP);
+            if(!sdp_body){
+                DBG("got UPDATE without body. local processing enabled. generate 200OK without SDP");
+                AmSipRequest upd_req(req);
+                processLocalRequest(upd_req);
+                return;
+            }
+
+            AmSdp sdp;
+            int res = sdp.parse((const char *)sdp_body->getPayload());
+            if(0 != res) {
+                DBG("SDP parsing failed: %d. respond with 488\n",res);
+                dlg->reply(req,488,"Not Acceptable Here");
+                return;
+            }
+
+            AmSipRequest upd_req(req);
+            try {
+                int res = processSdpOffer(
+                    call_profile,
+                    upd_req.body, upd_req.method,
+                    call_ctx->get_self_negotiated_media(a_leg),
+                    a_leg ? call_profile.static_codecs_aleg_id : call_profile.static_codecs_bleg_id,
+                    true,
+                    a_leg ? call_profile.aleg_single_codec : call_profile.bleg_single_codec
+                );
+                if (res < 0) {
+                    dlg->reply(req,488,"Not Acceptable Here");
+                    return;
+                }
+            } catch(InternalException &e){
+                dlg->reply(req,e.response_code,e.response_reason);
+                return;
+            }
+
+            processLocalRequest(upd_req);
+            return;
+        } else if(req.method == SIP_METH_PRACK
+                  && ((a_leg && !call_profile.aleg_relay_prack)
+                      || (!a_leg && !call_profile.bleg_relay_prack)))
+        {
+            dlg->reply(req,200, "OK", NULL, "", SIP_FLAGS_VERBATIM);
+            return;
+        } else if(req.method == SIP_METH_INVITE)
+        {
+            if(NULL==call_ctx) {
+                ERROR("CallCtx = nullptr ");
+                log_stacktrace(L_ERR);
+                return;
+            }
+
+            if((a_leg && call_profile.aleg_relay_reinvite)
+                || (!a_leg && call_profile.bleg_relay_reinvite))
+            {
+                DBG("skip local processing. relay");
+                break;
+            }
+
+            const AmMimeBody* sdp_body = req.body.hasContentType(SIP_APPLICATION_SDP);
+            if(!sdp_body){
+                DBG("got reINVITE without body. local processing enabled. generate 200OK with SDP offer");
+                DBG("replying 100 Trying to INVITE to be processed locally");
+                dlg->reply(req, 100, SIP_REPLY_TRYING);
+                AmSipRequest inv_req(req);
+                processLocalRequest(inv_req);
+                return;
+            }
+
+            AmSdp sdp;
+            int res = sdp.parse((const char *)sdp_body->getPayload());
+            if(0 != res) {
+                DBG("replying 100 Trying to INVITE to be processed locally");
+                dlg->reply(req, 100, SIP_REPLY_TRYING);
+                DBG("SDP parsing failed: %d. respond with 488\n",res);
+                dlg->reply(req,488,"Not Acceptable Here");
+                return;
+            }
+
+            //check for hold/unhold request to pass them transparently
+            HoldMethod method;
+            if(isHoldRequest(sdp,method)){
+                DBG("hold request matched. relay_hold = %d",
+                    a_leg?call_profile.aleg_relay_hold:call_profile.bleg_relay_hold);
+
+                if((a_leg && call_profile.aleg_relay_hold)
+                    || (!a_leg && call_profile.bleg_relay_hold))
+                {
+                    DBG("skip local processing for hold request");
+                    call_ctx->on_hold = true;
+                    break;
+                }
+            } else if(call_ctx->on_hold){
+                DBG("we in hold state. skip local processing for unhold request");
+                call_ctx->on_hold = false;
+                break;
+            }
+
+            DBG("replying 100 Trying to INVITE to be processed locally");
+            dlg->reply(req, 100, SIP_REPLY_TRYING);
+
+            AmSipRequest inv_req(req);
+            try {
+                int res = processSdpOffer(
+                    call_profile,
+                    inv_req.body, inv_req.method,
+                    call_ctx->get_self_negotiated_media(a_leg),
+                    a_leg ? call_profile.static_codecs_aleg_id : call_profile.static_codecs_bleg_id,
+                    true,
+                    a_leg ? call_profile.aleg_single_codec : call_profile.bleg_single_codec
+                );
+                if (res < 0) {
+                    dlg->reply(req,488,"Not Acceptable Here");
+                    return;
+                }
+            } catch(InternalException &e){
+                dlg->reply(req,e.response_code,e.response_reason);
+                return;
+            }
+
+            processLocalRequest(inv_req);
+            return;
+        }
+
+        if(a_leg){
+            if(req.method==SIP_METH_CANCEL){
+                if(NULL==call_ctx) {
+                    ERROR("CallCtx = nullptr ");
+                    log_stacktrace(L_ERR);
+                    return;
+                }
+                with_cdr_for_read {
+                    cdr->update_internal_reason(DisconnectByORG,"Request terminated (Cancel)",487);
+                }
+            }
+        }
+    } while(0);
 
     if (fwd && req.method == SIP_METH_INVITE) {
         DBG("replying 100 Trying to INVITE to be fwd'ed\n");
