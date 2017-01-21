@@ -1870,42 +1870,36 @@ bool SBCCallLeg::reinvite(const AmSdp &sdp, unsigned &request_cseq)
 void SBCCallLeg::holdRequested()
 {
     TRACE("%s: hold requested\n", getLocalTag().c_str());
-    CALL_EXT_CC_MODULES(holdRequested);
     CallLeg::holdRequested();
 }
 
 void SBCCallLeg::holdAccepted()
 {
     TRACE("%s: hold accepted\n", getLocalTag().c_str());
-    CALL_EXT_CC_MODULES(holdAccepted);
     CallLeg::holdAccepted();
 }
 
 void SBCCallLeg::holdRejected()
 {
     TRACE("%s: hold rejected\n", getLocalTag().c_str());
-    CALL_EXT_CC_MODULES(holdRejected);
     CallLeg::holdRejected();
 }
 
 void SBCCallLeg::resumeRequested()
 {
     TRACE("%s: resume requested\n", getLocalTag().c_str());
-    CALL_EXT_CC_MODULES(resumeRequested);
     CallLeg::resumeRequested();
 }
 
 void SBCCallLeg::resumeAccepted()
 {
     TRACE("%s: resume accepted\n", getLocalTag().c_str());
-    CALL_EXT_CC_MODULES(resumeAccepted);
     CallLeg::resumeAccepted();
 }
 
 void SBCCallLeg::resumeRejected()
 {
     TRACE("%s: resume rejected\n", getLocalTag().c_str());
-    CALL_EXT_CC_MODULES(resumeRejected);
     CallLeg::resumeRejected();
 }
 

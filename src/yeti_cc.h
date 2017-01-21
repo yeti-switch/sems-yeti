@@ -12,26 +12,7 @@ class SBCCallLeg;
 struct SBCCallProfile;
 class SimpleRelayDialog;
 
-struct InitialInviteHandlerParams
-{
-  string remote_party;
-  string remote_uri;
-  string from;
-  const AmSipRequest *original_invite;
-  AmSipRequest *aleg_modified_invite;
-  AmSipRequest *modified_invite;
-
-  InitialInviteHandlerParams(const string &to, const string &ruri, const string &_from,
-      const AmSipRequest *original,
-      AmSipRequest *aleg_modified,
-      AmSipRequest *modified):
-      remote_party(to), remote_uri(ruri), from(_from),
-      original_invite(original),
-      aleg_modified_invite(aleg_modified),modified_invite(modified) { }
-};
-
 enum CCChainProcessing { ContinueProcessing, StopProcessing };
-
 
 class YetiCC
   : virtual YetiBase,
@@ -85,10 +66,4 @@ class YetiCC
     void onSdpCompleted(SBCCallLeg *call, AmSdp& offer, AmSdp& answer);
     bool getSdpOffer(SBCCallLeg *call, AmSdp& offer);
 
-    void holdRequested(SBCCallLeg *call) { }
-    void holdAccepted(SBCCallLeg *call) { }
-    void holdRejected(SBCCallLeg *call) { }
-    void resumeRequested(SBCCallLeg *call) { }
-    void resumeAccepted(SBCCallLeg *call) { }
-    void resumeRejected(SBCCallLeg *call) { }
 };
