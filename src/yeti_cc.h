@@ -50,26 +50,12 @@ class YetiCC
     /*! choose next profile, create cdr and check resources */
     bool connectCallee(CallCtx *call_ctx,SBCCallLeg *call,const AmSipRequest &orig_req);
     bool chooseNextProfile(SBCCallLeg *call);
-    void onRadiusReply(SBCCallLeg *call, const RadiusReplyEvent &ev);
-    void onInterimRadiusTimer(SBCCallLeg *call);
-    void onFakeRingingTimer(SBCCallLeg *call);
-
-    CCChainProcessing onRtpTimeout(SBCCallLeg *call,const AmRtpTimeoutEvent &rtp_event);
-    void onServerShutdown(SBCCallLeg *call);
-    CCChainProcessing onControlEvent(SBCCallLeg *call,SBCControlEvent *event);
-    CCChainProcessing onSystemEvent(SBCCallLeg *call,AmSystemEvent* event);
-    CCChainProcessing onTimerEvent(SBCCallLeg *call,int timer_id);
-    CCChainProcessing onTearDown(SBCCallLeg *call);
-
-    void terminateLegOnReplyException(SBCCallLeg *call,const AmSipReply& reply, const InternalException &e);
 
   public:
     YetiCC(YetiBase &base)
       : YetiBase(base),
         YetiRadius(base)
     { }
-
-    void onRoutingReady(SBCCallLeg *call, AmSipRequest &aleg_modified_invite, AmSipRequest &modified_invite);
 
     /*! return true if call refused */
     bool check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
@@ -81,7 +67,6 @@ class YetiCC
     CCChainProcessing onBLegRefused(SBCCallLeg *call,AmSipReply& reply);
 
     void onInviteException(SBCCallLeg *call,int code,string reason,bool no_reply);
-    CCChainProcessing onEvent(SBCCallLeg *call, AmEvent *e);
     CCChainProcessing onDtmf(SBCCallLeg *call, AmDtmfEvent* e);
     CCChainProcessing putOnHold(SBCCallLeg *call);
     CCChainProcessing resumeHeld(SBCCallLeg *call, bool send_reinvite);

@@ -98,7 +98,22 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   void init();
 
+  bool check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
+                        const AmSipRequest& req,ParamReplacerCtx& ctx,
+                        bool send_reply = false);
+
   void terminateLegOnReplyException(const AmSipReply& reply,const InternalException &e);
+  void processRouting();
+
+  void onRadiusReply(const RadiusReplyEvent &ev);
+  void onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event);
+  void onTimerEvent(int timer_id);
+  void onInterimRadiusTimer();
+  void onFakeRingingTimer();
+  void onControlEvent(SBCControlEvent *event);
+  void onTearDown();
+  void onSystemEventOverride(AmSystemEvent* event);
+  void onServerShutdown();
 
  public:
 

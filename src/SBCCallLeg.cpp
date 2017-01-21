@@ -29,6 +29,8 @@
 #include "Sensors.h"
 
 #include "sdp_filter.h"
+#include "ampi/RadiusClientAPI.h"
+#include "dtmf_sip_info.h"
 
 using namespace std;
 
@@ -230,6 +232,45 @@ void SBCCallLeg::init()
     }
 }
 
+bool SBCCallLeg::check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
+                      const AmSipRequest& req,ParamReplacerCtx& ctx,
+                      bool send_reply)
+{
+    bool need_reply;
+    bool write_cdr;
+    unsigned int internal_code,response_code;
+    string internal_reason,response_reason;
+
+    if(profile->disconnect_code_id==0)
+        return false;
+
+    write_cdr = CodesTranslator::instance()->translate_db_code(profile->disconnect_code_id,
+                             internal_code,internal_reason,
+                             response_code,response_reason,
+                             profile->aleg_override_id);
+    need_reply = (response_code!=NO_REPLY_DISCONNECT_CODE);
+
+    if(write_cdr){
+        cdr->update_internal_reason(DisconnectByDB,internal_reason,internal_code);
+        cdr->update_aleg_reason(response_reason,response_code);
+    } else {
+        cdr->setSuppress(true);
+    }
+    if(send_reply && need_reply){
+        if(write_cdr){
+            cdr->update(req);
+            cdr->update_sbc(*profile);
+        }
+        //prepare & send sip response
+        string hdrs = ctx.replaceParameters(profile->append_headers, "append_headers", req);
+        if (hdrs.size()>2)
+            assertEndCRLF(hdrs);
+        AmSipDialog::reply_error(req, response_code, response_reason, hdrs);
+    }
+    return true;
+}
+
+
 void SBCCallLeg::terminateLegOnReplyException(const AmSipReply& reply,const InternalException &e)
 {
     getCtx_void
@@ -250,6 +291,300 @@ void SBCCallLeg::terminateLegOnReplyException(const AmSipReply& reply,const Inte
         }
     }
     stopCall(CallLeg::StatusChangeCause::InternalError);
+}
+
+void SBCCallLeg::processRouting()
+{
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+
+    SqlCallProfile *profile = NULL;
+/*    AmSipRequest &req = aleg_modified_req;
+    AmSipRequest &b_req = modified_req;*/
+
+    ResourceCtlResponse rctl_ret;
+    ResourceList::iterator ri;
+    string refuse_reason;
+    int refuse_code;
+    int attempt = 0;
+
+    Cdr *cdr = call_ctx->cdr;
+
+    PROF_START(func);
+
+    try {
+
+    PROF_START(rchk);
+    do {
+        DBG("%s() check resources for profile. attempt %d",FUNC_NAME,attempt);
+        rctl_ret = rctl.get(call_ctx->getCurrentResourceList(),
+                            call_ctx->getCurrentProfile()->resource_handler,
+                            getLocalTag(),
+                            refuse_code,refuse_reason,ri);
+
+        if(rctl_ret == RES_CTL_OK){
+            DBG("%s() check resources succ",FUNC_NAME);
+            break;
+        } else if(	rctl_ret ==  RES_CTL_REJECT ||
+                    rctl_ret ==  RES_CTL_ERROR){
+            DBG("%s() check resources failed with code: %d, reply: <%d '%s'>",FUNC_NAME,
+                rctl_ret,refuse_code,refuse_reason.c_str());
+            if(rctl_ret == RES_CTL_REJECT) {
+                cdr->update_failed_resource(*ri);
+            }
+            break;
+        } else if(	rctl_ret == RES_CTL_NEXT){
+            DBG("%s() check resources failed with code: %d, reply: <%d '%s'>",FUNC_NAME,
+                rctl_ret,refuse_code,refuse_reason.c_str());
+
+            profile = call_ctx->getNextProfile(true);
+
+            if(NULL==profile){
+                cdr->update_failed_resource(*ri);
+                DBG("%s() there are no profiles more",FUNC_NAME);
+                throw AmSession::Exception(503,"no more profiles");
+            }
+
+            DBG("%s() choosed next profile",FUNC_NAME);
+
+            /* show resource disconnect reason instead of
+             * refuse_profile if refuse_profile follows failed resource with
+             * failover to next */
+            if(profile->disconnect_code_id!=0){
+                cdr->update_failed_resource(*ri);
+                throw AmSession::Exception(refuse_code,refuse_reason);
+            }
+
+            ParamReplacerCtx rctx(profile);
+            if(check_and_refuse(profile,cdr,aleg_modified_req,rctx)){
+                throw AmSession::Exception(cdr->disconnect_rewrited_code,
+                                           cdr->disconnect_rewrited_reason);
+            }
+        }
+        attempt++;
+    } while(rctl_ret != RES_CTL_OK);
+
+    if(rctl_ret != RES_CTL_OK){
+        throw AmSession::Exception(refuse_code,refuse_reason);
+    }
+
+    PROF_END(rchk);
+    PROF_PRINT("check and grab resources",rchk);
+
+    profile = call_ctx->getCurrentProfile();
+    cdr->update(profile->rl);
+    updateCallProfile(*profile);
+
+    PROF_START(sdp_processing);
+
+    //filterSDP
+    int res = processSdpOffer(call_profile,
+                              aleg_modified_req.body, aleg_modified_req.method,
+                              call_ctx->aleg_negotiated_media,
+                              call_profile.static_codecs_aleg_id);
+    if(res < 0){
+        INFO("%s() Not acceptable codecs",FUNC_NAME);
+        throw InternalException(FC_CODECS_NOT_MATCHED);
+    }
+
+    //next we should filter request for legB
+    res = filterSdpOffer(this,
+                         call_profile,
+                         modified_req.body,modified_req.method,
+                         call_profile.static_codecs_bleg_id,
+                         &call_ctx->bleg_initial_offer);
+    if(res < 0){
+        INFO("%s() Not acceptable codecs for legB",FUNC_NAME);
+        throw AmSession::Exception(488, SIP_REPLY_NOT_ACCEPTABLE_HERE);
+    }
+    PROF_END(sdp_processing);
+    PROF_PRINT("initial sdp processing",sdp_processing);
+
+    if(cdr->time_limit){
+        DBG("%s() save timer %d with timeout %d",FUNC_NAME,
+            YETI_CALL_DURATION_TIMER,
+            cdr->time_limit);
+        saveCallTimer(YETI_CALL_DURATION_TIMER,cdr->time_limit);
+    }
+
+    if(0!=cdr_list.insert(cdr)){
+        ERROR("onInitialInvite(): double insert into active calls list. integrity threat");
+        ERROR("ctx: attempt = %d, cdr.logger_path = %s",
+            call_ctx->attempt_num,cdr->msg_logger_path.c_str());
+        log_stacktrace(L_ERR);
+        throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+
+    if(!call_profile.append_headers.empty()){
+        replace(call_profile.append_headers,"%global_tag",getGlobalTag());
+    }
+
+    onRoutingReady();
+
+    } catch(InternalException &e) {
+        DBG("%s() catched InternalException(%d)",FUNC_NAME,
+            e.icode);
+        rctl.put(call_profile.resource_handler);
+        cdr->update_internal_reason(DisconnectByTS,e.internal_reason,e.internal_code);
+        throw AmSession::Exception(e.response_code,e.response_reason);
+    } catch(AmSession::Exception &e) {
+        DBG("%s() catched AmSession::Exception(%d,%s)",FUNC_NAME,
+            e.code,e.reason.c_str());
+        rctl.put(call_profile.resource_handler);
+        cdr->update_internal_reason(DisconnectByTS,e.reason,e.code);
+        throw e;
+    }
+
+    PROF_END(func);
+    PROF_PRINT("yeti onRoutingReady()",func);
+    return;
+}
+
+void SBCCallLeg::onRadiusReply(const RadiusReplyEvent &ev)
+{
+    DBG("got radius reply for %s",getLocalTag().c_str());
+
+    if(AmBasicSipDialog::Cancelling==dlg->getStatus()) {
+        DBG("[%s] ignore radius reply in Cancelling state",getLocalTag().c_str());
+        return;
+    }
+    getCtx_void
+    try {
+        switch(ev.result){
+        case RadiusReplyEvent::Accepted:
+            processRouting();
+            break;
+        case RadiusReplyEvent::Rejected:
+            throw InternalException(RADIUS_RESPONSE_REJECT);
+            break;
+        case RadiusReplyEvent::Error:
+            if(ev.reject_on_error){
+                ERROR("[%s] radius error %d. reject",
+                    getLocalTag().c_str(),ev.error_code);
+                throw InternalException(ev.error_code);
+            } else {
+                ERROR("[%s] radius error %d, but radius profile configured to ignore errors.",
+                    getLocalTag().c_str(),ev.error_code);
+                processRouting();
+            }
+            break;
+        }
+    } catch(AmSession::Exception &e) {
+        onEarlyEventException(e.code,e.reason);
+    } catch(InternalException &e){
+        onEarlyEventException(e.response_code,e.response_reason);
+    }
+}
+
+void SBCCallLeg::onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event)
+{
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    unsigned int internal_code,response_code;
+    string internal_reason,response_reason;
+
+    getCtx_void
+
+    if(getCallStatus()!=CallLeg::Connected){
+        WARN("%s: module catched RtpTimeout in no Connected state. ignore it",
+             getLocalTag().c_str());
+        return;
+    }
+
+    CodesTranslator::instance()->translate_db_code(
+        DC_RTP_TIMEOUT,
+        internal_code,internal_reason,
+        response_code,response_reason,
+        call_ctx->getOverrideId());
+    with_cdr_for_read {
+        cdr->update_internal_reason(DisconnectByTS,internal_reason,internal_code);
+        cdr->update_aleg_reason("Bye",200);
+        cdr->update_bleg_reason("Bye",200);
+    }
+}
+
+void SBCCallLeg::onTimerEvent(int timer_id)
+{
+    DBG("%s(%p,%d,leg%s)",FUNC_NAME,this,timer_id,a_leg?"A":"B");
+    getCtx_void
+    with_cdr_for_read {
+        switch(timer_id){
+        case YETI_CALL_DURATION_TIMER:
+            cdr->update_internal_reason(DisconnectByTS,"Call duration limit reached",200);
+            cdr->update_aleg_reason("Bye",200);
+            cdr->update_bleg_reason("Bye",200);
+            break;
+        case YETI_RINGING_TIMEOUT_TIMER:
+            call_ctx->setRingingTimeout();
+            dlg->cancel();
+            break;
+        case YETI_RADIUS_INTERIM_TIMER:
+            onInterimRadiusTimer();
+            return;
+        case YETI_FAKE_RINGING_TIMER:
+            onFakeRingingTimer();
+            return;
+        default:
+            cdr->update_internal_reason(DisconnectByTS,"Timer "+int2str(timer_id)+" fired",200);
+            break;
+        }
+    }
+}
+
+void SBCCallLeg::onInterimRadiusTimer()
+{
+    DBG("interim accounting timer fired for %s",getLocalTag().c_str());
+    getCtx_void
+    with_cdr_for_read {
+        radius_accounting_interim(this,*cdr);
+    }
+}
+
+void SBCCallLeg::onFakeRingingTimer()
+{
+    DBG("fake ringing timer fired for %s",getLocalTag().c_str());
+    getCtx_void
+    if(!call_ctx->ringing_sent) {
+        dlg->reply(*call_ctx->initial_invite,180,SIP_REPLY_RINGING);
+        call_ctx->ringing_sent = true;
+    }
+}
+
+void SBCCallLeg::onControlEvent(SBCControlEvent *event)
+{
+    DBG("%s(%p,leg%s) cmd = %s, event_id = %d",FUNC_NAME,this,a_leg?"A":"B",
+        event->cmd.c_str(),event->event_id);
+    if(event->cmd=="teardown"){
+        onTearDown();
+    }
+}
+
+void SBCCallLeg::onTearDown()
+{
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    getCtx_void
+    with_cdr_for_read {
+        cdr->update_internal_reason(DisconnectByTS,"Teardown",200);
+        cdr->update_aleg_reason("Bye",200);
+        cdr->update_bleg_reason("Bye",200);
+    }
+}
+
+void SBCCallLeg::onSystemEventOverride(AmSystemEvent* event)
+{
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    if (event->sys_event == AmSystemEvent::ServerShutdown) {
+        onServerShutdown();
+    }
+}
+
+void SBCCallLeg::onServerShutdown()
+{
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    getCtx_void
+    with_cdr_for_read {
+        cdr->update_internal_reason(DisconnectByTS,"ServerShutdown",200);
+    }
+    //may never reach onDestroy callback so free resources here
+    rctl.put(call_profile.resource_handler);
 }
 
 void SBCCallLeg::onStart()
@@ -1054,7 +1389,84 @@ void SBCCallLeg::onControlCmd(string& cmd, AmArg& params)
 
 void SBCCallLeg::process(AmEvent* ev)
 {
-      if (yeti.onEvent(this, ev) == StopProcessing) return;
+    DBG("%s(%p|%s,leg%s)",FUNC_NAME,this,
+        getLocalTag().c_str(),a_leg?"A":"B");
+
+    do {
+        getCtx_chained
+        RadiusReplyEvent *radius_event = dynamic_cast<RadiusReplyEvent*>(ev);
+        if(radius_event){
+            onRadiusReply(*radius_event);
+            return;
+        }
+
+        AmRtpTimeoutEvent *rtp_event = dynamic_cast<AmRtpTimeoutEvent*>(ev);
+        if(rtp_event){
+            DBG("rtp event id: %d",rtp_event->event_id);
+            onRtpTimeoutOverride(*rtp_event);
+            return;
+        }
+
+        AmSipRequestEvent *request_event = dynamic_cast<AmSipRequestEvent*>(ev);
+        if(request_event){
+            AmSipRequest &req = request_event->req;
+            DBG("request event method: %s",
+                req.method.c_str());
+        }
+
+        AmSipReplyEvent *reply_event = dynamic_cast<AmSipReplyEvent*>(ev);
+        if(reply_event){
+            AmSipReply &reply = reply_event->reply;
+            DBG("reply event  code: %d, reason:'%s'",
+                reply.code,reply.reason.c_str());
+            //!TODO: find appropiate way to avoid hangup in disconnected state
+            if(reply.code==408 && getCallStatus()==CallLeg::Disconnected){
+                DBG("received 408 in disconnected state. a_leg = %d, local_tag: %s",
+                    a_leg, getLocalTag().c_str());
+                throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+            }
+        }
+
+        AmPluginEvent* plugin_event = dynamic_cast<AmPluginEvent*>(ev);
+        if(plugin_event){
+            DBG("%s plugin_event. name = %s, event_id = %d",FUNC_NAME,
+                plugin_event->name.c_str(),
+                plugin_event->event_id);
+            if(plugin_event->name=="timer_timeout"){
+                return onTimerEvent(plugin_event->data.get(0).asInt());
+            }
+        }
+
+        SBCControlEvent* sbc_event = dynamic_cast<SBCControlEvent*>(ev);
+        if(sbc_event){
+            DBG("sbc event id: %d, cmd: %s",sbc_event->event_id,sbc_event->cmd.c_str());
+            onControlEvent(sbc_event);
+        }
+
+        B2BEvent* b2b_e = dynamic_cast<B2BEvent*>(ev);
+        if(b2b_e){
+            if(b2b_e->event_id==B2BTerminateLeg){
+                DBG("onEvent(%p|%s) terminate leg event",
+                    this,getLocalTag().c_str());
+            }
+        }
+
+        if (ev->event_id == E_SYSTEM) {
+            AmSystemEvent* sys_ev = dynamic_cast<AmSystemEvent*>(ev);
+            if(sys_ev){
+                DBG("sys event type: %d",sys_ev->sys_event);
+                    onSystemEventOverride(sys_ev);
+            }
+        }
+
+        yeti_dtmf::DtmfInfoSendEvent *dtmf = dynamic_cast<yeti_dtmf::DtmfInfoSendEvent*>(ev);
+        if(dtmf) {
+            DBG("onEvent dmtf(%d:%d)",dtmf->event(),dtmf->duration());
+            dtmf->send(dlg);
+            ev->processed = true;
+            return;
+        }
+    } while(0);
 
     if (a_leg) {
         // was for caller (SBCDialog):
@@ -1183,7 +1595,7 @@ void SBCCallLeg::onInvite(const AmSipRequest& req)
     }
 
     if(!radius_auth(this,*call_ctx->cdr,call_profile,req)) {
-        yeti.onRoutingReady(this,aleg_modified_req,modified_req);
+        processRouting();
     }
 }
 
