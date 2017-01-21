@@ -235,7 +235,7 @@ AmSession* SBCFactory::onInvite(const AmSipRequest& req, const string& app_name,
     cdr->set_start_time(t);
 
     ctx.call_profile = profile;
-    if(yeti->check_and_refuse(profile,cdr,req,ctx,true)) {
+    if(router.check_and_refuse(profile,cdr,req,ctx,true)) {
         if(!call_ctx->SQLexception) { //avoid to write cdr on failed getprofile()
             router.write_cdr(cdr,true);
         } else {

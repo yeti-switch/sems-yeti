@@ -3,6 +3,8 @@
 #include "sip/defs.h"
 #include <pqxx/pqxx>
 
+#include "AmSession.h"
+
 CodesTranslator* CodesTranslator::_instance=0;
 
 

@@ -48,6 +48,26 @@ inline void replace(string& s, const string& from, const string& to)
     }
 }
 
+static const char *callStatus2str(const CallLeg::CallStatus state)
+{
+    static const char *disconnected = "Disconnected";
+    static const char *disconnecting = "Disconnecting";
+    static const char *noreply = "NoReply";
+    static const char *ringing = "Ringing";
+    static const char *connected = "Connected";
+    static const char *unknown = "???";
+
+    switch (state) {
+        case CallLeg::Disconnected: return disconnected;
+        case CallLeg::Disconnecting: return disconnecting;
+        case CallLeg::NoReply: return noreply;
+        case CallLeg::Ringing: return ringing;
+        case CallLeg::Connected: return connected;
+    }
+
+    return unknown;
+}
+
 #define getCtx_void \
     if(NULL==call_ctx) {\
         ERROR("CallCtx = nullptr ");\
@@ -232,45 +252,6 @@ void SBCCallLeg::init()
     }
 }
 
-bool SBCCallLeg::check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
-                      const AmSipRequest& req,ParamReplacerCtx& ctx,
-                      bool send_reply)
-{
-    bool need_reply;
-    bool write_cdr;
-    unsigned int internal_code,response_code;
-    string internal_reason,response_reason;
-
-    if(profile->disconnect_code_id==0)
-        return false;
-
-    write_cdr = CodesTranslator::instance()->translate_db_code(profile->disconnect_code_id,
-                             internal_code,internal_reason,
-                             response_code,response_reason,
-                             profile->aleg_override_id);
-    need_reply = (response_code!=NO_REPLY_DISCONNECT_CODE);
-
-    if(write_cdr){
-        cdr->update_internal_reason(DisconnectByDB,internal_reason,internal_code);
-        cdr->update_aleg_reason(response_reason,response_code);
-    } else {
-        cdr->setSuppress(true);
-    }
-    if(send_reply && need_reply){
-        if(write_cdr){
-            cdr->update(req);
-            cdr->update_sbc(*profile);
-        }
-        //prepare & send sip response
-        string hdrs = ctx.replaceParameters(profile->append_headers, "append_headers", req);
-        if (hdrs.size()>2)
-            assertEndCRLF(hdrs);
-        AmSipDialog::reply_error(req, response_code, response_reason, hdrs);
-    }
-    return true;
-}
-
-
 void SBCCallLeg::terminateLegOnReplyException(const AmSipReply& reply,const InternalException &e)
 {
     getCtx_void
@@ -355,7 +336,7 @@ void SBCCallLeg::processRouting()
             }
 
             ParamReplacerCtx rctx(profile);
-            if(check_and_refuse(profile,cdr,aleg_modified_req,rctx)){
+            if(router.check_and_refuse(profile,cdr,aleg_modified_req,rctx)){
                 throw AmSession::Exception(cdr->disconnect_rewrited_code,
                                            cdr->disconnect_rewrited_reason);
             }
@@ -437,6 +418,213 @@ void SBCCallLeg::processRouting()
     PROF_END(func);
     PROF_PRINT("yeti onRoutingReady()",func);
     return;
+}
+
+bool SBCCallLeg::chooseNextProfile(){
+    DBG("%s()",FUNC_NAME);
+
+    string refuse_reason;
+    int refuse_code;
+    CallCtx *ctx;
+    Cdr *cdr;
+    SqlCallProfile *profile = NULL;
+    ResourceCtlResponse rctl_ret;
+    ResourceList::iterator ri;
+    bool has_profile = false;
+
+    cdr = call_ctx->cdr;
+    profile = call_ctx->getNextProfile(false);
+
+    if(NULL==profile){
+        //pretend that nothing happen. we were never called
+        DBG("%s() no more profiles or refuse profile on serial fork. ignore it",FUNC_NAME);
+        return false;
+    }
+
+    //write cdr and replace ctx pointer with new
+    cdr_list.erase(cdr);
+    router.write_cdr(cdr,false);
+    cdr = call_ctx->cdr;
+
+    do {
+        DBG("%s() choosed next profile. check it for refuse",FUNC_NAME);
+
+        ParamReplacerCtx rctx(profile);
+        if(router.check_and_refuse(profile,cdr,*call_ctx->initial_invite,rctx)){
+            DBG("%s() profile contains refuse code",FUNC_NAME);
+            break;
+        }
+
+        DBG("%s() no refuse field. check it for resources",FUNC_NAME);
+        ResourceList &rl = profile->rl;
+        if(rl.empty()){
+            rctl_ret = RES_CTL_OK;
+        } else {
+            rctl_ret = rctl.get(rl,
+                                profile->resource_handler,
+                                getLocalTag(),
+                                refuse_code,refuse_reason,ri);
+        }
+
+        if(rctl_ret == RES_CTL_OK){
+            DBG("%s() check resources  successed",FUNC_NAME);
+            has_profile = true;
+            break;
+        } else {
+            DBG("%s() check resources failed with code: %d, reply: <%d '%s'>",FUNC_NAME,
+                rctl_ret,refuse_code,refuse_reason.c_str());
+            if(rctl_ret ==  RES_CTL_ERROR) {
+                break;
+            } else if(rctl_ret ==  RES_CTL_REJECT) {
+                cdr->update_failed_resource(*ri);
+                break;
+            } else if(	rctl_ret == RES_CTL_NEXT){
+                profile = ctx->getNextProfile(false,true);
+                if(NULL==profile){
+                    cdr->update_failed_resource(*ri);
+                    DBG("%s() there are no profiles more",FUNC_NAME);
+                    break;
+                }
+                if(profile->disconnect_code_id!=0){
+                    cdr->update_failed_resource(*ri);
+                    DBG("%s() failovered to refusing profile %d",FUNC_NAME,
+                        profile->disconnect_code_id);
+                    break;
+                }
+            }
+        }
+    } while(rctl_ret != RES_CTL_OK);
+
+    if(!has_profile){
+        cdr->update_internal_reason(DisconnectByTS,refuse_reason,refuse_code);
+        return false;
+    } else {
+        DBG("%s() update call profile for legA",FUNC_NAME);
+        cdr->update(profile->rl);
+        updateCallProfile(*profile);
+        return true;
+    }
+}
+
+bool SBCCallLeg::connectCallee(const AmSipRequest &orig_req)
+{
+    ParamReplacerCtx ctx(&call_profile);
+    ctx.app_param = getHeader(orig_req.hdrs, PARAM_HDR, true);
+
+    AmSipRequest uac_req(orig_req);
+    AmUriParser uac_ruri;
+
+    uac_ruri.uri = uac_req.r_uri;
+    if(!uac_ruri.parse_uri()) {
+        DBG("Error parsing R-URI '%s'\n",uac_ruri.uri.c_str());
+        throw AmSession::Exception(400,"Failed to parse R-URI");
+    }
+
+    call_profile.sst_aleg_enabled = ctx.replaceParameters(
+        call_profile.sst_aleg_enabled,
+        "enable_aleg_session_timer",
+        orig_req
+    );
+
+    call_profile.sst_enabled = ctx.replaceParameters(
+        call_profile.sst_enabled,
+        "enable_session_timer", orig_req
+    );
+
+    if ((call_profile.sst_aleg_enabled == "yes") ||
+        (call_profile.sst_enabled == "yes"))
+    {
+        call_profile.eval_sst_config(ctx,orig_req,call_profile.sst_a_cfg);
+        if(applySSTCfg(call_profile.sst_a_cfg,&orig_req) < 0) {
+            throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        }
+    }
+
+
+    if (!call_profile.evaluate(ctx, orig_req)) {
+        ERROR("call profile evaluation failed\n");
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+    if(!call_profile.append_headers.empty()){
+        replace(call_profile.append_headers,"%global_tag",getGlobalTag());
+    }
+
+    if(call_profile.contact_hiding) {
+        if(RegisterDialog::decodeUsername(orig_req.user,uac_ruri)) {
+            uac_req.r_uri = uac_ruri.uri_str();
+        }
+    } else if(call_profile.reg_caching) {
+        // REG-Cache lookup
+        uac_req.r_uri = call_profile.retarget(orig_req.user,*dlg);
+    }
+
+    string ruri, to, from;
+
+    ruri = call_profile.ruri.empty() ? uac_req.r_uri : call_profile.ruri;
+    if(!call_profile.ruri_host.empty()){
+        ctx.ruri_parser.uri = ruri;
+        if(!ctx.ruri_parser.parse_uri()) {
+            WARN("Error parsing R-URI '%s'\n", ruri.c_str());
+        } else {
+            ctx.ruri_parser.uri_port.clear();
+            ctx.ruri_parser.uri_host = call_profile.ruri_host;
+            ruri = ctx.ruri_parser.uri_str();
+        }
+    }
+    from = call_profile.from.empty() ? orig_req.from : call_profile.from;
+    to = call_profile.to.empty() ? orig_req.to : call_profile.to;
+
+    applyAProfile();
+    call_profile.apply_a_routing(ctx,orig_req,*dlg);
+
+    AmSipRequest invite_req(orig_req);
+
+    removeHeader(invite_req.hdrs,PARAM_HDR);
+    removeHeader(invite_req.hdrs,"P-App-Name");
+
+    if (call_profile.sst_enabled_value) {
+        removeHeader(invite_req.hdrs,SIP_HDR_SESSION_EXPIRES);
+        removeHeader(invite_req.hdrs,SIP_HDR_MIN_SE);
+    }
+
+    size_t start_pos = 0;
+    while (start_pos<call_profile.append_headers.length()) {
+        int res;
+        size_t name_end, val_begin, val_end, hdr_end;
+        if ((res = skip_header(call_profile.append_headers, start_pos, name_end, val_begin,
+                val_end, hdr_end)) != 0) {
+            ERROR("skip_header for '%s' pos: %ld, return %d",
+                    call_profile.append_headers.c_str(),start_pos,res);
+            throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        }
+        string hdr_name = call_profile.append_headers.substr(start_pos, name_end-start_pos);
+        while(!getHeader(invite_req.hdrs,hdr_name).empty()){
+            removeHeader(invite_req.hdrs,hdr_name);
+        }
+        start_pos = hdr_end;
+    }
+
+    inplaceHeaderPatternFilter(invite_req.hdrs, call_profile.headerfilter_a2b);
+
+    if (call_profile.append_headers.size() > 2) {
+        string append_headers = call_profile.append_headers;
+        assertEndCRLF(append_headers);
+        invite_req.hdrs+=append_headers;
+    }
+
+    int res = filterSdpOffer(this,
+                             call_profile,
+                             invite_req.body,invite_req.method,
+                             call_profile.static_codecs_bleg_id,
+                             &call_ctx->bleg_initial_offer);
+    if(res < 0){
+        INFO("onInitialInvite() Not acceptable codecs for legB");
+        throw AmSession::Exception(488, SIP_REPLY_NOT_ACCEPTABLE_HERE);
+    }
+
+    connectCallee(to, ruri, from, orig_req, invite_req);
+
+    return false;
 }
 
 void SBCCallLeg::onRadiusReply(const RadiusReplyEvent &ev)
@@ -1268,7 +1456,13 @@ void SBCCallLeg::onSipReply(const AmSipRequest& req, const AmSipReply& reply,
 
 void SBCCallLeg::onSendRequest(AmSipRequest& req, int &flags)
 {
-    yeti.onSendRequest(this, req, flags);
+    DBG("Yeti::onSendRequest(%p|%s) a_leg = %d",
+        this,getLocalTag().c_str(),a_leg);
+
+    if(call_ctx && !a_leg && req.method==SIP_METH_INVITE) {
+        with_cdr_for_read cdr->update(BLegInvite);
+    }
+
     if(a_leg) {
         if (!call_profile.aleg_append_headers_req.empty()) {
             size_t start_pos = 0;
@@ -1327,19 +1521,76 @@ void SBCCallLeg::onSendRequest(AmSipRequest& req, int &flags)
 
 void SBCCallLeg::onRemoteDisappeared(const AmSipReply& reply)
 {
-    if (yeti.onRemoteDisappeared(this, reply) == StopProcessing) return;
+    const static string reinvite_failed("reINVITE failed");
+
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+
+    if(call_ctx) {
+        if(a_leg){
+            //trace available values
+            if(call_ctx->initial_invite!=NULL) {
+                AmSipRequest &req = *call_ctx->initial_invite;
+                DBG("req.method = '%s'",req.method.c_str());
+            } else {
+                ERROR("intial_invite == NULL");
+            }
+            with_cdr_for_read {
+                cdr->update_internal_reason(DisconnectByTS,reply.reason,reply.code);
+            }
+        }
+        if(getCallStatus()==CallLeg::Connected) {
+            with_cdr_for_read {
+                cdr->update_internal_reason(
+                    DisconnectByTS,
+                    reinvite_failed, 200
+                );
+                cdr->update_aleg_reason("Bye",200);
+                cdr->update_bleg_reason("Bye",200);
+            }
+        }
+    }
     CallLeg::onRemoteDisappeared(reply);
 }
 
 void SBCCallLeg::onBye(const AmSipRequest& req)
 {
-    if (yeti.onBye(this, req) == StopProcessing) return;
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    if(call_ctx) {
+        with_cdr_for_read {
+            if(a_leg){
+                if(getCallStatus()!=CallLeg::Connected) {
+                    ERROR("received Bye in not connected state");
+                    cdr->update_internal_reason(DisconnectByORG,"EarlyBye",500);
+                    cdr->update_aleg_reason("EarlyBye",200);
+                    cdr->update_bleg_reason("Cancel",487);
+                } else {
+                    cdr->update_internal_reason(DisconnectByORG,"Bye",200);
+                    cdr->update_bleg_reason("Bye",200);
+                }
+            } else {
+                cdr->update_internal_reason(DisconnectByDST,"Bye",200);
+                cdr->update_bleg_reason("Bye",200);
+            }
+        }
+    }
     CallLeg::onBye(req);
 }
 
 void SBCCallLeg::onOtherBye(const AmSipRequest& req)
 {
-    if (yeti.onOtherBye(this, req) == StopProcessing) return;
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    if(call_ctx && a_leg) {
+        if(getCallStatus()!=CallLeg::Connected) {
+            //avoid considering of bye in not connected state as succ call
+            ERROR("received OtherBye in not connected state");
+            with_cdr_for_write {
+                cdr->update_internal_reason(DisconnectByDST,"EarlyBye",500);
+                cdr->update_aleg_reason("Request terminated",487);
+                cdr_list.erase(cdr);
+                router.write_cdr(cdr,true);
+            }
+        }
+    }
     CallLeg::onOtherBye(req);
 }
 
@@ -1347,12 +1598,68 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
 {
     DBG("received DTMF on %c-leg (%i;%i)\n", a_leg ? 'A': 'B', e->event(), e->duration());
 
-    if (yeti.onDtmf(this, e)  == StopProcessing) return;
+    AmSipDtmfEvent *sip_dtmf = NULL;
+    int rx_proto = 0;
+    bool allowed = false;
+    struct timeval now;
 
-    AmB2BMedia *ms = getMediaSession();
-    if(ms) {
-        DBG("sending DTMF (%i;%i)\n", e->event(), e->duration());
-        ms->sendDtmf(!a_leg,e->event(),e->duration());
+    gettimeofday(&now, NULL);
+
+    //filter incoming methods
+    if((sip_dtmf = dynamic_cast<AmSipDtmfEvent *>(e))){
+        DBG("received SIP DTMF event\n");
+        allowed = a_leg ?
+                    call_profile.aleg_dtmf_recv_modes&DTMF_RX_MODE_INFO :
+                    call_profile.bleg_dtmf_recv_modes&DTMF_RX_MODE_INFO;
+        rx_proto = DTMF_RX_MODE_INFO;
+    /*} else if(dynamic_cast<AmRtpDtmfEvent *>(e)){
+        DBG("RTP DTMF event\n");*/
+    } else {
+        DBG("received generic DTMF event\n");
+        allowed = a_leg ?
+                    call_profile.aleg_dtmf_recv_modes&DTMF_RX_MODE_RFC2833 :
+                    call_profile.bleg_dtmf_recv_modes&DTMF_RX_MODE_RFC2833;
+        rx_proto = DTMF_RX_MODE_RFC2833;
+    }
+
+    if(!allowed){
+        DBG("DTMF event for leg %p rejected",this);
+        e->processed = true;
+        //write with zero tx_proto
+        with_cdr_for_read cdr->add_dtmf_event(a_leg,e->event(),now,rx_proto,DTMF_TX_MODE_DISABLED);
+        return;
+    }
+
+    //choose outgoing method
+    int send_method = a_leg ?
+                        call_profile.bleg_dtmf_send_mode_id :
+                        call_profile.aleg_dtmf_send_mode_id;
+
+    with_cdr_for_read cdr->add_dtmf_event(a_leg,e->event(),now,rx_proto,send_method);
+
+    switch(send_method){
+    case DTMF_TX_MODE_DISABLED:
+        DBG("dtmf sending is disabled");
+        break;
+    case DTMF_TX_MODE_RFC2833: {
+        DBG("send mode RFC2833 choosen for dtmf event for leg %p",this);
+        AmB2BMedia *ms = getMediaSession();
+        if(ms) {
+            DBG("sending DTMF (%i;%i)\n", e->event(), e->duration());
+            ms->sendDtmf(!a_leg,e->event(),e->duration());
+        }
+    } break;
+    case DTMF_TX_MODE_INFO_DTMF_RELAY:
+        DBG("send mode INFO/application/dtmf-relay choosen for dtmf event for leg %p",this);
+        relayEvent(new yeti_dtmf::DtmfInfoSendEventDtmfRelay(e));
+        break;
+    case DTMF_TX_MODE_INFO_DTMF:
+        DBG("send mode INFO/application/dtmf choosen for dtmf event for leg %p",this);
+        relayEvent(new yeti_dtmf::DtmfInfoSendEventDtmf(e));
+        break;
+    default:
+        ERROR("unknown dtmf send method %d. stop processing",send_method);
+        break;
     }
 }
 
@@ -1718,7 +2025,24 @@ void SBCCallLeg::onRoutingReady()
 
 void SBCCallLeg::onInviteException(int code,string reason,bool no_reply)
 {
-    yeti.onInviteException(this,code,reason,no_reply);
+    DBG("%s(%p,leg%s) %d:'%s' no_reply = %d",FUNC_NAME,this,a_leg?"A":"B",
+        code,reason.c_str(),no_reply);
+
+    if(!call_ctx) return;
+
+    Cdr *cdr = call_ctx->cdr;
+
+    cdr->lock();
+    cdr->disconnect_initiator = DisconnectByTS;
+    if(cdr->disconnect_internal_code==0){ //update only if not previously was setted
+        cdr->disconnect_internal_code = code;
+        cdr->disconnect_internal_reason = reason;
+    }
+    if(!no_reply){
+        cdr->disconnect_rewrited_code = code;
+        cdr->disconnect_rewrited_reason = reason;
+    }
+    cdr->unlock();
 }
 
 void SBCCallLeg::onEarlyEventException(unsigned int code,const string &reason)
@@ -1758,7 +2082,17 @@ void SBCCallLeg::connectCallee(
 
 void SBCCallLeg::onCallConnected(const AmSipReply& reply)
 {
-    yeti.onCallConnected(this, reply);
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+
+    if(call_ctx) {
+        Cdr *cdr = call_ctx->cdr;
+
+        if(a_leg) cdr->update(Connect);
+        else cdr->update(BlegConnect);
+
+        radius_accounting_start(this,*cdr,call_profile);
+    }
+
     if (a_leg) { // FIXME: really?
         m_state = BB_Connected;
         if (!startCallTimers())
@@ -1768,13 +2102,20 @@ void SBCCallLeg::onCallConnected(const AmSipReply& reply)
 
 void SBCCallLeg::onStop()
 {
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+
     if (a_leg && m_state == BB_Connected) { // m_state might be valid for A leg only
         stopCallTimers();
     }
 
     m_state = BB_Teardown;
 
-    yeti.onCallEnded(this);
+    if(call_ctx && a_leg) {
+        with_cdr_for_read {
+            cdr->update(End);
+            cdr_list.erase(cdr);
+        }
+    }
 }
 
 void SBCCallLeg::saveCallTimer(int timer, double timeout)
@@ -1816,12 +2157,188 @@ void SBCCallLeg::stopCallTimers() {
 
 void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
 {
-    yeti.onStateChange(this, cause);
+    string reason;
+
+    if(!call_ctx) return;
+    SBCCallLeg::CallStatus status = getCallStatus();
+    int internal_disconnect_code = 0;
+
+    DBG("Yeti::onStateChange(%p|%s) a_leg = %d",
+        this,getLocalTag().c_str(),a_leg);
+
+    switch(status){
+    case CallLeg::Ringing: {
+        if(!a_leg) {
+            if(call_profile.ringing_timeout > 0)
+                setTimer(YETI_RINGING_TIMEOUT_TIMER,call_profile.ringing_timeout);
+        } else {
+            if(call_profile.fake_ringing_timeout)
+                removeTimer(YETI_FAKE_RINGING_TIMER);
+            if(call_profile.force_one_way_early_media) {
+                DBG("force one-way audio for early media (mute legB)");
+                AmB2BMedia *m = getMediaSession();
+                if(m) {
+                    m->mute(false);
+                    call_ctx->bleg_early_media_muted = true;
+                }
+            }
+        }
+    } break;
+    case CallLeg::Connected:
+        if(!a_leg) {
+            removeTimer(YETI_RINGING_TIMEOUT_TIMER);
+        } else {
+            if(call_profile.fake_ringing_timeout)
+                removeTimer(YETI_FAKE_RINGING_TIMER);
+            if(call_ctx->bleg_early_media_muted) {
+                AmB2BMedia *m = getMediaSession();
+                if(m) m->unmute(false);
+            }
+        }
+        break;
+    case CallLeg::Disconnected:
+        removeTimer(YETI_RADIUS_INTERIM_TIMER);
+        if(a_leg && call_profile.fake_ringing_timeout) {
+            removeTimer(YETI_FAKE_RINGING_TIMER);
+        }
+        break;
+    default:
+        break;
+    }
+
+    switch(cause.reason){
+        case CallLeg::StatusChangeCause::SipReply:
+            if(cause.param.reply!=NULL){
+                reason = "SipReply. code = "+int2str(cause.param.reply->code);
+                switch(cause.param.reply->code){
+                case 408:
+                    internal_disconnect_code = DC_TRANSACTION_TIMEOUT;
+                    break;
+                case 487:
+                    if(call_ctx->isRingingTimeout()){
+                        internal_disconnect_code = DC_RINGING_TIMEOUT;
+                    }
+                    break;
+                }
+            } else
+                reason = "SipReply. empty reply";
+            break;
+        case CallLeg::StatusChangeCause::SipRequest:
+            if(cause.param.request!=NULL){
+                reason = "SipRequest. method = "+cause.param.request->method;
+            } else
+                reason = "SipRequest. empty request";
+            break;
+        case CallLeg::StatusChangeCause::Canceled:
+            reason = "Canceled";
+            break;
+        case CallLeg::StatusChangeCause::NoAck:
+            reason = "NoAck";
+            internal_disconnect_code = DC_NO_ACK;
+            break;
+        case CallLeg::StatusChangeCause::NoPrack:
+            reason = "NoPrack";
+            internal_disconnect_code = DC_NO_PRACK;
+            break;
+        case CallLeg::StatusChangeCause::RtpTimeout:
+            reason = "RtpTimeout";
+            break;
+        case CallLeg::StatusChangeCause::SessionTimeout:
+            reason = "SessionTimeout";
+            internal_disconnect_code = DC_SESSION_TIMEOUT;
+            break;
+        case CallLeg::StatusChangeCause::InternalError:
+            reason = "InternalError";
+            internal_disconnect_code = DC_INTERNAL_ERROR;
+            break;
+        case CallLeg::StatusChangeCause::Other:
+            break;
+        default:
+            reason = "???";
+    }
+
+    if(status==CallLeg::Disconnected) {
+        with_cdr_for_read {
+            if(internal_disconnect_code) {
+                unsigned int internal_code,response_code;
+                string internal_reason,response_reason;
+
+                CodesTranslator::instance()->translate_db_code(
+                    internal_disconnect_code,
+                    internal_code,internal_reason,
+                    response_code,response_reason,
+                    call_ctx->getOverrideId());
+                cdr->update_internal_reason(DisconnectByTS,internal_reason,internal_code);
+            }
+            radius_accounting_stop(this, *cdr);
+        }
+    }
+
+    DBG("%s(%p,leg%s,state = %s, cause = %s)",FUNC_NAME,this,a_leg?"A":"B",
+        callStatus2str(status),
+        reason.c_str());
 }
 
 void SBCCallLeg::onBLegRefused(AmSipReply& reply)
 {
-    if (yeti.onBLegRefused(this, reply) == StopProcessing) return;
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    if(!call_ctx) return;
+    Cdr* cdr = call_ctx->cdr;
+    CodesTranslator *ct = CodesTranslator::instance();
+    unsigned int intermediate_code;
+    string intermediate_reason;
+
+    if(!a_leg) return;
+
+    removeTimer(YETI_FAKE_RINGING_TIMER);
+
+    cdr->update(reply);
+    cdr->update_bleg_reason(reply.reason,reply.code);
+
+    ct->rewrite_response(reply.code,reply.reason,
+        intermediate_code,intermediate_reason,
+        call_ctx->getOverrideId(false)); //bleg_override_id
+    ct->rewrite_response(intermediate_code,intermediate_reason,
+        reply.code,reply.reason,
+        call_ctx->getOverrideId(true)); //aleg_override_id
+    cdr->update_internal_reason(DisconnectByDST,intermediate_reason,intermediate_code);
+    cdr->update_aleg_reason(reply.reason,reply.code);
+
+    if(ct->stop_hunting(reply.code,call_ctx->getOverrideId(false))){
+        DBG("stop hunting");
+        return;
+    }
+
+    DBG("continue hunting");
+    //put current resources
+    rctl.put(call_ctx->getCurrentProfile()->resource_handler);
+    if(call_ctx->initial_invite!=NULL){
+        ERROR("%s() intial_invite == NULL",FUNC_NAME);
+        return;
+    }
+
+    if(chooseNextProfile()) {
+        DBG("%s() no new profile, just finish as usual",FUNC_NAME);
+        return;
+    }
+
+    DBG("%s() has new profile, so create new callee",FUNC_NAME);
+    cdr = call_ctx->cdr;
+
+    if(0!=cdr_list.insert(cdr)){
+        ERROR("onBLegRefused(): double insert into active calls list. integrity threat");
+        ERROR("ctx: attempt = %d, cdr.logger_path = %s",
+            call_ctx->attempt_num,cdr->msg_logger_path.c_str());
+        return;
+    }
+
+    AmSipRequest &req = *call_ctx->initial_invite;
+    try {
+        connectCallee(req);
+    } catch(InternalException &e){
+        cdr->update_internal_reason(DisconnectByTS,e.internal_reason,e.internal_code);
+        throw AmSession::Exception(e.response_code,e.response_reason);
+    }
 }
 
 void SBCCallLeg::onCallFailed(CallFailureReason reason, const AmSipReply *reply)
@@ -1843,8 +2360,27 @@ void SBCCallLeg::onAfterRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr)
     }
 }
 
-void SBCCallLeg::onRTPStreamDestroy(AmRtpStream *stream){
-    yeti.onRTPStreamDestroy(this, stream);
+void SBCCallLeg::onRTPStreamDestroy(AmRtpStream *stream) {
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+
+    if(!call_ctx) return;
+
+    with_cdr_for_read {
+        if(cdr->writed) return;
+        cdr->lock();
+        if(a_leg) {
+            stream->getPayloadsHistory(cdr->legA_payloads);
+            stream->getErrorsStats(cdr->legA_stream_errors);
+            cdr->legA_bytes_recvd = stream->getRcvdBytes();
+            cdr->legA_bytes_sent = stream->getSentBytes();
+        } else {
+            stream->getPayloadsHistory(cdr->legB_payloads);
+            stream->getErrorsStats(cdr->legB_stream_errors);
+            cdr->legB_bytes_recvd = stream->getRcvdBytes();
+            cdr->legB_bytes_sent = stream->getSentBytes();
+        }
+        cdr->unlock();
+    }
 }
 
 bool SBCCallLeg::reinvite(const AmSdp &sdp, unsigned &request_cseq)
@@ -1863,9 +2399,6 @@ bool SBCCallLeg::reinvite(const AmSdp &sdp, unsigned &request_cseq)
     request_cseq = dlg->cseq - 1;
     return true;
 }
-
-#define CALL_EXT_CC_MODULES(method) \
-    yeti.method(this);
 
 void SBCCallLeg::holdRequested()
 {
@@ -2123,19 +2656,62 @@ void SBCCallLeg::computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &
 }
 
 int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote){
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+
     AmSdp offer(local),answer(remote);
-    //give extended interfaces chance to transform sdp before relay mask will be computed
-    yeti.onSdpCompleted(this, offer, answer);
+
+    const SqlCallProfile *sql_call_profile = call_ctx->getCurrentProfile();
+    if(sql_call_profile) {
+        cutNoAudioStreams(offer,sql_call_profile->filter_noaudio_streams);
+        cutNoAudioStreams(answer,sql_call_profile->filter_noaudio_streams);
+    }
+
+    dump_SdpMedia(offer.media,"offer");
+    dump_SdpMedia(answer.media,"answer");
+
     return CallLeg::onSdpCompleted(offer, answer);
 }
 
 bool SBCCallLeg::getSdpOffer(AmSdp& offer){
-    if(yeti.getSdpOffer(this,offer)) return true;
-    return CallLeg::getSdpOffer(offer);
+    DBG("%s(%p)",FUNC_NAME,this);
+
+    if(!call_ctx) {
+        DBG("getSdpOffer[%s] missed call context",getLocalTag().c_str());
+        return CallLeg::getSdpOffer(offer);
+    }
+
+    AmB2BMedia *m = getMediaSession();
+    if(!m){
+        DBG("getSdpOffer[%s] missed media session",getLocalTag().c_str());
+        return CallLeg::getSdpOffer(offer);
+    }
+    if(!m->haveLocalSdp(a_leg)){
+        DBG("getSdpOffer[%s] have no local sdp",getLocalTag().c_str());
+        return CallLeg::getSdpOffer(offer);
+    }
+
+    const AmSdp &local_sdp = m->getLocalSdp(a_leg);
+    if(a_leg){
+        DBG("use last offer from dialog as offer for legA");
+        offer = local_sdp;
+    } else {
+        DBG("provide saved initial offer for legB");
+        offer = call_ctx->bleg_initial_offer;
+        m->replaceConnectionAddress(offer,a_leg, localMediaIP(), advertisedIP());
+    }
+    offer.origin.sessV = local_sdp.origin.sessV+1; //increase session version. rfc4566 5.2 <sess-version>
+    return true;
 }
 
 void SBCCallLeg::b2bInitial1xx(AmSipReply& reply, bool forward)
 {
-    yeti.onB2Binitial1xx(this,reply,forward);
+    if(a_leg) {
+        if(reply.code==100) {
+            if(call_profile.fake_ringing_timeout)
+                setTimer(YETI_FAKE_RINGING_TIMER,call_profile.fake_ringing_timeout);
+        } else {
+            call_ctx->ringing_sent = true;
+        }
+    }
     return CallLeg::b2bInitial1xx(reply,forward);
 }
