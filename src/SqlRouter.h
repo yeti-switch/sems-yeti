@@ -44,6 +44,11 @@ public:
 
   const DynFieldsT &getDynFields() const { return dyn_fields; }
 
+  /*! return true if call refused */
+  bool check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
+                        const AmSipRequest& req,ParamReplacerCtx& ctx,
+                        bool send_reply = false);
+
   SqlRouter();
   ~SqlRouter();
 
