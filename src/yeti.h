@@ -1,13 +1,13 @@
 #pragma once
 
 #include "yeti_rpc.h"
-#include "yeti_cc.h"
+//#include "yeti_cc.h"
 #include "yeti_base.h"
 #include "yeti_radius.h"
 
 class Yeti
   : public YetiRpc,
-    public YetiCC,
+    //public YetiCC,
     virtual public YetiBase,
     virtual public YetiRadius,
     AmObject

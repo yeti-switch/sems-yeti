@@ -17,6 +17,8 @@
 #include "yeti.h"
 #include "cdr/TrustedHeaders.h"
 
+#include "AmSession.h"
+
 const static_field profile_static_fields[] = {
     { "node_id", "integer" },
     { "pop_id", "integer" },
@@ -706,4 +708,53 @@ void SqlRouter::getStats(AmArg &arg){
 	arg.push("cdr_writer",underlying_stats);
 	underlying_stats.clear();
   }
+}
+
+static void assertEndCRLF(string& s)
+{
+  if (s[s.size()-2] != '\r' ||
+      s[s.size()-1] != '\n') {
+    while ((s[s.size()-1] == '\r') ||
+       (s[s.size()-1] == '\n'))
+      s.erase(s.size()-1);
+    s += "\r\n";
+  }
+}
+
+bool SqlRouter::check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
+                            const AmSipRequest& req,ParamReplacerCtx& ctx,
+                            bool send_reply)
+{
+    bool need_reply;
+    bool write_cdr;
+    unsigned int internal_code,response_code;
+    string internal_reason,response_reason;
+
+    if(profile->disconnect_code_id==0)
+        return false;
+
+    write_cdr = CodesTranslator::instance()->translate_db_code(profile->disconnect_code_id,
+                             internal_code,internal_reason,
+                             response_code,response_reason,
+                             profile->aleg_override_id);
+    need_reply = (response_code!=NO_REPLY_DISCONNECT_CODE);
+
+    if(write_cdr){
+        cdr->update_internal_reason(DisconnectByDB,internal_reason,internal_code);
+        cdr->update_aleg_reason(response_reason,response_code);
+    } else {
+        cdr->setSuppress(true);
+    }
+    if(send_reply && need_reply){
+        if(write_cdr){
+            cdr->update(req);
+            cdr->update_sbc(*profile);
+        }
+        //prepare & send sip response
+        string hdrs = ctx.replaceParameters(profile->append_headers, "append_headers", req);
+        if (hdrs.size()>2)
+            assertEndCRLF(hdrs);
+        AmSipDialog::reply_error(req, response_code, response_reason, hdrs);
+    }
+    return true;
 }

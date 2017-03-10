@@ -9,6 +9,8 @@
 
 #include "yeti.h"
 
+#include "SBCCallControlAPI.h"
+
 class PayloadIdMapping
 {
   private:
@@ -97,6 +99,24 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void alterHoldRequestImpl(AmSdp &sdp); // do the SDP update (called by alterHoldRequest)
 
   void init();
+
+  void terminateLegOnReplyException(const AmSipReply& reply,const InternalException &e);
+  void processRouting();
+
+  /*! create new B leg (serial fork)*/
+  /*! choose next profile, create cdr and check resources */
+  bool chooseNextProfile();
+  bool connectCallee(const AmSipRequest &orig_req);
+
+  void onRadiusReply(const RadiusReplyEvent &ev);
+  void onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event);
+  void onTimerEvent(int timer_id);
+  void onInterimRadiusTimer();
+  void onFakeRingingTimer();
+  void onControlEvent(SBCControlEvent *event);
+  void onTearDown();
+  void onSystemEventOverride(AmSystemEvent* event);
+  void onServerShutdown();
 
  public:
 

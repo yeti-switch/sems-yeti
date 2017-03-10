@@ -43,8 +43,7 @@ Yeti& Yeti::instance() {
 Yeti::Yeti(YetiBaseParams &params)
   : YetiBase(params),
     YetiRpc(*this),
-    YetiRadius(*this),
-    YetiCC(*this)
+    YetiRadius(*this)
 {}
 
 
