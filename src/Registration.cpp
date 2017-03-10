@@ -93,21 +93,37 @@ int Registration::reload(AmConfigReader &cfg){
 
 bool Registration::create_registration(const pqxx::result::tuple &r, AmDynInvoke* registrar_client_i)
 {
+#define push_str(key) \
+	di_args.push(r[#key].c_str());
+
+#define push_int_safe(key,default_value) \
+	try { \
+		di_args.push(r[#key].as<int>(default_value)); \
+	} catch(...) { \
+		di_args.push(default_value); \
+	}
+
 	AmArg di_args, ret;
-	di_args.push(r["o_id"].c_str());
-	di_args.push(r["o_domain"].c_str());
-	di_args.push(r["o_user"].c_str());
-	di_args.push(r["o_display_name"].c_str());	// display name
-	di_args.push(r["o_auth_user"].c_str());		// auth_user
-	di_args.push(r["o_auth_password"].c_str());	// pwd
-	di_args.push("");
-	di_args.push(r["o_proxy"].c_str());
-	di_args.push(r["o_contact"].c_str());
-	di_args.push(r["o_expire"].as<int>(0));
+
+	push_str(o_id);
+	push_str(o_domain);
+	push_str(o_user);
+	push_str(o_display_name);
+	push_str(o_auth_user);
+	push_str(o_auth_password);
+	di_args.push(""); //sess_link
+	push_str(o_proxy);
+	push_str(o_contact);
+	push_int_safe(o_expire,0);
+	push_int_safe(o_force_expires_interval,0);
+	push_int_safe(o_retry_delay,DEFAULT_REGISTER_RETRY_DELAY);
+	push_int_safe(o_max_attempts,REGISTER_ATTEMPTS_UNLIMITED);
 
 	registrar_client_i->invoke("createRegistration", di_args, ret);
 	DBG("created registration with handle %s",ret[0].asCStr());
 	return true;
+#undef push_str
+#undef push_int_safe
 }
 
 void Registration::list_registrations(AmArg &ret)
