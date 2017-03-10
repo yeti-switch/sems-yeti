@@ -1,3 +1,9 @@
+sems-yeti (1.7.16) stable; urgency=low
+
+  * 529ad8e Registration: pass additional registration values to registrar client: expire, force_expires_interval, retry_delay, max_attempts
+
+ -- dev <dev@yeti-switch.org>  Fri, 10 Mar 2017 19:29:48 +0200
+
 sems-yeti (1.7.15-2) stable; urgency=low
 
   * rpc: fix core version output
