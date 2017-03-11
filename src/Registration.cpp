@@ -96,11 +96,11 @@ bool Registration::create_registration(const pqxx::result::tuple &r, AmDynInvoke
 #define push_str(key) \
 	di_args.push(r[#key].c_str());
 
-#define push_int_safe(key,default_value) \
+#define push_type_as_int_safe(key,type,default_value) \
 	try { \
-		di_args.push(r[#key].as<int>(default_value)); \
+		di_args.push((int)r[#key].as<type>((int)default_value)); \
 	} catch(...) { \
-		di_args.push(default_value); \
+		di_args.push((int)default_value); \
 	}
 
 	AmArg di_args, ret;
@@ -114,16 +114,16 @@ bool Registration::create_registration(const pqxx::result::tuple &r, AmDynInvoke
 	di_args.push(""); //sess_link
 	push_str(o_proxy);
 	push_str(o_contact);
-	push_int_safe(o_expire,0);
-	push_int_safe(o_force_expires_interval,0);
-	push_int_safe(o_retry_delay,DEFAULT_REGISTER_RETRY_DELAY);
-	push_int_safe(o_max_attempts,REGISTER_ATTEMPTS_UNLIMITED);
+	push_type_as_int_safe(o_expire,int,0);
+	push_type_as_int_safe(o_force_expire,bool,false);
+	push_type_as_int_safe(o_retry_delay,int,DEFAULT_REGISTER_RETRY_DELAY);
+	push_type_as_int_safe(o_max_attempts,int,REGISTER_ATTEMPTS_UNLIMITED);
 
 	registrar_client_i->invoke("createRegistration", di_args, ret);
 	DBG("created registration with handle %s",ret[0].asCStr());
 	return true;
 #undef push_str
-#undef push_int_safe
+#undef push_type_as_int_safe
 }
 
 void Registration::list_registrations(AmArg &ret)

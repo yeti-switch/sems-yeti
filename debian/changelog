@@ -1,3 +1,9 @@
+sems-yeti (1.7.16-1) stable; urgency=low
+
+  * Registration: fix reading values from db
+
+ -- dev <dev@yeti-switch.org>  Sat, 11 Mar 2017 15:07:48 +0200
+
 sems-yeti (1.7.16) stable; urgency=low
 
   * 529ad8e Registration: pass additional registration values to registrar client: expire, force_expires_interval, retry_delay, max_attempts
