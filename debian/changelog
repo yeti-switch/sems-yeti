@@ -1,3 +1,11 @@
+sems-yeti (1.7.17) stable; urgency=low
+
+  * 80ab37d add TCP transport support
+  * 5b02f5a SqlCallProfile: ignore nx ruri_host in DB response
+  * c041c8e str2bool is moved to AmUtils
+
+ -- dev <dev@yeti-switch.org>  Thu, 30 Mar 2017 18:25:33 +0300
+
 sems-yeti (1.7.16-1) stable; urgency=low
 
   * Registration: fix reading values from db
