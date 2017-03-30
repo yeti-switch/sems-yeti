@@ -607,7 +607,7 @@ int CdrThread::writecdr(cdr_writer_connection* conn, Cdr& cdr){
 			ret = 0;
 		}
 
-		dbg_writecdr(fields_values,cdr);
+		//dbg_writecdr(fields_values,cdr);
 	} catch(const pqxx::pqxx_exception &e){
 		DBG("SQL exception on CdrWriter thread: %s",e.base().what());
 		dbg_writecdr(fields_values,cdr);
