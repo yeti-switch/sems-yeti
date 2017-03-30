@@ -40,7 +40,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	}
 
 	assign_str(ruri,"ruri");
-	assign_str(ruri_host,"ruri_host");
+	assign_str_safe(ruri_host,"ruri_host",string());
 	assign_str(from,"from");
 	assign_str(to,"to");
 
