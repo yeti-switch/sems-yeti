@@ -118,6 +118,8 @@ struct SBCCallProfile
   string from;       /* updated if set */
   string to;         /* updated if set */
 
+  unsigned int bleg_transport_id;
+
   PlaceholdersHash placeholders_hash;
 
   struct Contact {
@@ -145,9 +147,11 @@ struct SBCCallProfile
 
   string outbound_proxy;
   bool force_outbound_proxy;
+  unsigned int outbound_proxy_transport_id;
 
   string aleg_outbound_proxy;
   bool aleg_force_outbound_proxy;
+  unsigned int aleg_outbound_proxy_transport_id;
 
   string next_hop;
   bool next_hop_1st_req;
@@ -401,6 +405,9 @@ struct SBCCallProfile
 
   SBCCallProfile()
   : auth_enabled(false),
+    bleg_transport_id(0),
+    outbound_proxy_transport_id(0),
+    aleg_outbound_proxy_transport_id(0),
     transparent_dlg_id(false),
     dlg_nat_handling(false),
     keep_vias(false),bleg_keep_vias(false),

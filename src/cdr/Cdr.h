@@ -68,9 +68,11 @@ struct Cdr: public
 	bool sip_early_media_present;
 
     string legB_remote_ip, legB_local_ip;
-    unsigned short legB_remote_port, legB_local_port;
+    unsigned short legB_remote_port, legB_local_port,
+                   legB_transport_protocol_id;
     string legA_remote_ip, legA_local_ip;
-    unsigned short legA_remote_port, legA_local_port;
+    unsigned short legA_remote_port, legA_local_port,
+                   legA_transport_protocol_id;
 
     string orig_call_id;
     string term_call_id;

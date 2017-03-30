@@ -22,6 +22,7 @@
 const static_field profile_static_fields[] = {
     { "node_id", "integer" },
     { "pop_id", "integer" },
+    { "protocol_id", "smallint" },
     { "remote_ip", "inet" },
     { "remote_port", "integer" },
     { "local_ip", "inet" },
@@ -411,9 +412,13 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(const AmSipRequest &req, pqxx::conne
 	if(!tnx.prepared("getprofile").exists())
 		throw GetProfileException(FC_NOT_PREPARED,true);
 
+	//DBG("trsp: %s",trsp.c_str());
+	//req.tt.get_trans()
+
 	pqxx::prepare::invocation invoc = tnx.prepared("getprofile");
 	invoc_field(gc.node_id);				//"node_id", "integer"
 	invoc_field(gc.pop_id);					//"pop_id", "integer"
+	invoc_field((int)req.transport_id);		//"proto_id", "smallint"
 	invoc_field(req.remote_ip);				//"remote_ip", "inet"
 	invoc_field(req.remote_port);			//"remote_port", "integer"
 	invoc_field(req.local_ip);				//"local_ip", "inet"

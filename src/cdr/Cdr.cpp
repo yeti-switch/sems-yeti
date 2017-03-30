@@ -94,11 +94,13 @@ void Cdr::init(){
 	disconnect_rewrited_reason = "";
 	disconnect_rewrited_code = 0;
 
+    legB_transport_protocol_id = 0;
     legB_remote_port = 0;
     legB_local_port = 0;
     legA_remote_port = 0;
     legA_local_port = 0;
 
+    legA_transport_protocol_id = 0;
     legB_remote_ip = "";
     legB_local_ip = "";
     legA_remote_ip = "";
@@ -143,6 +145,7 @@ void Cdr::update_sbc(const SBCCallProfile &profile){
 void Cdr::update(const AmSipRequest &req){
 	DBG("Cdr::%s(AmSipRequest)",FUNC_NAME);
 	if(writed) return;
+	legA_transport_protocol_id = req.transport_id;
 	legA_remote_ip = req.remote_ip;
     legA_remote_port = req.remote_port;
     legA_local_ip = req.local_ip;
@@ -173,6 +176,7 @@ void Cdr::update(const AmSipReply &reply){
 		TrustedHeaders::instance()->parse_reply_hdrs(reply,trusted_hdrs);
 	}
 	if(reply.remote_port!=0){	//check for bogus reply (like timeout)
+		legB_transport_protocol_id = reply.transport_id;
 		legB_remote_ip = reply.remote_ip;
 		legB_remote_port = reply.remote_port;
 		legB_local_ip = reply.local_ip;
@@ -661,10 +665,12 @@ void Cdr::invoc(pqxx::prepare::invocation &invoc,
 
 	invoc_field(attempt_num);
 	invoc_field(is_last);
+	invoc_field_cond(legA_transport_protocol_id,legA_transport_protocol_id!=0);
 	invoc_field(legA_local_ip);
 	invoc_field(legA_local_port);
 	invoc_field(legA_remote_ip);
 	invoc_field(legA_remote_port);
+	invoc_field_cond(legB_transport_protocol_id,legB_transport_protocol_id!=0);
 	invoc_field(legB_local_ip);
 	invoc_field(legB_local_port);
 	invoc_field(legB_remote_ip);

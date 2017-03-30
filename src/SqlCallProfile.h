@@ -52,6 +52,7 @@ struct SqlCallProfile
 	bool column_exist(const pqxx::result::tuple &t,string column_name);
 	bool eval_resources();
 	bool eval_radius();
+	bool eval_transport_ids();
 	bool eval();
 
 	void infoPrint(const DynFieldsT &df);

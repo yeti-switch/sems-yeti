@@ -5,6 +5,7 @@
 #include <algorithm>
 #include "RTPParameters.h"
 #include "sdp_filter.h"
+#include "sip/parse_via.h"
 
 SqlCallProfile::SqlCallProfile():
 	aleg_override_id(0),
@@ -304,6 +305,10 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 
 	assign_bool_safe_silent(record_audio,"record_audio",false,false);
 
+	assign_int_safe_silent(bleg_transport_id,"bleg_transport_protocol_id",0,0);
+	assign_int_safe_silent(outbound_proxy_transport_id,"bleg_outbound_proxy_transport_protocol_id",0,0);
+	assign_int_safe_silent(aleg_outbound_proxy_transport_id,"aleg_outbound_proxy_transport_protocol_id",0,0);
+
 	DBG("Yeti: loaded SQL profile\n");
 
 	return true;
@@ -327,6 +332,7 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 		*/
 	} else {
 		DBG("RURI      = '%s'\n", ruri.c_str());
+		DBG("RURI transport id = %d",bleg_transport_id);
 		DBG("RURI-host = '%s'\n", ruri_host.c_str());
 		DBG("From = '%s'\n", from.c_str());
 		DBG("To   = '%s'\n", to.c_str());
@@ -339,6 +345,7 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 
 		DBG("force outbound proxy: %s\n", force_outbound_proxy?"yes":"no");
 		DBG("outbound proxy = '%s'\n", outbound_proxy.c_str());
+		DBG("outbound proxy transport id = %d\n", outbound_proxy_transport_id);
 
 		if (!outbound_interface.empty()) {
 			DBG("outbound interface = '%s'\n", outbound_interface.c_str());
@@ -350,6 +357,7 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 
 		DBG("A leg force outbound proxy: %s\n", aleg_force_outbound_proxy?"yes":"no");
 		DBG("A leg outbound proxy = '%s'\n", aleg_outbound_proxy.c_str());
+		DBG("A leg outbound transport id = %d\n", aleg_outbound_proxy_transport_id);
 
 		if (!next_hop.empty()) {
 			DBG("next hop = %s (%s)\n", next_hop.c_str(),
@@ -738,6 +746,65 @@ bool SqlCallProfile::eval_radius(){
 	return true;
 }
 
+static void _patch_uri_transport(
+	string &uri,
+	unsigned int transport_id,
+	const char *field_name,
+	const char *transport_field_name)
+{
+	if(!transport_id) return;
+	switch(transport_id) {
+	case sip_transport::UDP: break;
+	case sip_transport::TCP: {
+		AmUriParser parser;
+		DBG("patch %s to use TCP transport. current value is: '%s'",
+			field_name,uri.c_str());
+		parser.uri = uri;
+		if(!parser.parse_uri()) {
+			ERROR("Error parsing %s '%s' for protocol patching to TCP. leave it as is",
+				  field_name,uri.c_str());
+			break;
+		}
+		//check for existent transport param
+		if(!parser.uri_param.empty()) {
+			bool can_patch = true;
+			auto uri_params_list = explode(URL_decode(parser.uri_param),";");
+			for(const auto &p: uri_params_list) {
+				auto v = explode(p,"=");
+				if(v[0]=="transport") {
+					ERROR("attempt to patch %s with existent transport parameter: '%s'."
+						 " leave it as is",
+						  field_name,v.size()>1?v[1].c_str():"");
+					can_patch = false;
+					break;
+				}
+			}
+			if(can_patch) {
+				parser.uri_param+=";transport=TCP";
+				uri = parser.uri_str();
+				DBG("%s patched to: '%s'",field_name,uri.c_str());
+			}
+		} else {
+			parser.uri_param = "transport=TCP";
+			uri = parser.uri_str();
+			DBG("%s patched to: '%s'",field_name,uri.c_str());
+		}
+	} break;
+	default:
+		ERROR("%s %d is not supported yet. ignore it",transport_field_name);
+	}
+}
+#define patch_uri_transport(profile_field,transport_id_field) \
+	_patch_uri_transport(profile_field,transport_id_field,#profile_field,#transport_id_field);
+
+bool SqlCallProfile::eval_transport_ids()
+{
+	patch_uri_transport(ruri,bleg_transport_id);
+	patch_uri_transport(outbound_proxy,outbound_proxy_transport_id);
+	patch_uri_transport(aleg_outbound_proxy,aleg_outbound_proxy_transport_id);
+	return true;
+}
+
 bool SqlCallProfile::eval(){
 	if(!outbound_interface.empty())
 		if(!evaluateOutboundInterface())
@@ -746,7 +813,8 @@ bool SqlCallProfile::eval(){
 		DBG("skip resources parsing for refusing profile");
 		return true;
 	}
-	return eval_resources() &&
+	return eval_transport_ids() &&
+		   eval_resources() &&
 		   eval_radius();
 }
 

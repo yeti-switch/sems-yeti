@@ -14,10 +14,12 @@ const static_field cdr_static_fields[] = {
 	{ "pop_id", "integer" },
 	{ "attempt_num", "integer" },
 	{ "is_last", "boolean" },
+	{ "legA_transport_protocol_id", "smallint" },
 	{ "legA_local_ip", "inet" },
 	{ "legA_local_port", "integer" },
 	{ "legA_remote_ip", "inet" },
 	{ "legA_remote_port", "integer" },
+	{ "legB_transport_protocol_id", "smallint" },
 	{ "legB_local_ip", "inet" },
 	{ "legB_local_port", "integer" },
 	{ "legB_remote_ip", "inet" },
@@ -605,7 +607,7 @@ int CdrThread::writecdr(cdr_writer_connection* conn, Cdr& cdr){
 			ret = 0;
 		}
 
-		//dbg_writecdr(fields_values,cdr);
+		dbg_writecdr(fields_values,cdr);
 	} catch(const pqxx::pqxx_exception &e){
 		DBG("SQL exception on CdrWriter thread: %s",e.base().what());
 		dbg_writecdr(fields_values,cdr);
