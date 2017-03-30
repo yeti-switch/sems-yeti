@@ -41,7 +41,6 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	}
 
 	assign_str(ruri,"ruri");
-	assign_str_safe(ruri_host,"ruri_host",string());
 	assign_str(from,"from");
 	assign_str(to,"to");
 
@@ -333,7 +332,6 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 	} else {
 		DBG("RURI      = '%s'\n", ruri.c_str());
 		DBG("RURI transport id = %d",bleg_transport_id);
-		DBG("RURI-host = '%s'\n", ruri_host.c_str());
 		DBG("From = '%s'\n", from.c_str());
 		DBG("To   = '%s'\n", to.c_str());
 		// if (!contact.empty()) {
