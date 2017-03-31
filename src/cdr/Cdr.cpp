@@ -179,8 +179,8 @@ void Cdr::update(const AmSipReply &reply){
 		legB_transport_protocol_id = reply.transport_id;
 		legB_remote_ip = reply.remote_ip;
 		legB_remote_port = reply.remote_port;
-		legB_local_ip = reply.local_ip;
-		legB_local_port = reply.local_port;
+		legB_local_ip = reply.actual_ip;
+		legB_local_port = reply.actual_port;
 		if(reply.code>=100){
 			if(reply.code<110){ //10x codes
 				if(!timerisset(&sip_10x_time)){
