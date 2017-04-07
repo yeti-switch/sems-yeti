@@ -1,3 +1,13 @@
+sems-yeti (1.7.18) stable; urgency=low
+
+  * 0ccb849 disable PRACK relay
+  * 4e3ea95 apply 100rel call_profile options
+  * 6f4fff6 Cdr: use actual_ip/port instead of local_ip/port as legB_local_ip/port
+  * e741878 CdrWriter: comment out Cdr fields debug
+  * 1d49572 SqlCallProfile: remove 'ruri_host' field processing
+
+ -- dev <dev@yeti-switch.org>  Fri, 07 Apr 2017 15:05:52 +0300
+
 sems-yeti (1.7.17) stable; urgency=low
 
   * 80ab37d add TCP transport support
