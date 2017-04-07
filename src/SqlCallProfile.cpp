@@ -268,8 +268,8 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 
 	assign_bool_safe(aleg_relay_reinvite,"aleg_relay_reinvite",true,true);
 	assign_bool_safe(bleg_relay_reinvite,"bleg_relay_reinvite",true,true);
-	assign_bool_safe(aleg_relay_prack,"aleg_relay_prack",true,true);
-	assign_bool_safe(bleg_relay_prack,"bleg_relay_prack",true,true);
+	/*assign_bool_safe(aleg_relay_prack,"aleg_relay_prack",true,true);
+	assign_bool_safe(bleg_relay_prack,"bleg_relay_prack",true,true);*/
 	assign_bool_safe(aleg_relay_hold,"aleg_relay_hold",true,true);
 	assign_bool_safe(bleg_relay_hold,"bleg_relay_hold",true,true);
 
@@ -510,9 +510,9 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 		DBG("relay_hold(A/B): (%s/%s)\n",
 			aleg_relay_hold?"yes":"no",
 			bleg_relay_hold?"yes":"no");
-		DBG("relay_prack(A/B): (%s/%s)\n",
+		/*DBG("relay_prack(A/B): (%s/%s)\n",
 			aleg_relay_prack?"yes":"no",
-			bleg_relay_prack?"yes":"no");
+			bleg_relay_prack?"yes":"no");*/
 		DBG("relay_options(A/B): (%s/%s)\n",
 			aleg_relay_options?"yes":"no",
 			bleg_relay_options?"yes":"no");
