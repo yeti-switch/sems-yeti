@@ -176,6 +176,9 @@ struct SBCCallProfile
   int aleg_dtmf_recv_modes, bleg_dtmf_recv_modes;
   int aleg_dtmf_send_mode_id, bleg_dtmf_send_mode_id;
 
+  int aleg_rel100_mode_id;
+  int bleg_rel100_mode_id;
+
   int radius_profile_id;
   int aleg_radius_acc_profile_id;
   int bleg_radius_acc_profile_id;
@@ -449,6 +452,8 @@ struct SBCCallProfile
 	bleg_dtmf_recv_modes(DTMF_RX_MODE_ALL),
 	force_one_way_early_media(false),
 	suppress_early_media(false),
+	aleg_rel100_mode_id(-1),
+	bleg_rel100_mode_id(-1),
 	radius_profile_id(0),
 	aleg_radius_acc_profile_id(0),
 	bleg_radius_acc_profile_id(0),

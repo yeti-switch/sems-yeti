@@ -298,6 +298,9 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	assign_bool_safe(force_one_way_early_media,"force_one_way_early_media",false,false);
 	assign_int_safe_silent(fake_ringing_timeout,"fake_180_timer",0,0);
 
+	assign_int_safe_silent(aleg_rel100_mode_id,"aleg_rel100_mode_id",-1,-1);
+	assign_int_safe_silent(bleg_rel100_mode_id,"bleg_rel100_mode_id",-1,-1);
+
 	assign_int_safe_silent(radius_profile_id,"radius_auth_profile_id",0,0);
 	assign_int_safe_silent(aleg_radius_acc_profile_id,"aleg_radius_acc_profile_id",0,0);
 	assign_int_safe_silent(bleg_radius_acc_profile_id,"bleg_radius_acc_profile_id",0,0);
@@ -533,6 +536,9 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 
 		DBG("disable_early_media: '%s'",suppress_early_media?"yes":"no");
 		DBG("force_one_way_early_media '%s'",force_one_way_early_media?"yes":"no");
+
+		DBG("aleg_rel100_mode_id: %d",aleg_radius_acc_profile_id);
+		DBG("bleg_rel100_mode_id: %d",bleg_radius_acc_profile_id);
 
 		DBG("append_headers '%s'\n", append_headers.c_str());
 		DBG("append_headers_req '%s'\n", append_headers_req.c_str());

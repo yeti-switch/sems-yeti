@@ -137,7 +137,11 @@ SBCCallLeg::SBCCallLeg(
     placeholders_hash(call_profile.placeholders_hash)
 {
     set_sip_relay_only(false);
-    dlg->setRel100State(Am100rel::REL100_IGNORED);
+    if(call_profile.aleg_rel100_mode_id!=-1) {
+        dlg->setRel100State((Am100rel::State)call_profile.aleg_rel100_mode_id);
+    } else {
+        dlg->setRel100State(Am100rel::REL100_IGNORED);
+    }
 
     if(call_profile.rtprelay_bw_limit_rate > 0
        && call_profile.rtprelay_bw_limit_peak > 0)
@@ -174,7 +178,11 @@ SBCCallLeg::SBCCallLeg(
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
 {
-  dlg->setRel100State(Am100rel::REL100_IGNORED);
+    if(call_profile.bleg_rel100_mode_id!=-1) {
+      dlg->setRel100State((Am100rel::State)call_profile.bleg_rel100_mode_id);
+    } else {
+      dlg->setRel100State(Am100rel::REL100_IGNORED);
+    }
 
     // we need to apply it here instead of in applyBProfile because we have caller
     // here (FIXME: do it on better place and better way than accessing internals
@@ -1058,6 +1066,8 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
         assert(reply_ev);
 
         AmSipReply &reply = reply_ev->reply;
+
+        reply.rseq = 0;
 
         DBG("Yeti::relayEvent(%p) filtering body for reply %d cseq.method '%s' (c/t '%s') oa_state = %d\n",
             this,reply.code,reply_ev->trans_method.c_str(), reply.body.getCTStr().c_str(),
