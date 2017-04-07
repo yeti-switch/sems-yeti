@@ -2322,7 +2322,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     DBG("continue hunting");
     //put current resources
     rctl.put(call_ctx->getCurrentProfile()->resource_handler);
-    if(call_ctx->initial_invite!=NULL){
+    if(call_ctx->initial_invite==NULL){
         ERROR("%s() intial_invite == NULL",FUNC_NAME);
         return;
     }
