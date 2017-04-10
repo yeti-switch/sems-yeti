@@ -1,3 +1,10 @@
+sems-yeti (1.7.18-1) stable; urgency=low
+
+  * 656a6f9 SBCCallLeg::onBLegRefused: fix rerouting next profile checking
+  * 2005a76 SBCCallLeg::onBLegRefused: fix context initial invite pointer check
+
+ -- dev <dev@yeti-switch.org>  Mon, 10 Apr 2017 12:48:19 +0300
+
 sems-yeti (1.7.18) stable; urgency=low
 
   * 0ccb849 disable PRACK relay
