@@ -2327,7 +2327,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
         return;
     }
 
-    if(chooseNextProfile()) {
+    if(!chooseNextProfile()) {
         DBG("%s() no new profile, just finish as usual",FUNC_NAME);
         return;
     }
