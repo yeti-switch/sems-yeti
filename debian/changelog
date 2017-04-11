@@ -1,3 +1,9 @@
+sems-yeti (1.7.18-2) stable; urgency=low
+
+  * Cdr: propagate legA_transport_protocol_id to forked CDRs on rerouting"
+
+ -- dev <dev@yeti-switch.org>  Tue, 11 Apr 2017 14:03:15 +0300
+
 sems-yeti (1.7.18-1) stable; urgency=low
 
   * 656a6f9 SBCCallLeg::onBLegRefused: fix rerouting next profile checking

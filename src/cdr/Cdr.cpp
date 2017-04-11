@@ -394,6 +394,7 @@ Cdr::Cdr(const Cdr& cdr,const SqlCallProfile &profile){
 
 	msg_logger_path = cdr.msg_logger_path;
 	dump_level_id = cdr.dump_level_id;
+	legA_transport_protocol_id = cdr.legA_transport_protocol_id;
 }
 
 Cdr::Cdr(const SqlCallProfile &profile)
