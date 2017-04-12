@@ -153,10 +153,6 @@ class CallLeg: public AmB2BSession
 
     int relaySipReply(AmSipReply &reply);
 
-    /** terminate all other B legs than the connected one (should not be used
-     * directly by successors, right?) */
-    void terminateNotConnectedLegs();
-
     /** choose given B leg from the list of other B legs */
     bool setOther(const string &id, bool use_initial_sdp);
 
@@ -272,6 +268,9 @@ class CallLeg: public AmB2BSession
 
     virtual void terminateOtherLeg();
     virtual void terminateLeg();
+    /** terminate all other B legs than the connected one (should not be used
+     * directly by successors, right?) */
+    void terminateNotConnectedLegs();
 
     /** change RTP mode (and AmB2BMedia if needed) but do not send reINVITE
      *

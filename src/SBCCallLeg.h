@@ -137,6 +137,8 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void onInvite(const AmSipRequest& req);
   void onRoutingReady();
   void onInviteException(int code,string reason,bool no_reply);
+  bool onException(int code,const string &reason) noexcept;
+  void onOtherException(int code,const string &reason) noexcept;
   void onEarlyEventException(unsigned int code,const string &reason);
 
   void onDtmf(AmDtmfEvent* e);

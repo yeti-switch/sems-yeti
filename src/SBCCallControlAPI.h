@@ -78,4 +78,18 @@ struct SBCControlEvent : public AmEvent {
 
 };
 
+#define SBCExceptionEvent_ID -565
+struct SBCOtherLegExceptionEvent
+  : public AmEvent
+{
+    int code;
+    string reason;
+  public:
+    SBCOtherLegExceptionEvent(int code, const string &reason)
+      : AmEvent(SBCExceptionEvent_ID),
+        code(code),
+        reason(reason)
+    {}
+};
+
 #endif

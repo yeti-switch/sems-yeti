@@ -1854,6 +1854,13 @@ void SBCCallLeg::process(AmEvent* ev)
         return;
     }
 
+    SBCOtherLegExceptionEvent *exception_event;
+    if(ev->event_id == SBCExceptionEvent_ID &&
+       (exception_event = dynamic_cast<SBCOtherLegExceptionEvent*>(ev)) != NULL)
+    {
+        onOtherException(exception_event->code,exception_event->reason);
+    }
+
     CallLeg::process(ev);
 }
 
@@ -2053,6 +2060,73 @@ void SBCCallLeg::onInviteException(int code,string reason,bool no_reply)
         cdr->disconnect_rewrited_reason = reason;
     }
     cdr->unlock();
+}
+
+bool SBCCallLeg::onException(int code,const string &reason) noexcept
+{
+    DBG("%s(%p,leg%s) %d:'%s'",FUNC_NAME,this,a_leg?"A":"B",
+        code,reason.c_str());
+    with_cdr_for_read {
+        cdr->update_internal_reason(DisconnectByTS,reason,code);
+        if(!a_leg) {
+            switch(dlg->getStatus()) {
+            case AmBasicSipDialog::Connected:
+                cdr->update_bleg_reason("BYE",200);
+                break;
+            case AmBasicSipDialog::Early:
+                cdr->update_bleg_reason("Request terminated",487);
+                break;
+            default:
+                break;
+            }
+        } else {
+            switch(dlg->getStatus()) {
+            case AmBasicSipDialog::Connected:
+                cdr->update_aleg_reason("BYE",200);
+                break;
+            case AmBasicSipDialog::Early:
+                cdr->update_aleg_reason("Request terminated",487);
+                break;
+            default:
+                break;
+            }
+        }
+    }
+    relayEvent(new SBCOtherLegExceptionEvent(code,reason));
+    terminateLeg();
+    return true; //continue processing
+}
+
+void SBCCallLeg::onOtherException(int code,const string &reason) noexcept
+{
+    DBG("%s(%p,leg%s) %d:'%s'",FUNC_NAME,this,a_leg?"A":"B",
+        code,reason.c_str());
+    with_cdr_for_read {
+        if(!a_leg) {
+            switch(dlg->getStatus()) {
+            case AmBasicSipDialog::Connected:
+                cdr->update_bleg_reason("BYE",200);
+                break;
+            case AmBasicSipDialog::Early:
+                cdr->update_bleg_reason("Request terminated",487);
+                break;
+            default:
+                break;
+            }
+        } else {
+            switch(dlg->getStatus()) {
+            case AmBasicSipDialog::Connected:
+                cdr->update_aleg_reason("BYE",200);
+                break;
+            case AmBasicSipDialog::Early:
+                cdr->update_aleg_reason("Request terminated",487);
+                break;
+            default:
+                break;
+            }
+        }
+    }
+    terminateLeg();
 }
 
 void SBCCallLeg::onEarlyEventException(unsigned int code,const string &reason)
