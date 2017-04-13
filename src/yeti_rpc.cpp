@@ -1350,6 +1350,7 @@ void YetiRpc::requestResolverGet(const AmArg& args, AmArg& ret){
 	dns_handle h;
 	sockaddr_storage remote_ip;
 
+	bzero(&remote_ip,sizeof(remote_ip));
 	if(-1==resolver::instance()->resolve_name(
 						target.c_str(),
 						&h,&remote_ip,
@@ -1359,7 +1360,8 @@ void YetiRpc::requestResolverGet(const AmArg& args, AmArg& ret){
 		throw AmSession::Exception(500,"unresolvable destination");
 	}
 	ret["address"] = get_addr_str_sip(&remote_ip).c_str();
-	ret["port"] = am_get_port(&remote_ip);
+	unsigned short port = am_get_port(&remote_ip);
+	ret["port"] = port ? port : 5060;
 	h.dump(ret["handler"]);
 }
 

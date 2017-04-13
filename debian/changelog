@@ -1,3 +1,9 @@
+sems-yeti (1.7.21-1) stable; urgency=low
+
+  * rpc: resolver get: zero sockaddr before usage
+
+ -- dev <dev@yeti-switch.org>  Thu, 13 Apr 2017 14:49:53 +0300
+
 sems-yeti (1.7.21) stable; urgency=low
 
   * rpc: rewrite resolver get command to use old output style
