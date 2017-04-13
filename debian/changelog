@@ -1,3 +1,9 @@
+sems-yeti (1.7.21-2) stable; urgency=low
+
+  * SBCCallLeg: force to finalize session on exception
+
+ -- dev <dev@yeti-switch.org>  Thu, 13 Apr 2017 16:16:48 +0300
+
 sems-yeti (1.7.21-1) stable; urgency=low
 
   * rpc: resolver get: zero sockaddr before usage
