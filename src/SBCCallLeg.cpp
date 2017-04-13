@@ -2071,7 +2071,8 @@ bool SBCCallLeg::onException(int code,const string &reason) noexcept
         if(!a_leg) {
             switch(dlg->getStatus()) {
             case AmBasicSipDialog::Connected:
-                cdr->update_bleg_reason("BYE",200);
+            case AmBasicSipDialog::Disconnecting:
+                cdr->update_bleg_reason("Bye",200);
                 break;
             case AmBasicSipDialog::Early:
                 cdr->update_bleg_reason("Request terminated",487);
@@ -2082,7 +2083,8 @@ bool SBCCallLeg::onException(int code,const string &reason) noexcept
         } else {
             switch(dlg->getStatus()) {
             case AmBasicSipDialog::Connected:
-                cdr->update_aleg_reason("BYE",200);
+            case AmBasicSipDialog::Disconnecting:
+                cdr->update_aleg_reason("Bye",200);
                 break;
             case AmBasicSipDialog::Early:
                 cdr->update_aleg_reason("Request terminated",487);
@@ -2105,7 +2107,8 @@ void SBCCallLeg::onOtherException(int code,const string &reason) noexcept
         if(!a_leg) {
             switch(dlg->getStatus()) {
             case AmBasicSipDialog::Connected:
-                cdr->update_bleg_reason("BYE",200);
+            case AmBasicSipDialog::Disconnecting:
+                cdr->update_bleg_reason("Bye",200);
                 break;
             case AmBasicSipDialog::Early:
                 cdr->update_bleg_reason("Request terminated",487);
@@ -2116,7 +2119,8 @@ void SBCCallLeg::onOtherException(int code,const string &reason) noexcept
         } else {
             switch(dlg->getStatus()) {
             case AmBasicSipDialog::Connected:
-                cdr->update_aleg_reason("BYE",200);
+            case AmBasicSipDialog::Disconnecting:
+                cdr->update_aleg_reason("Bye",200);
                 break;
             case AmBasicSipDialog::Early:
                 cdr->update_aleg_reason("Request terminated",487);

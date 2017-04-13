@@ -1,3 +1,9 @@
+sems-yeti (1.7.21-3) stable; urgency=low
+
+  * SBCCallLeg: force to set '200 Bye' for CDR on exceptions in Disconnecting state
+
+ -- dev <dev@yeti-switch.org>  Thu, 13 Apr 2017 16:32:30 +0300
+
 sems-yeti (1.7.21-2) stable; urgency=low
 
   * SBCCallLeg: force to finalize session on exception
