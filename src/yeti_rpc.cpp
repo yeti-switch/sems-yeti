@@ -1338,17 +1338,28 @@ void YetiRpc::requestResolverClear(const AmArg& args, AmArg& ret){
 }
 
 void YetiRpc::requestResolverGet(const AmArg& args, AmArg& ret){
+	static const cstring udp_trsp("udp");
+
 	handler_log();
 	if(!args.size()){
 		throw AmSession::Exception(500,"missed parameter");
 	}
-	sockaddr_storage ss;
-	dns_handle dh;
-	int err = resolver::instance()->resolve_name(args.get(0).asCStr(),&dh,&ss,IPv4);
-	if(err == -1){
-		throw AmSession::Exception(500,"can't resolve");
+
+	cstring host(args[0].asCStr());
+	sip_destination dest;
+	dest.host = host;
+	dest.trsp = udp_trsp;
+	list<sip_destination> dest_list = { dest };
+
+	sip_target_set targets;
+	int res = resolver::instance()->resolve_targets(dest_list,&targets);
+	if(res < 0) throw AmSession::Exception(500,"unresolvable destination");
+
+	for(auto const &d : targets.dest_list) {
+		ret.push(AmArg());
+		AmArg &d_arg = ret.back();
+		d_arg["address"] = get_addr_str(&d.ss).c_str();
+		d_arg["transport"] = d.trsp;
 	}
-	ret["address"] = get_addr_str(&ss).c_str();
-	dh.dump(ret["handler"]);
 }
 

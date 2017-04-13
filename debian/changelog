@@ -1,3 +1,9 @@
+sems-yeti (1.7.20) stable; urgency=low
+
+  * rpc: fix resolver get command
+
+ -- dev <dev@yeti-switch.org>  Thu, 13 Apr 2017 03:43:12 +0300
+
 sems-yeti (1.7.19) stable; urgency=low
 
   * dae803b process onException callback
