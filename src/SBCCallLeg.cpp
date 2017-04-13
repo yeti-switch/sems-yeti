@@ -2094,7 +2094,7 @@ bool SBCCallLeg::onException(int code,const string &reason) noexcept
     }
     relayEvent(new SBCOtherLegExceptionEvent(code,reason));
     terminateLeg();
-    return true; //continue processing
+    return false; //stop processing
 }
 
 void SBCCallLeg::onOtherException(int code,const string &reason) noexcept
@@ -2127,6 +2127,7 @@ void SBCCallLeg::onOtherException(int code,const string &reason) noexcept
         }
     }
     terminateLeg();
+    postEvent(new AmEvent(0)); //force wakeup
 }
 
 void SBCCallLeg::onEarlyEventException(unsigned int code,const string &reason)
