@@ -1344,22 +1344,22 @@ void YetiRpc::requestResolverGet(const AmArg& args, AmArg& ret){
 	if(!args.size()){
 		throw AmSession::Exception(500,"missed parameter");
 	}
+	string target = args[0].asCStr();
+	if(target.empty()) return;
 
-	cstring host(args[0].asCStr());
-	sip_destination dest;
-	dest.host = host;
-	dest.trsp = udp_trsp;
-	list<sip_destination> dest_list = { dest };
+	dns_handle h;
+	sockaddr_storage remote_ip;
 
-	sip_target_set targets;
-	int res = resolver::instance()->resolve_targets(dest_list,&targets);
-	if(res < 0) throw AmSession::Exception(500,"unresolvable destination");
-
-	for(auto const &d : targets.dest_list) {
-		ret.push(AmArg());
-		AmArg &d_arg = ret.back();
-		d_arg["address"] = get_addr_str(&d.ss).c_str();
-		d_arg["transport"] = d.trsp;
+	if(-1==resolver::instance()->resolve_name(
+						target.c_str(),
+						&h,&remote_ip,
+						IPv4,
+						target[0]=='_' ? dns_r_srv : dns_r_a))
+	{
+		throw AmSession::Exception(500,"unresolvable destination");
 	}
+	ret["address"] = get_addr_str_sip(&remote_ip).c_str();
+	ret["port"] = am_get_port(&remote_ip);
+	h.dump(ret["handler"]);
 }
 

@@ -1,3 +1,9 @@
+sems-yeti (1.7.21) stable; urgency=low
+
+  * rpc: rewrite resolver get command to use old output style
+
+ -- dev <dev@yeti-switch.org>  Thu, 13 Apr 2017 04:42:54 +0300
+
 sems-yeti (1.7.20) stable; urgency=low
 
   * rpc: fix resolver get command
