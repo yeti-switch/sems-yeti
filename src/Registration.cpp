@@ -1,10 +1,9 @@
 #include "Registration.h"
+#include "sip/parse_via.h"
 #include "AmSipRegistration.h"
 #include "ampi/SIPRegistrarClientAPI.h"
 #include <pqxx/pqxx>
 #include "yeti.h"
-
-#define CHECK_INTERVAL_DEFAULT 5000
 
 Registration* Registration::_instance=0;
 
@@ -54,7 +53,8 @@ int Registration::load_registrations(){
 		r = t.prepared("load_reg")(gc.pop_id)(gc.node_id).exec();
 		for(pqxx::result::size_type i = 0; i < r.size();++i){
 			const pqxx::result::tuple &row = r[i];
-			if(!create_registration(r[i],registrar_client_i)) {
+			//for(const auto &f: row) DBG("reg[%d] %s: %s",i,f.name(),f.c_str());
+			if(!create_registration(row,registrar_client_i)) {
 				ERROR("registration create error");
 				break;
 			}
@@ -118,6 +118,7 @@ bool Registration::create_registration(const pqxx::result::tuple &r, AmDynInvoke
 	push_type_as_int_safe(o_force_expire,bool,false);
 	push_type_as_int_safe(o_retry_delay,int,DEFAULT_REGISTER_RETRY_DELAY);
 	push_type_as_int_safe(o_max_attempts,int,REGISTER_ATTEMPTS_UNLIMITED);
+	push_type_as_int_safe(o_transport_protocol_id,int,sip_transport::UDP);
 
 	registrar_client_i->invoke("createRegistration", di_args, ret);
 	DBG("created registration with handle %s",ret[0].asCStr());
