@@ -119,6 +119,7 @@ bool Registration::create_registration(const pqxx::result::tuple &r, AmDynInvoke
 	push_type_as_int_safe(o_retry_delay,int,DEFAULT_REGISTER_RETRY_DELAY);
 	push_type_as_int_safe(o_max_attempts,int,REGISTER_ATTEMPTS_UNLIMITED);
 	push_type_as_int_safe(o_transport_protocol_id,int,sip_transport::UDP);
+	push_type_as_int_safe(o_proxy_transport_protocol_id,int,sip_transport::UDP);
 
 	registrar_client_i->invoke("createRegistration", di_args, ret);
 	DBG("created registration with handle %s",ret[0].asCStr());
