@@ -1081,8 +1081,8 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
 
         do {
             if(!a_leg){
-                if(reply.code==200
-                   && !call_profile.aleg_append_headers_reply.empty())
+                if(!call_profile.aleg_append_headers_reply.empty() &&
+                   (reply.code==200 || (reply.code >=180 && reply.code < 190)))
                 {
                     size_t start_pos = 0;
                     while (start_pos<call_profile.aleg_append_headers_reply.length()) {
