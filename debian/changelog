@@ -1,3 +1,10 @@
+sems-yeti (1.7.22-2) stable; urgency=low
+
+  * 3ab9325 SBCCallLeg: force call to stop on call duration limit
+  * b19e3de SBCCallLeg: fix rtp timeout processing
+
+ -- dev <dev@yeti-switch.org>  Wed, 19 Apr 2017 14:06:53 +0300
+
 sems-yeti (1.7.22-1) stable; urgency=low
 
   * add headers from 'aleg_append_headers_reply' also to the 18x responses
