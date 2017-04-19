@@ -695,6 +695,7 @@ void SBCCallLeg::onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event)
         cdr->update_aleg_reason("Bye",200);
         cdr->update_bleg_reason("Bye",200);
     }
+    SBCCallLeg::onRtpTimeout();
 }
 
 void SBCCallLeg::onTimerEvent(int timer_id)
