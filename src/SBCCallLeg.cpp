@@ -708,6 +708,7 @@ void SBCCallLeg::onTimerEvent(int timer_id)
             cdr->update_internal_reason(DisconnectByTS,"Call duration limit reached",200);
             cdr->update_aleg_reason("Bye",200);
             cdr->update_bleg_reason("Bye",200);
+            stopCall("Call duration limit reached");
             break;
         case YETI_RINGING_TIMEOUT_TIMER:
             call_ctx->setRingingTimeout();
