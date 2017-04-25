@@ -827,3 +827,15 @@ SqlCallProfile *SqlCallProfile::copy(){
 	*profile = *this;
 	return profile;
 }
+
+void SqlCallProfile::info(AmArg &s)
+{
+	s["ruri"] = ruri;
+	s["from"] = from;
+	s["to"] = to;
+	s["resource_handler"] = resource_handler;
+	s["append_headers"] = append_headers;
+	s["outbound_interface"] = outbound_interface;
+	for(const auto &f: dyn_fields)
+		s[f.first] = f.second;
+}

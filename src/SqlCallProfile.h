@@ -56,6 +56,7 @@ struct SqlCallProfile
 	bool eval();
 
 	void infoPrint(const DynFieldsT &df);
+	void info(AmArg &s);
 	SqlCallProfile *copy();
 };
 

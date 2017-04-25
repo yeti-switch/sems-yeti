@@ -818,5 +818,7 @@ void Cdr::info(AmArg &s)
 	s["end_time"] = timeval2double(end_time);
 	s["10x_time"] = timeval2double(sip_10x_time);
 	s["18x_time"] = timeval2double(sip_18x_time);
+	s["resources"] = resources;
+	s["active_resources"] = active_resources;
 }
 
