@@ -1,3 +1,10 @@
+sems-yeti (1.7.23-1) stable; urgency=low
+
+  * 91525ce yeti_rpc: 'show sessions': show additional fields
+  * 5f4a387 SBCCallLeg: postpone replies on asymmetric 100rel between legs
+
+ -- dev <dev@yeti-switch.org>  Tue, 25 Apr 2017 19:04:20 +0300
+
 sems-yeti (1.7.22-2) stable; urgency=low
 
   * 3ab9325 SBCCallLeg: force call to stop on call duration limit
