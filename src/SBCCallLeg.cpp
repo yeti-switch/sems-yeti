@@ -13,6 +13,7 @@
 #include "SBCSimpleRelay.h"
 #include "RegisterDialog.h"
 #include "SubscriptionDialog.h"
+#include "Am100rel.h"
 
 #include "sip/pcap_logger.h"
 #include "sip/sip_parser.h"
@@ -1764,6 +1765,16 @@ void SBCCallLeg::process(AmEvent* ev)
 
         B2BEvent* b2b_e = dynamic_cast<B2BEvent*>(ev);
         if(b2b_e){
+            if(b2b_e->event_id == B2BSipReply){
+                B2BSipReplyEvent* b2b_reply_e = dynamic_cast<B2BSipReplyEvent*>(b2b_e);
+                if(dlg->checkReply100rel(b2b_reply_e->reply)) {
+                    DBG("[%s] reply event (%d %s) postponed by 100rel extension",
+                        getLocalTag().c_str(),
+                        b2b_reply_e->reply.code,b2b_reply_e->reply.reason.c_str());
+                    postponed_replies.emplace(new B2BSipReplyEvent(*b2b_reply_e));
+                    return;
+                }
+            }
             if(b2b_e->event_id==B2BTerminateLeg){
                 DBG("onEvent(%p|%s) terminate leg event",
                     this,getLocalTag().c_str());
@@ -1861,6 +1872,17 @@ void SBCCallLeg::process(AmEvent* ev)
        (exception_event = dynamic_cast<SBCOtherLegExceptionEvent*>(ev)) != NULL)
     {
         onOtherException(exception_event->code,exception_event->reason);
+    }
+
+    if(dynamic_cast<ProvisionalReplyConfirmedEvent*>(ev)) {
+        if(!postponed_replies.empty()) {
+            DBG("we have %ld postponed replies on ProvisionalReplyConfirmedEvent. "
+                "process first of them",
+                postponed_replies.size());
+            //replace ProvisionalReplyConfirmedEvent with B2BSipReplyEvent
+            ev = postponed_replies.front().release();
+            postponed_replies.pop();
+        }
     }
 
     CallLeg::process(ev);

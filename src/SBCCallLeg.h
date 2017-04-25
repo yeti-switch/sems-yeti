@@ -46,6 +46,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   string global_tag;
   CallCtx *call_ctx;
+  std::queue< unique_ptr<B2BSipReplyEvent> > postponed_replies;
 
   // auth
   AmSessionEventHandler* auth;
