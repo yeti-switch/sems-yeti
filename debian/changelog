@@ -1,3 +1,9 @@
+sems-yeti (1.7.23-3) stable; urgency=low
+
+  * CdrList: periodical active calls snapshots sending to the clickhouse database
+
+ -- dev <dev@yeti-switch.org>  Thu, 27 Apr 2017 18:42:41 +0300
+
 sems-yeti (1.7.23-2) stable; urgency=low
 
   *  yeti_rpc: show interfaces: improve output

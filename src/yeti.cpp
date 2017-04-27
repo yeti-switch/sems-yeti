@@ -48,6 +48,7 @@ Yeti::Yeti(YetiBaseParams &params)
 
 
 Yeti::~Yeti() {
+    cdr_list.stop();
     rctl.stop();
     router.stop();
 }
@@ -165,8 +166,13 @@ int Yeti::onLoad() {
 		return -1;
 	}
 
+	if (cdr_list.configure(cfg)){
+		ERROR("CdrList configure failed");
+		return -1;
+	}
+
 	if (router.configure(cfg)){
-		ERROR("SqlRouter confgiure failed");
+		ERROR("SqlRouter configure failed");
 		return -1;
 	}
 
@@ -210,6 +216,8 @@ int Yeti::onLoad() {
 		ERROR("Registration agent configure failed");
 		return -1;
 	}
+
+	if(cdr_list.getSnapshotsEnabled()) cdr_list.start();
 
 	start_time = time(NULL);
 

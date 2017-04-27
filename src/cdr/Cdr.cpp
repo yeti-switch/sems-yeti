@@ -804,6 +804,59 @@ void Cdr::to_csv_stream(ofstream &s, const DynFieldsT &df)
 #undef add_value
 }
 
+void Cdr::snapshot_info(AmArg &s, const DynFieldsT &df)
+{
+#define add_field(val) s[#val] = val;
+#define add_field_as(name,val) s[name] = val;
+#define add_timeval_field(val) s[#val] = timeval2str(val);
+
+	add_timeval_field(cdr_born_time);
+	add_timeval_field(start_time);
+	add_timeval_field(connect_time);
+	add_timeval_field(end_time);
+
+	add_field(legB_remote_port);
+	add_field(legB_local_port);
+	add_field(legA_remote_port);
+	add_field(legA_local_port);
+	add_field(legB_remote_ip);
+	add_field(legB_local_ip);
+	add_field(legA_remote_ip);
+	add_field(legA_local_ip);
+
+	add_field(orig_call_id);
+	add_field(term_call_id);
+	add_field(local_tag);
+	add_field(global_tag);
+
+	add_field(time_limit);
+	add_field(dump_level_id);
+	add_field(audio_record_enabled);
+
+	add_field(attempt_num);
+
+	add_field(resources);
+	add_field(active_resources);
+
+	for(const auto &d: df) {
+		const string &fname = d.name;
+		AmArg &f = dyn_fields[fname];
+
+		//cast bool to int
+		if(d.type_id==DynField::BOOL) {
+			if(!isArgBool(f)) continue;
+			add_field_as(fname,(f.asBool() ? 1 : 0));
+			continue;
+		}
+
+		add_field_as(fname,f);
+	}
+
+#undef add_field
+#undef add_field_as
+#undef add_timeval_field
+}
+
 void Cdr::info(AmArg &s)
 {
 	s["dump_level"] = dump_level2str(dump_level_id);

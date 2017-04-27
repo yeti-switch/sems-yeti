@@ -7,9 +7,12 @@
 #include "CdrFilter.h"
 #include "MurmurHash.h"
 
-class CdrList: public MurmurHash<string,string,Cdr> {
+class CdrList:
+  public MurmurHash<string,string,Cdr>,
+  public AmThread
+{
   public:
-	CdrList(unsigned long buckets = 65000);
+    CdrList(unsigned long buckets = 65000);
 	~CdrList();
 	
 	Cdr *get_by_local_tag(string local_tag);
@@ -40,13 +43,34 @@ class CdrList: public MurmurHash<string,string,Cdr> {
 	void getFields(AmArg &ret,SqlRouter *r);
 	void validate_fields(const vector<string> &wanted_fields, const SqlRouter *router);
 
+    int configure(AmConfigReader &cfg);
+    void run();
+    void on_stop();
+    void onTimer();
+
+    bool getSnapshotsEnabled() { return snapshots_enabled; }
+
   protected:
+
 	uint64_t hash_lookup_key(const string *key);
 	bool cmp_lookup_key(const string *k1,const string *k2);
 	void init_key(string **dest,const string *src);
 	void free_key(string *key);
 
   private:
+
+    int epoll_fd;
+    bool snapshots_enabled;
+    unsigned int snapshots_interval;
+    string snapshots_destination;
+    string snapshots_table;
+    string snapshots_body_header;
+    u_int64_t last_snapshot_ts;
+    AmEventFd stop_event;
+    AmTimerFd timer;
+    AmCondition<bool> stopped;
+    SqlRouter *router;
+
 	enum get_calls_type {
 		Unfiltered, Filtered
 	};

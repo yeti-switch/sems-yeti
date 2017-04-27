@@ -1,14 +1,24 @@
 #include "CdrList.h"
 #include "log.h"
 #include "../yeti.h"
+#include "jsonArg.h"
+#include "AmSessionContainer.h"
+#include "ampi/HttpClientAPI.h"
 
-CdrList::CdrList(unsigned long buckets):MurmurHash<string,string,Cdr>(buckets){
-	//DBG("CdrList()");
-}
+#define SNAPSHOTS_PERIOD_DEFAULT 60
+#define EPOLL_MAX_EVENTS 2048
 
-CdrList::~CdrList(){
-	//DBG("~CdrList()");
-}
+CdrList::CdrList(unsigned long buckets)
+  : MurmurHash<string,string,Cdr>(buckets),
+    stopped(false),
+    epoll_fd(0),
+    snapshots_enabled(false),
+    snapshots_interval(0),
+    last_snapshot_ts(0)
+{ }
+
+CdrList::~CdrList()
+{ }
 
 uint64_t CdrList::hash_lookup_key(const string *key){
 	//!got segfault due to invalid key->size() value. do not trust it
@@ -194,5 +204,148 @@ void CdrList::validate_fields(const vector<string> &wanted_fields, const SqlRout
 	if(!ret){
 		throw std::string(string("passed one or more unknown fields:")+AmArg::print(failed_fields));
 	}
+}
+
+int CdrList::configure(AmConfigReader &cfg)
+{
+    if(!cfg.hasParameter("active_calls_clickhouse_queue")
+       || !cfg.hasParameter("active_calls_clickhouse_table"))
+    {
+        DBG("need both table and queue parameters "
+            "to enable active calls snapshots for clickhouse");
+        return 0;
+    }
+
+    router = &Yeti::instance().router;
+
+    snapshots_destination = cfg.getParameter("active_calls_clickhouse_queue");
+    snapshots_table = cfg.getParameter("active_calls_clickhouse_table","active_calls");
+    snapshots_interval = cfg.getParameterInt("active_calls_period",
+                                             SNAPSHOTS_PERIOD_DEFAULT);
+
+    if(0==snapshots_interval) {
+        ERROR("invalid active calls snapshots period: %d",snapshots_interval);
+        return -1;
+    }
+
+    DBG("use queue '%s', table '%s' for active calls snapshots with interval %d (seconds)",
+        snapshots_destination.c_str(),
+        snapshots_table.c_str(),
+        snapshots_interval);
+
+    snapshots_enabled = true;
+
+    snapshots_body_header = "INSERT INTO ";
+    snapshots_body_header += snapshots_table + " FORMAT JSONEachRow\n";
+
+    if((epoll_fd = epoll_create(2)) == -1)
+    {
+        ERROR("epoll_create() call failed");
+        return -1;
+    }
+    timer.link(epoll_fd);
+    stop_event.link(epoll_fd);
+}
+
+void CdrList::run()
+{
+    if(!snapshots_enabled) return;
+
+    int ret;
+    bool running;
+    struct epoll_event events[EPOLL_MAX_EVENTS];
+
+    setThreadName("calls-snapshots");
+
+    u_int64_t now = wheeltimer::instance()->unix_clock.get();
+    unsigned int first_interval = snapshots_interval - (now % snapshots_interval);
+    timer.set(first_interval*1000000,snapshots_interval*1000000);
+
+    running = true;
+    do {
+        ret = epoll_wait(epoll_fd, events, EPOLL_MAX_EVENTS, -1);
+        if(ret == -1 && errno != EINTR){
+            ERROR("epoll_wait: %s\n",strerror(errno));
+        }
+        if(ret < 1)
+            continue;
+        for (int n = 0; n < ret; ++n) {
+            struct epoll_event &e = events[n];
+
+            if(!(e.events & EPOLLIN)){
+                continue;
+            }
+
+            if(e.data.fd==timer) {
+                timer.read();
+                onTimer();
+            } else if(e.data.fd==stop_event){
+                stop_event.read();
+                running = false;
+                break;
+            }
+        }
+    } while(running);
+
+    close(epoll_fd);
+    stopped.set(true);
+}
+
+void CdrList::on_stop()
+{
+    if(!snapshots_enabled) return;
+
+    stop_event.fire();
+    stopped.wait_for();
+}
+
+void CdrList::onTimer()
+{
+    string data;
+    u_int64_t now = wheeltimer::instance()->unix_clock.get();
+    u_int64_t snapshot_ts = now - (now % snapshots_interval);
+
+
+    struct timeval snapshot_timeval;
+    snapshot_timeval.tv_sec = snapshot_ts;
+    snapshot_timeval.tv_usec = 0;
+
+    if(last_snapshot_ts && last_snapshot_ts==snapshot_ts){
+        ERROR("duplicate snapshot %llu timestamp. "
+              "ignore timer event (can lead to time gap between snapshots)",
+              snapshot_ts);
+        return;
+    }
+    last_snapshot_ts = snapshot_ts;
+
+    Yeti::global_config &gc = Yeti::instance().config;
+    const DynFieldsT &df = router->getDynFields();
+
+    lock();
+    entry *e = first;
+    if(!e) {
+        unlock();
+        return;
+    }
+    data = snapshots_body_header;
+    for(; e; e = e->list_next) {
+        AmArg call;
+        call["snapshot_timestamp"] = timeval2str(snapshot_timeval);
+        call["node_id"] = gc.node_id;
+        call["pop_id"] = gc.pop_id;
+        e->data->snapshot_info(call,df);
+        data+=arg2json(call);
+    }
+    unlock();
+
+    if(!AmSessionContainer::instance()->postEvent(
+      HTTP_EVENT_QUEUE,
+      new HttpPostEvent(
+        snapshots_destination,
+        data,
+        string())))
+    {
+        ERROR("can't post http event. disable active calls snapshots or add http_client module loading");
+    }
 }
 

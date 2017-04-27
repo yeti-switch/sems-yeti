@@ -150,6 +150,7 @@ struct Cdr: public
 	char *serialize_dtmf_events();
 	char *serialize_dynamic(const DynFieldsT &df);
 
+	void snapshot_info(AmArg &s, const DynFieldsT &df);
 	void info(AmArg &s);
 };
 
