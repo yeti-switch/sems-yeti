@@ -1009,10 +1009,13 @@ void YetiRpc::showInterfaces(const AmArg& args, AmArg& ret){
 	for(int i=0; i<(int)AmConfig::SIP_Ifs.size(); i++) {
 		AmConfig::SIP_interface& iface = AmConfig::SIP_Ifs[i];
 		AmArg am_iface;
+		am_iface["idx"] = i;
+		am_iface["media_if_idx"] = iface.RtpInterface;
 		am_iface["sys_name"] = iface.NetIf;
 		am_iface["sys_idx"] = (int)iface.NetIfIdx;
 		am_iface["local_ip"] = iface.LocalIP;
 		am_iface["local_port"] = (int)iface.LocalPort;
+		am_iface["public_ip"] = iface.PublicIP;
 		am_iface["public_ip"] = iface.PublicIP;
 		am_iface["use_raw_sockets"] = (iface.SigSockOpts&trsp_socket::use_raw_sockets)!= 0;
 		am_iface["force_via_address"] = (iface.SigSockOpts&trsp_socket::force_via_address) != 0;
@@ -1020,17 +1023,11 @@ void YetiRpc::showInterfaces(const AmArg& args, AmArg& ret){
 		sig[iface.name] = am_iface;
 	}
 
-	AmArg &sip_map = ret["sip_map"];
-	for(multimap<string,unsigned short>::iterator it = AmConfig::LocalSIPIP2If.begin();
-		it != AmConfig::LocalSIPIP2If.end(); ++it) {
-		AmConfig::SIP_interface& iface = AmConfig::SIP_Ifs[it->second];
-		sip_map[it->first] = iface.name.empty() ? "default" : iface.name;
-	}
-
 	AmArg &rtp = ret["media"];
 	for(int i=0; i<(int)AmConfig::RTP_Ifs.size(); i++) {
 		AmConfig::RTP_interface& iface = AmConfig::RTP_Ifs[i];
 		AmArg am_iface;
+		am_iface["idx"] = i;
 		am_iface["sys_name"] = iface.NetIf;
 		am_iface["sys_idx"] = (int)iface.NetIfIdx;
 		am_iface["local_ip"] = iface.LocalIP;
@@ -1041,6 +1038,21 @@ void YetiRpc::showInterfaces(const AmArg& args, AmArg& ret){
 		string name = iface.name.empty() ? "default" : iface.name;
 		rtp[name] = am_iface;
 	}
+
+	AmArg &sip_map = ret["sip_ip_map"];
+	for(multimap<string,unsigned short>::iterator it = AmConfig::LocalSIPIP2If.begin();
+		it != AmConfig::LocalSIPIP2If.end(); ++it) {
+		AmConfig::SIP_interface& iface = AmConfig::SIP_Ifs[it->second];
+		sip_map[it->first] = iface.name.empty() ? "default" : iface.name;
+	}
+
+	AmArg &sip_names_map = ret["sip_names_map"];
+	for(const auto &m: AmConfig::SIP_If_names)
+		sip_names_map[m.first] = m.second;
+
+	AmArg &media_names_map = ret["media_names_map"];
+	for(const auto &m: AmConfig::RTP_If_names)
+		media_names_map[m.first] = m.second;
 }
 
 void YetiRpc::showRouterCdrWriterOpenedFiles(const AmArg& args, AmArg& ret){

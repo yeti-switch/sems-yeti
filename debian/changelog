@@ -1,3 +1,9 @@
+sems-yeti (1.7.23-2) stable; urgency=low
+
+  *  yeti_rpc: show interfaces: improve output
+
+ -- dev <dev@yeti-switch.org>  Thu, 27 Apr 2017 13:21:18 +0300
+
 sems-yeti (1.7.23-1) stable; urgency=low
 
   * 91525ce yeti_rpc: 'show sessions': show additional fields
