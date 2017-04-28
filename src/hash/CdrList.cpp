@@ -342,9 +342,6 @@ void CdrList::onTimer()
             e->data->snapshot_info(call,df);
         }
     } else {
-        for(const auto &f: snapshots_fields_whitelist){
-            DBG("wanted: %s",f.c_str());
-        }
         for(; e; e = e->list_next) {
             calls.push(AmArg());
             AmArg &call = calls.back();
@@ -360,8 +357,6 @@ void CdrList::onTimer()
     data = snapshots_body_header;
     for(int i = 0;i< calls.size();i++)
         data+=arg2json(calls[i])+"\n";
-
-    //DBG("data:\n%s",data.c_str());
 
     if(!AmSessionContainer::instance()->postEvent(
       HTTP_EVENT_QUEUE,
