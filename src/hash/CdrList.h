@@ -7,6 +7,8 @@
 #include "CdrFilter.h"
 #include "MurmurHash.h"
 
+#include <unordered_set>
+
 class CdrList:
   public MurmurHash<string,string,Cdr>,
   public AmThread
@@ -65,6 +67,7 @@ class CdrList:
     string snapshots_destination;
     string snapshots_table;
     string snapshots_body_header;
+    unordered_set<string> snapshots_fields_whitelist;
     u_int64_t last_snapshot_ts;
     AmEventFd stop_event;
     AmTimerFd timer;

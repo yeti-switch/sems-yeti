@@ -321,6 +321,9 @@ void CdrList::onTimer()
     Yeti::global_config &gc = Yeti::instance().config;
     const DynFieldsT &df = router->getDynFields();
 
+    AmArg calls;
+    calls.assertArray();
+
     lock();
     entry *e = first;
     if(!e) {
@@ -328,15 +331,37 @@ void CdrList::onTimer()
         return;
     }
     data = snapshots_body_header;
-    for(; e; e = e->list_next) {
-        AmArg call;
-        call["snapshot_timestamp"] = timeval2str(snapshot_timeval);
-        call["node_id"] = gc.node_id;
-        call["pop_id"] = gc.pop_id;
-        e->data->snapshot_info(call,df);
-        data+=arg2json(call);
+    //serialize to AmArg
+    if(snapshots_fields_whitelist.empty()) {
+        for(; e; e = e->list_next) {
+            calls.push(AmArg());
+            AmArg &call = calls.back();
+            call["snapshot_timestamp"] = timeval2str(snapshot_timeval);
+            call["node_id"] = gc.node_id;
+            call["pop_id"] = gc.pop_id;
+            e->data->snapshot_info(call,df);
+        }
+    } else {
+        for(const auto &f: snapshots_fields_whitelist){
+            DBG("wanted: %s",f.c_str());
+        }
+        for(; e; e = e->list_next) {
+            calls.push(AmArg());
+            AmArg &call = calls.back();
+            call["snapshot_timestamp"] = timeval2str(snapshot_timeval);
+            call["node_id"] = gc.node_id;
+            call["pop_id"] = gc.pop_id;
+            e->data->snapshot_info_filtered(call,df,snapshots_fields_whitelist);
+        }
     }
     unlock();
+
+    //serialize to json body for clickhouse
+    data = snapshots_body_header;
+    for(int i = 0;i< calls.size();i++)
+        data+=arg2json(calls[i])+"\n";
+
+    //DBG("data:\n%s",data.c_str());
 
     if(!AmSessionContainer::instance()->postEvent(
       HTTP_EVENT_QUEUE,

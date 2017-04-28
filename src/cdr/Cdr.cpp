@@ -857,6 +857,72 @@ void Cdr::snapshot_info(AmArg &s, const DynFieldsT &df)
 #undef add_timeval_field
 }
 
+void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered_set<string> &wanted_fields)
+{
+	static char strftime_buf[64] = {0};
+	static struct tm tt;
+#define filter(name)\
+	static const string name ## _key( #name ); \
+	if(wanted_fields.count( name  ## _key )>0)
+#define add_field(val) \
+	filter(val) s[ val  ## _key ] = val;
+#define add_field_as(name,val) \
+	filter(name) s[ name  ## _key ] = val;
+#define add_timeval_field(val) \
+	filter(val) s[ val  ## _key ] = timeval2str(val);
+
+	add_timeval_field(cdr_born_time);
+	add_timeval_field(start_time);
+	add_timeval_field(connect_time);
+	add_timeval_field(end_time);
+
+	localtime_r(&start_time.tv_sec,&tt);
+	int len = strftime(strftime_buf, sizeof strftime_buf, "%F", &tt);
+	s["start_date"] = string(strftime_buf,len);
+
+	add_field(legB_remote_port);
+	add_field(legB_local_port);
+	add_field(legA_remote_port);
+	add_field(legA_local_port);
+	add_field(legB_remote_ip);
+	add_field(legB_local_ip);
+	add_field(legA_remote_ip);
+	add_field(legA_local_ip);
+
+	add_field(orig_call_id);
+	add_field(term_call_id);
+	add_field(local_tag);
+	add_field(global_tag);
+
+	add_field(time_limit);
+	add_field(dump_level_id);
+	add_field(audio_record_enabled);
+
+	add_field(attempt_num);
+
+	add_field(resources);
+	add_field(active_resources);
+
+	for(const auto &d: df) {
+		const string &fname = d.name;
+		AmArg &f = dyn_fields[fname];
+
+		//cast bool to int
+		if(d.type_id==DynField::BOOL) {
+			if(!isArgBool(f)) continue;
+			add_field_as(fname,(f.asBool() ? 1 : 0));
+			continue;
+		}
+
+		add_field_as(fname,f);
+	}
+
+#undef add_field
+#undef add_field_as
+#undef add_timeval_field
+#undef filter
+}
+
 void Cdr::info(AmArg &s)
 {
 	s["dump_level"] = dump_level2str(dump_level_id);

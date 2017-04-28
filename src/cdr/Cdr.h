@@ -9,6 +9,7 @@
 #include "AmISUP.h"
 #include "cJSON.h"
 #include <pqxx/pqxx>
+#include <unordered_set>
 
 enum UpdateAction {
 	Start,
@@ -151,6 +152,7 @@ struct Cdr: public
 	char *serialize_dynamic(const DynFieldsT &df);
 
 	void snapshot_info(AmArg &s, const DynFieldsT &df);
+	void snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered_set<string> &wanted_fields);
 	void info(AmArg &s);
 };
 
