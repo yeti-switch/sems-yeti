@@ -831,7 +831,7 @@ void Cdr::snapshot_info(AmArg &s, const DynFieldsT &df)
 
 	add_field(time_limit);
 	add_field(dump_level_id);
-	add_field_as(audio_record_enabled, audio_record_enabled ? 1 : 0);
+	add_field_as("audio_record_enabled", audio_record_enabled ? 1 : 0);
 
 	add_field(attempt_num);
 
