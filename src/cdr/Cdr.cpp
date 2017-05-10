@@ -806,6 +806,8 @@ void Cdr::to_csv_stream(ofstream &s, const DynFieldsT &df)
 
 void Cdr::snapshot_info(AmArg &s, const DynFieldsT &df)
 {
+static char strftime_buf[64] = {0};
+static struct tm tt;
 #define add_field(val) s[#val] = val;
 #define add_field_as(name,val) s[name] = val;
 #define add_timeval_field(val) s[#val] = timeval2str(val);
@@ -814,6 +816,10 @@ void Cdr::snapshot_info(AmArg &s, const DynFieldsT &df)
 	add_timeval_field(start_time);
 	add_timeval_field(connect_time);
 	add_timeval_field(end_time);
+
+	localtime_r(&start_time.tv_sec,&tt);
+	int len = strftime(strftime_buf, sizeof strftime_buf, "%F", &tt);
+	s["start_date"] = string(strftime_buf,len);
 
 	add_field(legB_remote_port);
 	add_field(legB_local_port);

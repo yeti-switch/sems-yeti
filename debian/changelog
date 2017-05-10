@@ -1,3 +1,9 @@
+sems-yeti (1.7.23-6) stable; urgency=low
+
+  * Cdr: add field start_date for unfiltered active calls snapshot info
+
+ -- dev <dev@yeti-switch.org>  Wed, 10 May 2017 14:46:33 +0300
+
 sems-yeti (1.7.23-5) stable; urgency=low
 
   * Cdr: fix statistics serialization exception
