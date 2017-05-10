@@ -831,7 +831,7 @@ void Cdr::snapshot_info(AmArg &s, const DynFieldsT &df)
 
 	add_field(time_limit);
 	add_field(dump_level_id);
-	add_field(audio_record_enabled);
+	add_field_as(audio_record_enabled, audio_record_enabled ? 1 : 0);
 
 	add_field(attempt_num);
 
@@ -896,7 +896,7 @@ void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered
 
 	add_field(time_limit);
 	add_field(dump_level_id);
-	add_field(audio_record_enabled);
+	add_field_as(audio_record_enabled, audio_record_enabled ? 1 : 0);
 
 	add_field(attempt_num);
 
@@ -910,11 +910,13 @@ void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered
 		//cast bool to int
 		if(d.type_id==DynField::BOOL) {
 			if(!isArgBool(f)) continue;
-			add_field_as(fname,(f.asBool() ? 1 : 0));
+			if(!wanted_fields.count(fname)) continue;
+			s[fname] = f.asBool() ? 1 : 0;
 			continue;
 		}
 
-		add_field_as(fname,f);
+		if(wanted_fields.count(fname))
+			s[fname] = f;
 	}
 
 #undef add_field

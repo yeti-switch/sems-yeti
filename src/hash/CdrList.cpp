@@ -228,10 +228,18 @@ int CdrList::configure(AmConfigReader &cfg)
         return -1;
     }
 
+    auto allowed_fields = explode(cfg.getParameter("active_calls_clickhouse_allowed_fields"),",");
+    for(const auto &f: allowed_fields)
+        snapshots_fields_whitelist.emplace(f);
+
     DBG("use queue '%s', table '%s' for active calls snapshots with interval %d (seconds)",
         snapshots_destination.c_str(),
         snapshots_table.c_str(),
         snapshots_interval);
+
+    for(const auto &f: snapshots_fields_whitelist) {
+        DBG("clickhouse allowed_field: %s",f.c_str());
+    }
 
     snapshots_enabled = true;
 
@@ -245,6 +253,8 @@ int CdrList::configure(AmConfigReader &cfg)
     }
     timer.link(epoll_fd);
     stop_event.link(epoll_fd);
+
+    return 0;
 }
 
 void CdrList::run()
@@ -302,13 +312,9 @@ void CdrList::on_stop()
 void CdrList::onTimer()
 {
     string data;
+    string snapshot_timestamp_str, snapshot_date_str;
     u_int64_t now = wheeltimer::instance()->unix_clock.get();
     u_int64_t snapshot_ts = now - (now % snapshots_interval);
-
-
-    struct timeval snapshot_timeval;
-    snapshot_timeval.tv_sec = snapshot_ts;
-    snapshot_timeval.tv_usec = 0;
 
     if(last_snapshot_ts && last_snapshot_ts==snapshot_ts){
         ERROR("duplicate snapshot %llu timestamp. "
@@ -316,7 +322,23 @@ void CdrList::onTimer()
               snapshot_ts);
         return;
     }
+
     last_snapshot_ts = snapshot_ts;
+
+    {
+        int len;
+        char s[64];
+        static struct tm t;
+
+        time_t ts = snapshot_ts;
+        localtime_r(&ts,&t);
+
+        len = strftime(s, sizeof s, "%F %T", &t);
+        snapshot_timestamp_str = string(s, len);
+
+        len = strftime(s, sizeof s, "%F", &t);
+        snapshot_date_str = string(s, len);
+    }
 
     Yeti::global_config &gc = Yeti::instance().config;
     const DynFieldsT &df = router->getDynFields();
@@ -336,7 +358,8 @@ void CdrList::onTimer()
         for(; e; e = e->list_next) {
             calls.push(AmArg());
             AmArg &call = calls.back();
-            call["snapshot_timestamp"] = timeval2str(snapshot_timeval);
+            call["snapshot_timestamp"] = snapshot_timestamp_str;
+            call["snapshot_date"] = snapshot_date_str;
             call["node_id"] = gc.node_id;
             call["pop_id"] = gc.pop_id;
             e->data->snapshot_info(call,df);
@@ -345,7 +368,8 @@ void CdrList::onTimer()
         for(; e; e = e->list_next) {
             calls.push(AmArg());
             AmArg &call = calls.back();
-            call["snapshot_timestamp"] = timeval2str(snapshot_timeval);
+            call["snapshot_timestamp"] = snapshot_timestamp_str;
+            call["snapshot_date"] = snapshot_date_str;
             call["node_id"] = gc.node_id;
             call["pop_id"] = gc.pop_id;
             e->data->snapshot_info_filtered(call,df,snapshots_fields_whitelist);
@@ -357,6 +381,8 @@ void CdrList::onTimer()
     data = snapshots_body_header;
     for(int i = 0;i< calls.size();i++)
         data+=arg2json(calls[i])+"\n";
+
+    //DBG("data:\n%s",data.c_str());
 
     if(!AmSessionContainer::instance()->postEvent(
       HTTP_EVENT_QUEUE,
