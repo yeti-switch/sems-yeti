@@ -1196,7 +1196,6 @@ void SBCCallLeg::onBeforeDestroy()
     if(!call_ctx) return;
 
     call_ctx->lock();
-    call_ctx = NULL;
 
     if(call_profile.record_audio) {
         AmAudioFileRecorderProcessor::instance()->removeRecorder(getLocalTag());
@@ -1216,6 +1215,7 @@ void SBCCallLeg::onBeforeDestroy()
     } else {
         call_ctx->unlock();
     }
+    call_ctx = NULL;
 }
 
 UACAuthCred* SBCCallLeg::getCredentials()

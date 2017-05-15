@@ -1,3 +1,9 @@
+sems-yeti (1.7.23-8) stable; urgency=low
+
+  * SBCCallLeg: onBeforeDestroy: fix segfault
+
+ -- dev <dev@yeti-switch.org>  Mon, 15 May 2017 19:13:16 +0300
+
 sems-yeti (1.7.23-7) stable; urgency=low
 
   * SBCCallLeg: fix typo which caused segfault on rerouting resources overload
