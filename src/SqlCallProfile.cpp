@@ -795,7 +795,7 @@ static void _patch_uri_transport(
 		}
 	} break;
 	default:
-		ERROR("%s %d is not supported yet. ignore it",transport_field_name);
+		ERROR("%s %d is not supported yet. ignore it",transport_field_name,transport_id);
 	}
 }
 #define patch_uri_transport(profile_field,transport_id_field) \
