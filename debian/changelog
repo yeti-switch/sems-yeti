@@ -1,3 +1,9 @@
+sems-yeti (1.7.23-7) stable; urgency=low
+
+  * SBCCallLeg: fix typo which caused segfault on rerouting resources overload
+
+ -- dev <dev@yeti-switch.org>  Mon, 15 May 2017 18:39:01 +0300
+
 sems-yeti (1.7.23-6) stable; urgency=low
 
   * Cdr: add field start_date for unfiltered active calls snapshot info

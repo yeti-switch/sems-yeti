@@ -434,7 +434,6 @@ bool SBCCallLeg::chooseNextProfile(){
 
     string refuse_reason;
     int refuse_code;
-    CallCtx *ctx;
     Cdr *cdr;
     SqlCallProfile *profile = NULL;
     ResourceCtlResponse rctl_ret;
@@ -488,7 +487,7 @@ bool SBCCallLeg::chooseNextProfile(){
                 cdr->update_failed_resource(*ri);
                 break;
             } else if(	rctl_ret == RES_CTL_NEXT){
-                profile = ctx->getNextProfile(false,true);
+                profile = call_ctx->getNextProfile(false,true);
                 if(NULL==profile){
                     cdr->update_failed_resource(*ri);
                     DBG("%s() there are no profiles more",FUNC_NAME);
@@ -1194,8 +1193,7 @@ void SBCCallLeg::onBeforeDestroy()
     DBG("%s(%p|%s,leg%s)",FUNC_NAME,
         this,getLocalTag().c_str(),a_leg?"A":"B");
 
-    CallCtx *ctx = call_ctx;
-    if(!ctx) return;
+    if(!call_ctx) return;
 
     call_ctx->lock();
     call_ctx = NULL;
@@ -1204,19 +1202,19 @@ void SBCCallLeg::onBeforeDestroy()
         AmAudioFileRecorderProcessor::instance()->removeRecorder(getLocalTag());
     }
 
-    if(ctx->dec_and_test()) {
+    if(call_ctx->dec_and_test()) {
         DBG("last leg destroy");
-        SqlCallProfile *p = ctx->getCurrentProfile();
+        SqlCallProfile *p = call_ctx->getCurrentProfile();
         if(NULL!=p) rctl.put(p->resource_handler);
-        Cdr *cdr = ctx->cdr;
+        Cdr *cdr = call_ctx->cdr;
         if(cdr) {
             cdr_list.erase(cdr);
             router.write_cdr(cdr,true);
         }
-        ctx->unlock();
-        delete ctx;
+        call_ctx->unlock();
+        delete call_ctx;
     } else {
-        ctx->unlock();
+        call_ctx->unlock();
     }
 }
 
