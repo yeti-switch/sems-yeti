@@ -1014,9 +1014,10 @@ void YetiRpc::showInterfaces(const AmArg& args, AmArg& ret){
 		am_iface["sys_name"] = iface.NetIf;
 		am_iface["sys_idx"] = (int)iface.NetIfIdx;
 		am_iface["local_ip"] = iface.LocalIP;
-		am_iface["local_port"] = (int)iface.LocalPort;
+		am_iface["udp_local_port"] = (int)iface.udp_local_port;
+		am_iface["tcp_local_port"] = (int)iface.tcp_local_port;
 		am_iface["public_ip"] = iface.PublicIP;
-		am_iface["public_ip"] = iface.PublicIP;
+		am_iface["static_client_port"] = (iface.SigSockOpts&trsp_socket::static_client_port)!= 0;
 		am_iface["use_raw_sockets"] = (iface.SigSockOpts&trsp_socket::use_raw_sockets)!= 0;
 		am_iface["force_via_address"] = (iface.SigSockOpts&trsp_socket::force_via_address) != 0;
 		am_iface["force_outbound_if"] = (iface.SigSockOpts&trsp_socket::force_outbound_if) != 0;

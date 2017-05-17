@@ -320,10 +320,10 @@ void RegisterDialog::fixUacContactHosts(const AmSipRequest& req,
     // patch host & port
     uac_contacts[i].uri_host = AmConfig::SIP_Ifs[oif].getIP();
 
-    if(AmConfig::SIP_Ifs[oif].LocalPort == 5060)
+    if(AmConfig::SIP_Ifs[oif].getLocalPort(outbound_transport) == 5060)
       uac_contacts[i].uri_port.clear();
     else
-      uac_contacts[i].uri_port = int2str(AmConfig::SIP_Ifs[oif].LocalPort);
+      uac_contacts[i].uri_port = int2str(AmConfig::SIP_Ifs[oif].getLocalPort(outbound_transport));
       
     DBG("Patching host and port for Contact-HF: host='%s';port='%s'",
 	uac_contacts[i].uri_host.c_str(),uac_contacts[i].uri_port.c_str());
