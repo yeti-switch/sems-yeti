@@ -1,3 +1,10 @@
+sems-yeti (1.7.23-9) stable; urgency=low
+
+  * 72cdc3d CodecsGroup: fix codec definition parsing
+  * 9f2db6f fix for separated TCP/UDP ports
+
+ -- dev <dev@yeti-switch.org>  Wed, 14 Jun 2017 14:13:00 +0300
+
 sems-yeti (1.7.23-8) stable; urgency=low
 
   * SBCCallLeg: onBeforeDestroy: fix segfault
