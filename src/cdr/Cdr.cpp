@@ -115,6 +115,7 @@ void Cdr::init(){
 
 	active_resources = "[]";
 	active_resources_amarg.assertArray();
+	active_resources_clickhouse.assertStruct();
 
 	failed_resource_type_id = -1;
 	failed_resource_id = -1;
@@ -248,8 +249,14 @@ void Cdr::update(UpdateAction act){
 
 void Cdr::update(const ResourceList &rl){
     if(rl.empty()) return;
+
+    string clickhouse_key_prefix;
     cJSON *j = cJSON_CreateArray(),*i;
+
     active_resources_amarg.clear();
+    active_resources_clickhouse.clear();
+    active_resources_clickhouse.assertStruct();
+
     for(ResourceList::const_iterator rit = rl.begin();rit!=rl.end();++rit){
         const Resource &r = (*rit);
 
@@ -257,6 +264,21 @@ void Cdr::update(const ResourceList &rl){
 
         active_resources_amarg.push(AmArg());
         AmArg &a = active_resources_amarg.back();
+
+        clickhouse_key_prefix = "active_resource_" + int2str(r.type);
+
+        AmArg &id_arg = active_resources_clickhouse[
+            clickhouse_key_prefix + "_id"];
+        if(isArgUndef(id_arg)) id_arg = r.id;
+
+        AmArg &limit_arg = active_resources_clickhouse[
+            clickhouse_key_prefix + "_limit"];
+        if(isArgUndef(limit_arg)) limit_arg = r.limit;
+
+        AmArg &used_arg = active_resources_clickhouse[
+            clickhouse_key_prefix + "_used"];
+        if(isArgUndef(used_arg)) used_arg = r.takes;
+
         i = cJSON_CreateObject();
 
         cJSON_AddNumberToObject(i,"type",r.type);
@@ -265,6 +287,8 @@ void Cdr::update(const ResourceList &rl){
         a["id"] = r.id;
         cJSON_AddNumberToObject(i,"takes",r.takes);
         a["takes"] = r.takes;
+        cJSON_AddNumberToObject(i,"limit",r.limit);
+        a["limit"] = r.limit;
 
         cJSON_AddItemToArray(j,i);
     }
@@ -843,6 +867,9 @@ static struct tm tt;
 
 	add_field(resources);
 	add_field(active_resources);
+	if(isArgStruct(active_resources_clickhouse))
+		for(const auto &a : *active_resources_clickhouse.asStruct())
+			s[a.first] = a.second;
 
 	for(const auto &d: df) {
 		const string &fname = d.name;
@@ -907,7 +934,12 @@ void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered
 	add_field(attempt_num);
 
 	add_field(resources);
-	add_field(active_resources);
+	filter(active_resources) {
+		add_field_as(active_resources_key,active_resources);
+		if(isArgStruct(active_resources_clickhouse))
+			for(const auto &a : *active_resources_clickhouse.asStruct())
+				s[a.first] = a.second;
+	}
 
 	for(const auto &d: df) {
 		const string &fname = d.name;

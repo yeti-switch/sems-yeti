@@ -98,6 +98,7 @@ struct Cdr: public
 	string resources;
 	string active_resources;
 	AmArg active_resources_amarg;
+	AmArg active_resources_clickhouse;
 	int failed_resource_type_id;
 	int failed_resource_id;
 
