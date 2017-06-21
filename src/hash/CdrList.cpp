@@ -382,8 +382,8 @@ void CdrList::onTimer()
     for(int i = 0;i< calls.size();i++)
         data+=arg2json(calls[i])+"\n";
 
-    DBG("data:\n%s",data.c_str());
-    return;
+    //DBG("data:\n%s",data.c_str());
+
     if(!AmSessionContainer::instance()->postEvent(
       HTTP_EVENT_QUEUE,
       new HttpPostEvent(
