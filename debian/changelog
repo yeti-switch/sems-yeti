@@ -1,3 +1,9 @@
+sems-yeti (1.7.24-1) stable; urgency=low
+
+  * 54515a2 Cdr: node versions and user agents info
+
+ -- dev <dev@yeti-switch.org>  Thu, 22 Jun 2017 17:49:39 +0300
+
 sems-yeti (1.7.23-9) stable; urgency=low
 
   * 72cdc3d CodecsGroup: fix codec definition parsing
