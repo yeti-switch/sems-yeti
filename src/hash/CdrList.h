@@ -6,6 +6,8 @@
 #include "../SqlRouter.h"
 #include "CdrFilter.h"
 #include "MurmurHash.h"
+#include "sems.h"
+#include "../yeti_version.h"
 
 #include <unordered_set>
 
@@ -154,6 +156,8 @@ inline void CdrList::cdr2arg<CdrList::Filtered>(AmArg& arg, const Cdr *cdr, cons
 	add_field(active_resources);
 	filter("active_resources_json") arg["active_resources_json"] = cdr->active_resources_amarg;
 
+	filter("versions") cdr->add_versions_to_amarg(arg);
+
 	const DynFieldsT &df = ctx.router->getDynFields();
 	for(DynFieldsT::const_iterator dit = df.begin(); dit!=df.end(); dit++){
 		const string &fname = (*dit).name;
@@ -227,6 +231,8 @@ inline void CdrList::cdr2arg<CdrList::Unfiltered>(AmArg& arg, const Cdr *cdr, co
 	add_field(resources);
 	add_field(active_resources);
 	arg["active_resources_json"] = cdr->active_resources_amarg;
+
+	cdr->add_versions_to_amarg(arg);
 
 	const DynFieldsT &df = ctx.router->getDynFields();
 	for(DynFieldsT::const_iterator dit = df.begin(); dit!=df.end(); dit++){

@@ -46,6 +46,7 @@ const static_field cdr_static_fields[] = {
 	{ "failed_resource_type_id", "smallint" },
 	{ "failed_resource_id", "bigint" },
 	{ "dtmf_events", "json" },
+	{ "versions", "json" }
 };
 
 

@@ -1,12 +1,18 @@
 #include "Cdr.h"
 #include "AmUtils.h"
+#include "AmSipMsg.h"
 #include "log.h"
 #include "../RTPParameters.h"
 #include "TrustedHeaders.h"
 #include "jsonArg.h"
 #include "sip/defs.h"
+#include "sems.h"
+#include "../yeti_version.h"
 
 #define DTMF_EVENTS_MAX 50
+
+static string user_agent_hdr(SIP_HDR_USER_AGENT);
+static string server_hdr(SIP_HDR_SERVER);
 
 static const char *updateAction2str(UpdateAction act){
 	static const char *aStart = "Start";
@@ -144,6 +150,8 @@ void Cdr::update_sbc(const SBCCallProfile &profile){
 }
 
 void Cdr::update(const AmSipRequest &req){
+	size_t pos1,pos2,pos;
+
 	DBG("Cdr::%s(AmSipRequest)",FUNC_NAME);
 	if(writed) return;
 	legA_transport_protocol_id = req.transport_id;
@@ -152,6 +160,9 @@ void Cdr::update(const AmSipRequest &req){
     legA_local_ip = req.local_ip;
     legA_local_port = req.local_port;
     orig_call_id=req.callid;
+
+    if(findHeader(req.hdrs,user_agent_hdr,0,pos1,pos2,pos))
+        aleg_versions.emplace(req.hdrs.substr(pos1,pos2-pos1));
 
     if(req.method==SIP_METH_INVITE){
         const AmMimeBody *body = req.body.hasContentType(SIP_APPLICATION_ISUP);
@@ -170,6 +181,8 @@ void Cdr::update(const AmISUP &isup){
 }
 
 void Cdr::update(const AmSipReply &reply){
+	size_t pos1,pos2,pos;
+
 	DBG("Cdr::%s(AmSipReply)",FUNC_NAME);
     if(writed) return;
     lock();
@@ -182,6 +195,10 @@ void Cdr::update(const AmSipReply &reply){
 		legB_remote_port = reply.remote_port;
 		legB_local_ip = reply.actual_ip;
 		legB_local_port = reply.actual_port;
+
+		if(findHeader(reply.hdrs,server_hdr,0,pos1,pos2,pos))
+			bleg_versions.emplace(reply.hdrs.substr(pos1,pos2-pos1));
+
 		if(reply.code>=100){
 			if(reply.code<110){ //10x codes
 				if(!timerisset(&sip_10x_time)){
@@ -415,6 +432,7 @@ Cdr::Cdr(const Cdr& cdr,const SqlCallProfile &profile){
 	orig_call_id = cdr.orig_call_id;
 	local_tag = cdr.local_tag;
 	global_tag = cdr.global_tag;
+	aleg_versions = cdr.aleg_versions;
 
 	msg_logger_path = cdr.msg_logger_path;
 	dump_level_id = cdr.dump_level_id;
@@ -645,6 +663,48 @@ char *Cdr::serialize_dynamic(const DynFieldsT &df) {
 	return s;
 }
 
+char * Cdr::serialize_versions() const
+{
+	cJSON *j, *a;
+	char *s;
+
+	j = cJSON_CreateObject();
+
+	cJSON_AddStringToObject(j,"core",get_sems_version());
+	cJSON_AddStringToObject(j,"yeti",YETI_VERSION);
+
+	a = cJSON_CreateArray();
+	for(const auto &agent : aleg_versions)
+		cJSON_AddItemToArray(a,cJSON_CreateString(agent.c_str()));
+	cJSON_AddItemToObject(j,"aleg",a);
+
+	a = cJSON_CreateArray();
+	for(const auto &agent : bleg_versions)
+		cJSON_AddItemToArray(a,cJSON_CreateString(agent.c_str()));
+	cJSON_AddItemToObject(j,"bleg",a);
+
+	s = cJSON_PrintUnformatted(j);
+	cJSON_Delete(j);
+	return s;
+}
+
+void Cdr::add_versions_to_amarg(AmArg &arg) const
+{
+	AmArg &v = arg["versions"];
+	v["core"] = get_sems_version();
+	v["yeti"] = YETI_VERSION;
+
+	AmArg &a = v["aleg"];
+	a.assertArray();
+	for(const auto &agent : aleg_versions)
+		a.push(agent);
+
+	AmArg &b = v["bleg"];
+	b.assertArray();
+	for(const auto &agent : bleg_versions)
+		b.push(agent);
+}
+
 #undef add_str2json
 #undef add_tv2json
 #undef add_num2json
@@ -740,6 +800,8 @@ void Cdr::invoc(pqxx::prepare::invocation &invoc,
 	} else {
 		invoc_json(serialize_dtmf_events());
 	}
+
+	invoc_json(serialize_versions());
 
 	/* invocate dynamic fields  */
 	if(serialize_dynamic_fields){
@@ -871,6 +933,10 @@ static struct tm tt;
 		for(const auto &a : *active_resources_clickhouse.asStruct())
 			s[a.first] = a.second;
 
+	char *v = serialize_versions();
+	add_field_as("versions",v);
+	free(v);
+
 	for(const auto &d: df) {
 		const string &fname = d.name;
 		AmArg &f = dyn_fields[fname];
@@ -939,6 +1005,12 @@ void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered
 		if(isArgStruct(active_resources_clickhouse))
 			for(const auto &a : *active_resources_clickhouse.asStruct())
 				s[a.first] = a.second;
+	}
+
+	filter(versions) {
+		char *v = serialize_versions();
+		add_field_as(versions_key,v);
+		free(v);
 	}
 
 	for(const auto &d: df) {

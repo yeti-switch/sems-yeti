@@ -102,6 +102,9 @@ struct Cdr: public
 	int failed_resource_type_id;
 	int failed_resource_id;
 
+	std::unordered_set<string> aleg_versions;
+	std::unordered_set<string> bleg_versions;
+
 	unsigned short isup_propagation_delay;
 
 	struct dtmf_event_info {
@@ -151,6 +154,8 @@ struct Cdr: public
 	char *serialize_timers_data();
 	char *serialize_dtmf_events();
 	char *serialize_dynamic(const DynFieldsT &df);
+	char *serialize_versions() const;
+	void add_versions_to_amarg(AmArg &arg) const;
 
 	void snapshot_info(AmArg &s, const DynFieldsT &df);
 	void snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered_set<string> &wanted_fields);

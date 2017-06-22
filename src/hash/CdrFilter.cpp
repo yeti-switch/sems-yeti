@@ -31,9 +31,10 @@ const static_call_field static_call_fields[] = {
 	{ "time_limit", "integer", c_field_unsupported },
 	{ "dump_level_id", "integer", c_field_unsupported },
 	{ "audio_record_enabled", "integer", c_field_unsupported },
+	{ "versions", "json", c_field_unsupported },
 	NULL
 };
-const unsigned int static_call_fields_count = 27;
+const unsigned int static_call_fields_count = 28;
 
 /* maps to accelerate rules parsing.
  * inited in int configure_filter(const SqlRouter *router) */
@@ -56,6 +57,7 @@ static cmp_type_t get_type_by_name(const string &type_name){
 		return c_type_long_long_int;
 	} else if(type_name=="string"
 			  || type_name=="varchar"
+			  || type_name=="json"
 			  || type_name=="inet"){
 		return c_type_string;
 	} else if(type_name=="timestamp"){
