@@ -1,3 +1,9 @@
+sems-yeti (1.7.24-2) stable; urgency=low
+
+  * Cdr: join aleg/bleg versions to the comma-separated string instead of using json array
+
+ -- dev <dev@yeti-switch.org>  Mon, 26 Jun 2017 17:47:19 +0300
+
 sems-yeti (1.7.24-1) stable; urgency=low
 
   * 54515a2 Cdr: node versions and user agents info

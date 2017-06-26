@@ -665,23 +665,44 @@ char *Cdr::serialize_dynamic(const DynFieldsT &df) {
 
 char * Cdr::serialize_versions() const
 {
-	cJSON *j, *a;
+	cJSON *j/*, *a*/;
+	int i,n;
 	char *s;
+	string joined_versions;
 
 	j = cJSON_CreateObject();
 
 	cJSON_AddStringToObject(j,"core",get_sems_version());
 	cJSON_AddStringToObject(j,"yeti",YETI_VERSION);
 
-	a = cJSON_CreateArray();
+	/*a = cJSON_CreateArray();
 	for(const auto &agent : aleg_versions)
 		cJSON_AddItemToArray(a,cJSON_CreateString(agent.c_str()));
-	cJSON_AddItemToObject(j,"aleg",a);
+	cJSON_AddItemToObject(j,"aleg",a);*/
+	n = aleg_versions.size();
+	joined_versions.reserve(n*32);
+	i = 1;
+	for(const auto &agent : aleg_versions) {
+		DBG("aleg_version: %s",agent.c_str());
+		joined_versions += agent;
+		if(i++!=n) joined_versions+=", ";
+	}
+	cJSON_AddStringToObject(j,"aleg",joined_versions.c_str());
 
-	a = cJSON_CreateArray();
+	/*a = cJSON_CreateArray();
 	for(const auto &agent : bleg_versions)
 		cJSON_AddItemToArray(a,cJSON_CreateString(agent.c_str()));
-	cJSON_AddItemToObject(j,"bleg",a);
+	cJSON_AddItemToObject(j,"bleg",a);*/
+	joined_versions.clear();
+	n = bleg_versions.size();
+	joined_versions.reserve(n*32);
+	i = 1;
+	for(const auto &agent : bleg_versions) {
+		DBG("bleg_version: %s",agent.c_str());
+		joined_versions += agent;
+		if(i++!=n) joined_versions+=", ";
+	}
+	cJSON_AddStringToObject(j,"bleg",joined_versions.c_str());
 
 	s = cJSON_PrintUnformatted(j);
 	cJSON_Delete(j);
@@ -933,9 +954,9 @@ static struct tm tt;
 		for(const auto &a : *active_resources_clickhouse.asStruct())
 			s[a.first] = a.second;
 
-	char *v = serialize_versions();
+	/*char *v = serialize_versions();
 	add_field_as("versions",v);
-	free(v);
+	free(v);*/
 
 	for(const auto &d: df) {
 		const string &fname = d.name;
@@ -1007,11 +1028,11 @@ void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered
 				s[a.first] = a.second;
 	}
 
-	filter(versions) {
+	/*filter(versions) {
 		char *v = serialize_versions();
 		add_field_as(versions_key,v);
 		free(v);
-	}
+	}*/
 
 	for(const auto &d: df) {
 		const string &fname = d.name;

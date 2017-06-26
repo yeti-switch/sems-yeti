@@ -102,8 +102,8 @@ struct Cdr: public
 	int failed_resource_type_id;
 	int failed_resource_id;
 
-	std::unordered_set<string> aleg_versions;
-	std::unordered_set<string> bleg_versions;
+	std::set<string> aleg_versions;
+	std::set<string> bleg_versions;
 
 	unsigned short isup_propagation_delay;
 

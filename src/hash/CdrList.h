@@ -156,7 +156,7 @@ inline void CdrList::cdr2arg<CdrList::Filtered>(AmArg& arg, const Cdr *cdr, cons
 	add_field(active_resources);
 	filter("active_resources_json") arg["active_resources_json"] = cdr->active_resources_amarg;
 
-	filter("versions") cdr->add_versions_to_amarg(arg);
+	//filter("versions") cdr->add_versions_to_amarg(arg);
 
 	const DynFieldsT &df = ctx.router->getDynFields();
 	for(DynFieldsT::const_iterator dit = df.begin(); dit!=df.end(); dit++){
@@ -232,7 +232,7 @@ inline void CdrList::cdr2arg<CdrList::Unfiltered>(AmArg& arg, const Cdr *cdr, co
 	add_field(active_resources);
 	arg["active_resources_json"] = cdr->active_resources_amarg;
 
-	cdr->add_versions_to_amarg(arg);
+	//cdr->add_versions_to_amarg(arg);
 
 	const DynFieldsT &df = ctx.router->getDynFields();
 	for(DynFieldsT::const_iterator dit = df.begin(); dit!=df.end(); dit++){
