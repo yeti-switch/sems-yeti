@@ -1,3 +1,10 @@
+sems-yeti (1.7.24-3) stable; urgency=low
+
+  * b7183a8 reuse AmB2BMedia on rerouting
+  * 0991af5 Cdr: join aleg/bleg versions to the comma-separated string instead of using json array
+
+ -- dev <dev@yeti-switch.org>  Wed, 12 Jul 2017 18:20:18 +0300
+
 sems-yeti (1.7.24-2) stable; urgency=low
 
   * Cdr: join aleg/bleg versions to the comma-separated string instead of using json array
