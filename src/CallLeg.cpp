@@ -279,32 +279,38 @@ int CallLeg::relaySipReply(AmSipReply &reply)
 
 bool CallLeg::setOther(const string &id, bool forward)
 {
-  if (getOtherId() == id) return true; // already set (needed when processing 2xx after 1xx)
-  for (vector<OtherLegInfo>::iterator i = other_legs.begin(); i != other_legs.end(); ++i) {
-    if (i->id == id) {
-      setOtherId(id);
-      clearRtpReceiverRelay(); // release old media session if set
-      setMediaSession(i->media_session);
-      if (forward && dlg->getOAState() == AmOfferAnswer::OA_Completed) {
-        // reset OA state to offer_recived if already completed to accept new
-        // B leg's SDP
-        dlg->setOAState(AmOfferAnswer::OA_OfferRecved);
-      }
-      if (i->media_session) {
-        TRACE("connecting media session: %s to %s\n", 
-            dlg->getLocalTag().c_str(), getOtherId().c_str());
-        i->media_session->changeSession(a_leg, this);
-      }
-      else {
-        // media session not set, set direct mode if not set already
-        if (rtp_relay_mode != AmB2BSession::RTP_Direct) setRtpRelayMode(AmB2BSession::RTP_Direct);
-      }
-      set_sip_relay_only(true); // relay only from now on
-      return true;
+    if (getOtherId() == id)
+        return true; // already set (needed when processing 2xx after 1xx)
+
+    for (vector<OtherLegInfo>::iterator i = other_legs.begin(); i != other_legs.end(); ++i)
+    {
+        if (i->id != id) continue;
+
+        setOtherId(id);
+
+        if(!getMediaSession()) {
+            setMediaSession(i->media_session);
+            if (i->media_session) {
+                TRACE("connecting media session: %s to %s\n",
+                      dlg->getLocalTag().c_str(), getOtherId().c_str());
+                i->media_session->changeSession(a_leg, this);
+            } else {
+                if (rtp_relay_mode != AmB2BSession::RTP_Direct)
+                    setRtpRelayMode(AmB2BSession::RTP_Direct);
+            }
+        }
+
+        if (forward && dlg->getOAState() == AmOfferAnswer::OA_Completed) {
+            // reset OA state to offer_recived if already completed to accept new
+            // B leg's SDP
+            dlg->setOAState(AmOfferAnswer::OA_OfferRecved);
+        }
+
+        set_sip_relay_only(true); // relay only from now on
+        return true;
     }
-  }
-  ERROR("%s is not in the list of other leg IDs!\n", id.c_str());
-  return false; // something wrong?
+    ERROR("%s is not in the list of other leg IDs!\n", id.c_str());
+    return false; // something wrong?
 }
 
 void CallLeg::b2bInitial1xx(AmSipReply& reply, bool forward)
@@ -401,7 +407,6 @@ void CallLeg::b2bInitialErr(AmSipReply& reply, bool forward)
   DBG("clean-up after non-ok reply (reply: %d, status %s, other: %s)\n", 
       reply.code, callStatus2str(getCallStatus()),
       getOtherId().c_str());
-  clearRtpReceiverRelay();
   removeOtherLeg(reply.from_tag); // we don't care about this leg any more
   updateCallStatus(NoReply, &reply);
   onBLegRefused(reply); // possible serial fork here
@@ -410,6 +415,8 @@ void CallLeg::b2bInitialErr(AmSipReply& reply, bool forward)
   // there are other B legs for us => wait for their responses and do not
   // relay current response
   if (!other_legs.empty()) return;
+
+  clearRtpReceiverRelay();
 
   onCallFailed(CallRefused, &reply);
   if (forward) relaySipReply(reply);
@@ -1003,19 +1010,35 @@ void CallLeg::addNewCallee(CallLeg *callee, ConnectLegEvent *e,
 
   callee->setRtpRelayMode(mode);
   if (mode != RTP_Direct) {
-    // do not initialise the media session with A leg to avoid unnecessary A leg
-    // RTP stream creation in every B leg's media session
-    if (a_leg) b.media_session = new AmB2BMedia(NULL, callee);
-    else b.media_session = new AmB2BMedia(callee, NULL);
-    b.media_session->addReference(); // new reference for me
-    callee->setMediaSession(b.media_session);
+    AmB2BMedia *m = getMediaSession();
+    if(!m) {
+      // do not initialise the media session with A leg to avoid unnecessary A leg
+      // RTP stream creation in every B leg's media session
+      if (a_leg) {
+        m = new AmB2BMedia(NULL, callee);
+      } else {
+        m = new AmB2BMedia(callee, NULL);
+      }
+      DBG("created b2b media session: %p",m);
+    } else {
+      DBG("reuse b2b media session: %p",m);
+      m->changeSession(!a_leg,callee);
+    }
+
+    callee->setMediaSession(m);
+
+    m->addReference();
+    b.media_session = m;
+
+  } else {
+    b.media_session = NULL;
   }
-  else b.media_session = NULL;
+
   other_legs.push_back(b);
 
   if (AmConfig::LogSessions) {
     TRACE("Starting B2B callee session %s\n",
-	 callee->getLocalTag().c_str()/*, invite_req.cmd.c_str()*/);
+          callee->getLocalTag().c_str()/*, invite_req.cmd.c_str()*/);
   }
 
   AmSipDialog* callee_dlg = callee->dlg;
