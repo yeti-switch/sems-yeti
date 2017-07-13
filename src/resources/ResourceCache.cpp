@@ -96,7 +96,8 @@ void ResourceCache::run(){
 	write_pool.start();
 
 	if(!init_resources(true)){
-		DBG("can't init resources. stop thread");
+		ERROR("can't init resources. stop");
+		kill(getpid(),SIGTERM);
 		return;
 	}
 
