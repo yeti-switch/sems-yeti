@@ -9,8 +9,6 @@
 #include "cdr/Cdr.h"
 #include "SqlCallProfile.h"
 #include "resources/Resource.h"
-#include "SqlRouter.h"
-class SqlRouter;
 
 class fake_logger: public msg_logger {
     sip_msg msg;

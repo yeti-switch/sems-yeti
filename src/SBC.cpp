@@ -236,6 +236,7 @@ AmSession* SBCFactory::onInvite(const AmSipRequest& req, const string& app_name,
 
     ctx.call_profile = profile;
     if(router.check_and_refuse(profile,cdr,req,ctx,true)) {
+        cdr->dump_level_id = 0; //override dump_level_id. we have no logging at this stage
         if(!call_ctx->SQLexception) { //avoid to write cdr on failed getprofile()
             router.write_cdr(cdr,true);
         } else {
