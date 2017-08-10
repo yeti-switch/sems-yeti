@@ -22,7 +22,7 @@ class fake_logger: public msg_logger {
 };
 
 struct CallCtx: public
-	atomic_int, AmMutex
+	::atomic_int, AmMutex
 {
 	Cdr *cdr;
 	list<SqlCallProfile *> profiles;

@@ -64,7 +64,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   auto_ptr<RateLimit> rtp_relay_rate_limit;
   
   // Measurements
-  list<atomic_int*> rtp_pegs;
+  list<::atomic_int*> rtp_pegs;
 
   /** common logger for RTP/RTCP and SIP packets */
   msg_logger *logger;
@@ -190,7 +190,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   CallCtx *getCallCtx() { return call_ctx; }
   void setCallCtx(CallCtx *p) { call_ctx = p; }
 
-  void setRTPMeasurements(const list<atomic_int*>& rtp_meas) { rtp_pegs = rtp_meas; }
+  void setRTPMeasurements(const list<::atomic_int*>& rtp_meas) { rtp_pegs = rtp_meas; }
   const RateLimit* getRTPRateLimit() { return rtp_relay_rate_limit.get(); }
   void setRTPRateLimit(RateLimit* rl) { rtp_relay_rate_limit.reset(rl); }
 

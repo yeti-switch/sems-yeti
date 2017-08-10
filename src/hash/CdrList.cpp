@@ -317,7 +317,7 @@ void CdrList::onTimer()
     u_int64_t snapshot_ts = now - (now % snapshots_interval);
 
     if(last_snapshot_ts && last_snapshot_ts==snapshot_ts){
-        ERROR("duplicate snapshot %llu timestamp. "
+        ERROR("duplicate snapshot %lu timestamp. "
               "ignore timer event (can lead to time gap between snapshots)",
               snapshot_ts);
         return;

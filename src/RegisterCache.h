@@ -203,7 +203,7 @@ class _RegisterCache
   AmSharedVar<bool> running;
 
   // stats
-  atomic_int active_regs;
+  ::atomic_int active_regs;
 
   void gbc(unsigned int bucket_id);
   void removeAlias(const string& alias, bool generate_event);
