@@ -1,3 +1,9 @@
+sems-yeti (1.7.24-5) stable; urgency=low
+
+  * libsems 1.7.47-1
+
+ -- dev <dev@yeti-switch.org>  Thu, 10 Aug 2017 23:11:57 +0300
+
 sems-yeti (1.7.24-4) stable; urgency=low
 
   * f228bf6 SBC: override dump_level_id on early stage refusing
