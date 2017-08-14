@@ -1,3 +1,9 @@
+sems-yeti (1.7.24-7) stable; urgency=low
+
+  * libsems 1.7.48-1
+
+ -- dev <dev@yeti-switch.org>  Mon, 14 Aug 2017 11:49:07 +0300
+
 sems-yeti (1.7.24-6) stable; urgency=low
 
   * fix build for libsems 1.7.47-2
