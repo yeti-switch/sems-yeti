@@ -675,34 +675,32 @@ char * Cdr::serialize_versions() const
 	cJSON_AddStringToObject(j,"core",get_sems_version());
 	cJSON_AddStringToObject(j,"yeti",YETI_VERSION);
 
-	/*a = cJSON_CreateArray();
-	for(const auto &agent : aleg_versions)
-		cJSON_AddItemToArray(a,cJSON_CreateString(agent.c_str()));
-	cJSON_AddItemToObject(j,"aleg",a);*/
-	n = aleg_versions.size();
-	joined_versions.reserve(n*32);
-	i = 1;
-	for(const auto &agent : aleg_versions) {
-		DBG("aleg_version: %s",agent.c_str());
-		joined_versions += agent;
-		if(i++!=n) joined_versions+=", ";
+	if(aleg_versions.empty()) {
+		cJSON_AddNullToObject(j,"bleg");
+	} else {
+		n = aleg_versions.size();
+		joined_versions.reserve(n*32);
+		i = 1;
+		for(const auto &agent : aleg_versions) {
+			joined_versions += agent;
+			if(i++!=n) joined_versions+=", ";
+		}
+		cJSON_AddStringToObject(j,"aleg",joined_versions.c_str());
 	}
-	cJSON_AddStringToObject(j,"aleg",joined_versions.c_str());
 
-	/*a = cJSON_CreateArray();
-	for(const auto &agent : bleg_versions)
-		cJSON_AddItemToArray(a,cJSON_CreateString(agent.c_str()));
-	cJSON_AddItemToObject(j,"bleg",a);*/
-	joined_versions.clear();
-	n = bleg_versions.size();
-	joined_versions.reserve(n*32);
-	i = 1;
-	for(const auto &agent : bleg_versions) {
-		DBG("bleg_version: %s",agent.c_str());
-		joined_versions += agent;
-		if(i++!=n) joined_versions+=", ";
+	if(bleg_versions.empty()) {
+		cJSON_AddNullToObject(j,"bleg");
+	} else {
+		joined_versions.clear();
+		n = bleg_versions.size();
+		joined_versions.reserve(n*32);
+		i = 1;
+		for(const auto &agent : bleg_versions) {
+			joined_versions += agent;
+			if(i++!=n) joined_versions+=", ";
+		}
+		cJSON_AddStringToObject(j,"bleg",joined_versions.c_str());
 	}
-	cJSON_AddStringToObject(j,"bleg",joined_versions.c_str());
 
 	s = cJSON_PrintUnformatted(j);
 	cJSON_Delete(j);
