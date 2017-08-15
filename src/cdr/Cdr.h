@@ -92,8 +92,8 @@ struct Cdr: public
 	AmRtpStream::ErrorsStats legA_stream_errors;
 	AmRtpStream::ErrorsStats legB_stream_errors;
 
-	unsigned long legA_bytes_recvd, legB_bytes_recvd;
-	unsigned long legA_bytes_sent, legB_bytes_sent;
+	long legA_bytes_recvd, legB_bytes_recvd;
+	long legA_bytes_sent, legB_bytes_sent;
 
 	string resources;
 	string active_resources;
