@@ -406,13 +406,9 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(const AmSipRequest &req, pqxx::conne
 	}
 
 	string from_name = c2stlstr(na.name);
-	if(!is_valid_utf8(from_name)) {
-		DBG("From display name contains invalid utf8 sequence. use empty display name for routing");
-		from_name.clear();
-	} else {
-		//simply remove all double quotes from string
-		from_name.erase(std::remove(from_name.begin(), from_name.end(), '"'),from_name.end());
-	}
+	from_name.erase(std::remove(from_name.begin(), from_name.end(), '"'),from_name.end());
+	if(fixup_utf8_inplace(from_name))
+		WARN("From display name had contained at least one invalid utf8 sequence. wrong bytes erased");
 
 	if(!tnx.prepared("getprofile").exists())
 		throw GetProfileException(FC_NOT_PREPARED,true);
