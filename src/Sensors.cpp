@@ -3,25 +3,26 @@
 #include "sip/defs.h"
 #include <pqxx/pqxx>
 #include "netdb.h"
+#include "sip/msg_sensor_hep.h"
 
 void sensor::getConfig(AmArg& ret) const {
-	switch(_mode){
-	case SENS_TYPE_IPIP: {
-		ret["mode"] = "IPIP encapsulation";
-		if(_sensor){
-			ipip_msg_sensor *s = dynamic_cast<ipip_msg_sensor *>(_sensor);
-			if(s) s->getInfo(ret);
-		}
-	} break;
-	case SENS_TYPE_ETHERNET: {
-		ret["mode"] = "Ethernet encapsulation";
-		if(_sensor){
-			ethernet_msg_sensor *s = dynamic_cast<ethernet_msg_sensor *>(_sensor);
-			if(s) s->getInfo(ret);
-		}
-	} break;
+	static const char *mode2str[] = {
+		NULL,
+		"IPIP encapsulation",
+		"Ethernet encapsulation",
+		"HEPv3 encapsulation",
+		NULL
+	};
+
+	switch(_mode) {
+	case SENS_TYPE_IPIP:
+	case SENS_TYPE_ETHERNET:
+	case SENS_TYPE_HEP:
+		ret["mode"] = mode2str[_mode];
+		if(_sensor) _sensor->getInfo(ret);
+		break;
 	default:
-		ret["mode"] = "uknown";
+		ret["mode"] = "unknown";
 	}
 }
 
@@ -104,8 +105,43 @@ int _Sensors::load_sensors_config(){
 				sensors.insert(make_pair(id,sensor(sensor::SENS_TYPE_ETHERNET,ethernet_sensor)));
 			} break;
 
+			case sensor::SENS_TYPE_HEP: {
+				DBG("load HEP sensor params");
+				string capture_host = row["o_target_ip"].c_str();
+				unsigned short capture_port;
+				string capture_password;
+				int capture_id;
+				bool enable_compression;
+
+				try { capture_port = row["o_target_port"].as<unsigned short>(15060);
+				} catch(...) { capture_port = 15060; }
+
+				try { capture_id = row["o_capture_id"].as<int>(AmConfig::node_id);
+				} catch(...) { capture_id = AmConfig::node_id; }
+
+				try { capture_password = row["o_capture_password"].c_str();
+				} catch(...) { }
+
+				try { enable_compression = row["o_capture_compression"].as<bool>(false);
+				} catch(...) { enable_compression = false; }
+
+				hep_msg_sensor *hep_sensor = new hep_msg_sensor();
+				if(hep_sensor->init(
+					capture_host.c_str(),
+					capture_port,
+					capture_id,
+					capture_password,
+					enable_compression))
+				{
+					ERROR("can't init HEP sensor %d",id);
+					delete hep_sensor;
+					continue;
+				}
+				sensors.emplace(id,sensor(sensor::SENS_TYPE_HEP,hep_sensor));
+			} break;
+
 			default:
-				ERROR("uknown sensor mode: %d. skip this sensor",mode);
+				ERROR("unknown sensor mode: %d. skip this sensor",mode);
 				continue;
 			}
 		}
