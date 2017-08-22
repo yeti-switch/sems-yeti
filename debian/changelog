@@ -1,3 +1,10 @@
+sems-yeti (1.7.25-1) stable; urgency=low
+
+  * 4df96d0 Sensor: add HEPv3 encapsulation support
+  * 244449b SqlRouter: erase invalid bytes in display name instead of clearing whole string
+
+ -- dev <dev@yeti-switch.org>  Tue, 22 Aug 2017 23:49:47 +0300
+
 sems-yeti (1.7.24-8) stable; urgency=low
 
   * 387f56d SqlRouter: validate utf8 in from display name. use empty from display name for routing on invalid utf8 sequence
