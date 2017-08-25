@@ -1,3 +1,9 @@
+sems-yeti (1.7.25-2) stable; urgency=low
+
+  * Sensors: rename o_capture_id -> o_hep capture_id
+
+ -- dev <dev@yeti-switch.org>  Fri, 25 Aug 2017 15:31:30 +0300
+
 sems-yeti (1.7.25-1) stable; urgency=low
 
   * 4df96d0 Sensor: add HEPv3 encapsulation support
