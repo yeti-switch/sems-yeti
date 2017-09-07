@@ -4,6 +4,7 @@
 #include "jsonArg.h"
 #include "AmSessionContainer.h"
 #include "ampi/HttpClientAPI.h"
+#include "TimeLines.h"
 
 #define SNAPSHOTS_PERIOD_DEFAULT 60
 #define EPOLL_MAX_EVENTS 2048
@@ -13,6 +14,7 @@ CdrList::CdrList(unsigned long buckets)
     stopped(false),
     epoll_fd(0),
     snapshots_enabled(false),
+    snapshots_timelines(false),
     snapshots_interval(0),
     last_snapshot_ts(0)
 { }
@@ -61,29 +63,24 @@ int CdrList::insert(Cdr *cdr){
 	return err;
 }
 
-void CdrList::erase_unsafe(const string &local_tag, bool locked){
-	erase_lookup_key(&local_tag, locked);
+void CdrList::erase_unsafe(Cdr *cdr, bool locked){
+	erase_lookup_key(&cdr->local_tag, locked);
 }
 
 int CdrList::erase(Cdr *cdr){
-	int err = 1;
-	if(cdr){
-		//DBG("%s() local_tag = %s",FUNC_NAME,cdr->local_tag.c_str());
-		cdr->lock();
-			if(cdr->inserted2list){
-				//erase_lookup_key(&cdr->local_tag);
-				erase_unsafe(cdr->local_tag);
-				err = 0;
-			} else {
-				//ERROR("attempt to erase not inserted cdr local_tag = %s",cdr->local_tag.c_str());
-				//log_stacktrace(L_ERR);
-			}
-		cdr->unlock();
-	} else {
-		//ERROR("CdrList::%s() cdr = NULL",FUNC_NAME);
-		//log_stacktrace(L_ERR);
+	if(!cdr)
+		return 1;
+	cdr->lock();
+	if(cdr->inserted2list){
+		lock();
+		erase_unsafe(cdr,false);
+		if(snapshots_timelines)
+			postponed_active_calls.emplace_back(*cdr);
+		unlock();
+		return 0;
 	}
-	return err;
+	cdr->unlock();
+	return 1;
 }
 
 Cdr *CdrList::get_by_local_tag(string local_tag){
@@ -216,12 +213,14 @@ int CdrList::configure(AmConfigReader &cfg)
         return 0;
     }
 
+    snapshots_enabled = true;
     router = &Yeti::instance().router;
 
     snapshots_destination = cfg.getParameter("active_calls_clickhouse_queue");
     snapshots_table = cfg.getParameter("active_calls_clickhouse_table","active_calls");
     snapshots_interval = cfg.getParameterInt("active_calls_period",
                                              SNAPSHOTS_PERIOD_DEFAULT);
+    snapshots_timelines = 1==cfg.getParameterInt("active_calls_clickhouse_timelines");
 
     if(0==snapshots_interval) {
         ERROR("invalid active calls snapshots period: %d",snapshots_interval);
@@ -232,22 +231,22 @@ int CdrList::configure(AmConfigReader &cfg)
     for(const auto &f: allowed_fields)
         snapshots_fields_whitelist.emplace(f);
 
-    DBG("use queue '%s', table '%s' for active calls snapshots with interval %d (seconds)",
+    DBG("use queue '%s', table '%s' for active calls snapshots "
+        "with interval %d (seconds). "
+        "timelines are %sabled",
         snapshots_destination.c_str(),
         snapshots_table.c_str(),
-        snapshots_interval);
+        snapshots_interval,
+        snapshots_timelines?"en":"dis");
 
     for(const auto &f: snapshots_fields_whitelist) {
         DBG("clickhouse allowed_field: %s",f.c_str());
     }
 
-    snapshots_enabled = true;
-
     snapshots_body_header = "INSERT INTO ";
     snapshots_body_header += snapshots_table + " FORMAT JSONEachRow\n";
 
-    if((epoll_fd = epoll_create(2)) == -1)
-    {
+    if((epoll_fd = epoll_create(2)) == -1) {
         ERROR("epoll_create() call failed");
         return -1;
     }
@@ -311,10 +310,20 @@ void CdrList::on_stop()
 
 void CdrList::onTimer()
 {
-    string data;
-    string snapshot_timestamp_str, snapshot_date_str;
+    int len;
+    time_t ts;
+    char strftime_buf[64];
+
+    TimeLines timelines;
+    long int long_calls_timeline = 0;
+    PostponedCdrsContainer local_postponed_calls;
+
+    static struct tm t;
+    static struct timeval tv; //fake call interval end value
     u_int64_t now = wheeltimer::instance()->unix_clock.get();
     u_int64_t snapshot_ts = now - (now % snapshots_interval);
+
+    string data, snapshot_timestamp_str, snapshot_date_str;
 
     if(last_snapshot_ts && last_snapshot_ts==snapshot_ts){
         ERROR("duplicate snapshot %lu timestamp. "
@@ -325,20 +334,16 @@ void CdrList::onTimer()
 
     last_snapshot_ts = snapshot_ts;
 
-    {
-        int len;
-        char s[64];
-        static struct tm t;
+    tv.tv_usec = 0;
+    tv.tv_sec = snapshot_ts;
+    ts = snapshot_ts;
+    localtime_r(&ts,&t);
 
-        time_t ts = snapshot_ts;
-        localtime_r(&ts,&t);
+    len = strftime(strftime_buf, sizeof strftime_buf, "%F %T", &t);
+    snapshot_timestamp_str = string(strftime_buf, len);
 
-        len = strftime(s, sizeof s, "%F %T", &t);
-        snapshot_timestamp_str = string(s, len);
-
-        len = strftime(s, sizeof s, "%F", &t);
-        snapshot_date_str = string(s, len);
-    }
+    len = strftime(strftime_buf, sizeof strftime_buf, "%F", &t);
+    snapshot_date_str = string(strftime_buf, len);
 
     Yeti::global_config &gc = Yeti::instance().config;
     const DynFieldsT &df = router->getDynFields();
@@ -347,35 +352,67 @@ void CdrList::onTimer()
     calls.assertArray();
 
     lock();
+
+    if(snapshots_timelines)
+        local_postponed_calls.swap(postponed_active_calls);
+
     entry *e = first;
-    if(!e) {
+    if(!e &&
+       (!snapshots_timelines || local_postponed_calls.empty()))
+    {
         unlock();
         return;
     }
-    data = snapshots_body_header;
+
     //serialize to AmArg
-    if(snapshots_fields_whitelist.empty()) {
-        for(; e; e = e->list_next) {
-            calls.push(AmArg());
-            AmArg &call = calls.back();
-            call["snapshot_timestamp"] = snapshot_timestamp_str;
-            call["snapshot_date"] = snapshot_date_str;
-            call["node_id"] = gc.node_id;
-            call["pop_id"] = gc.pop_id;
-            e->data->snapshot_info(call,df);
+    for(; e; e = e->list_next) {
+        Cdr &cdr = *e->data;
+        calls.push(AmArg());
+        AmArg &call = calls.back();
+
+        call["snapshot_timestamp"] = snapshot_timestamp_str;
+        call["snapshot_date"] = snapshot_date_str;
+        call["node_id"] = gc.node_id;
+        call["pop_id"] = gc.pop_id;
+
+        if(snapshots_timelines) {
+            if(cdr.snapshoted) {
+                call["timeline"] = --long_calls_timeline;
+            } else {
+                cdr.snapshoted = true;
+                call["timeline"] = (long int)timelines.get(cdr.start_time,tv);
+            }
         }
-    } else {
-        for(; e; e = e->list_next) {
-            calls.push(AmArg());
-            AmArg &call = calls.back();
-            call["snapshot_timestamp"] = snapshot_timestamp_str;
-            call["snapshot_date"] = snapshot_date_str;
-            call["node_id"] = gc.node_id;
-            call["pop_id"] = gc.pop_id;
-            e->data->snapshot_info_filtered(call,df,snapshots_fields_whitelist);
+
+        if(snapshots_fields_whitelist.empty()) {
+            cdr.snapshot_info(call,df);
+        } else {
+            cdr.snapshot_info_filtered(call,df,snapshots_fields_whitelist);
         }
     }
+
     unlock();
+
+    if(snapshots_timelines) {
+        for(Cdr &cdr: local_postponed_calls) {
+            calls.push(AmArg());
+            AmArg &call = calls.back();
+
+            call["snapshot_timestamp"] = snapshot_timestamp_str;
+            call["snapshot_date"] = snapshot_date_str;
+            call["node_id"] = gc.node_id;
+            call["pop_id"] = gc.pop_id;
+            call["timeline"] = (long int)timelines.get(cdr.start_time,cdr.end_time);
+
+            if(snapshots_fields_whitelist.empty()) {
+                cdr.snapshot_info(call,df);
+            } else {
+                cdr.snapshot_info_filtered(call,df,snapshots_fields_whitelist);
+            }
+
+            (long int)timelines.get(cdr.start_time,tv);
+        }
+    }
 
     //serialize to json body for clickhouse
     data = snapshots_body_header;

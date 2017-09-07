@@ -660,7 +660,7 @@ void YetiRpc::DropCall(const AmArg& args, AmArg& ret){
 			Cdr *cdr = cdr_list.get_by_local_tag(local_tag);
 			if(cdr){
 				//don't check for inserted2list. we just got it from here.
-				cdr_list.erase_unsafe(local_tag,false);
+				cdr_list.erase_unsafe(cdr,false);
 			}
 		cdr_list.unlock();
 		if(cdr){

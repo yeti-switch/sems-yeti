@@ -81,6 +81,7 @@ void Cdr::init(){
 
     gettimeofday(&cdr_born_time, NULL);
 
+	snapshoted = false;
 	sip_early_media_present = false;
 	trusted_hdrs_gw = false;
 	TrustedHeaders::instance()->init_hdrs(trusted_hdrs);
@@ -411,12 +412,18 @@ void Cdr::replace(ParamReplacerCtx &ctx,const AmSipRequest &req){
 }
 
 Cdr::Cdr(){
+	//DBG("Cdr::%s() = %p", FUNC_NAME, this);
 	init();
 }
 
+Cdr::Cdr(const Cdr& cdr)
+{
+	//DBG("Cdr::%s(cdr = %p) = %p", FUNC_NAME, &cdr, this);
+	*this = cdr;
+}
+
 Cdr::Cdr(const Cdr& cdr,const SqlCallProfile &profile){
-	//DBG("Cdr::%s(cdr = %p,profile = %p) = %p",FUNC_NAME,
-	//	&cdr,&profile,this);
+	//DBG("Cdr::%s(cdr = %p,profile = %p) = %p", FUNC_NAME, &cdr, &profile, this);
 
 	init();
 	update_sql(profile);
@@ -447,7 +454,7 @@ Cdr::Cdr(const SqlCallProfile &profile)
 
 Cdr::~Cdr()
 {
-    //DBG("~Cdr() %p",this);
+    //DBG("Cdr::~Cdr() %p",this);
 }
 
 static string join_str_vector2(const vector<string> &v1,

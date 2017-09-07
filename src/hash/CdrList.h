@@ -42,7 +42,7 @@ class CdrList:
 	int getCall(const string &local_tag,AmArg &call,const SqlRouter *router);
 	int insert(Cdr *cdr);
 	int erase(Cdr *cdr);
-	void erase_unsafe(const string &local_tag, bool locked = true);
+	void erase_unsafe(Cdr *cdr, bool locked = true);
 
 	void getFields(AmArg &ret,SqlRouter *r);
 	void validate_fields(const vector<string> &wanted_fields, const SqlRouter *router);
@@ -65,6 +65,7 @@ class CdrList:
 
     int epoll_fd;
     bool snapshots_enabled;
+    bool snapshots_timelines;
     unsigned int snapshots_interval;
     string snapshots_destination;
     string snapshots_table;
@@ -75,6 +76,10 @@ class CdrList:
     AmTimerFd timer;
     AmCondition<bool> stopped;
     SqlRouter *router;
+
+    typedef vector<Cdr> PostponedCdrsContainer;
+    PostponedCdrsContainer postponed_active_calls;
+    AmMutex postponed_active_calls_mutex;
 
 	enum get_calls_type {
 		Unfiltered, Filtered

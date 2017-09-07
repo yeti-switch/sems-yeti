@@ -33,6 +33,7 @@ struct Cdr: public
 	AmMutex
 {
     bool writed;
+    bool snapshoted;
     bool suppress;
 	bool trusted_hdrs_gw;
 	bool inserted2list;
@@ -118,6 +119,7 @@ struct Cdr: public
 	std::queue<dtmf_event_info> dtmf_events_b2a;
 
 	Cdr();
+	Cdr(const Cdr& cdr);
 	Cdr(const Cdr& cdr,const SqlCallProfile &profile);
     Cdr(const SqlCallProfile &profile);
     ~Cdr();
