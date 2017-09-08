@@ -376,6 +376,7 @@ void CdrList::onTimer()
         call["pop_id"] = gc.pop_id;
 
         if(snapshots_timelines) {
+            call["buffered"] = false;
             if(cdr.snapshoted) {
                 call["timeline"] = --long_calls_timeline;
             } else {
@@ -402,6 +403,7 @@ void CdrList::onTimer()
             call["snapshot_date"] = snapshot_date_str;
             call["node_id"] = gc.node_id;
             call["pop_id"] = gc.pop_id;
+            call["buffered"] = true;
             call["timeline"] = (long int)timelines.get(cdr.start_time,cdr.end_time);
 
             if(snapshots_fields_whitelist.empty()) {
