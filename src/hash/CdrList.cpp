@@ -63,8 +63,8 @@ int CdrList::insert(Cdr *cdr){
 	return err;
 }
 
-void CdrList::erase_unsafe(Cdr *cdr, bool locked){
-	erase_lookup_key(&cdr->local_tag, locked);
+bool CdrList::erase_unsafe(Cdr *cdr){
+	return erase_lookup_key(&cdr->local_tag, false);
 }
 
 int CdrList::erase(Cdr *cdr){
@@ -73,10 +73,10 @@ int CdrList::erase(Cdr *cdr){
 	cdr->lock();
 	if(cdr->inserted2list){
 		lock();
-		erase_unsafe(cdr,false);
-		if(snapshots_timelines)
+		if(erase_unsafe(cdr) && snapshots_timelines)
 			postponed_active_calls.emplace_back(*cdr);
 		unlock();
+		cdr->unlock();
 		return 0;
 	}
 	cdr->unlock();
@@ -411,9 +411,8 @@ void CdrList::onTimer()
             } else {
                 cdr.snapshot_info_filtered(call,df,snapshots_fields_whitelist);
             }
-
-            (long int)timelines.get(cdr.start_time,tv);
         }
+        local_postponed_calls.clear();
     }
 
     //serialize to json body for clickhouse

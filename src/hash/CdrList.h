@@ -42,7 +42,7 @@ class CdrList:
 	int getCall(const string &local_tag,AmArg &call,const SqlRouter *router);
 	int insert(Cdr *cdr);
 	int erase(Cdr *cdr);
-	void erase_unsafe(Cdr *cdr, bool locked = true);
+	bool erase_unsafe(Cdr *cdr);
 
 	void getFields(AmArg &ret,SqlRouter *r);
 	void validate_fields(const vector<string> &wanted_fields, const SqlRouter *router);

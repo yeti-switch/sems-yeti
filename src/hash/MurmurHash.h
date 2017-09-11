@@ -27,7 +27,7 @@ public:
 	unsigned long get_count();
 
 	bool insert(const lookup_key_type *data_key,data_type *data,bool locked	= true,bool unique = false);
-	void erase_lookup_key(const lookup_key_type *key,bool locked	= true);
+	bool erase_lookup_key(const lookup_key_type *key,bool locked	= true);
 	void erase(entry	*e,bool locked = true);
 	entry * at(const lookup_key_type *key,bool locked = true);
 	data_type * at_data(const lookup_key_type *key,bool locked = true);

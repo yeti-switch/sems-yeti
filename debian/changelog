@@ -1,3 +1,9 @@
+sems-yeti (1.7.26-2) stable; urgency=low
+
+  * fix buffering for snapshots
+
+ -- dev <dev@yeti-switch.org>  Mon, 11 Sep 2017 18:26:01 +0300
+
 sems-yeti (1.7.26-1) stable; urgency=low
 
   * timeline for clickhouse snapshots
