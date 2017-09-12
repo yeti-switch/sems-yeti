@@ -65,7 +65,7 @@ class CdrList:
 
     int epoll_fd;
     bool snapshots_enabled;
-    bool snapshots_timelines;
+    bool snapshots_buffering;
     unsigned int snapshots_interval;
     string snapshots_destination;
     string snapshots_table;

@@ -4,7 +4,6 @@
 #include "jsonArg.h"
 #include "AmSessionContainer.h"
 #include "ampi/HttpClientAPI.h"
-#include "TimeLines.h"
 
 #define SNAPSHOTS_PERIOD_DEFAULT 60
 #define EPOLL_MAX_EVENTS 2048
@@ -14,7 +13,7 @@ CdrList::CdrList(unsigned long buckets)
     stopped(false),
     epoll_fd(0),
     snapshots_enabled(false),
-    snapshots_timelines(false),
+    snapshots_buffering(false),
     snapshots_interval(0),
     last_snapshot_ts(0)
 { }
@@ -73,7 +72,7 @@ int CdrList::erase(Cdr *cdr){
 	cdr->lock();
 	if(cdr->inserted2list){
 		lock();
-		if(erase_unsafe(cdr) && snapshots_timelines)
+		if(erase_unsafe(cdr) && snapshots_buffering)
 			postponed_active_calls.emplace_back(*cdr);
 		unlock();
 		cdr->unlock();
@@ -220,7 +219,7 @@ int CdrList::configure(AmConfigReader &cfg)
     snapshots_table = cfg.getParameter("active_calls_clickhouse_table","active_calls");
     snapshots_interval = cfg.getParameterInt("active_calls_period",
                                              SNAPSHOTS_PERIOD_DEFAULT);
-    snapshots_timelines = 1==cfg.getParameterInt("active_calls_clickhouse_timelines");
+    snapshots_buffering = 1==cfg.getParameterInt("active_calls_clickhouse_buffering");
 
     if(0==snapshots_interval) {
         ERROR("invalid active calls snapshots period: %d",snapshots_interval);
@@ -233,11 +232,11 @@ int CdrList::configure(AmConfigReader &cfg)
 
     DBG("use queue '%s', table '%s' for active calls snapshots "
         "with interval %d (seconds). "
-        "timelines are %sabled",
+        "buffering is %sabled",
         snapshots_destination.c_str(),
         snapshots_table.c_str(),
         snapshots_interval,
-        snapshots_timelines?"en":"dis");
+        snapshots_buffering?"en":"dis");
 
     for(const auto &f: snapshots_fields_whitelist) {
         DBG("clickhouse allowed_field: %s",f.c_str());
@@ -314,8 +313,6 @@ void CdrList::onTimer()
     time_t ts;
     char strftime_buf[64];
 
-    TimeLines timelines;
-    long int long_calls_timeline = 0;
     PostponedCdrsContainer local_postponed_calls;
 
     static struct tm t;
@@ -353,12 +350,12 @@ void CdrList::onTimer()
 
     lock();
 
-    if(snapshots_timelines)
+    if(snapshots_buffering)
         local_postponed_calls.swap(postponed_active_calls);
 
     entry *e = first;
     if(!e &&
-       (!snapshots_timelines || local_postponed_calls.empty()))
+       (!snapshots_buffering || local_postponed_calls.empty()))
     {
         unlock();
         return;
@@ -375,15 +372,8 @@ void CdrList::onTimer()
         call["node_id"] = gc.node_id;
         call["pop_id"] = gc.pop_id;
 
-        if(snapshots_timelines) {
+        if(snapshots_buffering)
             call["buffered"] = false;
-            if(cdr.snapshoted) {
-                call["timeline"] = --long_calls_timeline;
-            } else {
-                cdr.snapshoted = true;
-                call["timeline"] = (long int)timelines.get(cdr.start_time,tv);
-            }
-        }
 
         if(snapshots_fields_whitelist.empty()) {
             cdr.snapshot_info(call,df);
@@ -394,7 +384,7 @@ void CdrList::onTimer()
 
     unlock();
 
-    if(snapshots_timelines) {
+    if(snapshots_buffering) {
         for(Cdr &cdr: local_postponed_calls) {
             calls.push(AmArg());
             AmArg &call = calls.back();
@@ -404,7 +394,6 @@ void CdrList::onTimer()
             call["node_id"] = gc.node_id;
             call["pop_id"] = gc.pop_id;
             call["buffered"] = true;
-            call["timeline"] = (long int)timelines.get(cdr.start_time,cdr.end_time);
 
             if(snapshots_fields_whitelist.empty()) {
                 cdr.snapshot_info(call,df);
