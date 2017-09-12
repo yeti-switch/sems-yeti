@@ -922,7 +922,7 @@ static char strftime_buf[64] = {0};
 static struct tm tt;
 #define add_field(val) s[#val] = val;
 #define add_field_as(name,val) s[name] = val;
-#define add_timeval_field(val) s[#val] = timeval2str(val);
+#define add_timeval_field(val) s[#val] = timerisset(&val) ? timeval2str(val) : AmArg();
 
 	add_timeval_field(cdr_born_time);
 	add_timeval_field(start_time);
@@ -994,7 +994,7 @@ void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered
 #define add_field_as(name,val) \
 	filter(name) s[ name  ## _key ] = val;
 #define add_timeval_field(val) \
-	filter(val) s[ val  ## _key ] = timeval2str(val);
+	filter(val) s[ val  ## _key ] = timerisset(&val) ? timeval2str(val) : AmArg();
 
 	add_timeval_field(cdr_born_time);
 	add_timeval_field(start_time);
