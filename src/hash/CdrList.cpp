@@ -312,6 +312,7 @@ void CdrList::onTimer()
     int len;
     time_t ts;
     char strftime_buf[64];
+    static const string end_time_key("end_time");
 
     PostponedCdrsContainer local_postponed_calls;
 
@@ -377,8 +378,11 @@ void CdrList::onTimer()
 
         if(snapshots_fields_whitelist.empty()) {
             cdr.snapshot_info(call,df);
+            call[end_time_key] = snapshot_timestamp_str;
         } else {
             cdr.snapshot_info_filtered(call,df,snapshots_fields_whitelist);
+            if(snapshots_fields_whitelist.count(end_time_key))
+                call[end_time_key] = snapshot_timestamp_str;
         }
     }
 
@@ -397,8 +401,15 @@ void CdrList::onTimer()
 
             if(snapshots_fields_whitelist.empty()) {
                 cdr.snapshot_info(call,df);
+                call[end_time_key] =
+                    timerisset(&cdr.end_time) ?
+                    timeval2str(cdr.end_time) : AmArg();
             } else {
                 cdr.snapshot_info_filtered(call,df,snapshots_fields_whitelist);
+                if(snapshots_fields_whitelist.count(end_time_key))
+                    call[end_time_key] =
+                        timerisset(&cdr.end_time) ?
+                        timeval2str(cdr.end_time) : AmArg();
             }
         }
         local_postponed_calls.clear();

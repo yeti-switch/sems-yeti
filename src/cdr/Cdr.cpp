@@ -927,7 +927,7 @@ static struct tm tt;
 	add_timeval_field(cdr_born_time);
 	add_timeval_field(start_time);
 	add_timeval_field(connect_time);
-	add_timeval_field(end_time);
+	//add_timeval_field(end_time);
 
 	localtime_r(&start_time.tv_sec,&tt);
 	int len = strftime(strftime_buf, sizeof strftime_buf, "%F", &tt);
@@ -999,7 +999,7 @@ void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered
 	add_timeval_field(cdr_born_time);
 	add_timeval_field(start_time);
 	add_timeval_field(connect_time);
-	add_timeval_field(end_time);
+	//add_timeval_field(end_time);
 
 	localtime_r(&start_time.tv_sec,&tt);
 	int len = strftime(strftime_buf, sizeof strftime_buf, "%F", &tt);
