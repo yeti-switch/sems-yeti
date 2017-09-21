@@ -2206,6 +2206,8 @@ void SBCCallLeg::onCallConnected(const AmSipReply& reply)
 
     if (a_leg) { // FIXME: really?
         m_state = BB_Connected;
+        AmB2BMedia *m = getMediaSession();
+        if(m) m->setRtpTimeout(dead_rtp_time);
         if (!startCallTimers())
             return;
     }
@@ -2780,7 +2782,17 @@ int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote){
     dump_SdpMedia(offer.media,"offer");
     dump_SdpMedia(answer.media,"answer");
 
-    return CallLeg::onSdpCompleted(offer, answer);
+    int ret = CallLeg::onSdpCompleted(offer, answer);
+
+    if(!a_leg) return ret;
+
+    AmB2BMedia *m = getMediaSession();
+    if(!m) return ret;
+
+    if(CallLeg::Ringing==getCallStatus())
+        m->setRtpTimeout(0);
+
+    return ret;
 }
 
 bool SBCCallLeg::getSdpOffer(AmSdp& offer){

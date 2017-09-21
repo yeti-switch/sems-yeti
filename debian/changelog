@@ -1,3 +1,9 @@
+sems-yeti (1.7.26-5) stable; urgency=low
+
+  * disable RTP timeout for early media
+
+ -- dev <dev@yeti-switch.org>  Thu, 21 Sep 2017 13:54:50 +0300
+
 sems-yeti (1.7.26-4) stable; urgency=low
 
   * Cdr: snapshots: set end_time for non-buffered calls to the snapshot_timestamp value
