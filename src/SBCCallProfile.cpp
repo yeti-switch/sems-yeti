@@ -687,6 +687,8 @@ bool SBCCallProfile::evaluate(ParamReplacerCtx& ctx,
   REPLACE_NONEMPTY_STR(outbound_proxy);
   REPLACE_NONEMPTY_STR(next_hop);
 
+  fix_append_hdrs(ctx, req);
+
   /*
    * must be evaluated after outbound_proxy & next_hop
    * because they are determineoutbound inteface
