@@ -50,11 +50,6 @@ class PlaceholdersHash: public std::map<string,string>
     void update(const PlaceholdersHash &h);
 };
 
-#define LOG_SIP_MASK	0x1
-#define LOG_RTP_MASK	0x2
-#define LOG_FULL_MASK	(LOG_SIP_MASK|LOG_RTP_MASK)
-const char *dump_level2str(int dump_level);
-
 #define DTMF_RX_MODE_RFC2833			0x1		// telephone-event RTP payload
 #define DTMF_RX_MODE_INFO				0x2		// SIP INFO msg
 #define DTMF_RX_MODE_INBOUND			0x4		// inbound dtmf

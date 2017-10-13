@@ -2,11 +2,13 @@
 
 #include "AmArg.h"
 #include "AmApi.h"
+#include "CoreRpc.h"
 #include "yeti_base.h"
 #include "yeti_radius.h"
+#include "RpcTreeHandler.h"
 
 class YetiRpc
-  : public AmDynInvoke,
+  : public RpcTreeHandler<YetiRpc>,
     virtual YetiBase,
     virtual YetiRadius
 {
@@ -22,9 +24,7 @@ class YetiRpc
 
   protected:
     int calls_show_limit;
-    time_t start_time;
-
-    void init_rpc_cmds();
+    void init_rpc_tree();
   private:
     AmArg rpc_cmds;
 
@@ -32,8 +32,6 @@ class YetiRpc
 
     bool check_event_id(int event_id, AmArg &ret);
     bool assert_event_id(const AmArg &args,AmArg &ret);
-
-    void setSystemDumpLevel(int dump_level);
 
     rpc_handler DropCall;
     rpc_handler ClearStats;

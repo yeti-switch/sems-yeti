@@ -148,24 +148,6 @@ void PlaceholdersHash::update(const PlaceholdersHash &h)
 
 //////////////////////////////////////////////////////////////////////////////////
 
-static const char *dump_level_names[] = {
-    "none",
-    "signalling",   //LOG_SIP_MASK
-    "rtp",          //LOG_RTP_MASK
-    "full"          //LOG_FULL_MASK
-};
-static const int dump_level_names_count =
-    (sizeof(dump_level_names)/sizeof(dump_level_names[0]))-1;
-
-const char *dump_level2str(int dump_level){
-    if(dump_level < 0 || dump_level > dump_level_names_count){
-        return "invalid";
-    }
-    return dump_level_names[dump_level];
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-
 bool SBCCallProfile::readFromConfiguration(const string& name,
 					   const string profile_file_name) {
   AmConfigReader cfg;

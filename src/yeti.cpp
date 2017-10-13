@@ -219,9 +219,7 @@ int Yeti::onLoad() {
 
 	if(cdr_list.getSnapshotsEnabled()) cdr_list.start();
 
-	start_time = time(NULL);
-
-	init_rpc_cmds();
+	init_rpc();
 
 	return 0;
 }

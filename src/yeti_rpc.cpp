@@ -2,7 +2,6 @@
 #include "yeti.h"
 #include "yeti_rpc.h"
 #include "Registration.h"
-#include "codecs_bench.h"
 #include "alarms.h"
 
 #include "sip/resolver.h"
@@ -26,11 +25,25 @@
 
 static const bool RPC_CMD_SUCC = true;
 
-static timeval last_shutdown_time;
-
 typedef YetiRpc::rpc_handler YetiRpc::*YetiRpcHandler;
 
 #define handler_log() DBG("execute handler: %s(%s)",FUNC_NAME,args.print(args).c_str());
+
+#define CALL_CORE(name) CoreRpc::instance().name(args,ret);
+
+#define DEFINE_CORE_PROXY_METHOD(Name) \
+void YetiRpc::Name(const AmArg& args, AmArg& ret) \
+{ \
+	handler_log(); \
+	CALL_CORE(Name); \
+}
+
+#define DEFINE_CORE_PROXY_METHOD_ALTER(Name,CoreName) \
+void YetiRpc::Name(const AmArg& args, AmArg& ret) \
+{ \
+	handler_log(); \
+	CALL_CORE(CoreName); \
+}
 
 class CdrNotFoundException: public AmSession::Exception {
   public:
@@ -57,212 +70,200 @@ struct rpc_entry: public AmObject {
   bool hasLeaf(const char *leaf){ return hasLeafs()&&leaves.hasMember(leaf); }
 };
 
-void YetiRpc::init_rpc_cmds(){
-#define reg_leaf(parent,leaf,name,descr) \
-	e = new rpc_entry(descr);\
-	parent[name] = e;\
-	AmArg &leaf = e->leaves;
+void YetiRpc::init_rpc_tree()
+{
+#define leaf(parent,leaf,name,descr) \
+	AmArg &leaf = reg_leaf(parent,name,descr);
 
-#define reg_method(parent,name,descr,func,func_descr) \
-	e = new rpc_entry(descr,&YetiRpc::func,func_descr);\
-	parent[name] = e;
+#define method(parent,name,descr,func,func_descr) \
+	reg_method(parent,name,descr,&YetiRpc::func,func_descr);
 
-#define reg_leaf_method(parent,leaf,name,descr,func,func_descr) \
-	reg_method(parent,name,descr,func,func_descr);\
-	AmArg &leaf = e->leaves;
+#define leaf_method(parent,leaf,name,descr,func,func_descr) \
+	AmArg &leaf = reg_method(parent,name,descr,&YetiRpc::func,func_descr);
 
-#define reg_method_arg(parent,name,descr,func,func_descr,arg, arg_descr) \
-	e = new rpc_entry(descr,&YetiRpc::func,func_descr,arg, arg_descr);\
-	parent[name] = e;
+#define method_arg(parent,name,descr,func,func_descr,arg, arg_descr) \
+	reg_method_arg(parent,name,descr,&YetiRpc::func,func_descr, arg, arg_descr);
 
-#define reg_leaf_method_arg(parent,leaf,name,descr,func,func_descr,arg, arg_descr) \
-	reg_method_arg(parent,name,descr,func,func_descr,arg, arg_descr);\
-	AmArg &leaf = e->leaves;
-
-	rpc_entry *e;
-	e = new rpc_entry("root");
-	rpc_cmds = e->leaves;
-	AmArg &root = rpc_cmds;
-
-	timerclear(&last_shutdown_time);
+#define leaf_method_arg(parent,leaf,name,descr,func,func_descr,arg, arg_descr) \
+	AmArg &leaf = reg_method_arg(parent,name,descr,&YetiRpc::func,func_descr, arg, arg_descr);
 
 	/* show */
-	reg_leaf(root,show,"show","read only queries");
+	leaf(root,show,"show","read only queries");
 
-		reg_method(show,"version","show version",showVersion,"");
+		method(show,"version","show version",showVersion,"");
 
-		reg_leaf(show,show_resource,"resource","resources related functions");
+		leaf(show,show_resource,"resource","resources related functions");
 
-			reg_leaf_method_arg(show_resource,show_resource_state,"state","get resources state from redis",getResourceState,
-								"","<type>/-1 <id>/-1","retreive info about certain resources state");
+			leaf_method_arg(show_resource,show_resource_state,"state","get resources state from redis",getResourceState,
+							"","<type>/-1 <id>/-1","retreive info about certain resources state");
 
-			reg_leaf_method(show_resource_state,show_resource_state_used,"used","show active resources handlers",showResources,"");
-			reg_method_arg(show_resource_state_used,"handler","find resource by handler id",showResourceByHandler,"",
-						   "<handler_id>","find resource by handler id");
-			reg_method_arg(show_resource_state_used,"owner_tag","find resource by onwer local_tag",showResourceByLocalTag,"",
-						   "<onwer_local_tag>","find resource by onwer local_tag");
-			reg_method_arg(show_resource_state_used,"resource_id","find handlers which manage resources with ceration id",showResourcesById,"",
-						   "<resource_id>","find handlers which manage resources with ceration id");
+			leaf_method(show_resource_state,show_resource_state_used,"used","show active resources handlers",showResources,"");
+			method_arg(show_resource_state_used,"handler","find resource by handler id",showResourceByHandler,"",
+					   "<handler_id>","find resource by handler id");
+			method_arg(show_resource_state_used,"owner_tag","find resource by onwer local_tag",showResourceByLocalTag,"",
+					   "<onwer_local_tag>","find resource by onwer local_tag");
+			method_arg(show_resource_state_used,"resource_id","find handlers which manage resources with ceration id",showResourcesById,"",
+					   "<resource_id>","find handlers which manage resources with ceration id");
 
 
-			reg_method(show_resource,"types","show resources types",showResourceTypes,"");
+			method(show_resource,"types","show resources types",showResourceTypes,"");
 
-		reg_method(show,"sensors","show active sensors configuration",showSensorsState,"");
-		/*reg_leaf(show,show_sensors,"sensors","sensors related functions");
-			reg_method(show_sensors,"state","show active sensors configuration",showSensorsState,"");*/
+		method(show,"sensors","show active sensors configuration",showSensorsState,"");
+		/*leaf(show,show_sensors,"sensors","sensors related functions");
+			method(show_sensors,"state","show active sensors configuration",showSensorsState,"");*/
 
-		reg_leaf(show,show_router,"router","active router instance");
-			reg_method(show_router,"cache","show callprofile's cache state",ShowCache,"");
+		leaf(show,show_router,"router","active router instance");
+			method(show_router,"cache","show callprofile's cache state",ShowCache,"");
 
-			reg_leaf(show_router,show_router_cdrwriter,"cdrwriter","cdrwriter");
-				reg_method(show_router_cdrwriter,"opened-files","show opened csv files",showRouterCdrWriterOpenedFiles,"");
+			leaf(show_router,show_router_cdrwriter,"cdrwriter","cdrwriter");
+				method(show_router_cdrwriter,"opened-files","show opened csv files",showRouterCdrWriterOpenedFiles,"");
 
-		reg_leaf(show,show_media,"media","media processor instance");
-			reg_method(show_media,"streams","active media streams info",showMediaStreams,"");
+		leaf(show,show_media,"media","media processor instance");
+			method(show_media,"streams","active media streams info",showMediaStreams,"");
 
-		reg_leaf_method_arg(show,show_calls,"calls","active calls",GetCalls,"show current active calls",
+		leaf_method_arg(show,show_calls,"calls","active calls",GetCalls,"show current active calls",
 						"<LOCAL-TAG>","retreive call by local_tag");
-			reg_method(show_calls,"count","active calls count",GetCallsCount,"");
-			reg_method(show_calls,"fields","show available call fields",showCallsFields,"");
-			reg_method_arg(show_calls,"filtered","active calls. specify desired fields",GetCallsFields,"",
-						"<field1> <field2> ...","active calls. send only certain fields");
+			method(show_calls,"count","active calls count",GetCallsCount,"");
+			method(show_calls,"fields","show available call fields",showCallsFields,"");
+			method_arg(show_calls,"filtered","active calls. specify desired fields",GetCallsFields,"",
+					   "<field1> <field2> ...","active calls. send only certain fields");
 
-		reg_method(show,"configuration","actual settings",GetConfig,"");
+		method(show,"configuration","actual settings",GetConfig,"");
 
-		reg_method(show,"stats","runtime statistics",GetStats,"");
+		method(show,"stats","runtime statistics",GetStats,"");
 
-		reg_method(show,"interfaces","show network interfaces configuration",showInterfaces,"");
+		method(show,"interfaces","show network interfaces configuration",showInterfaces,"");
 
-		reg_leaf_method_arg(show,show_sessions,"sessions","show runtime sessions",
-							showSessionsInfo,"active sessions",
-							"<LOCAL-TAG>","show sessions related to given local_tag");
-			reg_method(show_sessions,"count","active sessions count",showSessionsCount,"");
+		leaf_method_arg(show,show_sessions,"sessions","show runtime sessions",
+						showSessionsInfo,"active sessions",
+						"<LOCAL-TAG>","show sessions related to given local_tag");
+			method(show_sessions,"count","active sessions count",showSessionsCount,"");
 
-		reg_leaf_method_arg(show,show_registrations,"registrations","uac registrations",GetRegistrations,"show configured uac registrations",
-							"<id>","get registration by id");
-			reg_method(show_registrations,"count","active registrations count",GetRegistrationsCount,"");
+		leaf_method_arg(show,show_registrations,"registrations","uac registrations",GetRegistrations,"show configured uac registrations",
+						"<id>","get registration by id");
+			method(show_registrations,"count","active registrations count",GetRegistrationsCount,"");
 
-		reg_leaf(show,show_system,"system","system cmds");
-			reg_method(show_system,"log-level","loglevels",showSystemLogLevel,"");
-			reg_method(show_system,"status","system states",showSystemStatus,"");
-			reg_method(show_system,"alarms","system alarms",showSystemAlarms,"");
-			reg_method(show_system,"session-limit","actual sessions limit config",showSessions,"");
-			reg_method(show_system,"dump-level","dump_level override value",showSystemDumpLevel,"");
+		leaf(show,show_system,"system","system cmds");
+			method(show_system,"log-level","loglevels",showSystemLogLevel,"");
+			method(show_system,"status","system states",showSystemStatus,"");
+			method(show_system,"alarms","system alarms",showSystemAlarms,"");
+			method(show_system,"session-limit","actual sessions limit config",showSessions,"");
+			method(show_system,"dump-level","dump_level override value",showSystemDumpLevel,"");
 
-		reg_leaf(show,show_radius,"radius","radius module");
-			reg_leaf(show_radius,show_radius_auth,"authorization","auth functionality");
-				reg_method_arg(show_radius_auth,"profiles","radius profiles configuration",showRadiusAuthProfiles,"",
-							   "<id>","show configuration for certain auth profile");
-				reg_method_arg(show_radius_auth,"statistics","radius connections statistic",showRadiusAuthStat,"",
-							   "<id>","show stats for certain auth profile");
-			reg_leaf(show_radius,show_radius_acc,"accounting","accounting functionality");
-				reg_method_arg(show_radius_acc,"profiles","radius accounting profiles configuration",showRadiusAccProfiles,"",
-							   "<id>","show configuration for certain accounting profile");
-				reg_method_arg(show_radius_acc,"statistics","radius connections statistic",showRadiusAccStat,"",
-							   "<id>","show stats for certain accounting profile");
+		leaf(show,show_radius,"radius","radius module");
+			leaf(show_radius,show_radius_auth,"authorization","auth functionality");
+				method_arg(show_radius_auth,"profiles","radius profiles configuration",showRadiusAuthProfiles,"",
+						   "<id>","show configuration for certain auth profile");
+				method_arg(show_radius_auth,"statistics","radius connections statistic",showRadiusAuthStat,"",
+						   "<id>","show stats for certain auth profile");
+			leaf(show_radius,show_radius_acc,"accounting","accounting functionality");
+				method_arg(show_radius_acc,"profiles","radius accounting profiles configuration",showRadiusAccProfiles,"",
+						   "<id>","show configuration for certain accounting profile");
+				method_arg(show_radius_acc,"statistics","radius connections statistic",showRadiusAccStat,"",
+						   "<id>","show stats for certain accounting profile");
 
-		reg_leaf(show,show_upload,"upload","upload");
-			reg_method(show_upload,"destinations","show configured destinations for http_client",showUploadDestinations,"");
-			reg_method(show_upload,"stats","show http_client stats",showUploadStats,"");
+		leaf(show,show_upload,"upload","upload");
+			method(show_upload,"destinations","show configured destinations for http_client",showUploadDestinations,"");
+			method(show_upload,"stats","show http_client stats",showUploadStats,"");
 
-		reg_leaf(show,show_recorder,"recorder","audio recorder instance");
-			reg_method(show_recorder,"stats","show audio recorder processor stats",showRecorderStats,"");
+		leaf(show,show_recorder,"recorder","audio recorder instance");
+			method(show_recorder,"stats","show audio recorder processor stats",showRecorderStats,"");
 
 	/* request */
-	reg_leaf(root,request,"request","modify commands");
+	leaf(root,request,"request","modify commands");
 
-		reg_method(request,"upload","upload file using http_client",requestUpload,"<destination_id> <file_name> <path_to_file>");
+		method(request,"upload","upload file using http_client",requestUpload,"<destination_id> <file_name> <path_to_file>");
 
-		reg_leaf(request,request_sensors,"sensors","sensors");
-			reg_method(request_sensors,"reload","reload sensors",requestReloadSensors,"");
+		leaf(request,request_sensors,"sensors","sensors");
+			method(request_sensors,"reload","reload sensors",requestReloadSensors,"");
 
-		reg_leaf(request,request_router,"router","active router instance");
+		leaf(request,request_router,"router","active router instance");
 
-			reg_leaf(request_router,request_router_cdrwriter,"cdrwriter","CDR writer instance");
-				reg_method(request_router_cdrwriter,"close-files","immideatly close failover csv files",closeCdrFiles,"");
+			leaf(request_router,request_router_cdrwriter,"cdrwriter","CDR writer instance");
+				method(request_router_cdrwriter,"close-files","immideatly close failover csv files",closeCdrFiles,"");
 
-			reg_leaf(request_router,request_router_translations,"translations","disconnect/internal_db codes translator");
-				reg_method(request_router_translations,"reload","reload translator",reloadTranslations,"");
+			leaf(request_router,request_router_translations,"translations","disconnect/internal_db codes translator");
+				method(request_router_translations,"reload","reload translator",reloadTranslations,"");
 
-			reg_leaf(request_router,request_router_codec_groups,"codec-groups","codecs groups configuration");
-				reg_method(request_router_codec_groups,"reload","reload codecs-groups",reloadCodecsGroups,"");
+			leaf(request_router,request_router_codec_groups,"codec-groups","codecs groups configuration");
+				method(request_router_codec_groups,"reload","reload codecs-groups",reloadCodecsGroups,"");
 
-			reg_leaf(request_router,request_router_resources,"resources","resources actions configuration");
-				reg_method(request_router_resources,"reload","reload resources",reloadResources,"");
+			leaf(request_router,request_router_resources,"resources","resources actions configuration");
+				method(request_router_resources,"reload","reload resources",reloadResources,"");
 
-			reg_leaf(request_router,request_router_cache,"cache","callprofile's cache");
-				reg_method(request_router_cache,"clear","clear cached profiles",ClearCache,"");
+			leaf(request_router,request_router_cache,"cache","callprofile's cache");
+				method(request_router_cache,"clear","clear cached profiles",ClearCache,"");
 
-		reg_leaf(request,request_registrations,"registrations","uac registrations");
-			reg_method_arg(request_registrations,"reload","reload reqistrations preferences",reloadRegistrations,
-						   "","<id>","reload registration with certain id");
+		leaf(request,request_registrations,"registrations","uac registrations");
+			method_arg(request_registrations,"reload","reload reqistrations preferences",reloadRegistrations,
+					   "","<id>","reload registration with certain id");
 
-		reg_leaf(request,request_stats,"stats","runtime statistics");
-			reg_method(request_stats,"clear","clear all counters",ClearStats,"");
+		leaf(request,request_stats,"stats","runtime statistics");
+			method(request_stats,"clear","clear all counters",ClearStats,"");
 
-		reg_leaf(request,request_call,"call","active calls control");
-			reg_method_arg(request_call,"disconnect","drop call",DropCall,
-						   "","<LOCAL-TAG>","drop call by local_tag");
+		leaf(request,request_call,"call","active calls control");
+			method_arg(request_call,"disconnect","drop call",DropCall,
+					   "","<LOCAL-TAG>","drop call by local_tag");
 
-		reg_leaf(request,request_media,"media","media processor instance");
-			reg_method_arg(request_media,"payloads","loaded codecs",showPayloads,"show supported codecs",
-						   "benchmark","compute transcoding cost for each codec");
+		leaf(request,request_media,"media","media processor instance");
+			method_arg(request_media,"payloads","loaded codecs",showPayloads,"show supported codecs",
+					   "benchmark","compute transcoding cost for each codec");
 
-		reg_leaf(request,request_system,"system","system commands");
+		leaf(request,request_system,"system","system commands");
 
-			reg_leaf_method(request_system,request_system_shutdown,"shutdown","shutdown switch",
-							requestSystemShutdown,"unclean shutdown");
-				reg_method(request_system_shutdown,"immediate","don't wait for active calls",
-						   requestSystemShutdownImmediate,"");
-				reg_method(request_system_shutdown,"graceful","disable new calls, wait till active calls end",
-						   requestSystemShutdownGraceful,"");
-				reg_method(request_system_shutdown,"cancel","cancel graceful shutdown",
-						   requestSystemShutdownCancel,"");
+			leaf_method(request_system,request_system_shutdown,"shutdown","shutdown switch",
+						requestSystemShutdown,"unclean shutdown");
+				method(request_system_shutdown,"immediate","don't wait for active calls",
+					   requestSystemShutdownImmediate,"");
+				method(request_system_shutdown,"graceful","disable new calls, wait till active calls end",
+					   requestSystemShutdownGraceful,"");
+				method(request_system_shutdown,"cancel","cancel graceful shutdown",
+					   requestSystemShutdownCancel,"");
 
-			reg_leaf(request_system,request_system_log,"log","logging facilities control");
-				reg_method(request_system_log,"dump","save in-memory ringbuffer log to file",
-						   requestSystemLogDump,"");
+			leaf(request_system,request_system_log,"log","logging facilities control");
+				method(request_system_log,"dump","save in-memory ringbuffer log to file",
+					   requestSystemLogDump,"");
 
-		reg_leaf(request,request_resource,"resource","resources cache");
-			/*reg_method_arg(request_resource,"state","",getResourceState,
+		leaf(request,request_resource,"resource","resources cache");
+			/*method_arg(request_resource,"state","",getResourceState,
 						   "","<type> <id>","get current state of resource");*/
-			reg_method(request_resource,"invalidate","invalidate all resources",requestResourcesInvalidate,"");
+			method(request_resource,"invalidate","invalidate all resources",requestResourcesInvalidate,"");
 
-		reg_leaf(request,request_resolver,"resolver","dns resolver instance");
-			reg_method(request_resolver,"clear","clear dns cache",requestResolverClear,"");
-			reg_method_arg(request_resolver,"get","",requestResolverGet,
+		leaf(request,request_resolver,"resolver","dns resolver instance");
+			method(request_resolver,"clear","clear dns cache",requestResolverClear,"");
+			method_arg(request_resolver,"get","",requestResolverGet,
 						   "","<name>","resolve dns name");
 
-		reg_leaf(request,request_radius,"radius","radius module");
-			reg_leaf(request_radius,request_radius_auth,"authorization","authorization");
-				reg_leaf(request_radius_auth,request_radius_auth_profiles,"profiles","profiles");
-					reg_method(request_radius_auth_profiles,"reload","reload radius profiles",requestRadiusAuthProfilesReload,"");
-			reg_leaf(request_radius,request_radius_acc,"accounting","accounting");
-				reg_leaf(request_radius_acc,request_radius_acc_profiles,"profiles","profiles");
-					reg_method(request_radius_acc_profiles,"reload","reload radius accounting profiles",requestRadiusAccProfilesReload,"");
+		leaf(request,request_radius,"radius","radius module");
+			leaf(request_radius,request_radius_auth,"authorization","authorization");
+				leaf(request_radius_auth,request_radius_auth_profiles,"profiles","profiles");
+					method(request_radius_auth_profiles,"reload","reload radius profiles",requestRadiusAuthProfilesReload,"");
+			leaf(request_radius,request_radius_acc,"accounting","accounting");
+				leaf(request_radius_acc,request_radius_acc_profiles,"profiles","profiles");
+					method(request_radius_acc_profiles,"reload","reload radius accounting profiles",requestRadiusAccProfilesReload,"");
 
 	/* set */
-	reg_leaf(root,lset,"set","set");
-		reg_leaf(lset,set_system,"system","system commands");
-			reg_leaf(set_system,set_system_log_level,"log-level","logging facilities level");
-				reg_method_arg(set_system_log_level,"di_log","",setSystemLogDiLogLevel,
-							   "","<log_level>","set new log level");
-				reg_method_arg(set_system_log_level,"syslog","",setSystemLogSyslogLevel,
-							   "","<log_level>","set new log level");
+	leaf(root,lset,"set","set");
+		leaf(lset,set_system,"system","system commands");
+			leaf(set_system,set_system_log_level,"log-level","logging facilities level");
+				method_arg(set_system_log_level,"di_log","",setSystemLogDiLogLevel,
+						   "","<log_level>","set new log level");
+				method_arg(set_system_log_level,"syslog","",setSystemLogSyslogLevel,
+						   "","<log_level>","set new log level");
 
-			reg_method_arg(set_system,"session-limit","",setSessionsLimit,
-						   "","<limit> <overload response code> <overload response reason>","set new session limit params");
-			reg_leaf(set_system,set_system_dump_level,"dump-level","logging facilities control");
-			reg_method(set_system_dump_level,"none","",setSystemDumpLevelNone,"");
-			reg_method(set_system_dump_level,"signalling","",setSystemDumpLevelSignalling,"");
-			reg_method(set_system_dump_level,"rtp","",setSystemDumpLevelRtp,"");
-			reg_method(set_system_dump_level,"full","",setSystemDumpLevelFull,"");
+			method_arg(set_system,"session-limit","",setSessionsLimit,
+					   "","<limit> <overload response code> <overload response reason>","set new session limit params");
+			leaf(set_system,set_system_dump_level,"dump-level","logging facilities control");
+			method(set_system_dump_level,"none","",setSystemDumpLevelNone,"");
+			method(set_system_dump_level,"signalling","",setSystemDumpLevelSignalling,"");
+			method(set_system_dump_level,"rtp","",setSystemDumpLevelRtp,"");
+			method(set_system_dump_level,"full","",setSystemDumpLevelFull,"");
 
-#undef reg_leaf
-#undef reg_method
-#undef reg_leaf_method
-#undef reg_method_arg
-#undef reg_leaf_method_arg
+#undef leaf
+#undef method
+#undef leaf_method
+#undef method_arg
+#undef leaf_method_arg
 }
 
 void YetiRpc::process_rpc_cmds(const AmArg cmds, const string& method, const AmArg& args, AmArg& ret){
@@ -418,7 +419,8 @@ void YetiRpc::invoke(const string& method, const AmArg& args, AmArg& ret)
 		ret.push(AmArg("request"));
 		//ret.push(AmArg("set"));*/
 	} else {
-		process_rpc_cmds(rpc_cmds,method,args,ret);
+		RpcTreeHandler::invoke(method,args,ret);
+		//process_rpc_cmds(rpc_cmds,method,args,ret);
 	}/* else {
 		throw AmDynInvoke::NotImplemented(method);
 	}*/
@@ -683,6 +685,7 @@ void YetiRpc::showVersion(const AmArg& args, AmArg& ret) {
 	ret["compiled_at"] = YETI_BUILD_DATE;
 	ret["compiled_by"] = YETI_BUILD_USER;
 	ret["core_build"] = get_sems_version();
+	CALL_CORE(showVersion);
 }
 
 void YetiRpc::reloadResources(const AmArg& args, AmArg& ret){
@@ -829,12 +832,6 @@ void YetiRpc::showSessionsInfo(const AmArg& args, AmArg& ret){
 	}
 }
 
-void YetiRpc::showSessionsCount(const AmArg& args, AmArg& ret){
-	handler_log();
-	(void)args;
-	ret = (int)AmSession::getSessionNum();
-}
-
 static inline AmDynInvoke* get_radius_interace(){
 	AmDynInvokeFactory* radius_client_factory = AmPlugIn::instance()->getFactory4Di("radius_client");
 	if(NULL==radius_client_factory){
@@ -869,61 +866,6 @@ void YetiRpc::showRadiusAccStat(const AmArg& args, AmArg& ret){
 	handler_log();
 	(void)args;
 	get_radius_interace()->invoke("showAccStat",args,ret);
-}
-
-void YetiRpc::showRecorderStats(const AmArg& args, AmArg& ret){
-	handler_log();
-	(void)args;
-	AmAudioFileRecorderProcessor::instance()->getStats(ret);
-}
-
-void YetiRpc::showUploadDestinations(const AmArg& args, AmArg& ret){
-    handler_log();
-    AmDynInvokeFactory* f = AmPlugIn::instance()->getFactory4Di("http_client");
-    if(NULL==f){
-        throw AmSession::Exception(500,"http_client module not loaded");
-    }
-    AmDynInvoke* i = f->getInstance();
-    if(NULL==i){
-        throw AmSession::Exception(500,"can't get http client instance");
-    }
-    i->invoke("show",args,ret);
-}
-
-void YetiRpc::showUploadStats(const AmArg& args, AmArg& ret){
-    handler_log();
-    AmDynInvokeFactory* f = AmPlugIn::instance()->getFactory4Di("http_client");
-    if(NULL==f){
-        throw AmSession::Exception(500,"http_client module not loaded");
-    }
-    AmDynInvoke* i = f->getInstance();
-    if(NULL==i){
-        throw AmSession::Exception(500,"can't get http client instance");
-    }
-    i->invoke("stats",args,ret);
-}
-
-void YetiRpc:: requestUpload(const AmArg& args, AmArg& ret) {
-    handler_log();
-
-    args.assertArrayFmt("sss");
-
-    /*int destination_id;
-    if(!str2int(args.get(0).asCStr(),destination_id)){
-        throw AmSession::Exception(500,"non integer value for destination_id");
-    }*/
-
-    if (AmSessionContainer::instance()->postEvent(
-        HTTP_EVENT_QUEUE,
-        new HttpUploadEvent(args.get(0).asCStr(),
-                            args.get(1).asCStr(),
-                            args.get(2).asCStr(),
-                            string())))
-    {
-        ret = "posted to queue";
-    } else {
-        ret = "failed to post event";
-    }
 }
 
 void YetiRpc::requestRadiusAuthProfilesReload(const AmArg& args, AmArg& ret){
@@ -962,225 +904,17 @@ void YetiRpc::closeCdrFiles(const AmArg& args, AmArg& ret){
 	ret = RPC_CMD_SUCC;
 }
 
-void YetiRpc::showMediaStreams(const AmArg& args, AmArg& ret){
-	handler_log();
-	AmMediaProcessor::instance()->getInfo(ret);
-}
-
-void YetiRpc::showPayloads(const AmArg& args, AmArg& ret){
-	vector<SdpPayload> payloads;
-	unsigned char *buf;
-	int size = 0;
-	handler_log();
-	bool compute_cost = args.size() && args[0] == "benchmark";
-	string path = args.size()>1 ? args[1].asCStr() : DEFAULT_BECH_FILE_PATH;
-
-	const AmPlugIn* plugin = AmPlugIn::instance();
-	plugin->getPayloads(payloads);
-
-	if(compute_cost){
-		size = load_testing_source(path,buf);
-		compute_cost = size > 0;
-	}
-
-	vector<SdpPayload>::const_iterator it = payloads.begin();
-	for(;it!=payloads.end();++it){
-		const SdpPayload &p = *it;
-		ret.push(p.encoding_name,AmArg());
-		AmArg &a = ret[p.encoding_name];
-
-		DBG("process codec: %s (%d)",
-			p.encoding_name.c_str(),p.payload_type);
-		a["payload_type"] = p.payload_type;
-		a["clock_rate"] = p.clock_rate;
-		if(compute_cost){
-			get_codec_cost(p.payload_type,buf,size,a);
-		}
-	}
-
-	if(compute_cost)
-		delete[] buf;
-}
-
-void YetiRpc::showInterfaces(const AmArg& args, AmArg& ret){
-	handler_log();
-
-	AmArg &sig = ret["sip"];
-	for(int i=0; i<(int)AmConfig::SIP_Ifs.size(); i++) {
-		AmConfig::SIP_interface& iface = AmConfig::SIP_Ifs[i];
-		AmArg am_iface;
-		am_iface["idx"] = i;
-		am_iface["media_if_idx"] = iface.RtpInterface;
-		am_iface["sys_name"] = iface.NetIf;
-		am_iface["sys_idx"] = (int)iface.NetIfIdx;
-		am_iface["local_ip"] = iface.LocalIP;
-		am_iface["udp_local_port"] = (int)iface.udp_local_port;
-		am_iface["tcp_local_port"] = (int)iface.tcp_local_port;
-		am_iface["public_ip"] = iface.PublicIP;
-		am_iface["static_client_port"] = (iface.SigSockOpts&trsp_socket::static_client_port)!= 0;
-		am_iface["use_raw_sockets"] = (iface.SigSockOpts&trsp_socket::use_raw_sockets)!= 0;
-		am_iface["force_via_address"] = (iface.SigSockOpts&trsp_socket::force_via_address) != 0;
-		am_iface["force_outbound_if"] = (iface.SigSockOpts&trsp_socket::force_outbound_if) != 0;
-		sig[iface.name] = am_iface;
-	}
-
-	AmArg &rtp = ret["media"];
-	for(int i=0; i<(int)AmConfig::RTP_Ifs.size(); i++) {
-		AmConfig::RTP_interface& iface = AmConfig::RTP_Ifs[i];
-		AmArg am_iface;
-		am_iface["idx"] = i;
-		am_iface["sys_name"] = iface.NetIf;
-		am_iface["sys_idx"] = (int)iface.NetIfIdx;
-		am_iface["local_ip"] = iface.LocalIP;
-		am_iface["public_ip"] = iface.PublicIP;
-		am_iface["rtp_low_port"] = iface.RtpLowPort;
-		am_iface["rtp_high_port"] = iface.RtpHighPort;
-		am_iface["use_raw_sockets"] = (iface.MediaSockOpts&trsp_socket::use_raw_sockets)!= 0;
-		string name = iface.name.empty() ? "default" : iface.name;
-		rtp[name] = am_iface;
-	}
-
-	AmArg &sip_map = ret["sip_ip_map"];
-	for(multimap<string,unsigned short>::iterator it = AmConfig::LocalSIPIP2If.begin();
-		it != AmConfig::LocalSIPIP2If.end(); ++it) {
-		AmConfig::SIP_interface& iface = AmConfig::SIP_Ifs[it->second];
-		sip_map[it->first] = iface.name.empty() ? "default" : iface.name;
-	}
-
-	AmArg &sip_names_map = ret["sip_names_map"];
-	for(const auto &m: AmConfig::SIP_If_names)
-		sip_names_map[m.first] = m.second;
-
-	AmArg &media_names_map = ret["media_names_map"];
-	for(const auto &m: AmConfig::RTP_If_names)
-		media_names_map[m.first] = m.second;
-}
-
 void YetiRpc::showRouterCdrWriterOpenedFiles(const AmArg& args, AmArg& ret){
 	handler_log();
 	(void)args;
 	router.showOpenedFiles(ret);
 }
 
-void YetiRpc::requestSystemLogDump(const AmArg& args, AmArg& ret){
-	handler_log();
-
-	//load factory
-	AmDynInvokeFactory* di_log = AmPlugIn::instance()->getFactory4Di("di_log");
-	if(0==di_log){
-		throw AmSession::Exception(404,"di_log module not loaded");
-	}
-
-	//generate filename
-	struct timeval t;
-	gettimeofday(&t,NULL);
-
-	string path = config.log_dir + "/";
-	path += int2str((unsigned int)t.tv_sec) + "-";
-	path += int2hex(get_random());
-	path += int2hex(t.tv_sec) + int2hex(t.tv_usec);
-	path += int2hex((unsigned int)((unsigned long)pthread_self()));
-
-	AmArg di_log_args;
-	di_log_args.push(path);
-
-	di_log->getInstance()->invoke("dumplogtodisk",di_log_args,ret);
-}
-
-static void addLoggingFacilityLogLevel(AmArg& ret,const string &facility_name){
-	AmLoggingFacility* fac = AmPlugIn::instance()->getFactory4LogFaclty(facility_name);
-	if(0==fac)
-		return;
-	ret[fac->getName()] = fac->getLogLevel();
-}
-
-static void setLoggingFacilityLogLevel(const AmArg& args, AmArg& ret,const string &facility_name){
-	int log_level;
-	if(!args.size()){
-		throw AmSession::Exception(500,"missed new log_level");
-	}
-	args.assertArrayFmt("s");
-	if(!str2int(args.get(0).asCStr(),log_level)){
-		throw AmSession::Exception(500,"invalid log_level fmt");
-	}
-
-	AmLoggingFacility* fac = AmPlugIn::instance()->getFactory4LogFaclty(facility_name);
-	if(0==fac){
-		throw AmSession::Exception(404,"logging facility not loaded");
-	}
-
-	fac->setLogLevel(log_level);
-
-	ret = RPC_CMD_SUCC;
-}
-
-void YetiRpc::showSystemLogLevel(const AmArg& args, AmArg& ret){
-	handler_log();
-	ret["log_level"] = log_level;
-	addLoggingFacilityLogLevel(ret["facilities"],"syslog");
-	addLoggingFacilityLogLevel(ret["facilities"],"di_log");
-}
-
-void YetiRpc::setSystemLogSyslogLevel(const AmArg& args, AmArg& ret){
-	handler_log();
-	setLoggingFacilityLogLevel(args,ret,"syslog");
-}
-
-void YetiRpc::setSystemLogDiLogLevel(const AmArg& args, AmArg& ret){
-	handler_log();
-	setLoggingFacilityLogLevel(args,ret,"di_log");
-}
-
-void YetiRpc::setSystemDumpLevel(int dump_level){
-	INFO("change system dump_level from %s to %s",
-		 dump_level2str(AmConfig::DumpLevel),
-		 dump_level2str(dump_level));
-	AmConfig::DumpLevel = dump_level;
-}
-
-void YetiRpc::setSystemDumpLevelNone(const AmArg& args, AmArg& ret){
-	(void)args;
-	handler_log();
-	setSystemDumpLevel(0);
-	ret = RPC_CMD_SUCC;
-}
-
-void YetiRpc::setSystemDumpLevelSignalling(const AmArg& args, AmArg& ret){
-	(void)args;
-	handler_log();
-	setSystemDumpLevel(LOG_SIP_MASK);
-	ret = RPC_CMD_SUCC;
-}
-
-void YetiRpc::setSystemDumpLevelRtp(const AmArg& args, AmArg& ret){
-	(void)args;
-	handler_log();
-	setSystemDumpLevel(LOG_RTP_MASK);
-	ret = RPC_CMD_SUCC;
-}
-
-void YetiRpc::setSystemDumpLevelFull(const AmArg& args, AmArg& ret){
-	(void)args;
-	handler_log();
-	setSystemDumpLevel(LOG_FULL_MASK);
-	ret = RPC_CMD_SUCC;
-}
-
 void YetiRpc::showSystemStatus(const AmArg& args, AmArg& ret){
 	handler_log();
-	ret["shutdown_mode"] = (bool)AmConfig::ShutdownMode;
-	ret["shutdown_request_time"] = !timerisset(&last_shutdown_time) ?
-					"nil" : timeval2str(last_shutdown_time);
-
 	ret["version"] = YETI_VERSION;
-	ret["core_version"] = SEMS_VERSION;
 	ret["calls"] = (long int)cdr_list.get_count();
-	ret["sessions"] = (int)AmSession::getSessionNum();
-	ret["dump_level"] = dump_level2str(AmConfig::DumpLevel);
-
-	time_t now = time(NULL);
-	ret["localtime"] = now;
-	ret["uptime"] = difftime(now,start_time);
+	CALL_CORE(showStatus);
 }
 
 void YetiRpc::showSystemAlarms(const AmArg& args, AmArg& ret){
@@ -1190,57 +924,6 @@ void YetiRpc::showSystemAlarms(const AmArg& args, AmArg& ret){
 		ret.push(AmArg());
 		a->get(id).getInfo(ret.back());
 	}
-}
-
-void YetiRpc::showSystemDumpLevel(const AmArg& args, AmArg& ret){
-	(void)args;
-	handler_log();
-	ret = dump_level2str(AmConfig::DumpLevel);
-}
-
-inline void graceful_suicide(){
-	kill(getpid(),SIGINT);
-}
-
-inline void immediate_suicide(){
-	kill(getpid(),SIGTERM);
-}
-
-static void set_system_shutdown(bool shutdown){
-	AmConfig::ShutdownMode = shutdown;
-	INFO("ShutDownMode changed to %d",AmConfig::ShutdownMode);
-
-	if(AmConfig::ShutdownMode&&!AmSession::getSessionNum()){
-		//commit suicide immediatly
-		INFO("no active session on graceful shutdown command. exit immediatly");
-		graceful_suicide();
-	}
-}
-
-void YetiRpc::requestSystemShutdown(const AmArg& args, AmArg& ret){
-	handler_log();
-	graceful_suicide();
-	ret = RPC_CMD_SUCC;
-}
-
-void YetiRpc::requestSystemShutdownImmediate(const AmArg& args, AmArg& ret){
-	handler_log();
-	immediate_suicide();
-	ret = RPC_CMD_SUCC;
-}
-
-void YetiRpc::requestSystemShutdownGraceful(const AmArg& args, AmArg& ret){
-	handler_log();
-	gettimeofday(&last_shutdown_time,NULL);
-	set_system_shutdown(true);
-	ret = RPC_CMD_SUCC;
-}
-
-void YetiRpc::requestSystemShutdownCancel(const AmArg& args, AmArg& ret){
-	handler_log();
-	timerclear(&last_shutdown_time);
-	set_system_shutdown(false);
-	ret = RPC_CMD_SUCC;
 }
 
 void YetiRpc::getResourceState(const AmArg& args, AmArg& ret){
@@ -1313,68 +996,34 @@ void YetiRpc::requestResourcesInvalidate(const AmArg& args, AmArg& ret){
 	}
 }
 
-void YetiRpc::showSessions(const AmArg& args, AmArg& ret){
-	handler_log();
+DEFINE_CORE_PROXY_METHOD(showMediaStreams);
+DEFINE_CORE_PROXY_METHOD(showSessionsCount);
+DEFINE_CORE_PROXY_METHOD(showRecorderStats);
+DEFINE_CORE_PROXY_METHOD(showPayloads);
+DEFINE_CORE_PROXY_METHOD(showInterfaces);
 
-	ret["limit"] = (long int)AmConfig::SessionLimit;
-	ret["limit_error_code"] = (long int)AmConfig::SessionLimitErrCode;
-	ret["limit_error_reason"] = AmConfig::SessionLimitErrReason;
-}
+DEFINE_CORE_PROXY_METHOD(setSessionsLimit);
 
-void YetiRpc::setSessionsLimit(const AmArg& args, AmArg& ret){
-	handler_log();
-	if(args.size()<3){
-		throw AmSession::Exception(500,"missed parameter");
-	}
-	args.assertArrayFmt("sss");
+DEFINE_CORE_PROXY_METHOD(requestResolverClear);
+DEFINE_CORE_PROXY_METHOD(requestResolverGet);
 
-	int limit,code;
-	if(!str2int(args.get(0).asCStr(),limit)){
-		throw AmSession::Exception(500,"non integer value for sessions limit");
-	}
-	if(!str2int(args.get(1).asCStr(),code)){
-		throw AmSession::Exception(500,"non integer value for overload response code");
-	}
+DEFINE_CORE_PROXY_METHOD_ALTER(showUploadDestinations,showHttpDestinations);
+DEFINE_CORE_PROXY_METHOD_ALTER(showUploadStats,showHttpStats);
+DEFINE_CORE_PROXY_METHOD_ALTER(showSystemLogLevel,showLogLevel);
+DEFINE_CORE_PROXY_METHOD_ALTER(showSystemDumpLevel,showDumpLevel);
+DEFINE_CORE_PROXY_METHOD_ALTER(showSessions,showSessionsLimit);
 
-	AmConfig::SessionLimit = limit;
-	AmConfig::SessionLimitErrCode = code;
-	AmConfig::SessionLimitErrReason = args.get(2).asCStr();
+DEFINE_CORE_PROXY_METHOD_ALTER(setSystemLogSyslogLevel,setLogSyslogLevel);
+DEFINE_CORE_PROXY_METHOD_ALTER(setSystemLogDiLogLevel,setLogDiLogLevel);
+DEFINE_CORE_PROXY_METHOD_ALTER(setSystemDumpLevelNone,setDumpLevelNone);
+DEFINE_CORE_PROXY_METHOD_ALTER(setSystemDumpLevelSignalling,setDumpLevelSignalling);
+DEFINE_CORE_PROXY_METHOD_ALTER(setSystemDumpLevelRtp,setDumpLevelRtp);
+DEFINE_CORE_PROXY_METHOD_ALTER(setSystemDumpLevelFull,setDumpLevelFull);
 
-	ret = RPC_CMD_SUCC;
-}
-
-
-void YetiRpc::requestResolverClear(const AmArg& args, AmArg& ret){
-	handler_log();
-	resolver::instance()->clear_cache();
-	ret = RPC_CMD_SUCC;
-}
-
-void YetiRpc::requestResolverGet(const AmArg& args, AmArg& ret){
-	static const cstring udp_trsp("udp");
-
-	handler_log();
-	if(!args.size()){
-		throw AmSession::Exception(500,"missed parameter");
-	}
-	string target = args[0].asCStr();
-	if(target.empty()) return;
-
-	dns_handle h;
-	sockaddr_storage remote_ip;
-
-	bzero(&remote_ip,sizeof(remote_ip));
-	if(-1==resolver::instance()->resolve_name(
-						target.c_str(),
-						&h,&remote_ip,
-						IPv4,
-						target[0]=='_' ? dns_r_srv : dns_r_a))
-	{
-		throw AmSession::Exception(500,"unresolvable destination");
-	}
-	ret["address"] = get_addr_str_sip(&remote_ip).c_str();
-	unsigned short port = am_get_port(&remote_ip);
-	ret["port"] = port ? port : 5060;
-	h.dump(ret["handler"]);
-}
+DEFINE_CORE_PROXY_METHOD_ALTER(requestUpload,requestHttpUpload);
+DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemLogDump,requestLogDump);
+DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdown,requestShutdownNormal);
+DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdownImmediate,requestShutdownImmediate);
+DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdownGraceful,requestShutdownGraceful);
+DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdownCancel,requestShutdownCancel);
 
