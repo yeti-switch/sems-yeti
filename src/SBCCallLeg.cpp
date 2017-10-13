@@ -579,8 +579,24 @@ bool SBCCallLeg::connectCallee(const AmSipRequest &orig_req)
             ruri = ctx.ruri_parser.uri_str();
         }
     }
+
+    AmUriParser from_uri, to_uri;
+
     from = call_profile.from.empty() ? orig_req.from : call_profile.from;
+    //from_uri.uri = call_profile.from.empty() ? orig_req.from : call_profile.from;
+    if(!from_uri.parse_nameaddr(from)) {
+        DBG("Error parsing From-URI '%s'\n",from.c_str());
+        throw AmSession::Exception(400,"Failed to parse From-URI");
+    }
+
     to = call_profile.to.empty() ? orig_req.to : call_profile.to;
+    if(!to_uri.parse_nameaddr(to)) {
+        DBG("Error parsing To-URI '%s'\n",to.c_str());
+        throw AmSession::Exception(400,"Failed to parse To-URI");
+    }
+
+    from = from_uri.nameaddr_str();
+    to = to_uri.nameaddr_str();
 
     applyAProfile();
     call_profile.apply_a_routing(ctx,orig_req,*dlg);
