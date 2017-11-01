@@ -15,7 +15,8 @@ class YetiRpc
   public:
     YetiRpc(YetiBase &base)
       : YetiBase(base),
-        YetiRadius(base)
+        YetiRadius(base),
+        RpcTreeHandler<YetiRpc>(true)
     { }
 
     void invoke(const string& method, const AmArg& args, AmArg& ret);

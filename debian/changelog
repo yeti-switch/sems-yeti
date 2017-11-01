@@ -1,3 +1,9 @@
+sems-yeti (1.7.27-2) stable; urgency=low
+
+  * force dotted rpc
+
+ -- dev <dev@yeti-switch.org>  Wed, 01 Nov 2017 13:35:09 +0200
+
 sems-yeti (1.7.27-1) stable; urgency=low
 
   * fix newlines in custom headers related variables
