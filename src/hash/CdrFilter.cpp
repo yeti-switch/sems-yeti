@@ -51,7 +51,10 @@ typedef map<string,cmp_cond_t>::const_iterator cond_name2type_iterator;
 
 //resolve sql types into internal type id
 static cmp_type_t get_type_by_name(const string &type_name){
-	if(type_name=="integer" || type_name=="smallint"){
+	if(type_name=="integer"
+	   || type_name=="smallint"
+	   || type_name=="boolean")
+	{
 		return c_type_int;
 	} else if(type_name=="bigint") {
 		return c_type_long_long_int;
