@@ -921,6 +921,8 @@ void SBCCallLeg::applyBProfile()
 
     setAllow1xxWithoutToTag(call_profile.allow_1xx_without_to_tag);
 
+    redirects_allowed = call_profile.bleg_max_30x_redirects;
+
     if (call_profile.auth_enabled) {
         // adding auth handler
         AmSessionEventHandlerFactory* uac_auth_f =

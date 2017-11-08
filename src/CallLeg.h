@@ -211,6 +211,8 @@ class CallLeg: public AmB2BSession
 
   protected:
 
+    unsigned int redirects_allowed;
+
     virtual void b2bInitial1xx(AmSipReply& reply, bool forward);
 
 	void setInviteTransactionTimeout(unsigned int timeout) { inv_timers_override.stimer_b = timeout; }

@@ -54,7 +54,8 @@ CallLeg::CallLeg(const CallLeg* caller, AmSipDialog* p_dlg, AmSipSubscription* p
     call_status(Disconnected),
     on_hold(false),
 	hold(PreserveHoldStatus),
-	allow_1xx_without_to_tag(false)
+	allow_1xx_without_to_tag(false),
+	redirects_allowed(0)
 {
   a_leg = !caller->a_leg; // we have to be the complement
 
@@ -103,7 +104,8 @@ CallLeg::CallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
     call_status(Disconnected),
     on_hold(false),
 	hold(PreserveHoldStatus),
-	allow_1xx_without_to_tag(false)
+	allow_1xx_without_to_tag(false),
+	redirects_allowed(0)
 {
   a_leg = true;
 
@@ -508,7 +510,9 @@ void CallLeg::onB2BConnect(ConnectLegEvent* co_ev)
   }
 
   int res = dlg->sendRequest(SIP_METH_INVITE, &body,
-	  co_ev->hdrs, SIP_FLAGS_VERBATIM, &inv_timers_override);
+      co_ev->hdrs, SIP_FLAGS_VERBATIM, &inv_timers_override,
+      NULL, //target_set_override
+      redirects_allowed);
   if (res < 0) {
     DBG("sending INVITE failed, relaying back error reply\n");
     relayError(SIP_METH_INVITE, co_ev->r_cseq, true, res);
