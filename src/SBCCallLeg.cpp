@@ -2430,7 +2430,9 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     ct->rewrite_response(intermediate_code,intermediate_reason,
         reply.code,reply.reason,
         call_ctx->getOverrideId(true)); //aleg_override_id
-    cdr->update_internal_reason(DisconnectByDST,intermediate_reason,intermediate_code);
+    cdr->update_internal_reason(
+        reply.local_reply ? DisconnectByTS : DisconnectByDST,
+        intermediate_reason,intermediate_code);
     cdr->update_aleg_reason(reply.reason,reply.code);
 
     if(ct->stop_hunting(reply.code,call_ctx->getOverrideId(false))){
