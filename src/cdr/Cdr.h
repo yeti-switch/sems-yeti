@@ -108,6 +108,8 @@ struct Cdr: public
 
 	unsigned short isup_propagation_delay;
 
+	bool is_redirected;
+
 	struct dtmf_event_info {
 		int event, rx_proto,tx_proto;
 		struct timeval time;

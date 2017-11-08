@@ -1761,6 +1761,13 @@ void SBCCallLeg::process(AmEvent* ev)
             }
         }
 
+        AmSipRedirect *redirect_event = dynamic_cast<AmSipRedirect*>(ev);
+        if(redirect_event) {
+            with_cdr_for_read
+                cdr->is_redirected = true;
+            return;
+        }
+
         AmPluginEvent* plugin_event = dynamic_cast<AmPluginEvent*>(ev);
         if(plugin_event){
             DBG("%s plugin_event. name = %s, event_id = %d",FUNC_NAME,

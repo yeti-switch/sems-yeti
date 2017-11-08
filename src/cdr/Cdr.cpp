@@ -133,6 +133,7 @@ void Cdr::init(){
 
 	isup_propagation_delay = 0;
 	audio_record_enabled = false;
+	is_redirected = false;
 }
 
 void Cdr::update_sql(const SqlCallProfile &profile){
@@ -829,6 +830,8 @@ void Cdr::invoc(pqxx::prepare::invocation &invoc,
 	}
 
 	invoc_json(serialize_versions());
+
+	invoc_field(is_redirected);
 
 	/* invocate dynamic fields  */
 	if(serialize_dynamic_fields){
