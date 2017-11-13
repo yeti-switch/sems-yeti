@@ -1,3 +1,12 @@
+sems-yeti (1.7.28-1) stable; urgency=low
+
+  * b38d15a process 'bleg_max_30x_redirects' call profile option
+  * ea1c692 cdr: add 'is_redirected' field
+  * 9d071b3 CdrFilter: process boolean dynamic fields with integers parser/comparator
+  * d32aa0e SBCCallLeg::onBLegRefused: set disconnect initiator to TrafficSwitch for locally generated replies
+
+ -- dev <dev@yeti-switch.org>  Mon, 13 Nov 2017 21:49:37 +0200
+
 sems-yeti (1.7.27-2) stable; urgency=low
 
   * force dotted rpc
