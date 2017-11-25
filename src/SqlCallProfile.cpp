@@ -312,6 +312,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	assign_int_safe_silent(aleg_outbound_proxy_transport_id,"aleg_outbound_proxy_transport_protocol_id",0,0);
 
 	assign_int_safe_silent(bleg_max_30x_redirects,"bleg_max_30x_redirects",0,0);
+	assign_int_safe_silent(bleg_max_transfers, "bleg_max_transfers",0,0);
 
 	DBG("Yeti: loaded SQL profile\n");
 

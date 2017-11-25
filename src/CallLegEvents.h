@@ -3,16 +3,45 @@
 
 // TODO: global event numbering
 enum {
-  ConnectLeg = B2BMsgBody + 16,
+  ConnectLeg = B2BDtmfEvent + 16,
   ReconnectLeg,
   ReplaceLeg,
   ReplaceInProgress,
   DisconnectLeg,
   ChangeRtpModeEventId,
-  ResumeHeld
+  ResumeHeld,
+  B2BRefer,
+  B2BNotify
 };
 
-#define LAST_B2B_CALL_LEG_EVENT_ID ResumeHeld
+#define LAST_B2B_CALL_LEG_EVENT_ID B2BNotify
+
+struct B2BReferEvent
+  : public B2BEvent
+{
+    string referrer_session;
+    string referred_to;
+
+    B2BReferEvent(const string &session, const string &target)
+      : B2BEvent(B2BRefer),
+        referrer_session(session),
+        referred_to(target)
+    {}
+
+};
+
+struct B2BNotifyEvent
+  : public B2BEvent
+{
+    int code;
+    string reason;
+
+    B2BNotifyEvent(int code, const string &reason)
+      : B2BEvent(B2BNotify),
+        code(code),
+        reason(reason)
+    {}
+};
 
 struct ConnectLegEvent: public B2BEvent
 {

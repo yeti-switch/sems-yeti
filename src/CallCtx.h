@@ -37,6 +37,9 @@ struct CallCtx: public
 	bool ringing_timeout;
 	bool ringing_sent;
 
+	string referrer_session;
+	bool transfer_intermediate_state;
+
 	fake_logger *early_trying_logger;
 
 	AmSdp bleg_initial_offer;

@@ -18,6 +18,7 @@
 #include "sip/pcap_logger.h"
 #include "sip/sip_parser.h"
 #include "sip/sip_trans.h"
+#include "sip/parse_nameaddr.h"
 
 #include "HeaderFilter.h"
 #include "ParamReplacer.h"
@@ -71,15 +72,11 @@ static const char *callStatus2str(const CallLeg::CallStatus state)
 
 #define getCtx_void \
     if(NULL==call_ctx) {\
-        ERROR("CallCtx = nullptr ");\
-        log_stacktrace(L_ERR);\
         return;\
     }
 
 #define getCtx_chained \
     if(NULL==call_ctx) {\
-        ERROR("CallCtx = nullptr ");\
-        log_stacktrace(L_ERR);\
         break;\
     }
 
@@ -1008,7 +1005,18 @@ void SBCCallLeg::applyBProfile()
 int SBCCallLeg::relayEvent(AmEvent* ev)
 {
     if(NULL==call_ctx) {
-        ERROR("Yeti::relayEvent(%p) zero ctx. ignore event",this);
+        if(ev->event_id==B2BSipRequest && getOtherId().empty()) {
+            B2BSipRequestEvent* req_ev = dynamic_cast<B2BSipRequestEvent*>(ev);
+            assert(req_ev);
+            AmSipRequest &req = req_ev->req;
+            if(req.method==SIP_METH_BYE) {
+                DBG("relayEvent(%p) reply 200 OK for leg without call_ctx and other_id",this);
+                dlg->reply(req,200,"OK");
+                delete ev;
+                return 0;
+            }
+        }
+        DBG("relayEvent(%p) zero ctx. ignore event",this);
         return -1;
     }
 
@@ -1088,6 +1096,25 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
         AmSipReply &reply = reply_ev->reply;
 
         reply.rseq = 0;
+
+        if(call_ctx->transfer_intermediate_state &&
+           reply.cseq_method==SIP_METH_INVITE)
+        {
+            if(!call_ctx->referrer_session.empty()) {
+                DBG("generate Notfy event %d/%s for referrer leg: %s",
+                    reply.code,reply.reason.c_str(),
+                    call_ctx->referrer_session.c_str());
+                if(!AmSessionContainer::instance()->postEvent(
+                    call_ctx->referrer_session,
+                    new B2BNotifyEvent(reply.code,reply.reason)))
+                {
+                    call_ctx->referrer_session.clear();
+                }
+                if(reply.code >= 200) {
+                    call_ctx->referrer_session.clear();
+                }
+            }
+        }
 
         DBG("Yeti::relayEvent(%p) filtering body for reply %d cseq.method '%s' (c/t '%s') oa_state = %d\n",
             this,reply.code,reply_ev->trans_method.c_str(), reply.body.getCTStr().c_str(),
@@ -1211,13 +1238,13 @@ void SBCCallLeg::onBeforeDestroy()
     DBG("%s(%p|%s,leg%s)",FUNC_NAME,
         this,getLocalTag().c_str(),a_leg?"A":"B");
 
-    if(!call_ctx) return;
-
-    call_ctx->lock();
-
     if(call_profile.record_audio) {
         AmAudioFileRecorderProcessor::instance()->removeRecorder(getLocalTag());
     }
+
+    if(!call_ctx) return;
+
+    call_ctx->lock();
 
     if(call_ctx->dec_and_test()) {
         DBG("last leg destroy");
@@ -1270,10 +1297,10 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
     }
 
     do {
-        if(!call_ctx->initial_invite)
-            break;
-
         DBG("onInDialogRequest(%p|%s,leg%s) '%s'",this,getLocalTag().c_str(),a_leg?"A":"B",req.method.c_str());
+
+        if(!call_ctx || !call_ctx->initial_invite)
+            break;
 
         if(req.method == SIP_METH_OPTIONS
             && ((a_leg && !call_profile.aleg_relay_options)
@@ -1404,6 +1431,54 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
 
             processLocalRequest(inv_req);
             return;
+        } else if(req.method==SIP_METH_REFER) {
+            if(a_leg) {
+                dlg->reply(req,603,"Refer is not allowed for Aleg");
+                return;
+            }
+            if(getOtherId().empty()) {
+                dlg->reply(req,603,"Refer is not possible at this stage");
+                return;
+            }
+
+            if(call_profile.bleg_max_transfers <= 0) {
+                dlg->reply(req,603,"Refer is not allowed");
+                return;
+            }
+            string refer_to = getHeader(
+                req.hdrs,
+                SIP_HDR_REFER_TO,SIP_HDR_REFER_TO_COMPACT,
+                true);
+
+            if(refer_to.empty()) {
+                dlg->reply(req,400,"Refer-To header missing");
+                return;
+            }
+
+            sip_nameaddr refer_to_nameaddr;
+            const char *refer_to_ptr = refer_to.c_str();
+            if(0!=parse_nameaddr(&refer_to_nameaddr, &refer_to_ptr,refer_to.length())) {
+                DBG("failed to parse Refer-To header: %s",refer_to.c_str());
+                dlg->reply(req,400,"Invalid Refer-To header");
+                return;
+            }
+            refer_to = c2stlstr(refer_to_nameaddr.addr);
+
+            if(!subs->onRequestIn(req))
+                return;
+
+            last_refer_cseq = int2str(req.cseq); //memorize cseq to send NOTIFY
+
+            dlg->reply(req,202,"Accepted");
+
+            relayEvent(new B2BReferEvent(getLocalTag(),refer_to)); //notify Aleg about Refer
+            clearRtpReceiverRelay(); //disconnect B2BMedia
+            AmB2BSession::clear_other(); //forget about Aleg
+
+            call_ctx->dec(); //release ctx reference
+            call_ctx = nullptr; //forget about ctx
+
+            return;
         }
 
         if(a_leg){
@@ -1471,14 +1546,18 @@ void SBCCallLeg::onSipReply(const AmSipRequest& req, const AmSipReply& reply,
         }
     }
 
-    do {
-        if(!a_leg) {
-            getCtx_chained
-            with_cdr_for_read {
-                cdr->update(reply);
+    if(!a_leg && call_ctx) {
+        if(call_ctx->transfer_intermediate_state &&
+           reply.cseq_method==SIP_METH_INVITE)
+        {
+            if(reply.code >= 200 && reply.code < 300) {
+                dlg->send_200_ack(reply.cseq);
             }
+        } else {
+            with_cdr_for_read
+                cdr->update(reply);
         }
-    } while(0);
+    }
 
     CallLeg::onSipReply(req, reply, old_dlg_status);
 }
@@ -1488,7 +1567,11 @@ void SBCCallLeg::onSendRequest(AmSipRequest& req, int &flags)
     DBG("Yeti::onSendRequest(%p|%s) a_leg = %d",
         this,getLocalTag().c_str(),a_leg);
 
-    if(call_ctx && !a_leg && req.method==SIP_METH_INVITE) {
+    if(call_ctx &&
+       !a_leg &&
+       call_ctx->referrer_session.empty() &&
+        req.method==SIP_METH_INVITE)
+    {
         with_cdr_for_read cdr->update(BLegInvite);
     }
 
@@ -1908,6 +1991,26 @@ void SBCCallLeg::process(AmEvent* ev)
         }
     }
 
+    if(B2BEvent* b2b_e = dynamic_cast<B2BEvent*>(ev)) {
+        switch(b2b_e->event_id) {
+        case B2BRefer: {
+            B2BReferEvent *refer = dynamic_cast<B2BReferEvent *>(b2b_e);
+            if(refer) onOtherRefer(*refer);
+            return;
+        } break;
+        case B2BNotify: {
+            B2BNotifyEvent *notify = dynamic_cast<B2BNotifyEvent *>(b2b_e);
+            if(notify) {
+                sendReferNotify(notify->code,notify->reason);
+                //TODO: set timer here for final code
+            }
+            return;
+        } break;
+        default:
+            break;
+        }
+    }
+
     CallLeg::process(ev);
 }
 
@@ -2221,12 +2324,16 @@ void SBCCallLeg::onCallConnected(const AmSipReply& reply)
     DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
 
     if(call_ctx) {
-        Cdr *cdr = call_ctx->cdr;
-
-        if(a_leg) cdr->update(Connect);
-        else cdr->update(BlegConnect);
-
-        radius_accounting_start(this,*cdr,call_profile);
+        if(!call_ctx->transfer_intermediate_state) {
+            with_cdr_for_read {
+                if(a_leg) cdr->update(Connect);
+                else cdr->update(BlegConnect);
+                radius_accounting_start(this,*cdr,call_profile);
+            }
+        } else if(!a_leg) {
+            //we got final positive reply for Bleg. clear xfer intermediate state
+            call_ctx->transfer_intermediate_state = false;
+        }
     }
 
     if (a_leg) { // FIXME: really?
@@ -2864,4 +2971,63 @@ void SBCCallLeg::b2bInitial1xx(AmSipReply& reply, bool forward)
         }
     }
     return CallLeg::b2bInitial1xx(reply,forward);
+}
+
+void SBCCallLeg::b2bConnectedErr(AmSipReply& reply)
+{
+    const static string xfer_failed("Transfer Failed: ");
+
+    if(!a_leg) return;
+    if(!call_ctx) return;
+    if(!call_ctx->transfer_intermediate_state) return;
+
+    DBG("got %d/%s for xfer INVITE. force CDR reasons",
+        reply.code,reply.reason.c_str());
+
+    with_cdr_for_read {
+        cdr->lock();
+        cdr->disconnect_initiator = DisconnectByTS;
+        cdr->disconnect_internal_code = 200;
+        cdr->disconnect_internal_reason =
+            xfer_failed + int2str(reply.code) + "/" + reply.reason;
+        cdr->unlock();
+        cdr->update_aleg_reason("Bye",200);
+        cdr->update_bleg_reason("Bye",200);
+    }
+    terminateLeg();
+}
+
+void SBCCallLeg::onOtherRefer(const B2BReferEvent &refer)
+{
+    DBG("%s(%p) to: %s",FUNC_NAME,this,refer.referred_to.c_str());
+
+    removeOtherLeg(refer.referrer_session);
+
+    with_cdr_for_read {
+        //TODO: use separate field to indicate refer
+        cdr->is_redirected = true;
+    }
+
+    call_ctx->referrer_session = refer.referrer_session;
+    call_ctx->transfer_intermediate_state = true;
+
+    call_profile.bleg_max_transfers--;
+
+    DBG("patch RURI: '%s' -> '%s'",
+        ruri.c_str(),refer.referred_to.c_str());
+    ruri = refer.referred_to;
+
+    DBG("patch To: '%s' -> '%s'",
+        to.c_str(),refer.referred_to.c_str());
+    to = refer.referred_to;
+
+    connectCallee(to, ruri, from, aleg_modified_req, modified_req);
+}
+
+void SBCCallLeg::sendReferNotify(int code, string &reason)
+{
+    DBG("%s(%p) %d %s",FUNC_NAME,this,code,reason.c_str());
+    if(last_refer_cseq.empty()) return;
+    string body = "SIP/2.0 " + int2str(code) + " " + reason + CRLF;
+    subs->sendReferNotify(dlg,last_refer_cseq,body,code >= 200);
 }

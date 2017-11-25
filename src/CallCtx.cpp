@@ -140,6 +140,7 @@ CallCtx::CallCtx():
 	ringing_sent(false),
 	bleg_early_media_muted(false),
 	on_hold(false),
+	transfer_intermediate_state(false),
 	early_trying_logger(new fake_logger())
 {
 	inc_ref(early_trying_logger);

@@ -461,6 +461,20 @@ void CallLeg::onB2BReply(B2BSipReplyEvent *ev)
   else {
     // handle non-initial replies
 
+    if(call_status == Connected &&
+       reply.code >= 200 &&
+       reply.cseq_method == SIP_METH_INVITE)
+    {
+        if(reply.code < 300) {
+            if(!setOther(reply.from_tag, false)) {
+                DBG("2xx reply received from unknown B leg\n");
+            }
+        } else {
+            b2bConnectedErr(reply);
+        }
+        return;
+    }
+
     // reply not from our peer (might be one of the discarded ones)
     if (getOtherId() != ev->sender_ltag && getOtherId() != reply.from_tag) {
       TRACE("ignoring reply from %s in %s state, other_id = '%s'\n",
@@ -829,8 +843,10 @@ void CallLeg::onSipRequest(const AmSipRequest& req)
     }
   }
   else {
-    if(getCallStatus() == Disconnected &&
-       req.method == SIP_METH_BYE) {
+    if(((getCallStatus() == Disconnected) /*||
+            (getCallStatus() == Connected && getOtherId().empty())*/)
+       && req.method == SIP_METH_BYE)
+    {
       // seems that we have already sent/received a BYE
       // -> we'd better terminate this ASAP
       //    to avoid other confusions...

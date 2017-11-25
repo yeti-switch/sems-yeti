@@ -43,6 +43,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   AmUriParser uac_ruri;
   string ruri, to, from;
   ParamReplacerCtx ctx;
+  string last_refer_cseq;
 
   string global_tag;
   CallCtx *call_ctx;
@@ -118,6 +119,9 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void onTearDown();
   void onSystemEventOverride(AmSystemEvent* event);
   void onServerShutdown();
+
+  void onOtherRefer(const B2BReferEvent &refer);
+  void sendReferNotify(int code, string &reason);
 
  public:
 
@@ -215,6 +219,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   msg_sensor *getSensor() { return sensor; }
 
   void b2bInitial1xx(AmSipReply& reply, bool forward);
+  void b2bConnectedErr(AmSipReply& reply);
 
  protected:
 

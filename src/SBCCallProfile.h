@@ -283,6 +283,7 @@ struct SBCCallProfile
   int fake_ringing_timeout;
 
   unsigned int bleg_max_30x_redirects;
+  unsigned int bleg_max_transfers;
 
   struct TranscoderSettings {
     // non-replaced parameters
@@ -455,7 +456,8 @@ struct SBCCallProfile
 	aleg_radius_acc_profile_id(0),
 	bleg_radius_acc_profile_id(0),
 	fake_ringing_timeout(0),
-	bleg_max_30x_redirects(0)
+	bleg_max_30x_redirects(0),
+	bleg_max_transfers(0)
   { }
 
   bool readFromConfiguration(const string& name, const string profile_file_name);

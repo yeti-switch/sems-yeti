@@ -17,26 +17,21 @@ static string server_hdr(SIP_HDR_SERVER);
 
 static const char *updateAction2str(UpdateAction act){
 	static const char *aStart = "Start";
+	static const char *aBLegInvite = "BlegInvite";
+	static const char *aBLegConnect = "BlegConnect";
 	static const char *aConnect = "Connect";
 	static const char *aEnd = "End";
 	static const char *aWrite = "Write";
 	static const char *aUnknown = "Unknown";
 
 	switch(act){
-		case Start:
-			return aStart;
-			break;
-		case Connect:
-			return aConnect;
-			break;
-		case End:
-			return aEnd;
-			break;
-		case Write:
-			return aWrite;
-			break;
-		default:
-			return aUnknown;
+		case Start: return aStart;
+		case BLegInvite: return aBLegInvite;
+		case Connect: return aConnect;
+		case BlegConnect: return aBLegConnect;
+		case End: return aEnd;
+		case Write: return aWrite;
+		default: return aUnknown;
 	}
 }
 

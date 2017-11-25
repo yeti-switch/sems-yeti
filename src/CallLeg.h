@@ -156,9 +156,6 @@ class CallLeg: public AmB2BSession
     /** choose given B leg from the list of other B legs */
     bool setOther(const string &id, bool use_initial_sdp);
 
-    /** remove given leg from the list of other legs */
-    void removeOtherLeg(const string &id);
-
     void updateCallStatus(CallStatus new_status, const StatusChangeCause &cause = StatusChangeCause());
 
     //////////////////////////////////////////////////////////////////////
@@ -214,10 +211,14 @@ class CallLeg: public AmB2BSession
     unsigned int redirects_allowed;
 
     virtual void b2bInitial1xx(AmSipReply& reply, bool forward);
+    virtual void b2bConnectedErr(AmSipReply& reply) = 0;
 
 	void setInviteTransactionTimeout(unsigned int timeout) { inv_timers_override.stimer_b = timeout; }
 	void setInviteRetransmitTimeout(unsigned int timeout) { inv_timers_override.stimer_m = timeout; }
     // functions offered to successors
+
+    /** remove given leg from the list of other legs */
+    void removeOtherLeg(const string &id);
 
     virtual void setCallStatus(CallStatus new_status);
     CallStatus getCallStatus() const { return call_status; }
