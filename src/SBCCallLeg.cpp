@@ -1667,22 +1667,24 @@ void SBCCallLeg::onRemoteDisappeared(const AmSipReply& reply)
 void SBCCallLeg::onBye(const AmSipRequest& req)
 {
     DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
-    if(call_ctx) {
-        with_cdr_for_read {
-            if(a_leg){
-                if(getCallStatus()!=CallLeg::Connected) {
-                    ERROR("received Bye in not connected state");
-                    cdr->update_internal_reason(DisconnectByORG,"EarlyBye",500);
-                    cdr->update_aleg_reason("EarlyBye",200);
-                    cdr->update_bleg_reason("Cancel",487);
-                } else {
-                    cdr->update_internal_reason(DisconnectByORG,"Bye",200);
-                    cdr->update_bleg_reason("Bye",200);
-                }
+    if(!call_ctx) return;
+    with_cdr_for_read {
+        if(getCallStatus()!=CallLeg::Connected) {
+            if(a_leg) {
+                DBG("received Bye in not connected state");
+                cdr->update_internal_reason(DisconnectByORG,"EarlyBye",500);
+                cdr->update_aleg_reason("EarlyBye",200);
+                cdr->update_bleg_reason("Cancel",487);
             } else {
-                cdr->update_internal_reason(DisconnectByDST,"Bye",200);
-                cdr->update_bleg_reason("Bye",200);
+                DBG("generate reply for early BYE on Bleg and force leg termination");
+                cdr->update_bleg_reason("EarlyBye",200);
+                dlg->reply(req,200,"OK");
+                terminateLeg();
+                return;
             }
+        } else {
+            cdr->update_internal_reason(a_leg ? DisconnectByORG : DisconnectByDST,"Bye",200);
+            cdr->update_bleg_reason("Bye",200);
         }
     }
     CallLeg::onBye(req);
@@ -1694,7 +1696,7 @@ void SBCCallLeg::onOtherBye(const AmSipRequest& req)
     if(call_ctx && a_leg) {
         if(getCallStatus()!=CallLeg::Connected) {
             //avoid considering of bye in not connected state as succ call
-            ERROR("received OtherBye in not connected state");
+            DBG("received OtherBye in not connected state");
             with_cdr_for_write {
                 cdr->update_internal_reason(DisconnectByDST,"EarlyBye",500);
                 cdr->update_aleg_reason("Request terminated",487);
