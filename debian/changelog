@@ -1,3 +1,10 @@
+sems-yeti (1.7.26-6) stable; urgency=low
+
+  * 78ed9f8 (HEAD -> old, didww/old) rpc: fix 'core_version' field source for 'show system status'
+  * e53e508 SBCCallLeg: fix BYE in early state processing on legB
+
+ -- dev <dev@yeti-switch.org>  Wed, 29 Nov 2017 19:33:10 +0200
+
 sems-yeti (1.7.26-5) stable; urgency=low
 
   * disable RTP timeout for early media
