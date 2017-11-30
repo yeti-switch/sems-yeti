@@ -1,3 +1,9 @@
+sems-yeti (1.7.28-3) stable; urgency=low
+
+  * SBCCallLeg: fix BYE in early state processing on legB
+
+ -- dev <dev@yeti-switch.org>  Thu, 30 Nov 2017 15:50:36 +0200
+
 sems-yeti (1.7.28-2) stable; urgency=low
 
   * support for unattended xfers on Bleg. 'bleg_max_transfers' call profile option
