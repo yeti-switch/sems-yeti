@@ -1,3 +1,9 @@
+sems-yeti (1.7.26-7) stable; urgency=low
+
+  * libsems 1.7.52-6
+
+ -- dev <dev@yeti-switch.org>  Sat, 02 Dec 2017 11:13:50 +0000
+
 sems-yeti (1.7.26-6) stable; urgency=low
 
   * 78ed9f8 (HEAD -> old, didww/old) rpc: fix 'core_version' field source for 'show system status'
