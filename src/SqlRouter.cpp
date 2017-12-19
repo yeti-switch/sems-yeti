@@ -39,14 +39,16 @@ const static_field profile_static_fields[] = {
     { "contact_port", "integer" },
     { "uri_name", "varchar" },
     { "uri_domain", "varchar" },
+    { "auth_id", "integer" },
 };
 
-SqlRouter::SqlRouter():
-  master_pool(NULL),
-  slave_pool(NULL),
-  cdr_writer(NULL),
-  cache(NULL),
-  mi(5)
+SqlRouter::SqlRouter()
+  : Auth(),
+    master_pool(NULL),
+    slave_pool(NULL),
+    cdr_writer(NULL),
+    cache(NULL),
+    mi(5)
 {
   clearStats();
 
@@ -147,6 +149,15 @@ try {
 			profile_types.push_back(vartype);
 		}
 	}
+
+	{
+		pqxx::nontransaction t(c);
+		if(0!=auth_init(cfg,t)) {
+			ERROR("failed to initialize uas auth");
+			return 1;
+		}
+	}
+
 	c.disconnect();
 
 	/*{PreparedQueryArgs_iterator i = profile_types.begin();
@@ -301,7 +312,7 @@ void SqlRouter::update_counters(struct timeval &start_time){
         gt_min = diff;
 }
 
-void SqlRouter::getprofiles(const AmSipRequest &req,CallCtx &ctx)
+void SqlRouter::getprofiles(const AmSipRequest &req,CallCtx &ctx, Auth::auth_id_type auth_id)
 {
 	PgConnection *conn = NULL;
 	PgConnectionPool *pool = master_pool;
@@ -327,7 +338,7 @@ void SqlRouter::getprofiles(const AmSipRequest &req,CallCtx &ctx)
 	try {
 		conn = pool->getActiveConnection();
 		if(conn!=NULL){
-			entry = _getprofiles(req,conn);
+			entry = _getprofiles(req,conn,auth_id);
 			pool->returnConnection(conn);
 			getprofile_fail = false;
 		} else {
@@ -371,7 +382,10 @@ void SqlRouter::getprofiles(const AmSipRequest &req,CallCtx &ctx)
 	return;
 }
 
-ProfilesCacheEntry* SqlRouter::_getprofiles(const AmSipRequest &req, pqxx::connection* conn)
+ProfilesCacheEntry* SqlRouter::_getprofiles(
+	const AmSipRequest &req,
+	pqxx::connection* conn,
+	Auth::auth_id_type auth_id)
 {
 #define invoc_field(field_value)\
 	fields_values.push(AmArg(field_value));\
@@ -436,6 +450,10 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(const AmSipRequest &req, pqxx::conne
 	invoc_field(contact_uri.port);			//"contact_port", "integer"
 	invoc_field(req.user);					//"uri_name", "varchar"
 	invoc_field(req.domain);				//"uri_domain", "varchar"
+
+	if(auth_id!=0) { invoc_field(auth_id) }
+	else { invoc_field(); }
+
 	//invoc headers from sip request
 	for(vector<UsedHeaderField>::const_iterator it = used_header_fields.begin();
 			it != used_header_fields.end(); ++it){
@@ -763,4 +781,24 @@ bool SqlRouter::check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
         AmSipDialog::reply_error(req, response_code, response_reason, hdrs);
     }
     return true;
+}
+
+void SqlRouter::db_reload_credentials(AmArg &ret)
+{
+    try {
+        pqxx::connection c(dbc.conn_str());
+        c.set_variable("search_path",routing_schema+", public");
+        pqxx::nontransaction t(c);
+
+        size_t credentials_count;
+        reload_credentials(t,credentials_count);
+
+        ret["result"] = "reloaded";
+        ret["count"] = credentials_count;
+
+        DBG("auth credentials reloaded");
+    } catch(...) {
+        ERROR("failed to reload credentials");
+        AmSession::Exception(500,"exception");
+    }
 }

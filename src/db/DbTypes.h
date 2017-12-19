@@ -10,7 +10,7 @@
 
 #include <pqxx/result>
 
-#define GETPROFILE_STATIC_FIELDS_COUNT 19
+#define GETPROFILE_STATIC_FIELDS_COUNT 20
 #define WRITECDR_STATIC_FIELDS_COUNT 39
 
 struct static_field {
