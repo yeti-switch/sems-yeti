@@ -217,6 +217,7 @@ AmSession* SBCFactory::onInvite(
     CallCtx *call_ctx;
     timeval t;
     Auth::auth_id_type auth_id = 0;
+    AmArg ret;
 
     bool authorized = false;
 
@@ -226,13 +227,20 @@ AmSession* SBCFactory::onInvite(
     if(yeti->config.early_100_trying)
         answer_100_trying(req,call_ctx);
 
-    auth_id = router.check_invite_auth(req);
+    auth_id = router.check_invite_auth(req,ret);
     if(auth_id > 0) {
         DBG("successfully authorized with id %d",auth_id);
         authorized = true;
     } else if(auth_id < 0) {
-        DBG("auth error. reply with 403");
-        AmSipDialog::reply_error(req,403,"Forbidden");
+        DBG("auth error. reply with 401");
+        switch(-auth_id) {
+        case Auth::UAC_AUTH_ERROR:
+            AmSipDialog::reply_error(req,
+                ret[0].asInt(), ret[1].asCStr(),ret[2].asCStr());
+            break;
+        default:
+            router.send_auth_challenge(req);
+        }
         delete call_ctx;
         return NULL;
     }

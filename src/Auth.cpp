@@ -106,18 +106,18 @@ int Auth::reload_credentials(pqxx::nontransaction &t, size_t &credentials_count)
     return 0;
 }
 
-Auth::auth_id_type Auth::check_invite_auth(const AmSipRequest &req)
+Auth::auth_id_type Auth::check_invite_auth(const AmSipRequest &req,  AmArg &ret)
 {
     string auth_hdr =  getHeader(req.hdrs, SIP_HDR_AUTHORIZATION);
     if(auth_hdr.empty()) {
         //no auth header. just continue
-        return 0;
+        return NO_AUTH;
     }
 
     string username = find_attribute("username", auth_hdr);
     if(username.empty()) {
         DBG("no username attribute in " SIP_HDR_AUTHORIZATION " header");
-        return -1;
+        return -NO_USERNAME;
     }
 
     credentials_mutex.lock();
@@ -126,7 +126,7 @@ Auth::auth_id_type Auth::check_invite_auth(const AmSipRequest &req)
     if(range.first == credentials.end()) {
         DBG("no credentials for username '%s'",username.c_str());
         credentials_mutex.unlock();
-        return -1;
+        return -NO_CREDENTIALS;
     }
 
     size_t creds_count = std::distance(range.first,range.second);
@@ -140,7 +140,7 @@ Auth::auth_id_type Auth::check_invite_auth(const AmSipRequest &req)
     DBG("there are %zd credentials for username '%s'. iterate over them",
         creds_count,username.c_str());
 
-    AmArg args, ret;
+    AmArg args;
     args.push((AmObject *) &req);
     args.push(realm);
     args.push(username);
@@ -162,7 +162,7 @@ Auth::auth_id_type Auth::check_invite_auth(const AmSipRequest &req)
         }
     }
 
-    return -1;
+    return -UAC_AUTH_ERROR;
 }
 
 void Auth::send_auth_challenge(const AmSipRequest &req)

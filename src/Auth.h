@@ -9,6 +9,13 @@
 
 class Auth {
   public:
+    enum error_type {
+        NO_AUTH = 0,
+        UAC_AUTH_ERROR,
+        NO_USERNAME,
+        NO_CREDENTIALS,
+    };
+
     using auth_id_type = int;
 
   private:
@@ -57,7 +64,7 @@ class Auth {
     *         =0 to continue (no Authorization header)
     *         <0 on error
     */
-    auth_id_type check_invite_auth(const AmSipRequest &req);
+    auth_id_type check_invite_auth(const AmSipRequest &req, AmArg &ret);
 
     void send_auth_challenge(const AmSipRequest &req);
 };
