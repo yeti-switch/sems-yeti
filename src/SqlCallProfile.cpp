@@ -314,7 +314,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	assign_int_safe_silent(bleg_max_30x_redirects,"bleg_max_30x_redirects",0,0);
 	assign_int_safe_silent(bleg_max_transfers, "bleg_max_transfers",0,0);
 
-	assign_bool_safe_silent(auth_required, "auth_required",false,false);
+	assign_bool_safe_silent(auth_required, "aleg_auth_required",false,false);
 
 	DBG("Yeti: loaded SQL profile\n");
 
