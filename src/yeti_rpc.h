@@ -111,4 +111,9 @@ class YetiRpc
     rpc_handler showUploadDestinations;
     rpc_handler showUploadStats;
     rpc_handler requestUpload;
+
+    rpc_handler showAuthCredentials;
+    rpc_handler showAuthCredentialsByUser;
+    rpc_handler showAuthCredentialsById;
+    rpc_handler requestAuthCredentialsReload;
 };

@@ -134,6 +134,12 @@ void YetiRpc::init_rpc_tree()
 
 		method(show,"interfaces","show network interfaces configuration",showInterfaces,"");
 
+		leaf(show,show_auth,"auth","auth");
+			leaf(show_auth,show_auth_credentials,"credentials","show loaded credentials hash");
+				method(show_auth_credentials,"all","show all credentials",showAuthCredentials,"");
+				method(show_auth_credentials,"user","filter credentials by user",showAuthCredentialsByUser,"");
+				method(show_auth_credentials,"id","filter credentials by id",showAuthCredentialsById,"");
+
 		leaf_method_arg(show,show_sessions,"sessions","show runtime sessions",
 						showSessionsInfo,"active sessions",
 						"<LOCAL-TAG>","show sessions related to given local_tag");
@@ -241,6 +247,10 @@ void YetiRpc::init_rpc_tree()
 			leaf(request_radius,request_radius_acc,"accounting","accounting");
 				leaf(request_radius_acc,request_radius_acc_profiles,"profiles","profiles");
 					method(request_radius_acc_profiles,"reload","reload radius accounting profiles",requestRadiusAccProfilesReload,"");
+
+		leaf(request,request_auth,"auth","auth");
+			leaf(request_auth,request_auth_credentials,"credentials","credentials");
+				method(request_auth_credentials,"reload","reload auth credentials hash",requestAuthCredentialsReload,"");
 
 	/* set */
 	leaf(root,lset,"set","set");
@@ -994,6 +1004,33 @@ void YetiRpc::requestResourcesInvalidate(const AmArg& args, AmArg& ret){
 	} else {
 		throw AmSession::Exception(500,"handlers invalidated. but resources initialization failed");
 	}
+}
+
+void YetiRpc::showAuthCredentials(const AmArg&, AmArg& ret)
+{
+	router.auth_info(ret);
+}
+
+void YetiRpc::showAuthCredentialsByUser(const AmArg& args, AmArg& ret)
+{
+	args.assertArrayFmt("s");
+	router.auth_info_by_user(args.get(0).asCStr(),ret);
+}
+
+void YetiRpc::showAuthCredentialsById(const AmArg& args, AmArg& ret)
+{
+	int id;
+	args.assertArrayFmt("s");
+
+	if(!str2int(args.get(0).asCStr(),id))
+		throw AmSession::Exception(500,"invalid id");
+
+	router.auth_info_by_id(id,ret);
+}
+
+void YetiRpc::requestAuthCredentialsReload(const AmArg&, AmArg& ret)
+{
+	router.db_reload_credentials(ret);
 }
 
 DEFINE_CORE_PROXY_METHOD(showMediaStreams);

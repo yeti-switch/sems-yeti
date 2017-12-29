@@ -208,12 +208,18 @@ inline void answer_100_trying(const AmSipRequest &req, CallCtx *ctx)
 	}
 }
 
-AmSession* SBCFactory::onInvite(const AmSipRequest& req, const string& app_name,
-				const map<string,string>& app_params)
+AmSession* SBCFactory::onInvite(
+    const AmSipRequest& req,
+    const string&,
+    const map<string,string>&)
 {
     ParamReplacerCtx ctx;
     CallCtx *call_ctx;
     timeval t;
+    Auth::auth_id_type auth_id = 0;
+    AmArg ret;
+
+    bool authorized = false;
 
     gettimeofday(&t,NULL);
 
@@ -221,8 +227,26 @@ AmSession* SBCFactory::onInvite(const AmSipRequest& req, const string& app_name,
     if(yeti->config.early_100_trying)
         answer_100_trying(req,call_ctx);
 
+    auth_id = router.check_invite_auth(req,ret);
+    if(auth_id > 0) {
+        DBG("successfully authorized with id %d",auth_id);
+        authorized = true;
+    } else if(auth_id < 0) {
+        DBG("auth error. reply with 401");
+        switch(-auth_id) {
+        case Auth::UAC_AUTH_ERROR:
+            AmSipDialog::reply_error(req,
+                ret[0].asInt(), ret[1].asCStr(),ret[2].asCStr());
+            break;
+        default:
+            router.send_auth_challenge(req);
+        }
+        delete call_ctx;
+        return NULL;
+    }
+
     PROF_START(gprof);
-    router.getprofiles(req,*call_ctx);
+    router.getprofiles(req,*call_ctx,auth_id);
     SqlCallProfile *profile = call_ctx->getFirstProfile();
     if(NULL == profile){
         delete call_ctx;
@@ -232,6 +256,23 @@ AmSession* SBCFactory::onInvite(const AmSipRequest& req, const string& app_name,
     PROF_PRINT("get profiles",gprof);
 
     Cdr *cdr = call_ctx->cdr;
+
+    if(profile->auth_required) {
+        delete cdr;
+        delete call_ctx;
+
+        if(!authorized) {
+            DBG("auth required for not authorized request. send auth challenge");
+            router.send_auth_challenge(req);
+        } else {
+            ERROR("got callprofile with auth_required "
+                "for already authorized request. reply internal error");
+            AmSipDialog::reply_error(req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+
+        }
+        return NULL;
+    }
+
     cdr->set_start_time(t);
 
     ctx.call_profile = profile;
@@ -247,7 +288,12 @@ AmSession* SBCFactory::onInvite(const AmSipRequest& req, const string& app_name,
     }
 
     SBCCallLeg* leg = callLegCreator->create(call_ctx);
-    if(!leg) return NULL;
+    if(!leg) {
+        DBG("failed to create B2B leg");
+        delete cdr;
+        delete call_ctx;
+        return NULL;
+    }
 
     SBCCallProfile& call_profile = leg->getCallProfile();
 

@@ -12,6 +12,7 @@
 #include "cdr/Cdr.h"
 #include "CodesTranslator.h"
 #include "UsedHeaderField.h"
+#include "Auth.h"
 #include "CallCtx.h"
 struct CallCtx;
 
@@ -25,9 +26,11 @@ struct GetProfileException {
 	GetProfileException(int c, bool h): code(c), fatal(h) {}
 };
 
-class SqlRouter {
+class SqlRouter
+  : public Auth
+{
 public:
-  void getprofiles(const AmSipRequest&,CallCtx &ctx);
+  void getprofiles(const AmSipRequest&,CallCtx &ctx,Auth::auth_id_type auth_id);
   int configure(AmConfigReader &cfg);
   int run();
   void stop();
@@ -48,6 +51,7 @@ public:
   bool check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
                         const AmSipRequest& req,ParamReplacerCtx& ctx,
                         bool send_reply = false);
+  void db_reload_credentials(AmArg &ret);
 
   SqlRouter();
   ~SqlRouter();
@@ -65,8 +69,10 @@ private:
   DbConfig dbc;
   int db_configure(AmConfigReader &cfg);
 
-  ProfilesCacheEntry* _getprofiles(const AmSipRequest&,
-							   pqxx::connection*);
+  ProfilesCacheEntry* _getprofiles(
+    const AmSipRequest&,
+    pqxx::connection*,
+    Auth::auth_id_type auth_id);
   void dbg_get_profiles(AmArg &fields_values);
   void update_counters(struct timeval &start_time);
 

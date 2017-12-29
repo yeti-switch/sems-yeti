@@ -314,6 +314,8 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	assign_int_safe_silent(bleg_max_30x_redirects,"bleg_max_30x_redirects",0,0);
 	assign_int_safe_silent(bleg_max_transfers, "bleg_max_transfers",0,0);
 
+	assign_bool_safe_silent(auth_required, "aleg_auth_required",false,false);
+
 	DBG("Yeti: loaded SQL profile\n");
 
 	return true;
@@ -485,6 +487,7 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 		DBG("dead_rtp_time: %i\n",dead_rtp_time);
 		DBG("global_tag: %s\n", global_tag.c_str());
 
+		DBG("auth_required: %d",auth_required);
 		DBG("resources: %s\n", resources.c_str());
 		for(ResourceList::const_iterator i = rl.begin();i!=rl.end();++i)
 			DBG("   resource: <%s>",(*i).print().c_str());
