@@ -1,3 +1,9 @@
+sems-yeti (1.7.29-1) stable; urgency=low
+
+  * add incoming auth
+
+ -- dev <dev@yeti-switch.org>  Fri, 29 Dec 2017 21:35:35 +0200
+
 sems-yeti (1.7.28-4) stable; urgency=low
 
   * libsems 1.7.57
