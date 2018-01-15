@@ -234,6 +234,8 @@ void YetiRpc::init_rpc_tree()
 			/*method_arg(request_resource,"state","",getResourceState,
 						   "","<type> <id>","get current state of resource");*/
 			method(request_resource,"invalidate","invalidate all resources",requestResourcesInvalidate,"");
+			leaf(request_resource, request_resource_handler,"handler","handler");
+				method(request_resource_handler,"invalidate","invalidate specific handler",requestResourcesHandlerInvalidate,"");
 
 		leaf(request,request_resolver,"resolver","dns resolver instance");
 			method(request_resolver,"clear","clear dns cache",requestResolverClear,"");
@@ -1004,6 +1006,14 @@ void YetiRpc::requestResourcesInvalidate(const AmArg& args, AmArg& ret){
 	} else {
 		throw AmSession::Exception(500,"handlers invalidated. but resources initialization failed");
 	}
+}
+
+void YetiRpc::requestResourcesHandlerInvalidate(const AmArg& args, AmArg& ret)
+{
+	handler_log();
+	args.assertArrayFmt("s");
+	rctl.put(args.get(0).asCStr());
+	ret = RPC_CMD_SUCC;
 }
 
 void YetiRpc::showAuthCredentials(const AmArg&, AmArg& ret)

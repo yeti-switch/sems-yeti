@@ -88,6 +88,7 @@ class YetiRpc
     rpc_handler showResourceByLocalTag;
     rpc_handler showResourcesById;
     rpc_handler requestResourcesInvalidate;
+    rpc_handler requestResourcesHandlerInvalidate;
 
     rpc_handler requestResolverClear;
     rpc_handler requestResolverGet;
