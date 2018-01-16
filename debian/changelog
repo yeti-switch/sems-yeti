@@ -1,3 +1,9 @@
+sems-yeti (1.7.29-2) stable; urgency=low
+
+  * c33b912 rpc: add request.resource.handler.invalidate method to invalidate specific resource handler only
+
+ -- dev <dev@yeti-switch.org>  Tue, 16 Jan 2018 13:07:11 +0200
+
 sems-yeti (1.7.29-1) stable; urgency=low
 
   * add incoming auth
