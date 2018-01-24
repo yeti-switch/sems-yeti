@@ -112,7 +112,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   void onRadiusReply(const RadiusReplyEvent &ev);
   void onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event);
-  void onTimerEvent(int timer_id);
+  bool onTimerEvent(int timer_id);
   void onInterimRadiusTimer();
   void onFakeRingingTimer();
   void onControlEvent(SBCControlEvent *event);

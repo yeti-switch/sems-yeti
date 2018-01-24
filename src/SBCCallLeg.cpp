@@ -711,10 +711,9 @@ void SBCCallLeg::onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event)
     SBCCallLeg::onRtpTimeout();
 }
 
-void SBCCallLeg::onTimerEvent(int timer_id)
+bool SBCCallLeg::onTimerEvent(int timer_id)
 {
     DBG("%s(%p,%d,leg%s)",FUNC_NAME,this,timer_id,a_leg?"A":"B");
-    getCtx_void
     with_cdr_for_read {
         switch(timer_id){
         case YETI_CALL_DURATION_TIMER:
@@ -722,22 +721,22 @@ void SBCCallLeg::onTimerEvent(int timer_id)
             cdr->update_aleg_reason("Bye",200);
             cdr->update_bleg_reason("Bye",200);
             stopCall("Call duration limit reached");
-            break;
+            return true;
         case YETI_RINGING_TIMEOUT_TIMER:
             call_ctx->setRingingTimeout();
             dlg->cancel();
-            break;
+            return true;
         case YETI_RADIUS_INTERIM_TIMER:
             onInterimRadiusTimer();
-            return;
+            return true;
         case YETI_FAKE_RINGING_TIMER:
             onFakeRingingTimer();
-            return;
+            return true;
         default:
-            cdr->update_internal_reason(DisconnectByTS,"Timer "+int2str(timer_id)+" fired",200);
-            break;
+            return false;
         }
     }
+    return false;
 }
 
 void SBCCallLeg::onInterimRadiusTimer()
@@ -1861,7 +1860,8 @@ void SBCCallLeg::process(AmEvent* ev)
                 plugin_event->name.c_str(),
                 plugin_event->event_id);
             if(plugin_event->name=="timer_timeout"){
-                return onTimerEvent(plugin_event->data.get(0).asInt());
+                if(onTimerEvent(plugin_event->data.get(0).asInt()))
+                    return;
             }
         }
 
