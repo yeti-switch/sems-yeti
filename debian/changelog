@@ -1,3 +1,9 @@
+sems-yeti (1.7.29-3) stable; urgency=low
+
+  * 26fcc04 SBCCallLeg: fixes timers processing. pass unprocessed timers event to the AmSession
+
+ -- dev <dev@yeti-switch.org>  Thu, 25 Jan 2018 01:39:32 +0200
+
 sems-yeti (1.7.29-2) stable; urgency=low
 
   * c33b912 rpc: add request.resource.handler.invalidate method to invalidate specific resource handler only
