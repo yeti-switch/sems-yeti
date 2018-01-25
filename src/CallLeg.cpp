@@ -463,7 +463,8 @@ void CallLeg::onB2BReply(B2BSipReplyEvent *ev)
 
     if(call_status == Connected &&
        reply.code >= 200 &&
-       reply.cseq_method == SIP_METH_INVITE)
+       reply.cseq_method == SIP_METH_INVITE &&
+       reply.from_tag!=getOtherId())
     {
         if(reply.code < 300) {
             if(!setOther(reply.from_tag, false)) {
@@ -472,6 +473,7 @@ void CallLeg::onB2BReply(B2BSipReplyEvent *ev)
         } else {
             b2bConnectedErr(reply);
         }
+        DBG("suppress other leg positive reply in Connected state");
         return;
     }
 
