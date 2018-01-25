@@ -959,11 +959,11 @@ int SBCCallProfile::refuse(ParamReplacerCtx& ctx, const AmSipRequest& req) const
 }
 
 /** removes headers with empty values from headers list separated by "\r\n" */
-static string remove_empty_headers(const string& s)
+static string remove_empty_headers(const string& s, const char* field_name)
 {
   string res(s), hdr;
   size_t start = 0, end = 0, len = 0, col = 0;
-  DBG("SBCCallProfile::remove_empty_headers '%s'", s.c_str());
+  DBG("%s: remove_empty_headers '%s'", field_name, s.c_str());
 
   if (res.empty())
     return res;
@@ -976,13 +976,13 @@ static string remove_empty_headers(const string& s)
 
     if (col && hdr.find_first_not_of(": \r\n", col) == string::npos) {
       // remove empty header
-      WARN("Ignored empty header: %s\n", res.substr(start, len).c_str());
+      DBG("%s: Ignored empty header: %s\n", field_name, res.substr(start, len).c_str());
       res.erase(start, len);
       // start remains the same
     }
     else {
       if (string::npos == col)
-        WARN("Malformed append header: %s\n", hdr.c_str());
+        DBG("%s: Malformed append header: %s\n", field_name, hdr.c_str());
       start = end + 1;
     }
   } while (end != string::npos && start < res.size());
@@ -994,7 +994,7 @@ static void fix_append_hdr_list(const AmSipRequest& req, ParamReplacerCtx& ctx,
 				string& append_hdr, const char* field_name)
 {
   append_hdr = ctx.replaceParameters(append_hdr, field_name, req);
-  append_hdr = remove_empty_headers(append_hdr);
+  append_hdr = remove_empty_headers(append_hdr, field_name);
   if (append_hdr.size()>2) assertEndCRLF(append_hdr);
 }
 
