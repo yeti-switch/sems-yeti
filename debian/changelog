@@ -1,3 +1,10 @@
+sems-yeti (1.7.29-4) stable; urgency=low
+
+  * e84dc68 SBCCallProfile: remove_empty_headers: fix logging
+  * 1643dbc CallLeg::onB2BReply: fixes re-INVITE replies processing. do not suppress replies from connected other leg
+
+ -- dev <dev@yeti-switch.org>  Thu, 25 Jan 2018 04:17:36 +0200
+
 sems-yeti (1.7.29-3) stable; urgency=low
 
   * 26fcc04 SBCCallLeg: fixes timers processing. pass unprocessed timers event to the AmSession
