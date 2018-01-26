@@ -99,18 +99,18 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	  dstcfg.setParameter(cfgkey, SBCFactory::instance()->		\
 			  cfg.getParameter(cfgkey));			\
 	}
-#define	CP_SESSION_REFRESH_METHOD(prefix,method_id,dstcfg)\
+#define	CP_SESSION_REFRESH_METHOD(method_id,dstcfg)\
 	switch(method_id){\
 		case REFRESH_METHOD_INVITE:\
-			dstcfg.setParameter(prefix "session_refresh_method",\
+			dstcfg.setParameter("session_refresh_method",\
 				"INVITE");\
 			break;\
 		case REFRESH_METHOD_UPDATE:\
-			dstcfg.setParameter(prefix "session_refresh_method",\
+			dstcfg.setParameter("session_refresh_method",\
 				"UPDATE");\
 			break;\
 		case REFRESH_METHOD_UPDATE_FALLBACK_INVITE:\
-			dstcfg.setParameter(prefix "session_refresh_method",\
+			dstcfg.setParameter("session_refresh_method",\
 				"UPDATE_FALLBACK_INVITE");\
 			break;\
 		default:\
@@ -131,7 +131,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 		//CP_SST_CFGVAR("", "session_refresh_method", sst_b_cfg);
 		CP_SST_CFGVAR("", "accept_501_reply", sst_b_cfg);
 		assign_int(session_refresh_method_id,"session_refresh_method_id",1);
-		CP_SESSION_REFRESH_METHOD("",session_refresh_method_id,sst_b_cfg);
+		CP_SESSION_REFRESH_METHOD(session_refresh_method_id,sst_b_cfg);
 	}
 
 	if (sst_aleg_enabled.size() && sst_aleg_enabled != "no") {
@@ -143,7 +143,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 		//CP_SST_CFGVAR("aleg_", "session_refresh_method", sst_a_cfg);
 		CP_SST_CFGVAR("aleg_", "accept_501_reply", sst_a_cfg);
 		assign_int(aleg_session_refresh_method_id,"aleg_session_refresh_method_id",1);
-		CP_SESSION_REFRESH_METHOD("aleg_",aleg_session_refresh_method_id,sst_a_cfg);
+		CP_SESSION_REFRESH_METHOD(aleg_session_refresh_method_id,sst_a_cfg);
 	}
 #undef CP_SST_CFGVAR
 #undef CP_SESSION_REFRESH_METHOD
