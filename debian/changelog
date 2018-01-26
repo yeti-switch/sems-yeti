@@ -1,3 +1,9 @@
+sems-yeti (1.7.29-5) stable; urgency=low
+
+  * af5965d fix SST refresh method reading from callprofile
+
+ -- dev <dev@yeti-switch.org>  Fri, 26 Jan 2018 16:03:33 +0200
+
 sems-yeti (1.7.29-4) stable; urgency=low
 
   * e84dc68 SBCCallProfile: remove_empty_headers: fix logging
