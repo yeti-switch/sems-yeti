@@ -8,13 +8,14 @@
 CodesTranslator* CodesTranslator::_instance=0;
 
 
-InternalException::InternalException(unsigned int code):
+InternalException::InternalException(unsigned int code, int override_id):
 	icode(code)
 {
 	CodesTranslator::instance()->translate_db_code(
 		icode,
 		internal_code,internal_reason,
-		response_code,response_reason
+		response_code,response_reason,
+		override_id
 	);
 }
 
@@ -100,7 +101,7 @@ int CodesTranslator::load_translations_config(){
 
 			//icode2resp
 			r = t.exec("SELECT * from load_disconnect_code_refuse()");
-			for(pqxx::result::size_type i = 0; i < r.size();++i){
+			for(pqxx::result::size_type i = 0; i < r.size();++i) {
 				const pqxx::result::tuple &row = r[i];
 				unsigned int code =	row["o_id"].as<int>(0);
 
@@ -121,6 +122,31 @@ int CodesTranslator::load_translations_config(){
 				DBG("DbTrans:     %d -> <%d:'%s'>, <%d:'%s'>",code,
 					internal_code,internal_reason.c_str(),
 					response_code,response_reason.c_str());
+			}
+
+			//icode2resp overrides
+			r = t.exec("SELECT * from load_disconnect_code_refuse_overrides()");
+			for(pqxx::result::size_type i = 0; i < r.size();++i) {
+				const pqxx::result::tuple &row = r[i];
+
+				int override_id = row["policy_id"].as<int>();
+
+				unsigned int code =	row["o_id"].as<int>(0); //database internal code
+
+				int internal_code = row["o_code"].as<int>(0);
+				string internal_reason = row["o_reason"].c_str();
+				int response_code = row["o_rewrited_code"].is_null() ?
+									internal_code : row["o_rewrited_code"].as<int>();
+				string response_reason = row["o_rewrited_reason"].c_str();
+
+				_overrides.emplace(override_id,override()).first->second.icode2resp.emplace(
+					code,
+					icode(
+						internal_code, internal_reason,
+						response_code,response_reason,
+						row["o_store_cdr"].as<bool>(true),
+						row["o_silently_drop"].as<bool>(false))
+					);
 			}
 
 			//code2pref overrides
@@ -284,6 +310,31 @@ bool CodesTranslator::stop_hunting(unsigned int code,int override_id){
 	return ret;
 }
 
+bool CodesTranslator::apply_internal_code_translation(
+	const CodesTranslator::icode &c,
+	unsigned int &internal_code,
+	string &internal_reason,
+	unsigned int &response_code,
+	string &response_reason)
+{
+	internal_code = c.internal_code;
+	internal_reason = c.internal_reason;
+	if(c.silently_drop
+		&& !Yeti::instance().config.early_100_trying)
+	{
+		response_code = NO_REPLY_DISCONNECT_CODE;
+		response_reason = "";
+	} else {
+		response_code = c.response_code;
+		response_reason = c.response_reason;
+	}
+	DBG("translation result: internal = <%d:'%s'>, response = <%d:'%s'>, silently_drop = %d, store_cdr = %d",
+		internal_code,internal_reason.c_str(),
+		response_code,response_reason.c_str(),
+		c.silently_drop,c.store_cdr);
+	return c.store_cdr;
+}
+
 bool CodesTranslator::translate_db_code(unsigned int code,
 						 unsigned int &internal_code,
 						 string &internal_reason,
@@ -291,38 +342,45 @@ bool CodesTranslator::translate_db_code(unsigned int code,
 						 string &response_reason,
 						 int override_id)
 {
-	bool write_cdr = true;
+	DBG("translate_db_code: %d, override_id: %d",
+		code,override_id);
 
-	icode2resp_mutex.lock();
-	map<unsigned int,icode>::const_iterator it = icode2resp.find(code);
-	if(it!=icode2resp.end()){
-		DBG("found translation for db code '%d'",code);
-		const icode &c = it->second;
-		internal_code = c.internal_code;
-		internal_reason = c.internal_reason;
-		if(c.silently_drop
-			&& !Yeti::instance().config.early_100_trying)
-		{
-			response_code = NO_REPLY_DISCONNECT_CODE;
-			response_reason = "";
-		} else {
-			response_code = c.response_code;
-			response_reason = c.response_reason;
+	while(override_id!=0) {
+		AmLock l(overrides_mutex);
+		auto oit = overrides.find(override_id);
+		if(oit==overrides.end()) {
+			DBG("unknown override<%d> for db code %d. use global config",
+				override_id, code);
+			break;
 		}
-		write_cdr = c.store_cdr;
-		DBG("translation result: internal = <%d:'%s'>, response = <%d:'%s'>, silently_drop = %d, store_cdr = %d",
-			internal_code,internal_reason.c_str(),
-			response_code,response_reason.c_str(),
-			c.silently_drop,c.store_cdr);
-	} else {
+		auto it = oit->second.icode2resp.find(code);
+		if(it==oit->second.icode2resp.end()) {
+			DBG("override<%d> has no translation for db code '%d'. use global config",
+				override_id,code);
+			break;
+		}
+		return apply_internal_code_translation(
+			it->second,
+			internal_code, internal_reason,
+			response_code,response_reason);
+	}
+
+	AmLock l(icode2resp_mutex);
+
+	auto it = icode2resp.find(code);
+	if(it==icode2resp.end()) {
 		stat.unknown_internal_codes++;
 		DBG("no translation for db code '%d'. reply with 500",code);
 		internal_code = response_code = 500;
 		internal_reason = "Internal code "+int2str(code);
 		response_reason = SIP_REPLY_SERVER_INTERNAL_ERROR;
+		return true; //write cdr for unknown internal codes
 	}
-	icode2resp_mutex.unlock();
-	return write_cdr;
+
+	return apply_internal_code_translation(
+		it->second,
+		internal_code, internal_reason,
+		response_code,response_reason);
 }
 
 void CodesTranslator::GetConfig(AmArg& ret){
@@ -369,6 +427,8 @@ void CodesTranslator::GetConfig(AmArg& ret){
 			p["internal_reason"] = c.internal_reason;
 			p["response_code"] = c.response_code;
 			p["response_reason"] = c.response_reason;
+			p["store_cdr"] = c.store_cdr;
+			p["silently_drop"] = c.silently_drop;
 			u.push(int2str(it->first),p);
 		}
 	}
@@ -392,6 +452,18 @@ void CodesTranslator::GetConfig(AmArg& ret){
 				am_response_translations.push(int2str(tit->first),p);
 			}
 			am_override.push("response_translations",am_response_translations);
+
+			AmArg &am_internal_translations = am_override["internal_translations"];
+			for(const auto &i : oit->second.icode2resp) {
+				const icode &c = i.second;
+				AmArg &p = am_internal_translations[int2str(i.first)];
+				p["internal_code"] = c.internal_code;
+				p["internal_reason"] = c.internal_reason;
+				p["response_code"] = c.response_code;
+				p["response_reason"] = c.response_reason;
+				p["store_cdr"] = c.store_cdr;
+				p["silently_drop"] = c.silently_drop;
+			}
 
 			map<int,pref>::const_iterator pit = oit->second.code2prefs.begin();
 			for(;pit!=oit->second.code2prefs.end();++pit){

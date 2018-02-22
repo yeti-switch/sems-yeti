@@ -37,12 +37,15 @@
 #define DC_REPLY_SDP_STREAMS_TYPES		1504
 #define DC_RINGING_TIMEOUT				1505
 
+#define DC_RESOURCE_CACHE_ERROR			1600
+#define DC_RESOURCE_UNKNOWN_TYPE		1601
+
 using namespace std;
 
 struct InternalException {
 	unsigned int icode, internal_code, response_code;
 	string internal_reason, response_reason;
-	InternalException(unsigned int code);
+	InternalException(unsigned int code, int override_id);
 };
 
 class CodesTranslator {
@@ -90,6 +93,7 @@ class CodesTranslator {
 	struct override {
 		map<int,pref> code2prefs;
 		map<int,trans> code2trans;
+		map<int,icode> icode2resp;
 	};
 	map<unsigned int,override> overrides;
 	AmMutex overrides_mutex;
@@ -113,6 +117,14 @@ class CodesTranslator {
 			arg["unknown_internal_codes"] = (long)unknown_internal_codes;
 		}
 	} stat;
+
+	bool apply_internal_code_translation(
+		const icode &c,
+		unsigned int &internal_code,
+		string &internal_reason,
+		unsigned int &response_code,
+		string &response_reason);
+
   public:
 	CodesTranslator();
 	~CodesTranslator();

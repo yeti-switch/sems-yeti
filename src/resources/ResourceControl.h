@@ -17,7 +17,8 @@ using namespace std;
 struct ResourceConfig {
 	int id;
 	string name;
-	int reject_code;
+	int internal_code_id;
+	unsigned int reject_code;
 	string reject_reason;
 	enum ActionType {
 		Reject = 0,
@@ -26,14 +27,20 @@ struct ResourceConfig {
 	} action;
 	string str_action;
 
-	ResourceConfig(int i,string n, int c, string r,int a):
-		id(i),
+	ResourceConfig(int i,string n, unsigned int c, string r,int internal_code_id, int a)
+	  : id(i),
 		name(n),
 		reject_code(c),
-		reject_reason(r)
+		reject_reason(r),
+		internal_code_id(internal_code_id)
 	{
 		set_action(a);
 	}
+	ResourceConfig()
+	  : id(0),
+		internal_code_id(0),
+		reject_code(0)
+	{}
 	void set_action(int a);
 	string print() const;
 };
@@ -77,7 +84,6 @@ class ResourceControl
 	AmMutex handlers_lock;
 	AmCondition<bool> container_ready;
 
-	void replace(string &s,Resource &r,ResourceConfig &rc);
 	void replace(string& s, const string& from, const string& to);
 	int load_resources_config();
 	int reject_on_error;
@@ -117,11 +123,12 @@ public:
 	void on_reconnect();
 	void on_resources_initialized();
 
+	void replace(string &s,Resource &r,ResourceConfig &rc);
+
 	ResourceCtlResponse get(ResourceList &rl,
 							  string &handler,
 							  const string &owner_tag,
-							  int &reject_code,
-							  string &reject_reason,
+							  ResourceConfig &resource_config,
 							  ResourceList::iterator &rli);
 
 	//void put(ResourceList &rl);

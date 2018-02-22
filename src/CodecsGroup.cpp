@@ -22,8 +22,10 @@ static void replace(string& s, const string& from, const string& to){
 	}
 }
 
-CodecsGroupException::CodecsGroupException(unsigned int code, unsigned int codecs_group)
-	: InternalException(code)
+CodecsGroupException::CodecsGroupException(
+	unsigned int code,
+	unsigned int codecs_group)
+	: InternalException(code,0)
 {
 	string s = int2str(codecs_group);
 	replace(internal_reason,"$cg",s);

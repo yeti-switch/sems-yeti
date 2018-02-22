@@ -57,7 +57,11 @@ string ResourceConfig::print() const{
 	ostringstream s;
 	s << "id: " << id << ", ";
 	s << "name: '" << name << "'', ";
-	s << "reject: '" << reject_code << " " << reject_reason << "', ";
+	if(internal_code_id) {
+		s << "reject_internal_code_id: " << internal_code_id << ", ";
+	} else {
+		s << "reject: '" << reject_code << " " << reject_reason << "', ";
+	}
 	s << "action: " << str_action;
 	return s.str();
 }
@@ -157,17 +161,18 @@ int ResourceControl::load_resources_config(){
 		pqxx::connection c(dbc.conn_str());
 		c.set_variable("search_path",db_schema+", public");
 			pqxx::work t(c);
-				r = t.exec("SELECT * FROM load_resource_types()");
+			r = t.exec("SELECT * FROM load_resource_types()");
 			t.commit();
 		c.disconnect();
-		for(pqxx::result::size_type i = 0; i < r.size();++i){
+		for(pqxx::result::size_type i = 0; i < r.size();++i) {
 			const pqxx::result::tuple &row = r[i];
-			int id =row["id"].as<int>();
+			int id = row["id"].as<int>();
 			ResourceConfig rc(
 				id,
 				row["name"].c_str(),
 				row["reject_code"].as<int>(),
 				row["reject_reason"].c_str(),
+				row["internal_code_id"].as<int>(0),
 				row["action_id"].as<int>()
 			);
 			_type2cfg.insert(pair<int,ResourceConfig>(id,rc));
@@ -206,8 +211,9 @@ ResourceCtlResponse ResourceControl::get(
 	ResourceList &rl,
 	string &handler,
 	const string &owner_tag,
-	int &reject_code,
-	string &reject_reason,
+	ResourceConfig &resource_config,
+	/* int &reject_code,
+	string &reject_reason, */
 	ResourceList::iterator &rli)
 {
 	AmLock l(rl);
@@ -250,9 +256,11 @@ ResourceCtlResponse ResourceControl::get(
 			stat.overloaded++;
 			cfg_lock.lock();
 			map<int,ResourceConfig>::iterator ti = type2cfg.find(rli->type);
-			if(ti==type2cfg.end()){
-				reject_code = 404;
-				reject_reason = "Resource with unknown type "+int2str(rli->type)+" overloaded";
+			if(ti==type2cfg.end()) {
+				resource_config.internal_code_id = DC_RESOURCE_UNKNOWN_TYPE;
+				/*resource_config.reject_code = 404;
+				resource_config.reject_reason =
+					"Resource with unknown type "+int2str(rli->type)+" overloaded";*/
 				stat.rejected++;
 				return RES_CTL_REJECT;
 			} else {
@@ -262,9 +270,9 @@ ResourceCtlResponse ResourceControl::get(
 					cfg_lock.unlock();
 					return RES_CTL_OK;
 				} else { /* reject or choose next */
-					reject_code = rc.reject_code;
-					reject_reason = rc.reject_reason;
-					replace(reject_reason,(*rli),rc);
+					resource_config = rc;
+					if(!resource_config.reject_reason.empty())
+						replace(resource_config.reject_reason,(*rli),rc);
 					ResourceConfig::ActionType a = rc.action;
 					cfg_lock.unlock();
 
@@ -282,9 +290,8 @@ ResourceCtlResponse ResourceControl::get(
 		case RES_ERR: {
 			stat.errors++;
 			ERROR("cache error reject_on_error = %d",reject_on_error);
-			if(reject_on_error){
-				reject_code = 503;
-				reject_reason = "error 2531";
+			if(reject_on_error) {
+				resource_config.internal_code_id = DC_RESOURCE_CACHE_ERROR;
 				return RES_CTL_ERROR;
 			}
 			return RES_CTL_OK;
@@ -349,7 +356,7 @@ void ResourceControl::GetConfig(AmArg& ret,bool types_only){
 			AmArg &p = ret[key];
 			const ResourceConfig &c = it->second;
 			p["name"] =  c.name;
-			p["reject_code"] = c.reject_code;
+			p["reject_code"] = (unsigned long)c.reject_code;
 			p["reject_reason"] = c.reject_reason;
 			p["action"] = c.str_action;
 		}

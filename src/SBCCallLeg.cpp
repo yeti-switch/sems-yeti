@@ -285,13 +285,12 @@ void SBCCallLeg::processRouting()
     DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
 
     SqlCallProfile *profile = NULL;
-/*    AmSipRequest &req = aleg_modified_req;
-    AmSipRequest &b_req = modified_req;*/
 
     ResourceCtlResponse rctl_ret;
     ResourceList::iterator ri;
-    string refuse_reason;
-    int refuse_code;
+    ResourceConfig resource_config;
+    /*string refuse_reason;
+    int refuse_code;*/
     int attempt = 0;
 
     Cdr *cdr = call_ctx->cdr;
@@ -306,23 +305,37 @@ void SBCCallLeg::processRouting()
         rctl_ret = rctl.get(call_ctx->getCurrentResourceList(),
                             call_ctx->getCurrentProfile()->resource_handler,
                             getLocalTag(),
-                            refuse_code,refuse_reason,ri);
+                            resource_config,ri);
 
         if(rctl_ret == RES_CTL_OK){
             DBG("%s() check resources succ",FUNC_NAME);
             break;
         } else if(	rctl_ret ==  RES_CTL_REJECT ||
-                    rctl_ret ==  RES_CTL_ERROR){
-            DBG("%s() check resources failed with code: %d, reply: <%d '%s'>",FUNC_NAME,
-                rctl_ret,refuse_code,refuse_reason.c_str());
+                    rctl_ret ==  RES_CTL_ERROR)
+        {
+            if(resource_config.internal_code_id) {
+                DBG("%s() check resources failed with code %d. internal code: %d",FUNC_NAME,
+                    rctl_ret,resource_config.internal_code_id);
+            } else {
+                DBG("%s() check resources failed with code: %d, reply: <%d '%s'>",FUNC_NAME,
+                    rctl_ret,
+                    resource_config.reject_code,
+                    resource_config.reject_reason.c_str());
+            }
             if(rctl_ret == RES_CTL_REJECT) {
                 cdr->update_failed_resource(*ri);
             }
             break;
         } else if(	rctl_ret == RES_CTL_NEXT){
-            DBG("%s() check resources failed with code: %d, reply: <%d '%s'>",FUNC_NAME,
-                rctl_ret,refuse_code,refuse_reason.c_str());
-
+            if(resource_config.internal_code_id) {
+                DBG("%s() check resources failed with code %d. internal code: %d",FUNC_NAME,
+                    rctl_ret,resource_config.internal_code_id);
+            } else {
+                DBG("%s() check resources failed with code: %d, reply: <%d '%s'>",FUNC_NAME,
+                    rctl_ret,
+                    resource_config.reject_code,
+                    resource_config.reject_reason.c_str());
+            }
             profile = call_ctx->getNextProfile(true);
 
             if(NULL==profile){
@@ -336,9 +349,29 @@ void SBCCallLeg::processRouting()
             /* show resource disconnect reason instead of
              * refuse_profile if refuse_profile follows failed resource with
              * failover to next */
-            if(profile->disconnect_code_id!=0){
+            if(profile->disconnect_code_id!=0) {
                 cdr->update_failed_resource(*ri);
-                throw AmSession::Exception(refuse_code,refuse_reason);
+
+                if(resource_config.internal_code_id) {
+                    unsigned int internal_code;
+                    string internal_reason;
+                    CodesTranslator::instance()->translate_db_code(
+                        resource_config.internal_code_id,
+                        internal_code,internal_reason,
+                        resource_config.reject_code,resource_config.reject_reason,
+                        call_ctx->getOverrideId(a_leg));
+                    rctl.replace(resource_config.reject_reason,
+                                 *ri, resource_config);
+                    rctl.replace(internal_reason,
+                                 *ri, resource_config);
+                    cdr->update_internal_reason(
+                        DisconnectByTS,
+                        internal_reason,
+                        internal_code);
+                }
+                throw AmSession::Exception(
+                    resource_config.reject_code,
+                    resource_config.reject_reason);
             }
 
             ParamReplacerCtx rctx(profile);
@@ -351,7 +384,27 @@ void SBCCallLeg::processRouting()
     } while(rctl_ret != RES_CTL_OK);
 
     if(rctl_ret != RES_CTL_OK){
-        throw AmSession::Exception(refuse_code,refuse_reason);
+        //throw AmSession::Exception(refuse_code,refuse_reason);
+        if(resource_config.internal_code_id) {
+            unsigned int internal_code;
+            string internal_reason;
+            CodesTranslator::instance()->translate_db_code(
+                resource_config.internal_code_id,
+                internal_code,internal_reason,
+                resource_config.reject_code,resource_config.reject_reason,
+                call_ctx->getOverrideId(a_leg));
+            rctl.replace(resource_config.reject_reason,
+                         *ri, resource_config);
+            rctl.replace(internal_reason,
+                         *ri, resource_config);
+            cdr->update_internal_reason(
+                DisconnectByTS,
+                internal_reason,
+                internal_code);
+        }
+        throw AmSession::Exception(
+            resource_config.reject_code,
+            resource_config.reject_reason);
     }
 
     PROF_END(rchk);
@@ -370,7 +423,7 @@ void SBCCallLeg::processRouting()
                               call_profile.static_codecs_aleg_id);
     if(res < 0){
         INFO("%s() Not acceptable codecs",FUNC_NAME);
-        throw InternalException(FC_CODECS_NOT_MATCHED);
+        throw InternalException(FC_CODECS_NOT_MATCHED, call_ctx->getOverrideId());
     }
 
     //next we should filter request for legB
@@ -429,8 +482,9 @@ void SBCCallLeg::processRouting()
 bool SBCCallLeg::chooseNextProfile(){
     DBG("%s()",FUNC_NAME);
 
-    string refuse_reason;
-    int refuse_code;
+    /*string refuse_reason;
+    int refuse_code;*/
+    ResourceConfig resource_config;
     Cdr *cdr;
     SqlCallProfile *profile = NULL;
     ResourceCtlResponse rctl_ret;
@@ -468,7 +522,7 @@ bool SBCCallLeg::chooseNextProfile(){
             rctl_ret = rctl.get(rl,
                                 profile->resource_handler,
                                 getLocalTag(),
-                                refuse_code,refuse_reason,ri);
+                                resource_config,ri);
         }
 
         if(rctl_ret == RES_CTL_OK){
@@ -476,8 +530,15 @@ bool SBCCallLeg::chooseNextProfile(){
             has_profile = true;
             break;
         } else {
-            DBG("%s() check resources failed with code: %d, reply: <%d '%s'>",FUNC_NAME,
-                rctl_ret,refuse_code,refuse_reason.c_str());
+            if(resource_config.internal_code_id) {
+                DBG("%s() check resources failed with code %d. internal code: %d",FUNC_NAME,
+                    rctl_ret,resource_config.internal_code_id);
+            } else {
+                DBG("%s() check resources failed with code: %d, reply: <%d '%s'>",FUNC_NAME,
+                    rctl_ret,
+                    resource_config.reject_code,
+                    resource_config.reject_reason.c_str());
+            }
             if(rctl_ret ==  RES_CTL_ERROR) {
                 break;
             } else if(rctl_ret ==  RES_CTL_REJECT) {
@@ -501,7 +562,21 @@ bool SBCCallLeg::chooseNextProfile(){
     } while(rctl_ret != RES_CTL_OK);
 
     if(!has_profile){
-        cdr->update_internal_reason(DisconnectByTS,refuse_reason,refuse_code);
+        if(resource_config.internal_code_id) {
+            unsigned int internal_code;
+            string internal_reason;
+            CodesTranslator::instance()->translate_db_code(
+                resource_config.internal_code_id,
+                internal_code,internal_reason,
+                resource_config.reject_code,resource_config.reject_reason,
+                call_ctx->getOverrideId(a_leg));
+           rctl.replace(resource_config.reject_reason,
+                        *ri, resource_config);
+        }
+        cdr->update_internal_reason(
+            DisconnectByTS,
+            resource_config.reject_reason,
+            resource_config.reject_code);
         return false;
     } else {
         DBG("%s() update call profile for legA",FUNC_NAME);
@@ -663,13 +738,13 @@ void SBCCallLeg::onRadiusReply(const RadiusReplyEvent &ev)
             processRouting();
             break;
         case RadiusReplyEvent::Rejected:
-            throw InternalException(RADIUS_RESPONSE_REJECT);
+            throw InternalException(RADIUS_RESPONSE_REJECT, call_ctx->getOverrideId(a_leg));
             break;
         case RadiusReplyEvent::Error:
             if(ev.reject_on_error){
                 ERROR("[%s] radius error %d. reject",
                     getLocalTag().c_str(),ev.error_code);
-                throw InternalException(ev.error_code);
+                throw InternalException(ev.error_code, call_ctx->getOverrideId(a_leg));
             } else {
                 ERROR("[%s] radius error %d, but radius profile configured to ignore errors.",
                     getLocalTag().c_str(),ev.error_code);
@@ -702,7 +777,7 @@ void SBCCallLeg::onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event)
         DC_RTP_TIMEOUT,
         internal_code,internal_reason,
         response_code,response_reason,
-        call_ctx->getOverrideId());
+        call_ctx->getOverrideId(a_leg));
     with_cdr_for_read {
         cdr->update_internal_reason(DisconnectByTS,internal_reason,internal_code);
         cdr->update_aleg_reason("Bye",200);
@@ -1202,7 +1277,10 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                 }
 
                 if(res<0){
-                    terminateLegOnReplyException(reply,InternalException(DC_REPLY_SDP_GENERIC_EXCEPTION));
+                    terminateLegOnReplyException(
+                        reply,
+                        InternalException(DC_REPLY_SDP_GENERIC_EXCEPTION,
+                                          call_ctx->getOverrideId(a_leg)));
                     delete ev;
                     return -488;
                 }
@@ -2514,7 +2592,7 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
                     internal_disconnect_code,
                     internal_code,internal_reason,
                     response_code,response_reason,
-                    call_ctx->getOverrideId());
+                    call_ctx->getOverrideId(a_leg));
                 cdr->update_internal_reason(DisconnectByTS,internal_reason,internal_code);
             }
             radius_accounting_stop(this, *cdr);
