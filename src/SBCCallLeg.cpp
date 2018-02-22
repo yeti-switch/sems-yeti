@@ -501,7 +501,7 @@ bool SBCCallLeg::chooseNextProfile(){
     }
 
     //write cdr and replace ctx pointer with new
-    cdr_list.erase(cdr);
+    cdr_list.remove(cdr);
     router.write_cdr(cdr,false);
     cdr = call_ctx->cdr;
 
@@ -1329,7 +1329,7 @@ void SBCCallLeg::onBeforeDestroy()
         if(NULL!=p) rctl.put(p->resource_handler);
         Cdr *cdr = call_ctx->cdr;
         if(cdr) {
-            cdr_list.erase(cdr);
+            cdr_list.remove(cdr);
             router.write_cdr(cdr,true);
         }
         call_ctx->unlock();
@@ -1777,7 +1777,7 @@ void SBCCallLeg::onOtherBye(const AmSipRequest& req)
             with_cdr_for_write {
                 cdr->update_internal_reason(DisconnectByDST,"EarlyBye",500);
                 cdr->update_aleg_reason("Request terminated",487);
-                cdr_list.erase(cdr);
+                cdr_list.remove(cdr);
                 router.write_cdr(cdr,true);
             }
         }
@@ -2434,13 +2434,6 @@ void SBCCallLeg::onStop()
     }
 
     m_state = BB_Teardown;
-
-    if(call_ctx && a_leg) {
-        with_cdr_for_read {
-            cdr->update(End);
-            cdr_list.erase(cdr);
-        }
-    }
 }
 
 void SBCCallLeg::saveCallTimer(int timer, double timeout)

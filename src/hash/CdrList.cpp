@@ -8,9 +8,8 @@
 #define SNAPSHOTS_PERIOD_DEFAULT 60
 #define EPOLL_MAX_EVENTS 2048
 
-CdrList::CdrList(unsigned long buckets)
-  : MurmurHash<string,string,Cdr>(buckets),
-    stopped(false),
+CdrList::CdrList()
+  : stopped(false),
     epoll_fd(0),
     snapshots_enabled(false),
     snapshots_buffering(false),
@@ -21,185 +20,192 @@ CdrList::CdrList(unsigned long buckets)
 CdrList::~CdrList()
 { }
 
-uint64_t CdrList::hash_lookup_key(const string *key){
-	//!got segfault due to invalid key->size() value. do not trust it
-	//return hashfn(key->c_str(),key->size());
-	const char *s = key->c_str();
-	return hashfn(s,strlen(s));
+int CdrList::insert(Cdr *cdr)
+{
+    if(!cdr) {
+        ERROR("%s() cdr = NULL",FUNC_NAME);
+        log_stacktrace(L_ERR);
+        return 1;
+    }
+
+    DBG("insert(%s)",cdr->local_tag.c_str());
+
+    AmLock l(*cdr);
+
+    lock();
+    auto i = emplace(cdr->local_tag,cdr);
+    unlock();
+
+    if(!i.second) {
+        ERROR("attempt to double insert cdr with local_tag '%s' "
+              "into active calls list. integrity threat",
+              cdr->local_tag.c_str());
+        log_stacktrace(L_ERR);
+        return 1;
+    }
+    cdr->inserted2list = true;
+    return 0;
 }
 
-bool CdrList::cmp_lookup_key(const string *k1,const string *k2){
-	return *k1 == *k2;
+bool CdrList::remove(Cdr *cdr)
+{
+    if(!cdr) {
+        WARN("nullptr passed as active call to remove");
+        return false;
+    }
+
+    DBG("remove(%s)",cdr->local_tag.c_str());
+
+    AmLock cdr_lock(*cdr);
+
+    if(!cdr->inserted2list) {
+        WARN("attempt to remove active call with cleared inserted2list flag: %s",
+             cdr->local_tag.c_str());
+        return false;
+    }
+
+    AmLock l(*this);
+
+    if(erase(cdr->local_tag)) {
+        if(snapshots_buffering)
+            postponed_active_calls.emplace_back(*cdr);
+        return true;
+    } else {
+        WARN("attempt to remove unknown active call: %s",
+             cdr->local_tag.c_str());
+    }
+    return false;
 }
 
-void CdrList::init_key(string **dest,const string *src){
-	*dest = new string;
-	(*dest)->assign(*src);
+long int CdrList::getCallsCount()
+{
+    AmLock l(*this);
+    return size();
 }
 
-void CdrList::free_key(string *key){
-	delete key;
+int CdrList::getCall(const string &local_tag,AmArg &call,const SqlRouter *router)
+{
+    Yeti::global_config &gc = Yeti::instance().config;
+    const get_calls_ctx ctx(gc.node_id,gc.pop_id,router);
+
+    AmLock l(*this);
+
+    auto it = find(local_tag);
+    if(it == end()) return 0;
+
+    cdr2arg(call,it->second,ctx);
+    return 1;
 }
 
-int CdrList::insert(Cdr *cdr){
-	int err = 1;
-	if(cdr){
-		DBG("%s() local_tag = %s",FUNC_NAME,cdr->local_tag.c_str());
-		cdr->lock();
-			if(!cdr->inserted2list && MurmurHash::insert(&cdr->local_tag,cdr,true,true)){
-				err = 0;
-				cdr->inserted2list = true;
-			} else {
-				ERROR("attempt to double insert cdr with local_tag '%s' into active calls list. integrity threat",
-					  cdr->local_tag.c_str());
-				log_stacktrace(L_ERR);
-			}
-		cdr->unlock();
-	} else {
-		ERROR("%s() cdr = NULL",FUNC_NAME);
-		log_stacktrace(L_ERR);
-	}
-	return err;
+void CdrList::getCalls(AmArg &calls,int limit,const SqlRouter *router)
+{
+    int i = limit;
+    Yeti::global_config &gc = Yeti::instance().config;
+
+    const get_calls_ctx ctx(gc.node_id,gc.pop_id,router);
+
+    calls.assertArray();
+
+    PROF_START(calls_serialization);
+
+    lock();
+    for(const auto &it: *this) {
+        if(!i--) {
+            ERROR("active calls serialization reached limit: %d. calls count: %zd",
+                  limit,size());
+            break;
+        }
+        calls.push(AmArg());
+        cdr2arg(calls.back(),it.second,ctx);
+    }
+    unlock();
+
+    PROF_END(calls_serialization);
+    PROF_PRINT("active calls serialization",calls_serialization);
 }
 
-bool CdrList::erase_unsafe(Cdr *cdr){
-	return erase_lookup_key(&cdr->local_tag, false);
+void CdrList::getCallsFields(
+    AmArg &calls,int limit,
+    const SqlRouter *router, const AmArg &params)
+{
+    calls.assertArray();
+    int i = limit;
+    Yeti::global_config &gc = Yeti::instance().config;
+
+    cmp_rules filter_rules;
+    vector<string> fields;
+
+    parse_fields(filter_rules, params, fields);
+
+    validate_fields(fields,router);
+
+    const get_calls_ctx ctx(gc.node_id,gc.pop_id,router,&fields);
+
+    PROF_START(calls_serialization);
+
+    lock();
+    for(const auto &it: *this) {
+        if(!i--) {
+            ERROR("active calls serialization reached limit: %d. calls count: %zd",
+                  limit,size());
+            break;
+        }
+        if(apply_filter_rules(it.second,filter_rules)) {
+            calls.push(AmArg());
+            cdr2arg_filtered(calls.back(),it.second,ctx);
+        }
+    }
+    unlock();
+
+    PROF_END(calls_serialization);
+    PROF_PRINT("active calls serialization",calls_serialization);
 }
 
-int CdrList::erase(Cdr *cdr){
-	if(!cdr)
-		return 1;
-	cdr->lock();
-	if(cdr->inserted2list){
-		lock();
-		if(erase_unsafe(cdr) && snapshots_buffering)
-			postponed_active_calls.emplace_back(*cdr);
-		unlock();
-		cdr->unlock();
-		return 0;
-	}
-	cdr->unlock();
-	return 1;
-}
+void CdrList::getFields(AmArg &ret,SqlRouter *r)
+{
+    ret.assertStruct();
 
-Cdr *CdrList::get_by_local_tag(string local_tag){
-	return at_data(&local_tag,false);
-}
+    for(const static_call_field *f = static_call_fields; f->name; f++){
+        AmArg &a = ret[f->name];
+        a["type"] = f->type;
+        a["is_dynamic"] = false;
+    }
 
-int CdrList::getCall(const string &local_tag,AmArg &call,const SqlRouter *router){
-	Cdr *cdr;
-	int ret = 0;
-	lock();
-	if((cdr = get_by_local_tag(local_tag))){
-		Yeti::global_config &gc = Yeti::instance().config;
-		const get_calls_ctx ctx(gc.node_id,gc.pop_id,router);
-		cdr2arg<Unfiltered>(call,cdr,ctx);
-		ret = 1;
-	}
-	unlock();
-	return ret;
-}
-
-void CdrList::getCalls(AmArg &calls,int limit,const SqlRouter *router){
-	entry *e;
-	int i = limit;
-	Yeti::global_config &gc = Yeti::instance().config;
-
-	const get_calls_ctx ctx(gc.node_id,gc.pop_id,router);
-
-	calls.assertArray();
-
-	PROF_START(calls_serialization);
-	lock();
-		e = first;
-		while(e&&i--){
-			calls.push(AmArg());
-			cdr2arg<Unfiltered>(calls.back(),e->data,ctx);
-			e = e->list_next;
-		}
-	unlock();
-	PROF_END(calls_serialization);
-	PROF_PRINT("active calls serialization",calls_serialization);
-}
-
-void CdrList::getCallsFields(AmArg &calls,int limit,const SqlRouter *router, const AmArg &params){
-	entry *e;
-
-	calls.assertArray();
-	int i = limit;
-	Yeti::global_config &gc = Yeti::instance().config;
-
-	cmp_rules filter_rules;
-	vector<string> fields;
-
-	parse_fields(filter_rules, params, fields);
-
-	validate_fields(fields,router);
-
-	const get_calls_ctx ctx(gc.node_id,gc.pop_id,router,&fields);
-
-	PROF_START(calls_serialization);
-	lock();
-		e = first;
-		while(e&&i--){
-			Cdr *cdr = e->data;
-			if(apply_filter_rules(cdr,filter_rules)){
-				calls.push(AmArg());
-				cdr2arg<Filtered>(calls.back(),e->data,ctx);
-			}
-			e = e->list_next;
-		}
-	unlock();
-	PROF_END(calls_serialization);
-	PROF_PRINT("active calls serialization",calls_serialization);
-}
-
-void CdrList::getFields(AmArg &ret,SqlRouter *r){
-	ret.assertStruct();
-
-	for(const static_call_field *f = static_call_fields; f->name; f++){
-		AmArg &a = ret[f->name];
-		a["type"] = f->type;
-		a["is_dynamic"] = false;
-	}
-
-	const DynFieldsT &router_dyn_fields = r->getDynFields();
-	for(DynFieldsT::const_iterator it = router_dyn_fields.begin();
-			it!=router_dyn_fields.end();++it)
-	{
-		AmArg &a = ret[it->name];
-		a["type"] = it->type_name;
-		a["is_dynamic"] = true;
-	}
+    const DynFieldsT &router_dyn_fields = r->getDynFields();
+    for(const auto &df : router_dyn_fields) {
+        AmArg &a = ret[df.name];
+        a["type"] = df.type_name;
+        a["is_dynamic"] = true;
+    }
 }
 
 void CdrList::validate_fields(const vector<string> &wanted_fields, const SqlRouter *router){
-	bool ret = true;
-	AmArg failed_fields;
-	const DynFieldsT &df = router->getDynFields();
-	for(vector<string>::const_iterator i = wanted_fields.begin();
-			i!=wanted_fields.end();++i){
-		const string &f = *i;
-		int k = static_call_fields_count-1;
-		for(;k>=0;k--){
-			if(f==static_call_fields[k].name)
-				break;
-		}
-		if(k<0){
-			//not present in static fields. search in dynamic
-			DynFieldsT::const_iterator it = df.begin();
-			for(;it!=df.end();++it)
-				if(f==it->name)
-					break;
-			if(it==df.end()){ //not found in dynamic fields too
-				ret = false;
-				failed_fields.push(f);
-			}
-		}
-	}
-	if(!ret){
-		throw std::string(string("passed one or more unknown fields:")+AmArg::print(failed_fields));
-	}
+    bool ret = true;
+    AmArg failed_fields;
+    const DynFieldsT &df = router->getDynFields();
+    for(const auto &f: wanted_fields) {
+        int k = static_call_fields_count - 1;
+        for(;k>=0;k--) {
+            if(f==static_call_fields[k].name)
+                break;
+        }
+        if(k<0) {
+            //not present in static fields. search in dynamic
+            DynFieldsT::const_iterator it = df.begin();
+            for(;it!=df.end();++it)
+                if(f==it->name)
+                    break;
+            if(it==df.end()){ //not found in dynamic fields too
+                ret = false;
+                failed_fields.push(f);
+            }
+        }
+    }
+    if(!ret) {
+        throw std::string(
+            string("passed one or more unknown fields:") +
+            AmArg::print(failed_fields));
+    }
 }
 
 int CdrList::configure(AmConfigReader &cfg)
@@ -354,8 +360,7 @@ void CdrList::onTimer()
     if(snapshots_buffering)
         local_postponed_calls.swap(postponed_active_calls);
 
-    entry *e = first;
-    if(!e &&
+    if(empty() &&
        (!snapshots_buffering || local_postponed_calls.empty()))
     {
         unlock();
@@ -363,8 +368,8 @@ void CdrList::onTimer()
     }
 
     //serialize to AmArg
-    for(; e; e = e->list_next) {
-        Cdr &cdr = *e->data;
+    for(const auto &it: *this) {
+        Cdr &cdr = *(it.second);
         calls.push(AmArg());
         AmArg &call = calls.back();
 
@@ -433,3 +438,161 @@ void CdrList::onTimer()
     }
 }
 
+inline void CdrList::cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const
+{
+    #define add_field(val)\
+        arg[#val] = cdr->val;
+    #define add_timeval_field(val)\
+        arg[#val] = timeval2double(cdr->val);
+
+    struct timeval duration;
+    double duration_double;
+
+    arg.assertStruct();
+
+    arg["node_id"] = ctx.node_id;
+    arg["pop_id"] = ctx.pop_id;
+
+    //!added for compatibility with old versions of web interface
+    arg["local_time"] = timeval2double(ctx.now);
+
+    add_timeval_field(cdr_born_time);
+    add_timeval_field(start_time);
+    add_timeval_field(end_time);
+
+    const struct timeval &connect_time = cdr->connect_time;
+    arg["connect_time"] = timeval2double(connect_time);
+    if(timerisset(&connect_time)) {
+        timersub(&ctx.now,&connect_time,&duration);
+        duration_double = timeval2double(duration);
+        if(duration_double<0) duration_double = 0;
+        arg["duration"] = duration_double;
+    } else {
+        arg["duration"] = AmArg();
+    }
+
+    add_field(legB_remote_port);
+    add_field(legB_local_port);
+    add_field(legA_remote_port);
+    add_field(legA_local_port);
+    add_field(legB_remote_ip);
+    add_field(legB_local_ip);
+    add_field(legA_remote_ip);
+    add_field(legA_local_ip);
+
+    add_field(orig_call_id);
+    add_field(term_call_id);
+    add_field(local_tag);
+    add_field(global_tag);
+
+    add_field(time_limit);
+    add_field(dump_level_id);
+    add_field(audio_record_enabled);
+
+    add_field(attempt_num);
+
+    add_field(resources);
+    add_field(active_resources);
+    arg["active_resources_json"] = cdr->active_resources_amarg;
+
+    //cdr->add_versions_to_amarg(arg);
+
+    const DynFieldsT &df = ctx.router->getDynFields();
+    for(const auto &dit: df) {
+        const string &fname = dit.name;
+        AmArg &f = cdr->dyn_fields[fname];
+        if(f.getType()==AmArg::Undef && (dit.type_id==DynField::VARCHAR))
+            arg[fname] = "";
+        arg[fname] = f;
+    }
+
+    #undef add_timeval_field
+    #undef add_field
+}
+
+inline void CdrList::cdr2arg_filtered(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const
+{
+    #define filter(val)\
+        if(::find(wanted_fields.begin(),wanted_fields.end(),val)!=wanted_fields.end())
+    #define add_field(val)\
+        filter(#val)\
+        arg[#val] = cdr->val;
+    #define add_timeval_field(val)\
+        filter(#val)\
+            arg[#val] = timeval2double(cdr->val);
+
+    struct timeval duration;
+    double duration_double;
+    const vector<string> &wanted_fields = *ctx.fields;
+    (void)wanted_fields;
+
+    arg.assertStruct();
+
+    if(ctx.fields->empty())
+        return;
+
+    filter("node_id") arg["node_id"] = ctx.node_id;
+    filter("pop_id") arg["pop_id"] = ctx.pop_id;
+
+    //!added for compatibility with old versions of web interface
+    filter("local_time") arg["local_time"] = timeval2double(ctx.now);
+
+
+    add_timeval_field(cdr_born_time);
+    add_timeval_field(start_time);
+    add_timeval_field(end_time);
+
+    const struct timeval &connect_time = cdr->connect_time;
+    filter("connect_time") arg["connect_time"] = timeval2double(connect_time);
+    filter("duration") {
+        if(timerisset(&connect_time)){
+            timersub(&ctx.now,&connect_time,&duration);
+            duration_double = timeval2double(duration);
+            if(duration_double<0) duration_double = 0;
+            arg["duration"] = duration_double;
+        } else {
+            arg["duration"] = AmArg();
+        }
+    }
+
+    add_field(legB_remote_port);
+    add_field(legB_local_port);
+    add_field(legA_remote_port);
+    add_field(legA_local_port);
+    add_field(legB_remote_ip);
+    add_field(legB_local_ip);
+    add_field(legA_remote_ip);
+    add_field(legA_local_ip);
+
+    add_field(orig_call_id);
+    add_field(term_call_id);
+    add_field(local_tag);
+    add_field(global_tag);
+
+    add_field(time_limit);
+    add_field(dump_level_id);
+    add_field(audio_record_enabled);
+
+    add_field(attempt_num);
+
+    add_field(resources);
+    add_field(active_resources);
+    filter("active_resources_json") arg["active_resources_json"] = cdr->active_resources_amarg;
+
+    //filter("versions") cdr->add_versions_to_amarg(arg);
+
+    const DynFieldsT &df = ctx.router->getDynFields();
+    for(const auto &dit: df) {
+        const string &fname = dit.name;
+        filter(fname) {
+            AmArg &f = cdr->dyn_fields[fname];
+            if(f.getType()==AmArg::Undef && (dit.type_id==DynField::VARCHAR))
+                arg[fname] = "";
+            arg[fname] = f;
+        }
+    }
+
+    #undef add_timeval_field
+    #undef add_field
+    #undef filter
+}

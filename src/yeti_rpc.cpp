@@ -45,10 +45,11 @@ void YetiRpc::Name(const AmArg& args, AmArg& ret) \
 	CALL_CORE(CoreName); \
 }
 
-class CdrNotFoundException: public AmSession::Exception {
-  public:
-	CdrNotFoundException(string local_tag):
-		AmSession::Exception(404,"call with local_tag: '"+local_tag+"' is not found") {}
+struct CallNotFoundException: public AmSession::Exception {
+    CallNotFoundException(string local_tag)
+      : AmSession::Exception(404,"call with local_tag: '" +
+                             local_tag+"' is not found")
+    {}
 };
 
 struct rpc_entry: public AmObject {
@@ -497,7 +498,7 @@ bool YetiRpc::assert_event_id(const AmArg &args,AmArg &ret){
 
 void YetiRpc::GetCallsCount(const AmArg& args, AmArg& ret) {
 	handler_log();
-	ret = (long int)cdr_list.get_count();
+	ret = cdr_list.getCallsCount();
 }
 
 void YetiRpc::GetCall(const AmArg& args, AmArg& ret) {
@@ -510,17 +511,16 @@ void YetiRpc::GetCall(const AmArg& args, AmArg& ret) {
 
 	local_tag = args[0].asCStr();
 	if(!cdr_list.getCall(local_tag,ret,&router)){
-		throw CdrNotFoundException(local_tag);
+		throw CallNotFoundException(local_tag);
 	}
 }
 
 void YetiRpc::GetCalls(const AmArg& args, AmArg& ret) {
 	handler_log();
-	if(args.size()){
+	if(args.size()) {
 		string local_tag = args[0].asCStr();
-		if(!cdr_list.getCall(local_tag,ret,&router)){
-			throw CdrNotFoundException(local_tag);
-		}
+		if(!cdr_list.getCall(local_tag,ret,&router))
+			throw CallNotFoundException(local_tag);
 	} else {
 		cdr_list.getCalls(ret,calls_show_limit,&router);
 	}
@@ -656,7 +656,6 @@ void YetiRpc::GetConfig(const AmArg& args, AmArg& ret) {
 }
 
 void YetiRpc::DropCall(const AmArg& args, AmArg& ret){
-	SBCControlEvent* evt;
 	string local_tag;
 	handler_log();
 
@@ -666,28 +665,13 @@ void YetiRpc::DropCall(const AmArg& args, AmArg& ret){
 
 	local_tag = args[0].asCStr();
 
-	evt = new SBCControlEvent("teardown");
-
-	if (!AmSessionContainer::instance()->postEvent(local_tag, evt)) {
-		/* hack: if cdr not in AmSessionContainer but present in cdr_list then drop it and write cdr */
-		cdr_list.lock();
-			Cdr *cdr = cdr_list.get_by_local_tag(local_tag);
-			if(cdr){
-				//don't check for inserted2list. we just got it from here.
-				cdr_list.erase_unsafe(cdr);
-			}
-		cdr_list.unlock();
-		if(cdr){
-			ERROR("YetiRpc::DropCall() call %s not in AmSessionContainer but in CdrList. "
-				  "remove it from CdrList and write CDR using active router instance",local_tag.c_str());
-			router.write_cdr(cdr,true);
-			ret = "Dropped from active_calls (no presented in sessions container)";
-		} else {
-			throw CdrNotFoundException(local_tag);
-		}
-	} else {
-		ret = "Dropped from sessions container";
+	if (!AmSessionContainer::instance()->postEvent(
+		local_tag,
+		new SBCControlEvent("teardown")))
+	{
+		throw CallNotFoundException(local_tag);
 	}
+	ret = "Dropped from sessions container";
 }
 
 void YetiRpc::showVersion(const AmArg& args, AmArg& ret) {
@@ -925,7 +909,7 @@ void YetiRpc::showRouterCdrWriterOpenedFiles(const AmArg& args, AmArg& ret){
 void YetiRpc::showSystemStatus(const AmArg& args, AmArg& ret){
 	handler_log();
 	ret["version"] = YETI_VERSION;
-	ret["calls"] = (long int)cdr_list.get_count();
+	ret["calls"] = cdr_list.getCallsCount();
 	CALL_CORE(showStatus);
 }
 
