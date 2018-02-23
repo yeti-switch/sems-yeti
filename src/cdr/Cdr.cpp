@@ -176,6 +176,9 @@ void Cdr::update(const AmSipRequest &req)
     if(findHeader(req.hdrs,user_agent_hdr,0,pos1,pos2,pos))
         aleg_versions.emplace(req.hdrs.substr(pos1,pos2-pos1));
 
+    if(findHeader(req.hdrs,server_hdr,0,pos1,pos2,pos))
+        aleg_versions.emplace(req.hdrs.substr(pos1,pos2-pos1));
+
     if(req.method==SIP_METH_INVITE){
         const AmMimeBody *body = req.body.hasContentType(SIP_APPLICATION_ISUP);
         if(body){
@@ -217,6 +220,10 @@ void Cdr::update(const AmSipReply &reply){
 
     if(findHeader(reply.hdrs,server_hdr,0,pos1,pos2,pos))
         bleg_versions.emplace(reply.hdrs.substr(pos1,pos2-pos1));
+
+    if(findHeader(reply.hdrs,user_agent_hdr,0,pos1,pos2,pos))
+        bleg_versions.emplace(reply.hdrs.substr(pos1,pos2-pos1));
+
 
     if(reply.code>=100) {
         if(reply.code<110) { //10x codes
