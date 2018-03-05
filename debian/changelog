@@ -1,3 +1,12 @@
+sems-yeti (1.7.30-1) stable; urgency=low
+
+  * 39b7066 CdrFilter: process 'numeric' and 'smallint[]' as string]
+  * 2566edb cdr: check both for Server/User-Agent in replies/requests
+  * deb31d8 CdrList:  use std::unordered_map instead of MurmurHash
+  * 1bba51d add internal disconnect code overrides. allow to specify internal disconnect code for resource
+
+ -- dev <dev@yeti-switch.org>  Mon, 05 Mar 2018 13:47:09 +0200
+
 sems-yeti (1.7.29-5) stable; urgency=low
 
   * af5965d fix SST refresh method reading from callprofile
