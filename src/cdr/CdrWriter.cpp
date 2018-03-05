@@ -519,7 +519,12 @@ int CdrThread::_connectdb(cdr_writer_connection **conn,string conn_str,bool mast
 		c->disconnect();
 		delete c;
 		throw std::runtime_error("CdrThread exception");
-	} catch(...){
+	} catch(pqxx::failure &e) {
+		ERROR("catched pqxx::failure: %s",e.what());
+	} catch(std::exception &e) {
+		ERROR("catched std::exception: %s",e.what());
+	} catch(...) {
+		ERROR("catched unknown exception");
 	}
 	*conn = c;
 	return ret;

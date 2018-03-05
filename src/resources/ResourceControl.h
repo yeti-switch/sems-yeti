@@ -18,8 +18,6 @@ struct ResourceConfig {
 	int id;
 	string name;
 	int internal_code_id;
-	unsigned int reject_code;
-	string reject_reason;
 	enum ActionType {
 		Reject = 0,
 		NextRoute,
@@ -27,19 +25,16 @@ struct ResourceConfig {
 	} action;
 	string str_action;
 
-	ResourceConfig(int i,string n, unsigned int c, string r,int internal_code_id, int a)
+	ResourceConfig(int i,string n, int internal_code_id, int a)
 	  : id(i),
 		name(n),
-		reject_code(c),
-		reject_reason(r),
 		internal_code_id(internal_code_id)
 	{
 		set_action(a);
 	}
 	ResourceConfig()
 	  : id(0),
-		internal_code_id(0),
-		reject_code(0)
+		internal_code_id(0)
 	{}
 	void set_action(int a);
 	string print() const;

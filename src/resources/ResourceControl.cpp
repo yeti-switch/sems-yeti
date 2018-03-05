@@ -57,11 +57,7 @@ string ResourceConfig::print() const{
 	ostringstream s;
 	s << "id: " << id << ", ";
 	s << "name: '" << name << "'', ";
-	if(internal_code_id) {
-		s << "reject_internal_code_id: " << internal_code_id << ", ";
-	} else {
-		s << "reject: '" << reject_code << " " << reject_reason << "', ";
-	}
+	s << "internal_code_id: " << internal_code_id << ", ";
 	s << "action: " << str_action;
 	return s.str();
 }
@@ -170,8 +166,6 @@ int ResourceControl::load_resources_config(){
 			ResourceConfig rc(
 				id,
 				row["name"].c_str(),
-				row["reject_code"].as<int>(),
-				row["reject_reason"].c_str(),
 				row["internal_code_id"].as<int>(0),
 				row["action_id"].as<int>()
 			);
@@ -212,8 +206,6 @@ ResourceCtlResponse ResourceControl::get(
 	string &handler,
 	const string &owner_tag,
 	ResourceConfig &resource_config,
-	/* int &reject_code,
-	string &reject_reason, */
 	ResourceList::iterator &rli)
 {
 	AmLock l(rl);
@@ -271,8 +263,6 @@ ResourceCtlResponse ResourceControl::get(
 					return RES_CTL_OK;
 				} else { /* reject or choose next */
 					resource_config = rc;
-					if(!resource_config.reject_reason.empty())
-						replace(resource_config.reject_reason,(*rli),rc);
 					ResourceConfig::ActionType a = rc.action;
 					cfg_lock.unlock();
 
@@ -356,8 +346,7 @@ void ResourceControl::GetConfig(AmArg& ret,bool types_only){
 			AmArg &p = ret[key];
 			const ResourceConfig &c = it->second;
 			p["name"] =  c.name;
-			p["reject_code"] = (unsigned long)c.reject_code;
-			p["reject_reason"] = c.reject_reason;
+			p["internal_code_id"] = c.internal_code_id;
 			p["action"] = c.str_action;
 		}
 		cfg_lock.unlock();
