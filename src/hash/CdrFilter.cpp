@@ -61,7 +61,10 @@ static cmp_type_t get_type_by_name(const string &type_name){
 	} else if(type_name=="string"
 			  || type_name=="varchar"
 			  || type_name=="json"
-			  || type_name=="inet"){
+			  || type_name=="inet"
+			  || type_name=="numeric"
+			  || type_name=="smallint[]")
+	{
 		return c_type_string;
 	} else if(type_name=="timestamp"){
 		return c_type_timestamp;
