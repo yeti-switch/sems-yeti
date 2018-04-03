@@ -59,7 +59,7 @@ bool CdrList::remove(Cdr *cdr)
     AmLock cdr_lock(*cdr);
 
     if(!cdr->inserted2list) {
-        WARN("attempt to remove active call with cleared inserted2list flag: %s",
+        DBG("attempt to remove active call with cleared inserted2list flag: %s",
              cdr->local_tag.c_str());
         return false;
     }
