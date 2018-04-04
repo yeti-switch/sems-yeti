@@ -1,3 +1,9 @@
+sems-yeti (1.7.30-2) stable; urgency=low
+
+  * c010cd6 CdrList: change loglevel WARN->DBG on attempt to remove not inserted cdr from the active calls list
+
+ -- dev <dev@yeti-switch.org>  Wed, 04 Apr 2018 11:57:28 +0300
+
 sems-yeti (1.7.30-1) stable; urgency=low
 
   * 39b7066 CdrFilter: process 'numeric' and 'smallint[]' as string]
