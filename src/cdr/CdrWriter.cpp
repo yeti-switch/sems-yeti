@@ -542,6 +542,10 @@ int CdrThread::connectdb(){
 void CdrThread::dbg_writecdr(AmArg &fields_values,Cdr &cdr){
 	int k = 0;
 	//static fields
+	if(fields_values.size() < WRITECDR_STATIC_FIELDS_COUNT) {
+		DBG("exception happened before static fields invocation completed. skip values output");
+		return;
+	}
 	for(int j = 0;j<WRITECDR_STATIC_FIELDS_COUNT;j++,k++){
 		AmArg &a = fields_values.get(k);
 		const static_field &f = cdr_static_fields[j];
