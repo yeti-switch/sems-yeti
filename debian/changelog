@@ -1,3 +1,9 @@
+sems-yeti (1.7.30-3) stable; urgency=low
+
+  * 8e69f67 CdrWriter: skip dbg_writecdr if db exception happened before arguments invocation
+
+ -- dev <dev@yeti-switch.org>  Wed, 25 Apr 2018 18:04:16 +0300
+
 sems-yeti (1.7.30-2) stable; urgency=low
 
   * c010cd6 CdrList: change loglevel WARN->DBG on attempt to remove not inserted cdr from the active calls list
