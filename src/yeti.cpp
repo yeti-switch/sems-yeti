@@ -83,7 +83,7 @@ static int check_dir_write_permissions(const string &dir)
 	return 0;
 }
 
-int Yeti::load_config() {
+bool Yeti::load_config() {
 
 	AmConfigReader ycfg;
 
