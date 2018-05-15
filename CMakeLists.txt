@@ -17,6 +17,7 @@ find_package(PQXX REQUIRED)
 find_package(Hiredis REQUIRED)
 find_package(YetiCC REQUIRED)
 find_package(SEMS REQUIRED)
+find_package(Protobuf REQUIRED)
 
 list(APPEND CMAKE_CXX_FLAGS_DEBUG -D_DEBUG)
 list(APPEND CMAKE_C_FLAGS_DEBUG -D_DEBUG)
@@ -70,16 +71,37 @@ list(GET TAG_VERSION_LIST 0 YETI_MAJOR_VERSION)
 list(GET TAG_VERSION_LIST 1 YETI_MINOR_VERSION)
 list(GET TAG_VERSION_LIST 2 YETI_PATCH_VERSION)
 
-configure_file(${CMAKE_SOURCE_DIR}/src/yeti_version.h.cmake ${CMAKE_SOURCE_DIR}/src/yeti_version.h)
+#profobuf classes
 
-file(GLOB_RECURSE yeti_SRCS "src/*.cpp")
+file(GLOB_RECURSE PB_DEFS src/proto/*.proto)
+
+message(STATUS "Generate protocol buffers classes")
+execute_process(
+	COMMAND protoc -I ${CMAKE_CURRENT_SOURCE_DIR}/src/proto --cpp_out ${CMAKE_CURRENT_BINARY_DIR} ${PB_DEFS}
+	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+	RESULT_VARIABLE PROTOC_RESULT
+	ERROR_VARIABLE PROTOC_ERROR
+	OUTPUT_VARIABLE PROTOC_OUTPUT)
+if(PROTOC_RESULT)
+	message(FATAL_ERROR "can't generate procotol buffers classes: ${PROTOC_ERROR}")
+endif(PROTOC_RESULT)
+
+#sources
+configure_file(${CMAKE_SOURCE_DIR}/src/yeti_version.h.cmake ${CMAKE_SOURCE_DIR}/src/yeti_version.h)
 
 set(yeti_config_files "")
 set(yeti_config_dist_files yeti)
 
 set(sems_module_name yeti)
+
 file(GLOB_RECURSE yeti_SRCS "src/*.cpp")
-include_directories(${HIREDIS_INCLUDE_DIR} ${PQXX_INCLUDE_DIRECTORIES} ${YETICC_INCLUDE_DIRS} ${SEMS_INCLUDE_DIRS})
-set(sems_module_libs ${HIREDIS_LIBRARIES} ${PQXX_LIBRARIES} ${YETICC_LIBRARIES} ${SEMS_LIBRARIES})
+
+foreach(def ${PB_DEFS})
+	get_filename_component(src ${def} NAME_WE)
+	list(APPEND yeti_SRCS ${CMAKE_CURRENT_BINARY_DIR}/${src}.pb.cc)
+endforeach(def)
+
+include_directories(${HIREDIS_INCLUDE_DIR} ${PQXX_INCLUDE_DIRECTORIES} ${YETICC_INCLUDE_DIRS} ${SEMS_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR} ${PROTOBUF_INCLUDE_DIRS})
+set(sems_module_libs ${HIREDIS_LIBRARIES} ${PQXX_LIBRARIES} ${YETICC_LIBRARIES} ${SEMS_LIBRARIES} ${PROTOBUF_LIBRARIES})
 
 include(${SEMS_CMAKE_DIR}/module.rules.txt)

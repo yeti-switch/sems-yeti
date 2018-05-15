@@ -1,0 +1,22 @@
+syntax = "proto2";
+
+message CfgResponse {
+  message ValuesPair {
+    required string name = 1;
+    oneof Value {
+      int32 i = 2 ;
+      string s = 3;
+    }
+  }
+  message Values {
+    repeated ValuesPair values = 1; 
+  }
+  message Error {
+    required int32 code = 1;
+    required string reason = 2;
+  }
+  oneof Response {
+    Error error = 1;
+    Values values = 2;
+  };
+}

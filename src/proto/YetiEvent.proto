@@ -1,0 +1,12 @@
+syntax = "proto2";
+
+import "CfgRequest.proto";
+import "CfgResponse.proto";
+
+message YetiEvent {
+  oneof data {
+    CfgRequest cfg_request = 10;
+    CfgResponse cfg_response = 11;
+    string json = 12;
+  }
+}
