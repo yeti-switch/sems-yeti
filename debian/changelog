@@ -1,3 +1,9 @@
+sems-yeti (1.7.31-3) stable; urgency=low
+
+  * update yeti.conf.cmake
+
+ -- dev <dev@yeti-switch.org>  Wed, 16 May 2018 15:17:04 +0300
+
 sems-yeti (1.7.31-2) stable; urgency=low
 
   * yeti.conf: make 'cfg_host' optional with default 127.0.0.1
