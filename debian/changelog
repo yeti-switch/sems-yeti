@@ -1,3 +1,9 @@
+sems-yeti (1.7.31-1) stable; urgency=low
+
+  * load cfg via sctp. keep persistent sctp connection with management node
+
+ -- dev <dev@yeti-switch.org>  Wed, 16 May 2018 13:37:24 +0300
+
 sems-yeti (1.7.30-3) stable; urgency=low
 
   * 8e69f67 CdrWriter: skip dbg_writecdr if db exception happened before arguments invocation
