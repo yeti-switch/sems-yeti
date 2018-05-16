@@ -8,7 +8,7 @@ sems-yeti is a part of project [Yeti]
 ### install build dependencies
 
 ```sh
-# aptitude install libsems1-dev libyeticc-dev
+# aptitude install libsems1-dev libprotobuf-dev protobuf-compiler
 ```
 
 ### get sources & build

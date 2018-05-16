@@ -4,7 +4,6 @@
 #include "hash/CdrList.h"
 #include "resources/ResourceControl.h"
 
-#include <yeti/yeticc.h>
 #include "AmConfigReader.h"
 
 #include <ctime>
@@ -33,13 +32,6 @@
 #define PROF_PRINT(descr,var) ;
 
 #endif
-
-class YetiCfgReader : public AmConfigReader, public yeti::cfg::reader {
-  public:
-    void on_key_value_param(const string &name,const string &value){
-        setParameter(name,value);
-    }
-};
 
 struct YetiBaseParams {
     SqlRouter &router;
@@ -79,6 +71,6 @@ struct YetiBase {
         string log_dir;
     } config;
 
-    YetiCfgReader cfg;
+    AmConfigReader cfg;
     time_t start_time;
 };
