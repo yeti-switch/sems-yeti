@@ -93,19 +93,6 @@ bool Yeti::load_config() {
 		return false;
 	}
 
-	static const char *mandatory_options[] = {
-		"cfg_host",
-		0
-	};
-
-	//check mandatory options
-	for(const char **opt = mandatory_options; *opt;opt++){
-		if(!ycfg.hasParameter(*opt)){
-			ERROR("Missed parameter '%s'",*opt);
-			return false;
-		}
-	}
-
 	if(ycfg.hasParameter("cfg_host")) {
 		WARN("yeti.conf: missed parameter 'cfg_host' use default value %s",
 			 YETI_SCTP_DEFAULT_HOST);
@@ -117,13 +104,13 @@ bool Yeti::load_config() {
 	}
 
 	if(ycfg.hasParameter("node_id")) {
-		WARN("node_id from sems.conf will be used instead of dprecated node_id in yeti.conf");
+		WARN("node_id from sems.conf will be used instead of obsoleted node_id in yeti.conf");
 	}
 
 	config.node_id = AmConfig::node_id;
 
 	sockaddr_storage a;
-	string address = ycfg.getParameter("cfg_host","127.0.0.1");
+	string address = ycfg.getParameter("cfg_host",YETI_SCTP_DEFAULT_HOST);
 	if(!am_inet_pton(address.c_str(),&a)) {
 		ERROR("configuration error. invalid address '%s' in option 'cfg_host`'",
 			address.c_str());
