@@ -93,12 +93,12 @@ bool Yeti::load_config() {
 		return false;
 	}
 
-	if(ycfg.hasParameter("cfg_host")) {
+	if(!ycfg.hasParameter("cfg_host")) {
 		WARN("yeti.conf: missed parameter 'cfg_host' use default value %s",
 			 YETI_SCTP_DEFAULT_HOST);
 	}
 
-	if(ycfg.hasParameter("cfg_port")) {
+	if(!ycfg.hasParameter("cfg_port")) {
 		WARN("yeti.conf: missed parameter 'cfg_port' use default value %d",
 			 YETI_SCTP_DEFAULT_PORT);
 	}
@@ -249,7 +249,7 @@ int Yeti::onLoad() {
 void Yeti::run()
 {
 	setThreadName("yeti-worker");
-	DBG("start yeti-woker");
+	DBG("start yeti-worker");
 	AmEventDispatcher::instance()->addEventQueue(YETI_QUEUE_NAME, this);
 	stopped = false;
 	while(!stopped) {
@@ -264,7 +264,6 @@ void Yeti::on_stop()
 {
 	stopped = true;
 	ev_pending.set(true);
-	//INFO("stop yeti-worker thread");
 }
 
 #define ON_EVENT_TYPE(type) if(type *e = dynamic_cast<type *>(ev))

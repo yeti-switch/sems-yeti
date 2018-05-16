@@ -1,3 +1,9 @@
+sems-yeti (1.7.31-4) stable; urgency=low
+
+  * fix yeti.conf missed parameters warnings. fix typo in debug message about starting thread
+
+ -- dev <dev@yeti-switch.org>  Wed, 16 May 2018 17:47:50 +0300
+
 sems-yeti (1.7.31-3) stable; urgency=low
 
   * update yeti.conf.cmake
