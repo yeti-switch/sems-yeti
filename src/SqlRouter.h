@@ -9,7 +9,7 @@
 #include "cdr/CdrWriter.h"
 #include "hash/ProfilesCache.h"
 #include "db/DbTypes.h"
-#include "cdr/Cdr.h"
+#include "cdr/CdrBase.h"
 #include "CodesTranslator.h"
 #include "UsedHeaderField.h"
 #include "Auth.h"

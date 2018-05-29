@@ -8,6 +8,12 @@
 #include "../cdr/TrustedHeaders.h"
 #include "../yeti_version.h"
 
+//affect on precision check_interval and batch_timeout handling precision
+#define QUEUE_RUN_TIMEOUT_MSEC 1000
+#define DEFAULT_CHECK_INTERVAL_MSEC 5000
+#define DEFAULT_BATCH_SIZE 10
+#define DEFAULT_BATCH_TIMEOUT_MSEC 2000
+
 const static_field cdr_static_fields[] = {
 	{ "is_master", "boolean" },
 	{ "node_id", "integer" },
@@ -122,7 +128,7 @@ void CdrWriter::stop()
 	cdrthreadpool_mut.unlock();
 }
 
-void CdrWriter::postcdr(Cdr* cdr )
+void CdrWriter::postcdr(CdrBase* cdr )
 {
 	if(cdr->suppress){
 		delete cdr;
@@ -202,12 +208,11 @@ void CdrWriter::clearStats(){
 	cdrthreadpool_mut.unlock();
 }
 
-void CdrThread::postcdr(Cdr* cdr)
+void CdrThread::postcdr(CdrBase* cdr)
 {
-	//DBG("%s[%p](%p)",FUNC_NAME,this,cdr);
 	queue_mut.lock();
-		//queue.push_back(newcdr);
-		queue.push_back(cdr);
+	queue.push_back(cdr);
+	if(!db_err)
 		queue_run.set(true);
 	queue_mut.unlock();
 }
@@ -216,7 +221,7 @@ void CdrThread::postcdr(Cdr* cdr)
 CdrThread::CdrThread() :
 	queue_run(false),stopped(false),
 	masterconn(NULL),slaveconn(NULL),gotostop(false),
-	masteralarm(false),slavealarm(false)
+	masteralarm(false),slavealarm(false),db_err(false)
 {
 	clearStats();
 }
@@ -260,9 +265,9 @@ int CdrThread::configure(CdrThreadCfg& cfg ){
 
 void CdrThread::on_stop(){
 	INFO("Stopping CdrWriter thread");
-	gotostop=true;
-	queue_run.set(true); // we must switch thread to run state for exit.
-	stopped.wait_for();
+	gotostop = true;
+	queue_run.set(true);
+	join();
 	if(masterconn){
 		DBG("CdrWriter: Disconnect master SQL. Backend pid: %d.",masterconn->backendpid());
 		masterconn->disconnect();
@@ -273,199 +278,246 @@ void CdrThread::on_stop(){
 	}
 }
 
-void CdrThread::run(){
-	INFO("Starting CdrWriter thread");
-	setThreadName("yeti-cdr-wr");
-	if(!connectdb()){
-		ERROR("can't connect to any DB on startup. give up");
-		throw std::logic_error("CdrWriter can't connect to any DB on startup");
-	}
+void CdrThread::run()
+{
+    time_t now, batch_timeout_time;
+    int entries_to_write, no_batch_entries_left;
 
-	bool db_err = false;
+    INFO("Starting CdrWriter thread");
 
-while(true){
-	Cdr* cdr;
+    setThreadName("yeti-cdr-wr");
+    if(!connectdb()){
+        ERROR("can't connect to any DB on startup. give up");
+        throw std::logic_error("CdrWriter can't connect to any DB on startup");
+    }
 
-	//DBG("next cycle");
+    time(&now);
 
-	bool qrun = queue_run.wait_for_to(config.check_interval);
+    next_check_time = now+config.check_interval;
+    batch_timeout_time = now+config.batch_timeout;
+    no_batch_entries_left = 0;
 
-	if (gotostop){
-		stopped.set(true);
-		return;
-	}
+    while(!gotostop) {
 
-	if(db_err || !qrun){
-		//DBG("queue condition wait timeout. check connections");
-		//check master conn
-		if(masterconn!=NULL){
-			try {
-				pqxx::work t(*masterconn);
-				t.commit();
-				db_err = false;
-			} catch (const pqxx::pqxx_exception &e) {
-				delete masterconn;
-				if(!_connectdb(&masterconn,config.masterdb.conn_str(),true)){
-					if(!masteralarm){
-						ERROR("CdrWriter %p master DB connection failed alarm raised",this);
-						masteralarm = true;
-						RAISE_ALARM(alarms::CDR_DB_CONN);
-					}
-				} else {
-					INFO("CdrWriter %p master DB connection failed alarm cleared",this);
-					masteralarm = false;
-					db_err = false;
-					CLEAR_ALARM(alarms::CDR_DB_CONN);
-				}
-			}
-		} else {
-			if(!_connectdb(&masterconn,config.masterdb.conn_str(),true)){
-				if(!masteralarm){
-					ERROR("CdrWriter %p master DB connection failed alarm raised",this);
-					masteralarm = true;
-					RAISE_ALARM(alarms::CDR_DB_CONN);
-				}
-			} else {
-				INFO("CdrWriter %p master DB connection failed alarm cleared",this);
-				masteralarm = false;
-				CLEAR_ALARM(alarms::CDR_DB_CONN);
-			}
-		}
-		//check slave connecion
-		if(!config.failover_to_slave)
-			continue;
+        bool qrun = queue_run.wait_for_to(QUEUE_RUN_TIMEOUT_MSEC);
 
-		if(slaveconn!=NULL){
-			try {
-				pqxx::work t(*slaveconn);
-				t.commit();
-				db_err = false;
-			} catch (const pqxx::pqxx_exception &e) {
-				delete slaveconn;
-				if(!_connectdb(&slaveconn,config.slavedb.conn_str(),false)){
-					if(!slavealarm){
-						ERROR("CdrWriter %p slave DB connection failed alarm raised",this);
-						slavealarm = true;
-						RAISE_ALARM(alarms::CDR_DB_CONN_SLAVE);
-					}
-				} else {
-					INFO("CdrWriter %p slave DB connection failed alarm cleared",this);
-					slavealarm = false;
-					db_err = false;
-					CLEAR_ALARM(alarms::CDR_DB_CONN_SLAVE);
-				}
-			}
-		} else {
-			if(!_connectdb(&slaveconn,config.slavedb.conn_str(),false)){
-				if(!slavealarm){
-					ERROR("CdrWriter %p slave DB connection failed alarm raised",this);
-					slavealarm = true;
-					RAISE_ALARM(alarms::CDR_DB_CONN_SLAVE);
-				}
-			} else {
-				INFO("CdrWriter %p slave DB connection failed alarm cleared",this);
-				slavealarm = false;
-				CLEAR_ALARM(alarms::CDR_DB_CONN_SLAVE);
-			}
-		}
-		//continue;
-	}
+        if (gotostop)
+            continue;
 
-	//DBG("CdrWriter cycle beginstartup");
+        time(&now);
 
-	queue_mut.lock();
-		if(queue.empty()){
-			//DBG("no CDR for write");
-			queue_run.set(false);
-			queue_mut.unlock();
-			continue;
-		}
+        if(!qrun) {
+            check_db(now);
+        }
 
-		cdr=queue.front();
-		queue.pop_front();
+        if(db_err) {
+            queue_run.set(false);
+            continue;
+        }
 
-		if(queue.empty()){
-			//DBG("CdrWriter cycle stop.Empty queue");
-			queue_run.set(false);
-		}
-	queue_mut.unlock();
+        queue_mut.lock();
 
-	bool cdr_writed = false;
-#if 0 //used for tests
-	if(0!=writecdrtofile(cdr)){
-		ERROR("can't write CDR to file");
-	} else {
-		//succ writed to file
-		DBG("CDR was written into file");
-		cdr_writed = true;
-	}
-#endif
-//#if 0
-	if(0!=writecdr(masterconn,*cdr)){
-		ERROR("Cant write CDR to master database");
-		db_err = true;
-		if (config.failover_to_slave) {
-			DBG("failover_to_slave enabled. try");
-			if(!slaveconn || 0!=writecdr(slaveconn,*cdr)){
-				db_err = true;
-				ERROR("Cant write CDR to slave database");
-				if(config.failover_to_file){
-					DBG("failover_to_file enabled. try");
-					if(0!=writecdrtofile(cdr)){
-						ERROR("can't write CDR to file");
-					} else {
-						//succ writed to file
-						DBG("CDR was written into file");
-						cdr_writed = true;
-					}
-				} else {
-					DBG("failover_to_file disabled");
-				}
-			} else {
-				//succ writed to slave database
-				DBG("CDR was written into slave");
-				cdr_writed = true;
-				closefile();
-			}
-		} else {
-			DBG("failover_to_slave disabled");
-			if(config.failover_to_file){
-				DBG("failover_to_file enabled. try");
-				if(0!=writecdrtofile(cdr)){
-					ERROR("can't write CDR to file");
-				} else {
-					//succ writed to file
-					DBG("CDR was written into file");
-					cdr_writed = true;
-				}
-			} else {
-				DBG("failover_to_file disabled");
-			}
-		}
-	} else {
-		//succ writed to master database
-		DBG("CDR was written into master");
-		cdr_writed = true;
-		closefile();
-	}
-//#endif
-	if(cdr_writed){
-		stats.writed_cdrs++;
-		DBG("CDR deleted from queue");
-		delete cdr;
-	} else {
-		if(config.failover_requeue){
-			DBG("requeuing is enabled. return CDR into queue");
-			queue_mut.lock();
-				queue.push_back(cdr);
-				//queue_run.set(true);
-			queue_mut.unlock();
-		} else {
-			ERROR("CDR write failed. forget about it");
-			delete cdr;
-		}
-	}
-} //while
+        if(queue.empty()) {
+            queue_run.set(false);
+            queue_mut.unlock();
+            continue;
+        }
+
+        if(no_batch_entries_left > 0) { //check for temporary non-batch mode
+            entries_to_write = 1;
+        } else if(queue.size() >= config.batch_size) { //check for batch size condition
+            DBG("batch size condition reached");
+            entries_to_write = config.batch_size;
+            batch_timeout_time = now+config.batch_timeout;
+        } else if(now >= batch_timeout_time) { //check for batch timeout condition
+            DBG("batch timeout reached");
+            entries_to_write = queue.size();
+            batch_timeout_time = now+config.batch_timeout;
+        } else {
+            DBG("no time for dragons");
+            queue_mut.unlock();
+            continue;
+        }
+
+        queue_mut.unlock();
+
+        if(write_with_failover(entries_to_write)) {
+            stats.writed_cdrs+=entries_to_write;
+
+            queue_mut.lock();
+
+            for(int i = 0; i < entries_to_write; i++) {
+                delete queue.front();
+                queue.pop_front();
+            }
+
+            if(!queue.empty()) //process next batch immediately if available
+                queue_run.set(true);
+
+            queue_mut.unlock();
+
+            DBG("%d CDRs are deleted from queue",entries_to_write);
+            continue;
+        }
+
+        //failed to write batch
+
+        if(!no_batch_entries_left) {
+            no_batch_entries_left = entries_to_write;
+            DBG("switch to non batch mode. set non batch entries left to: %d ",
+                no_batch_entries_left);
+            continue;
+        }
+
+        //no batch mode processing
+
+        if(config.failover_requeue) {
+            DBG("requeuing is enabled. leave CDRs in the queue. non batch entries left: %d",
+                no_batch_entries_left);
+            continue;
+        }
+
+        ERROR("CDR write failed in non-batch mode. forget about it");
+
+        no_batch_entries_left--;
+
+        delete queue.front();
+
+        queue_mut.lock();
+
+        queue.pop_front();
+        if(!queue.empty())
+            queue_run.set(true);
+
+        queue_mut.unlock();
+
+    } //while
+}
+
+void CdrThread::check_db(time_t now)
+{
+    if(now < next_check_time)
+        return;
+
+    DBG("time to check");
+
+    next_check_time=now+config.check_interval;
+
+    //check master conn
+    if(masterconn!=NULL) {
+        try {
+            pqxx::work t(*masterconn);
+            t.commit();
+            db_err = false;
+        } catch (const pqxx::pqxx_exception &e) {
+            delete masterconn;
+            if(!_connectdb(&masterconn,config.masterdb.conn_str(),true)) {
+                if(!masteralarm){
+                    ERROR("CdrWriter %p master DB connection failed alarm raised",this);
+                    masteralarm = true;
+                    RAISE_ALARM(alarms::CDR_DB_CONN);
+                }
+            } else {
+                INFO("CdrWriter %p master DB connection failed alarm cleared",this);
+                masteralarm = false;
+                db_err = false;
+                CLEAR_ALARM(alarms::CDR_DB_CONN);
+            }
+        }
+    } else {
+        if(!_connectdb(&masterconn,config.masterdb.conn_str(),true)) {
+            if(!masteralarm){
+                ERROR("CdrWriter %p master DB connection failed alarm raised",this);
+                masteralarm = true;
+                RAISE_ALARM(alarms::CDR_DB_CONN);
+            }
+        } else {
+            INFO("CdrWriter %p master DB connection failed alarm cleared",this);
+            masteralarm = false;
+            CLEAR_ALARM(alarms::CDR_DB_CONN);
+        }
+    }
+
+    //check slave connecion
+    if(!config.failover_to_slave)
+        return;
+
+    if(slaveconn!=NULL) {
+        try {
+            pqxx::work t(*slaveconn);
+            t.commit();
+            db_err = false;
+        } catch (const pqxx::pqxx_exception &e) {
+            delete slaveconn;
+            if(!_connectdb(&slaveconn,config.slavedb.conn_str(),false)) {
+                if(!slavealarm){
+                    ERROR("CdrWriter %p slave DB connection failed alarm raised",this);
+                    slavealarm = true;
+                    RAISE_ALARM(alarms::CDR_DB_CONN_SLAVE);
+                }
+            } else {
+                INFO("CdrWriter %p slave DB connection failed alarm cleared",this);
+                slavealarm = false;
+                db_err = false;
+                CLEAR_ALARM(alarms::CDR_DB_CONN_SLAVE);
+            }
+        }
+    } else {
+        if(!_connectdb(&slaveconn,config.slavedb.conn_str(),false)) {
+            if(!slavealarm){
+                ERROR("CdrWriter %p slave DB connection failed alarm raised",this);
+                slavealarm = true;
+                RAISE_ALARM(alarms::CDR_DB_CONN_SLAVE);
+            }
+        } else {
+            INFO("CdrWriter %p slave DB connection failed alarm cleared",this);
+            slavealarm = false;
+            CLEAR_ALARM(alarms::CDR_DB_CONN_SLAVE);
+        }
+    }
+}
+
+bool CdrThread::write_with_failover(int entries_to_write)
+{
+    if(0==writecdr(masterconn,entries_to_write)) {
+        DBG("%d CDRs were written into master",entries_to_write);
+        closefile();
+        return true;
+    }
+
+    ERROR("Cant write CDR to master database");
+
+    db_err = true;
+
+    if (config.failover_to_slave) {
+        DBG("failover_to_slave enabled");
+        if(!slaveconn) {
+            ERROR("no slave CDR database connection");
+        }
+
+        if(0==writecdr(slaveconn,entries_to_write)) {
+            DBG("%d CDRs were written into slave",entries_to_write);
+            closefile();
+            return true;
+        }
+
+        ERROR("Cant write CDR to slave database");
+    } else {
+        DBG("failover_to_slave disabled");
+    }
+
+    if(config.failover_to_file) {
+        DBG("failover_to_file enabled");
+        if(0==writecdrtofile()) {
+            DBG("%d CDRs were written into file",entries_to_write);
+            return true;
+        }
+        ERROR("can't write CDR to file");
+    } else {
+        DBG("failover_to_file disabled");
+    }
+
+    return false;
 }
 
 void CdrThread::prepare_queries(pqxx::connection *c){
@@ -474,7 +526,7 @@ void CdrThread::prepare_queries(pqxx::connection *c){
 
 	c->set_variable("search_path",config.db_schema+", public");
 
-	for(;it!=config.prepared_queries.end();++it){
+	for(;it!=config.prepared_queries.end();++it) {
 #if PQXX_VERSION_MAJOR == 3 && PQXX_VERSION_MINOR == 1
 		pqxx::prepare::declaration d =
 #endif
@@ -575,57 +627,67 @@ void CdrThread::dbg_writecdr(AmArg &fields_values,Cdr &cdr){
 	//TrustedHeaders::instance()->print_hdrs(cdr.trusted_hdrs);
 }
 
-int CdrThread::writecdr(cdr_writer_connection* conn, Cdr& cdr){
+int CdrThread::writecdr(cdr_writer_connection* conn, int entries_to_write){
 #define invoc_field(field_value)\
-	fields_values.push(AmArg(field_value));\
-	invoc(field_value);
+    fields_values.push(AmArg(field_value));\
+    invoc(field_value);
 
-	DBG("%s[%p](conn = %p,cdr = %p)",FUNC_NAME,this,conn,&cdr);
-	int ret = 1;
+    //CdrBase& cdr = *queue.front();
 
-	Yeti::global_config &gc = Yeti::instance().config;
-	AmArg fields_values;
+    DBG("%s[%p](conn = %p,entries_to_write = %d)",FUNC_NAME,this,conn,entries_to_write);
+    int ret = 1;
 
-	if(conn==NULL){
-		ERROR("writecdr() we got NULL connection pointer.");
-		return 1;
-	}
+    Yeti::global_config &gc = Yeti::instance().config;
+    AmArg fields_values;
 
-	fields_values.assertArray();
+    if(conn==NULL){
+        ERROR("writecdr() we got NULL connection pointer.");
+        return 1;
+    }
 
-	//TrustedHeaders::instance()->print_hdrs(cdr->trusted_hdrs);
+    //fields_values.assertArray();
 
-	stats.tried_cdrs++;
-	try{
-		pqxx::result r;
-		pqxx::nontransaction tnx(*conn);
-		if(!tnx.prepared("writecdr").exists()){
-			ERROR("have no prepared SQL statement");
-			return 1;
-		}
+    stats.tried_cdrs++;
+    try {
+        pqxx::result r;
+        cdr_transaction tnx(*conn);
 
-		pqxx::prepare::invocation invoc = tnx.prepared("writecdr");
+        /*if(!tnx.prepared("writecdr").exists()) {
+            ERROR("have no prepared SQL statement");
+            return 1;
+        }*/
 
-		invoc_field(conn->isMaster());
-		invoc_field(gc.node_id);
-		invoc_field(gc.pop_id);
+        auto i = queue.begin();
+        for(auto i = queue.begin();
+            entries_to_write;
+            entries_to_write--, ++i)
+        {
+            CdrBase& cdr = **i;
 
-		cdr.invoc(invoc,fields_values,config.dyn_fields,
-				  config.serialize_dynamic_fields);
+            fields_values.clear();
+            pqxx::prepare::invocation invoc = cdr.get_invocation(tnx);
 
-		r = invoc.exec();
-		if (r.size()!=0&&0==r[0][0].as<int>()){
-			ret = 0;
-		}
+            invoc_field(conn->isMaster());
+            invoc_field(gc.node_id);
+            invoc_field(gc.pop_id);
 
-		//dbg_writecdr(fields_values,cdr);
-	} catch(const pqxx::pqxx_exception &e){
-		DBG("SQL exception on CdrWriter thread: %s",e.base().what());
-		dbg_writecdr(fields_values,cdr);
-		conn->disconnect();
-		stats.db_exceptions++;
-	}
-	return ret;
+            cdr.invoc(invoc,fields_values,config.dyn_fields,config.serialize_dynamic_fields);
+            r = invoc.exec();
+            if (r.size()!=0&&0==r[0][0].as<int>()) {
+                ret = 0;
+            }
+        }
+
+        tnx.commit();
+
+        //cdr.write_debug(fields_values,config.dyn_fields);
+    } catch(const pqxx::pqxx_exception &e){
+        DBG("SQL exception on CdrWriter thread: %s",e.base().what());
+        //cdr.write_debug(fields_values,config.dyn_fields);
+        conn->disconnect();
+        stats.db_exceptions++;
+    }
+    return ret;
 #undef invoc_field
 }
 
@@ -699,11 +761,14 @@ void CdrThread::write_header(){
 	wf.flush();
 }
 
-int CdrThread::writecdrtofile(Cdr* cdr){
+int CdrThread::writecdrtofile() {
 #define quote(v) "'"<<v<< "'" << ','
 	if(!openfile()){
 		return -1;
 	}
+
+	CdrBase *cdr = queue.front();
+
 	ofstream &s = *wfp.get();
 	Yeti::global_config &gc = Yeti::instance().config;
 
@@ -772,7 +837,9 @@ int CdrThreadCfg::cfg2CdrThCfg(AmConfigReader& cfg, string& prefix){
 
 int CdrWriterCfg::cfg2CdrWrCfg(AmConfigReader& cfg){
 	poolsize=cfg.getParameterInt(name+"_pool_size",10);
-	check_interval = cfg.getParameterInt("cdr_check_interval",5000);
+	check_interval = cfg.getParameterInt("cdr_check_interval",DEFAULT_CHECK_INTERVAL_MSEC)/1000;
+	batch_timeout = cfg.getParameterInt("cdr_batch_timeout",DEFAULT_BATCH_TIMEOUT_MSEC)/1000;
+	batch_size = cfg.getParameterInt("cdr_batch_size",DEFAULT_BATCH_SIZE);
 	failover_to_slave = cfg.getParameterInt("cdr_failover_to_slave",1);
 	serialize_dynamic_fields = cfg.getParameterInt("serialize_dynamic_fields",0);
 	return cfg2CdrThCfg(cfg,name);

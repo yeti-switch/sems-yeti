@@ -10,6 +10,8 @@
 #include <pqxx/pqxx>
 #include <unordered_set>
 
+#include "CdrBase.h"
+
 enum UpdateAction {
     Start,
     BLegInvite,
@@ -29,15 +31,15 @@ enum DisconnectInitiator {
 const char *DisconnectInitiator2Str(int initiator);
 
 struct Cdr
-  : public AmMutex
+  : public CdrBase,
+    public AmMutex
 {
     bool writed;
+    bool is_last;
     bool snapshoted;
-    bool suppress;
     bool trusted_hdrs_gw;
     bool inserted2list;
     int attempt_num;
-    bool is_last;
 
     string msg_logger_path;
     int dump_level_id;
@@ -57,7 +59,6 @@ struct Cdr
     string disconnect_rewrited_reason;
     int disconnect_rewrited_code;
 
-    struct timeval cdr_born_time;
     struct timeval start_time;
     struct timeval bleg_invite_time;
     struct timeval connect_time;
@@ -151,11 +152,13 @@ struct Cdr
     void refuse(const SBCCallProfile &profile);
     void refuse(int code, string reason);
 
+    pqxx::prepare::invocation get_invocation(cdr_transaction &tnx) override;
     void invoc(pqxx::prepare::invocation &invoc,
-               AmArg &invoced_values,
+               AmArg &invocated_values,
                const DynFieldsT &df,
-               bool serialize_dynamic_fields);
-    void to_csv_stream(ofstream &s, const DynFieldsT &df);
+               bool serialize_dynamic_fields) override;
+    void write_debug(AmArg &fields_values, const DynFieldsT &df) override;
+    void to_csv_stream(ofstream &s, const DynFieldsT &df) override;
 
     //serializators
     char *serialize_rtp_stats();

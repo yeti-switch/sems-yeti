@@ -44,11 +44,10 @@ const char *DisconnectInitiator2Str(int initiator)
 }
 
 Cdr::Cdr()
-  : snapshoted(false),
+  : CdrBase(CdrBase::Call),
+    snapshoted(false),
     sip_early_media_present(false),
     trusted_hdrs_gw(false),
-    writed(false),
-    suppress(false),
     inserted2list(false),
     disconnect_initiator(DisconnectUndefined),
     disconnect_initiator_writed(false),
@@ -78,8 +77,6 @@ Cdr::Cdr()
     audio_record_enabled(false),
     is_redirected(false)
 {
-    gettimeofday(&cdr_born_time, NULL);
-
     timerclear(&start_time);
     timerclear(&bleg_invite_time);
     timerclear(&connect_time);
@@ -737,6 +734,8 @@ void Cdr::add_versions_to_amarg(AmArg &arg) const
 #undef add_num2json
 #undef field_name
 
+static string cdr_sql_statement_name("writecdr");
+
 static inline void invoc_AmArg(pqxx::prepare::invocation &invoc,const AmArg &arg)
 {
     short type = arg.getType();
@@ -762,19 +761,24 @@ static inline void invoc_AmArg(pqxx::prepare::invocation &invoc,const AmArg &arg
     }
 }
 
+pqxx::prepare::invocation Cdr::get_invocation(cdr_transaction &tnx)
+{
+    return tnx.prepared(cdr_sql_statement_name);
+}
+
 void Cdr::invoc(
     pqxx::prepare::invocation &invoc,
-    AmArg &invoced_values,
+    AmArg &invocated_values,
     const DynFieldsT &df,
     bool serialize_dynamic_fields)
 {
 
 #define invoc_field(field_value)\
-    invoced_values.push(AmArg(field_value));\
+    invocated_values.push(AmArg(field_value));\
     invoc(field_value);
 
 #define invoc_null()\
-    invoced_values.push(AmArg());\
+    invocated_values.push(AmArg());\
     invoc();
 
 #define invoc_field_cond(field_value,condition)\
@@ -857,6 +861,41 @@ void Cdr::invoc(
 #undef invoc_field_cond
 #undef invoc_null
 #undef invoc_field
+}
+
+void Cdr::write_debug(AmArg &fields_values, const DynFieldsT &df)
+{
+    int k = 0;
+    //static fields
+    if(fields_values.size() < WRITECDR_STATIC_FIELDS_COUNT) {
+        DBG("exception happened before static fields invocation completed. skip values output");
+        return;
+    }
+    for(int j = 0;j<WRITECDR_STATIC_FIELDS_COUNT;j++,k++){
+        AmArg &a = fields_values.get(k);
+        const static_field &f = cdr_static_fields[j];
+        ERROR("%d: %s[%s] -> %s[%s]",
+            k,f.name,f.type,
+            AmArg::print(a).c_str(),
+            a.t2str(a.getType()));
+    }
+    //dynamic fields
+    const size_t n = dyn_fields.size();
+    const size_t m = df.size();
+    if(m!=n){
+        ERROR("mismatched count of configured and actually gained dynamic fields."
+              "cfg: %ld, actually: %ld",m,n);
+        return;
+    }
+    DynFieldsT_const_iterator it = df.begin();
+    for(int j = 0;it!=df.end();++it,++j,++k){
+        const DynField &f = *it;
+        AmArg &a = dyn_fields[f.name];
+        ERROR("%d: %s[%s] -> %s[%s]",
+            k,f.name.c_str(),f.type_name.c_str(),
+            AmArg::print(a).c_str(),
+            a.t2str(a.getType()));
+    }
 }
 
 template<class T>

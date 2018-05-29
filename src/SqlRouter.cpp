@@ -581,13 +581,12 @@ void SqlRouter::align_cdr(Cdr &cdr){
 void SqlRouter::write_cdr(Cdr* cdr, bool last)
 {
   DBG("%s(%p) last = %d",FUNC_NAME,cdr,last);
-  if(!cdr->writed){
-	//DBG("%s(%p) write now",FUNC_NAME,cdr);
-    cdr->update(Write);
-	cdr->is_last = last;
+  if(!cdr->writed) {
+    cdr->writed = true;
+    cdr->is_last = last;
     cdr_writer->postcdr(cdr);
   } else {
-	  DBG("%s(%p) trying to write already writed cdr",FUNC_NAME,cdr);
+    DBG("%s(%p) trying to write already writed cdr",FUNC_NAME,cdr);
   }
 }
 
