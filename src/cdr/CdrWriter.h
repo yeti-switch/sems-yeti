@@ -9,6 +9,7 @@
 #include "Cdr.h"
 #include "../SBCCallProfile.h"
 #include "../db/DbConfig.h"
+#include "../UsedHeaderField.h"
 #include "Cdr.h"
 #include "../db/DbTypes.h"
 #include <fstream>
@@ -48,6 +49,7 @@ struct CdrThreadCfg
     DbConfig masterdb,slavedb;
     PreparedQueriesT prepared_queries;
     DynFieldsT dyn_fields;
+    vector<UsedHeaderField> used_header_fields;
     string db_schema;
     int cfg2CdrThCfg(AmConfigReader& cfg,string& prefix);
 };
@@ -64,7 +66,7 @@ struct CdrWriterCfg
 class CdrThread
   : public AmThread
 {
-    std::list<CdrBase*> queue;
+    std::list< std::unique_ptr<CdrBase> > queue;
     AmMutex queue_mut;
     AmCondition<bool> queue_run;
 

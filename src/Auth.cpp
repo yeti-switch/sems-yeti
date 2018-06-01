@@ -165,13 +165,15 @@ Auth::auth_id_type Auth::check_invite_auth(const AmSipRequest &req,  AmArg &ret)
     return -UAC_AUTH_ERROR;
 }
 
-void Auth::send_auth_challenge(const AmSipRequest &req)
+void Auth::send_auth_challenge(const AmSipRequest &req, AmArg &ret)
 {
-    AmArg args,ret;
+    AmArg args;
     args.push((AmObject *) &req);
     args.push(realm);
     args.push(string());
     args.push(string());
+
+    ret.clear();
 
     uac_auth->invoke("checkAuth", args, ret);
 

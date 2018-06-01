@@ -75,7 +75,8 @@ Cdr::Cdr()
     legB_bytes_sent(0),
     isup_propagation_delay(0),
     audio_record_enabled(false),
-    is_redirected(false)
+    is_redirected(false),
+    writed(false)
 {
     timerclear(&start_time);
     timerclear(&bleg_invite_time);
@@ -351,7 +352,7 @@ void Cdr::set_start_time(const timeval &t)
 void Cdr::update_bleg_reason(string reason, int code)
 {
     DBG("Cdr::%s(reason = '%s',code = %d)",FUNC_NAME,
-        reason.c_str(),code);    if(writed) return;
+        reason.c_str(),code);
 
     if(writed) return;
 
@@ -768,83 +769,75 @@ pqxx::prepare::invocation Cdr::get_invocation(cdr_transaction &tnx)
 
 void Cdr::invoc(
     pqxx::prepare::invocation &invoc,
-    AmArg &invocated_values,
     const DynFieldsT &df,
     bool serialize_dynamic_fields)
 {
-
-#define invoc_field(field_value)\
-    invocated_values.push(AmArg(field_value));\
-    invoc(field_value);
-
-#define invoc_null()\
-    invocated_values.push(AmArg());\
-    invoc();
-
-#define invoc_field_cond(field_value,condition)\
-    if(condition) { invoc_field(field_value); }\
-    else { invoc_null(); }
+#define invoc_cond(field_value,condition)\
+    if(condition) { invoc(field_value); }\
+    else { invoc(); }
 
 #define invoc_json(func) do { \
     char *s = func; \
-    invoc_field(s); \
+    invoc(s); \
     free(s); \
 } while(0)
 
-    invoc_field(attempt_num);
-    invoc_field(is_last);
-    invoc_field_cond(legA_transport_protocol_id,legA_transport_protocol_id!=0);
-    invoc_field(legA_local_ip);
-    invoc_field(legA_local_port);
-    invoc_field(legA_remote_ip);
-    invoc_field(legA_remote_port);
-    invoc_field_cond(legB_transport_protocol_id,legB_transport_protocol_id!=0);
-    invoc_field(legB_local_ip);
-    invoc_field(legB_local_port);
-    invoc_field(legB_remote_ip);
-    invoc_field(legB_remote_port);
+    invoc(attempt_num);
+    invoc(is_last);
+    invoc_cond(legA_transport_protocol_id,legA_transport_protocol_id!=0);
+    invoc(legA_local_ip);
+    invoc(legA_local_port);
+    invoc(legA_remote_ip);
+    invoc(legA_remote_port);
+    invoc_cond(legB_transport_protocol_id,legB_transport_protocol_id!=0);
+    invoc(legB_local_ip);
+    invoc(legB_local_port);
+    invoc(legB_remote_ip);
+    invoc(legB_remote_port);
 
     invoc_json(serialize_timers_data());
 
-    invoc_field(sip_early_media_present);
-    invoc_field(disconnect_code);
-    invoc_field(disconnect_reason);
-    invoc_field(disconnect_initiator);
-    invoc_field(disconnect_internal_code);
-    invoc_field(disconnect_internal_reason);
+    invoc(sip_early_media_present);
+    invoc(disconnect_code);
+    invoc(disconnect_reason);
+    invoc(disconnect_initiator);
+    invoc(disconnect_internal_code);
+    invoc(disconnect_internal_reason);
+
     if(is_last){
-        invoc_field(disconnect_rewrited_code);
-        invoc_field(disconnect_rewrited_reason);
+        invoc(disconnect_rewrited_code);
+        invoc(disconnect_rewrited_reason);
     } else {
-        invoc_field(0);
-        invoc_field("");
+        invoc(0);
+        invoc("");
     }
-    invoc_field(orig_call_id);
-    invoc_field(term_call_id);
-    invoc_field(local_tag);
-    invoc_field(msg_logger_path);
-    invoc_field(dump_level_id);
-    invoc_field(audio_record_enabled);
+
+    invoc(orig_call_id);
+    invoc(term_call_id);
+    invoc(local_tag);
+    invoc(msg_logger_path);
+    invoc(dump_level_id);
+    invoc(audio_record_enabled);
 
     invoc_json(serialize_rtp_stats());
 
-    invoc_field(global_tag);
+    invoc(global_tag);
 
-    invoc_field(resources);
-    invoc_field(active_resources);
+    invoc(resources);
+    invoc(active_resources);
 
-    invoc_field_cond(failed_resource_type_id, failed_resource_type_id!=-1);
-    invoc_field_cond(failed_resource_id, failed_resource_id!=-1);
+    invoc_cond(failed_resource_type_id, failed_resource_type_id!=-1);
+    invoc_cond(failed_resource_id, failed_resource_id!=-1);
 
     if(dtmf_events_a2b.empty() && dtmf_events_b2a.empty()) {
-        invoc_null();
+        invoc();
     } else {
         invoc_json(serialize_dtmf_events());
     }
 
     invoc_json(serialize_versions());
 
-    invoc_field(is_redirected);
+    invoc(is_redirected);
 
     /* invocate dynamic fields  */
     if(serialize_dynamic_fields){
@@ -858,44 +851,7 @@ void Cdr::invoc(
         invoc_AmArg(invoc,h);
 
 #undef invoc_json
-#undef invoc_field_cond
-#undef invoc_null
-#undef invoc_field
-}
-
-void Cdr::write_debug(AmArg &fields_values, const DynFieldsT &df)
-{
-    int k = 0;
-    //static fields
-    if(fields_values.size() < WRITECDR_STATIC_FIELDS_COUNT) {
-        DBG("exception happened before static fields invocation completed. skip values output");
-        return;
-    }
-    for(int j = 0;j<WRITECDR_STATIC_FIELDS_COUNT;j++,k++){
-        AmArg &a = fields_values.get(k);
-        const static_field &f = cdr_static_fields[j];
-        ERROR("%d: %s[%s] -> %s[%s]",
-            k,f.name,f.type,
-            AmArg::print(a).c_str(),
-            a.t2str(a.getType()));
-    }
-    //dynamic fields
-    const size_t n = dyn_fields.size();
-    const size_t m = df.size();
-    if(m!=n){
-        ERROR("mismatched count of configured and actually gained dynamic fields."
-              "cfg: %ld, actually: %ld",m,n);
-        return;
-    }
-    DynFieldsT_const_iterator it = df.begin();
-    for(int j = 0;it!=df.end();++it,++j,++k){
-        const DynField &f = *it;
-        AmArg &a = dyn_fields[f.name];
-        ERROR("%d: %s[%s] -> %s[%s]",
-            k,f.name.c_str(),f.type_name.c_str(),
-            AmArg::print(a).c_str(),
-            a.t2str(a.getType()));
-    }
+#undef invoc_cond
 }
 
 template<class T>

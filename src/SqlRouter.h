@@ -10,6 +10,7 @@
 #include "hash/ProfilesCache.h"
 #include "db/DbTypes.h"
 #include "cdr/CdrBase.h"
+#include "cdr/AuthCdr.h"
 #include "CodesTranslator.h"
 #include "UsedHeaderField.h"
 #include "Auth.h"
@@ -36,6 +37,12 @@ public:
   void stop();
   void align_cdr(Cdr &cdr);
   void write_cdr(Cdr *cdr, bool last);
+  void log_auth(
+      const AmSipRequest& req,
+      bool success,
+      AmArg &ret,
+      Auth::auth_id_type auth_id = 0);
+  void send_auth_challenge(const AmSipRequest &req, AmArg &ret) override;
   void dump_config();
   void clearStats();
   void clearCache();
@@ -88,6 +95,7 @@ private:
   int cache_buckets;
   string writecdr_schema;
   string writecdr_function;
+  string authlog_function;
   string routing_schema;
   string routing_function;
   PreparedQueriesT prepared_queries;

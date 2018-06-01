@@ -16,6 +16,7 @@
 #include "db/DbTypes.h"
 #include "yeti.h"
 #include "cdr/TrustedHeaders.h"
+#include "cdr/AuthCdr.h"
 
 #include "AmSession.h"
 
@@ -75,6 +76,7 @@ SqlRouter::~SqlRouter()
 
 void SqlRouter::stop()
 {
+  DBG("SqlRouter::stop()");
   if(master_pool)
     master_pool->stop();
   if(slave_pool)
@@ -99,7 +101,7 @@ int SqlRouter::db_configure(AmConfigReader& cfg){
 	int ret = 1;
 try {
 	int n;
-	PreparedQueryArgs profile_types,cdr_types;
+	PreparedQueryArgs profile_types,cdr_types,auth_log_types;
 		//load config from db
 	string sql_query,prefix("master");
 	dbc.cfg2dbcfg(cfg,prefix);
@@ -111,6 +113,9 @@ try {
 		profile_types.push_back(profile_static_fields[k].type);
 	for(int k = 0;k<WRITECDR_STATIC_FIELDS_COUNT;k++)
 		cdr_types.push_back(cdr_static_fields[k].type);
+	for(const auto &f : auth_log_static_fields)
+		auth_log_types.push_back(f.type);
+
 	for(int k = 0;k<TrustedHeaders::instance()->count();k++)
 		cdr_types.push_back("varchar");
 
@@ -147,6 +152,7 @@ try {
 				t["varname"].c_str(),vartype);
 			used_header_fields.push_back(UsedHeaderField(t));
 			profile_types.push_back(vartype);
+			auth_log_types.push_back(vartype);
 		}
 	}
 
@@ -186,6 +192,13 @@ try {
 		sql_query.append(");");
 	cdr_prepared_queries["writecdr"] = pair<string,PreparedQueryArgs>(sql_query,cdr_types);
 
+
+	sql_query = "SELECT "+authlog_function+"($1";
+		n =  auth_log_types.size();
+		for(int i = 2;i<=n;i++) sql_query.append(",$"+int2str(i));
+		sql_query.append(");");
+	cdr_prepared_queries[auth_sql_statement_name] = pair<string,PreparedQueryArgs>(sql_query,cdr_types);
+
 	ret = 0;
 
 } catch(const pqxx::pqxx_exception &e){
@@ -211,6 +224,7 @@ int SqlRouter::configure(AmConfigReader &cfg){
 
 	GET_VARIABLE(writecdr_schema);
 	GET_VARIABLE(writecdr_function);
+	authlog_function = cfg.getParameter("authlog_function","write_auth_log");
 
 #undef GET_VARIABLE
 
@@ -226,6 +240,7 @@ int SqlRouter::configure(AmConfigReader &cfg){
     cdrconfig.prepared_queries = cdr_prepared_queries;
     cdrconfig.dyn_fields  = dyn_fields;
     cdrconfig.db_schema = writecdr_schema;
+    cdrconfig.used_header_fields = used_header_fields;
     INFO("Cdr writer pool config loaded");
   } else {
     INFO("Cdr writer pool config loading error");
@@ -588,6 +603,25 @@ void SqlRouter::write_cdr(Cdr* cdr, bool last)
   } else {
     DBG("%s(%p) trying to write already writed cdr",FUNC_NAME,cdr);
   }
+}
+
+void SqlRouter::log_auth(
+    const AmSipRequest& req,
+    bool success,
+    AmArg &ret,
+    Auth::auth_id_type auth_id)
+{
+    cdr_writer->postcdr(new AuthCdr(
+        req,used_header_fields,
+        success,
+        ret[0].asInt(), ret[1].asCStr(),ret[3].asCStr(),
+        auth_id));
+}
+
+void SqlRouter::send_auth_challenge(const AmSipRequest &req, AmArg &ret)
+{
+    Auth::send_auth_challenge(req,ret);
+    log_auth(req,false,ret);
 }
 
 void SqlRouter::dump_config()

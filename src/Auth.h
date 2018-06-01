@@ -66,6 +66,6 @@ class Auth {
     */
     auth_id_type check_invite_auth(const AmSipRequest &req, AmArg &ret);
 
-    void send_auth_challenge(const AmSipRequest &req);
+    virtual void send_auth_challenge(const AmSipRequest &req, AmArg &ret);
 };
 

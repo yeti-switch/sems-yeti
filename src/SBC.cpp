@@ -65,6 +65,7 @@ SBC - feature-wishlist
 
 #include "yeti.h"
 #include "SipCtrlInterface.h"
+#include "cdr/AuthCdr.h"
 
 using std::map;
 
@@ -145,6 +146,7 @@ int SBCFactory::onLoad()
   yeti.reset(Yeti::create_instance(YetiBaseParams(router,cdr_list,rctl)));
   if(yeti->onLoad()) {
       ERROR("yeti configuration error\n");
+      yeti->stop();
       return -1;
   }
   yeti_invoke = dynamic_cast<AmDynInvoke *>(yeti.get());
@@ -230,6 +232,7 @@ AmSession* SBCFactory::onInvite(
     auth_id = router.check_invite_auth(req,ret);
     if(auth_id > 0) {
         DBG("successfully authorized with id %d",auth_id);
+        router.log_auth(req,true,ret,auth_id);
         authorized = true;
     } else if(auth_id < 0) {
         DBG("auth error. reply with 401");
@@ -237,9 +240,10 @@ AmSession* SBCFactory::onInvite(
         case Auth::UAC_AUTH_ERROR:
             AmSipDialog::reply_error(req,
                 ret[0].asInt(), ret[1].asCStr(),ret[2].asCStr());
+            router.log_auth(req,false,ret);
             break;
         default:
-            router.send_auth_challenge(req);
+            router.send_auth_challenge(req,ret);
         }
         delete call_ctx;
         return NULL;
@@ -263,12 +267,11 @@ AmSession* SBCFactory::onInvite(
 
         if(!authorized) {
             DBG("auth required for not authorized request. send auth challenge");
-            router.send_auth_challenge(req);
+            router.send_auth_challenge(req,ret);
         } else {
             ERROR("got callprofile with auth_required "
                 "for already authorized request. reply internal error");
             AmSipDialog::reply_error(req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
-
         }
         return NULL;
     }

@@ -1,20 +1,53 @@
 #pragma once
 
 #include "CdrBase.h"
+#include "../UsedHeaderField.h"
+#include "../Auth.h"
+
+#include <vector>
+
+extern const string auth_sql_statement_name;
+extern const std::vector<static_field> auth_log_static_fields;
 
 class AuthCdr
   : public CdrBase
 {
-    AuthCdr()
-      : CdrBase(CdrBase::Auth)
-    {}
+    timeval request_time;
+    int transport_proto_id;
+    string remote_ip;
+    short remote_port;
+    string local_ip;
+    short local_port;
+    string method;
+    string r_uri;
+    string from_uri;
+    string to_uri;
+    string orig_call_id;
+
+    bool success;
+    int code;
+    string reason;
+    string internal_reason;
+    string nonce;
+    string response;
+    string username;
+    Auth::auth_id_type auth_id;
+
+    vector<string> dynamic_fields;
+
+  public:
+    AuthCdr(const AmSipRequest& req,
+            const vector<UsedHeaderField> &hdrs_to_parse,
+            bool success,
+            int code,
+            const string &reason,
+            const string &internal_reason,
+            Auth::auth_id_type auth_id);
 
     pqxx::prepare::invocation get_invocation(cdr_transaction &tnx) override;
     void invoc(
-        pqxx::prepare::invocation &invoc,
-        AmArg &invocated_values,
-        const DynFieldsT &df,
-        bool serialize_dynamic_fields) override;
-    void write_debug(AmArg &fields_values, const DynFieldsT &df) override;
+        pqxx::prepare::invocation &i,
+        const DynFieldsT &,
+        bool) override;
     void to_csv_stream(ofstream &s, const DynFieldsT &df) override;
 };

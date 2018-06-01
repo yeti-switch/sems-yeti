@@ -7,6 +7,7 @@
 #include "../alarms.h"
 #include "../cdr/TrustedHeaders.h"
 #include "../yeti_version.h"
+#include "AuthCdr.h"
 
 //affect on precision check_interval and batch_timeout handling precision
 #define QUEUE_RUN_TIMEOUT_MSEC 1000
@@ -94,6 +95,17 @@ int CdrWriter::configure(CdrWriterCfg& cfg)
 				dit->name.c_str(),dit->type_name.c_str());
 		}
 	}
+
+	param_num = 0;
+	for(const auto &f : auth_log_static_fields) {
+		DBG("AuthLogArg:     %d: %s : %s [static]",
+			++param_num,f.name,f.type);
+	}
+	for(const auto &f: config.used_header_fields) {
+		DBG("AuthLogArg:     %d: %s : varchar [dynamic]",
+			++param_num,f.getName().c_str());
+	}
+
 	return 0;
 }
 
@@ -116,7 +128,7 @@ void CdrWriter::stop()
 	DBG("CdrWriter::stop: Begin shutdown cycle");
 	cdrthreadpool_mut.lock();
 	int len=cdrthreadpool.size();
-	for(int i=0;i<len;i++){
+	for(int i=0;i<len;i++) {
 		DBG("CdrWriter::stop: Try shutdown thread %d",i);
 		CdrThread* th= cdrthreadpool.back();
 		cdrthreadpool.pop_back();
@@ -211,7 +223,8 @@ void CdrWriter::clearStats(){
 void CdrThread::postcdr(CdrBase* cdr)
 {
 	queue_mut.lock();
-	queue.push_back(cdr);
+	//queue.push_back(cdr);
+	queue.emplace_back(cdr);
 	if(!db_err)
 		queue_run.set(true);
 	queue_mut.unlock();
@@ -346,10 +359,8 @@ void CdrThread::run()
 
             queue_mut.lock();
 
-            for(int i = 0; i < entries_to_write; i++) {
-                delete queue.front();
+            for(int i = 0; i < entries_to_write; i++)
                 queue.pop_front();
-            }
 
             if(!queue.empty()) //process next batch immediately if available
                 queue_run.set(true);
@@ -381,11 +392,10 @@ void CdrThread::run()
 
         no_batch_entries_left--;
 
-        delete queue.front();
-
         queue_mut.lock();
 
         queue.pop_front();
+
         if(!queue.empty())
             queue_run.set(true);
 
@@ -627,68 +637,51 @@ void CdrThread::dbg_writecdr(AmArg &fields_values,Cdr &cdr){
 	//TrustedHeaders::instance()->print_hdrs(cdr.trusted_hdrs);
 }
 
-int CdrThread::writecdr(cdr_writer_connection* conn, int entries_to_write){
-#define invoc_field(field_value)\
-    fields_values.push(AmArg(field_value));\
-    invoc(field_value);
-
-    //CdrBase& cdr = *queue.front();
-
-    DBG("%s[%p](conn = %p,entries_to_write = %d)",FUNC_NAME,this,conn,entries_to_write);
+int CdrThread::writecdr(cdr_writer_connection* conn, int entries_to_write)
+{
     int ret = 1;
 
+    DBG("%s[%p](conn = %p,entries_to_write = %d)",FUNC_NAME,this,conn,entries_to_write);
+
     Yeti::global_config &gc = Yeti::instance().config;
-    AmArg fields_values;
 
     if(conn==NULL){
         ERROR("writecdr() we got NULL connection pointer.");
         return 1;
     }
 
-    //fields_values.assertArray();
-
     stats.tried_cdrs++;
     try {
-        pqxx::result r;
         cdr_transaction tnx(*conn);
 
-        /*if(!tnx.prepared("writecdr").exists()) {
-            ERROR("have no prepared SQL statement");
-            return 1;
-        }*/
-
-        auto i = queue.begin();
         for(auto i = queue.begin();
             entries_to_write;
             entries_to_write--, ++i)
         {
             CdrBase& cdr = **i;
 
-            fields_values.clear();
             pqxx::prepare::invocation invoc = cdr.get_invocation(tnx);
 
-            invoc_field(conn->isMaster());
-            invoc_field(gc.node_id);
-            invoc_field(gc.pop_id);
+            invoc(conn->isMaster());
+            invoc(gc.node_id);
+            invoc(gc.pop_id);
+            cdr.invoc(invoc,config.dyn_fields,config.serialize_dynamic_fields);
 
-            cdr.invoc(invoc,fields_values,config.dyn_fields,config.serialize_dynamic_fields);
-            r = invoc.exec();
-            if (r.size()!=0&&0==r[0][0].as<int>()) {
-                ret = 0;
-            }
+            invoc.exec();
         }
 
-        tnx.commit();
+        if(0==entries_to_write) {
+            tnx.commit();
+            ret = 0;
+        }
 
-        //cdr.write_debug(fields_values,config.dyn_fields);
-    } catch(const pqxx::pqxx_exception &e){
+    } catch(const pqxx::pqxx_exception &e) {
         DBG("SQL exception on CdrWriter thread: %s",e.base().what());
-        //cdr.write_debug(fields_values,config.dyn_fields);
         conn->disconnect();
         stats.db_exceptions++;
     }
+
     return ret;
-#undef invoc_field
 }
 
 bool CdrThread::openfile(){
@@ -767,7 +760,7 @@ int CdrThread::writecdrtofile() {
 		return -1;
 	}
 
-	CdrBase *cdr = queue.front();
+	CdrBase *cdr = queue.front().get();
 
 	ofstream &s = *wfp.get();
 	Yeti::global_config &gc = Yeti::instance().config;

@@ -61,13 +61,8 @@ Yeti::Yeti(YetiBaseParams &params)
 {}
 
 
-Yeti::~Yeti() {
-    stop();
-    cdr_list.stop();
-    rctl.stop();
-    router.stop();
-}
-
+Yeti::~Yeti()
+{ }
 
 static int check_dir_write_permissions(const string &dir)
 {
@@ -262,8 +257,14 @@ void Yeti::run()
 
 void Yeti::on_stop()
 {
-	stopped = true;
-	ev_pending.set(true);
+    DBG("Yeti::on_stop");
+
+    cdr_list.stop();
+    rctl.stop();
+    router.stop();
+
+    stopped = true;
+    ev_pending.set(true);
 }
 
 #define ON_EVENT_TYPE(type) if(type *e = dynamic_cast<type *>(ev))
@@ -334,4 +335,13 @@ void Yeti::process(AmEvent *ev)
 		}
 		return;
 	}
+
+	ON_EVENT_TYPE(AmSystemEvent) {
+		if(e->sys_event==AmSystemEvent::ServerShutdown) {
+			DBG("got shutdown event");
+			stop();
+		}
+		return;
+	}
+	DBG("got unknown event");
 }
