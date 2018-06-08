@@ -17,6 +17,7 @@ const std::vector<static_field> auth_log_static_fields = {
     { "remote_port", "integer" },
     { "local_ip", "varchar" },
     { "local_port", "integer" },
+    { "username", "varchar" },
     { "method", "varchar" },
     { "ruri", "varchar" },
     { "from_uri", "varchar" },
@@ -113,6 +114,7 @@ void AuthCdr::invoc(
     i(transport_proto_id);
     i(remote_ip)(remote_port);
     i(local_ip)(local_port);
+    if(username.empty()) i(); else i(username);
     i(method);
     i(r_uri)(from_uri)(to_uri);
     i(orig_call_id);
@@ -122,7 +124,6 @@ void AuthCdr::invoc(
     i(internal_reason);
     if(nonce.empty()) i(); else i(nonce);
     if(response.empty()) i(); else i(response);
-    //if(username.empty()) i(); else i(username);
     if(auth_id <= 0) i(); else i(auth_id);
 
     for(const auto &f : dynamic_fields)
