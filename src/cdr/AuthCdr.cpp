@@ -18,6 +18,7 @@ const std::vector<static_field> auth_log_static_fields = {
     { "local_ip", "varchar" },
     { "local_port", "integer" },
     { "username", "varchar" },
+    { "realm", "varchar" },
     { "method", "varchar" },
     { "ruri", "varchar" },
     { "from_uri", "varchar" },
@@ -98,6 +99,7 @@ AuthCdr::AuthCdr(
     nonce =  find_attribute("nonce", auth_hdr);
     response =  find_attribute("response", auth_hdr);
     username = find_attribute("username", auth_hdr);
+    realm = find_attribute("realm", auth_hdr);
 }
 
 pqxx::prepare::invocation AuthCdr::get_invocation(cdr_transaction &tnx)
@@ -115,6 +117,7 @@ void AuthCdr::invoc(
     i(remote_ip)(remote_port);
     i(local_ip)(local_port);
     if(username.empty()) i(); else i(username);
+    if(realm.empty()) i(); else i(realm);
     i(method);
     i(r_uri)(from_uri)(to_uri);
     i(orig_call_id);

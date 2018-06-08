@@ -31,6 +31,7 @@ class AuthCdr
     string nonce;
     string response;
     string username;
+    string realm;
     Auth::auth_id_type auth_id;
 
     vector<string> dynamic_fields;
