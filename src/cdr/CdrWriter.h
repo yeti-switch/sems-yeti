@@ -117,8 +117,8 @@ class CdrThread
 };
 
 class CdrWriter {
-    vector<CdrThread*> cdrthreadpool;
-    AmMutex cdrthreadpool_mut;
+    vector<unique_ptr<CdrThread>> cdrthreadpool;
+    vector<unique_ptr<CdrThread>> auth_log_threadpool;
     CdrWriterCfg config;
   public:
     void clearStats();
@@ -127,6 +127,7 @@ class CdrWriter {
     void getConfig(AmArg &arg);
     void showOpenedFiles(AmArg &arg);
     void postcdr(CdrBase* cdr);
+    void post_auth_log(CdrBase *cdr);
     int configure(CdrWriterCfg& cfg);
     void start();
     void stop();

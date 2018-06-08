@@ -12,8 +12,8 @@
 //affect on precision check_interval and batch_timeout handling precision
 #define QUEUE_RUN_TIMEOUT_MSEC 1000
 #define DEFAULT_CHECK_INTERVAL_MSEC 5000
-#define DEFAULT_BATCH_SIZE 10
-#define DEFAULT_BATCH_TIMEOUT_MSEC 2000
+#define DEFAULT_BATCH_SIZE 50
+#define DEFAULT_BATCH_TIMEOUT_MSEC 10000
 
 const static_field cdr_static_fields[] = {
 	{ "is_master", "boolean" },
@@ -22,7 +22,6 @@ const static_field cdr_static_fields[] = {
 	{ "attempt_num", "integer" },
 	{ "is_last", "boolean" },
 	{ "legA_transport_protocol_id", "smallint" },
-	{ "legA_local_ip", "inet" },
 	{ "legA_local_port", "integer" },
 	{ "legA_remote_ip", "inet" },
 	{ "legA_remote_port", "integer" },
@@ -112,32 +111,34 @@ int CdrWriter::configure(CdrWriterCfg& cfg)
 
 void CdrWriter::start()
 {
-	cdrthreadpool_mut.lock();
-	DBG("CdrWriter::start: Starting %d async DB threads",config.poolsize);
-	for(unsigned int i=0;i<config.poolsize;i++){
+	DBG("CdrWriter::start: Starting %d async DB threads",config.poolsize*2);
+	for(unsigned int i=0;i<config.poolsize;i++) {
 		CdrThread* th = new CdrThread;
 		th->configure(config);
 		th->start();
-		cdrthreadpool.push_back(th);
+		cdrthreadpool.emplace_back(th);
 	}
-	cdrthreadpool_mut.unlock();
+	for(unsigned int i=0;i<config.poolsize;i++) {
+		CdrThread* th = new CdrThread;
+		th->configure(config);
+		th->start();
+		auth_log_threadpool.emplace_back(th);
+	}
 }
 
 void CdrWriter::stop()
 {
 	DBG("CdrWriter::stop: Begin shutdown cycle");
-	cdrthreadpool_mut.lock();
-	int len=cdrthreadpool.size();
-	for(int i=0;i<len;i++) {
-		DBG("CdrWriter::stop: Try shutdown thread %d",i);
-		CdrThread* th= cdrthreadpool.back();
-		cdrthreadpool.pop_back();
-		th->stop();
-		delete th;
+	for(auto &t: cdrthreadpool) {
+		DBG("CdrWriter::stop: shutdown cdr thread %p",t.get());
+		t->stop();
 	}
-	len=cdrthreadpool.size();
-	DBG("CdrWriter::stop: LEN:: %d", len);
-	cdrthreadpool_mut.unlock();
+	cdrthreadpool.clear();
+	for(auto &t: auth_log_threadpool) {
+		DBG("CdrWriter::stop: shutdown auth_log thread %p",t.get());
+		t->stop();
+	}
+	auth_log_threadpool.clear();
 }
 
 void CdrWriter::postcdr(CdrBase* cdr )
@@ -146,9 +147,12 @@ void CdrWriter::postcdr(CdrBase* cdr )
 		delete cdr;
 		return;
 	}
-	cdrthreadpool_mut.lock();
-		cdrthreadpool[cdr->cdr_born_time.tv_usec%cdrthreadpool.size()]->postcdr(cdr);
-	cdrthreadpool_mut.unlock();
+	cdrthreadpool[cdr->cdr_born_time.tv_usec % config.poolsize]->postcdr(cdr);
+}
+
+void CdrWriter::post_auth_log(CdrBase *cdr)
+{
+	auth_log_threadpool[cdr->cdr_born_time.tv_usec % config.poolsize]->postcdr(cdr);
 }
 
 void CdrWriter::getConfig(AmArg &arg){
@@ -182,42 +186,40 @@ void CdrWriter::getConfig(AmArg &arg){
 }
 
 void CdrWriter::showOpenedFiles(AmArg &arg){
-	cdrthreadpool_mut.lock();
-	for(vector<CdrThread*>::iterator it = cdrthreadpool.begin();it != cdrthreadpool.end();it++){
+	for(auto &t: cdrthreadpool) {
 		AmArg a;
-		(*it)->showOpenedFiles(a);
+		t->showOpenedFiles(a);
 		if(a.getType()!=AmArg::Undef)
 			arg.push(a);
 	}
-	cdrthreadpool_mut.unlock();
 }
 
 void CdrWriter::closeFiles(){
-	for(vector<CdrThread*>::iterator it = cdrthreadpool.begin();it != cdrthreadpool.end();it++){
-		(*it)->closefile();
+	for(auto &t: cdrthreadpool) {
+		t->closefile();
 	}
 }
 
 void CdrWriter::getStats(AmArg &arg){
-	AmArg underlying_stats,threads;
-
 	arg["name"] = config.name;
 	arg["poolsize"]= (int)config.poolsize;
-	cdrthreadpool_mut.lock();
-	for(vector<CdrThread*>::iterator it = cdrthreadpool.begin();it != cdrthreadpool.end();it++){
-		(*it)->getStats(underlying_stats);
-		threads.push(underlying_stats);
-		underlying_stats.clear();
+	AmArg &cdr_threads = arg["cdr_threads"];
+	AmArg &auth_log_threads = arg["auth_log_threads"];
+	for(auto &t: cdrthreadpool) {
+		cdr_threads.push(AmArg());
+		t->getStats(cdr_threads.back());
 	}
-	cdrthreadpool_mut.unlock();
-	arg.push("threads",threads);
+	for(auto &t: auth_log_threadpool) {
+		auth_log_threads.push(AmArg());
+		t->getStats(auth_log_threads.back());
+	}
 }
 
 void CdrWriter::clearStats(){
-	cdrthreadpool_mut.lock();
-		for(vector<CdrThread*>::iterator it = cdrthreadpool.begin();it != cdrthreadpool.end();it++)
-		(*it)->clearStats();
-	cdrthreadpool_mut.unlock();
+	for(auto &t: cdrthreadpool)
+		t->clearStats();
+	for(auto &t: auth_log_threadpool)
+		t->clearStats();
 }
 
 void CdrThread::postcdr(CdrBase* cdr)
@@ -339,15 +341,15 @@ void CdrThread::run()
         if(no_batch_entries_left > 0) { //check for temporary non-batch mode
             entries_to_write = 1;
         } else if(queue.size() >= config.batch_size) { //check for batch size condition
-            DBG("batch size condition reached");
+            //DBG("batch size condition reached");
             entries_to_write = config.batch_size;
             batch_timeout_time = now+config.batch_timeout;
         } else if(now >= batch_timeout_time) { //check for batch timeout condition
-            DBG("batch timeout reached");
+            //DBG("batch timeout reached");
             entries_to_write = queue.size();
             batch_timeout_time = now+config.batch_timeout;
         } else {
-            DBG("no time for dragons");
+            queue_run.set(false);
             queue_mut.unlock();
             continue;
         }
@@ -367,7 +369,7 @@ void CdrThread::run()
 
             queue_mut.unlock();
 
-            DBG("%d CDRs are deleted from queue",entries_to_write);
+            DBG("%d records are deleted from queue",entries_to_write);
             continue;
         }
 
@@ -408,8 +410,6 @@ void CdrThread::check_db(time_t now)
 {
     if(now < next_check_time)
         return;
-
-    DBG("time to check");
 
     next_check_time=now+config.check_interval;
 
@@ -490,12 +490,12 @@ void CdrThread::check_db(time_t now)
 bool CdrThread::write_with_failover(int entries_to_write)
 {
     if(0==writecdr(masterconn,entries_to_write)) {
-        DBG("%d CDRs were written into master",entries_to_write);
+        DBG("%d records were written into master",entries_to_write);
         closefile();
         return true;
     }
 
-    ERROR("Cant write CDR to master database");
+    ERROR("Cant write record to master database");
 
     db_err = true;
 

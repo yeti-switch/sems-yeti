@@ -86,11 +86,9 @@ AuthCdr::AuthCdr(
     internal_reason(internal_reason),
     auth_id(auth_id)
 {
-    DBG("hdrs_to_parse.size(): %ld",hdrs_to_parse.size());
     for(const auto &h: hdrs_to_parse) {
         dynamic_fields.emplace_back();
         h.getValue(req,dynamic_fields.back());
-        DBG("added header with value: %s",dynamic_fields.back().c_str());
     }
 
     string auth_hdr =  getHeader(req.hdrs, SIP_HDR_AUTHORIZATION);

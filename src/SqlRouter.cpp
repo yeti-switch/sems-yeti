@@ -611,7 +611,7 @@ void SqlRouter::log_auth(
     AmArg &ret,
     Auth::auth_id_type auth_id)
 {
-    cdr_writer->postcdr(new AuthCdr(
+    cdr_writer->post_auth_log(new AuthCdr(
         req,used_header_fields,
         success,
         ret[0].asInt(), ret[1].asCStr(),ret[3].asCStr(),
