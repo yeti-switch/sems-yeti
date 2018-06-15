@@ -894,6 +894,7 @@ void SBCCallLeg::applyAProfile()
         setEnableRtpPing(call_profile.aleg_rtp_ping);
         setRtpTimeout(call_profile.dead_rtp_time);
         setIgnoreRelayStreams(call_profile.filter_noaudio_streams);
+        setEnableInboundDtmfFiltering(call_profile.aleg_rtp_filter_inband_dtmf);
 
         if(call_profile.transcoder.isActive()) {
             setRtpRelayMode(RTP_Transcoding);
@@ -1029,6 +1030,7 @@ void SBCCallLeg::applyBProfile()
         setEnableRtpPing(call_profile.bleg_rtp_ping);
         setRtpTimeout(call_profile.dead_rtp_time);
         setIgnoreRelayStreams(call_profile.filter_noaudio_streams);
+        setEnableInboundDtmfFiltering(call_profile.bleg_rtp_filter_inband_dtmf);
 
         // copy stats counters
         rtp_pegs = call_profile.bleg_rtp_counters;
@@ -1756,33 +1758,34 @@ void SBCCallLeg::onOtherBye(const AmSipRequest& req)
 
 void SBCCallLeg::onDtmf(AmDtmfEvent* e)
 {
-    DBG("received DTMF on %c-leg (%i;%i)\n", a_leg ? 'A': 'B', e->event(), e->duration());
+    DBG("received DTMF on %cleg (%i;%i) source:%d",
+        a_leg ? 'A': 'B',
+        e->event(), e->duration(), e->event_id);
 
-    AmSipDtmfEvent *sip_dtmf = NULL;
     int rx_proto = 0;
-    bool allowed = false;
     struct timeval now;
 
     gettimeofday(&now, NULL);
 
-    //filter incoming methods
-    if((sip_dtmf = dynamic_cast<AmSipDtmfEvent *>(e))){
-        DBG("received SIP DTMF event\n");
-        allowed = a_leg ?
-                    call_profile.aleg_dtmf_recv_modes&DTMF_RX_MODE_INFO :
-                    call_profile.bleg_dtmf_recv_modes&DTMF_RX_MODE_INFO;
+    switch(e->event_id) {
+    case Dtmf::SOURCE_SIP:
         rx_proto = DTMF_RX_MODE_INFO;
-    /*} else if(dynamic_cast<AmRtpDtmfEvent *>(e)){
-        DBG("RTP DTMF event\n");*/
-    } else {
-        DBG("received generic DTMF event\n");
-        allowed = a_leg ?
-                    call_profile.aleg_dtmf_recv_modes&DTMF_RX_MODE_RFC2833 :
-                    call_profile.bleg_dtmf_recv_modes&DTMF_RX_MODE_RFC2833;
+        break;
+    case Dtmf::SOURCE_RTP:
         rx_proto = DTMF_RX_MODE_RFC2833;
+        break;
+    case Dtmf::SOURCE_INBAND:
+        rx_proto = DTMF_RX_MODE_INBAND;
+        break;
+    default:
+        WARN("unexpected dtmf source: %d. ignore event",e->event_id);
+        return;
     }
 
-    if(!allowed){
+    if(!(a_leg ?
+        call_profile.aleg_dtmf_recv_modes&rx_proto :
+        call_profile.bleg_dtmf_recv_modes&rx_proto))
+    {
         DBG("DTMF event for leg %p rejected",this);
         e->processed = true;
         //write with zero tx_proto
@@ -1818,7 +1821,7 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
         relayEvent(new yeti_dtmf::DtmfInfoSendEventDtmf(e));
         break;
     default:
-        ERROR("unknown dtmf send method %d. stop processing",send_method);
+        ERROR("unsupported dtmf send method %d. stop processing",send_method);
         break;
     }
 }
@@ -2901,6 +2904,12 @@ void SBCCallLeg::setSensor(msg_sensor *_sensor){
 
 void SBCCallLeg::computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &mask)
 {
+    if(call_profile.force_transcoding) {
+        enable = false;
+        mask.clear();
+        return;
+    }
+
     if (call_profile.transcoder.isActive()) {
         TRACE("entering transcoder's computeRelayMask(%s)\n", a_leg ? "A leg" : "B leg");
 

@@ -294,6 +294,18 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	assign_int_safe(aleg_dtmf_recv_modes,"aleg_dtmf_recv_modes",DTMF_RX_MODE_ALL,DTMF_RX_MODE_ALL);
 	assign_int_safe(bleg_dtmf_recv_modes,"bleg_dtmf_recv_modes",DTMF_RX_MODE_ALL,DTMF_RX_MODE_ALL);
 
+	assign_bool_safe(aleg_rtp_filter_inband_dtmf,"aleg_rtp_filter_inband_dtmf",false,false);
+	assign_bool_safe(bleg_rtp_filter_inband_dtmf,"bleg_rtp_filter_inband_dtmf",false,false);
+
+	if(aleg_rtp_filter_inband_dtmf ||
+	   bleg_rtp_filter_inband_dtmf ||
+	   (aleg_dtmf_recv_modes & DTMF_RX_MODE_INBAND) ||
+	   (aleg_dtmf_recv_modes & DTMF_RX_MODE_INBAND))
+	{
+		transcoder.dtmf_mode_str = "always";
+		force_transcoding = true;
+	}
+
 	assign_bool_safe(suppress_early_media,"suppress_early_media",false,false);
 	assign_bool_safe(force_one_way_early_media,"force_one_way_early_media",false,false);
 	assign_int_safe_silent(fake_ringing_timeout,"fake_180_timer",0,0);
@@ -539,6 +551,8 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 		DBG("bleg_dtmf_send_mode_id: %d",bleg_dtmf_send_mode_id);
 		DBG("aleg_dtmf_recv_modes: %d",aleg_dtmf_recv_modes);
 		DBG("bleg_dtmf_recv_modes: %d",bleg_dtmf_recv_modes);
+		DBG("aleg_rtp_filter_inband_dtmf: %d",aleg_rtp_filter_inband_dtmf);
+		DBG("bleg_rtp_filter_inband_dtmf: %d",bleg_rtp_filter_inband_dtmf);
 
 		DBG("disable_early_media: '%s'",suppress_early_media?"yes":"no");
 		DBG("force_one_way_early_media '%s'",force_one_way_early_media?"yes":"no");

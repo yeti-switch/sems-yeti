@@ -52,15 +52,15 @@ class PlaceholdersHash: public std::map<string,string>
 
 #define DTMF_RX_MODE_RFC2833			0x1		// telephone-event RTP payload
 #define DTMF_RX_MODE_INFO				0x2		// SIP INFO msg
-#define DTMF_RX_MODE_INBOUND			0x4		// inbound dtmf
+#define DTMF_RX_MODE_INBAND 			0x4		// inband dtmf
 
 #define DTMF_TX_MODE_DISABLED			0x0		// avoid sending
 #define DTMF_TX_MODE_RFC2833			0x1		// telephone-event RTP payload
 #define DTMF_TX_MODE_INFO_DTMF_RELAY	0x2		// application/dtmf-relay
 #define DTMF_TX_MODE_INFO_DTMF			0x4		// application/dtmf
-#define DTMF_TX_MODE_INBOUND			0x8		// inbound dtmf
+#define DTMF_TX_MODE_INBAND     		0x8		// inband dtmf
 
-#define DTMF_RX_MODE_ALL	(DTMF_RX_MODE_RFC2833|DTMF_RX_MODE_INFO|DTMF_RX_MODE_INBOUND)
+#define DTMF_RX_MODE_ALL	(DTMF_RX_MODE_RFC2833|DTMF_RX_MODE_INFO|DTMF_RX_MODE_INBAND)
 
 template <class T>
 class ref_counted_ptr
@@ -253,6 +253,9 @@ struct SBCCallProfile
   bool rtprelay_dtmf_filtering;
   bool rtprelay_dtmf_detection;
   bool rtprelay_force_dtmf_relay;
+  bool aleg_rtp_filter_inband_dtmf;
+  bool bleg_rtp_filter_inband_dtmf;
+  bool force_transcoding;
 
   string rtprelay_interface;
   int rtprelay_interface_value;
@@ -460,7 +463,8 @@ struct SBCCallProfile
 	fake_ringing_timeout(0),
 	bleg_max_30x_redirects(0),
 	bleg_max_transfers(0),
-	auth_required(false)
+	auth_required(false),
+	force_transcoding(false)
   { }
 
   bool readFromConfiguration(const string& name, const string profile_file_name);
