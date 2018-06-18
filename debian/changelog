@@ -1,3 +1,9 @@
+sems-yeti (1.7.33-1) stable; urgency=low
+
+  * 462610a aleg_rtp_filter_inband_dtmf, bleg_rtp_filter_inband_dtmf profile variables processing
+
+ -- dev <dev@yeti-switch.org>  Mon, 18 Jun 2018 17:49:35 +0300
+
 sems-yeti (1.7.32-1) stable; urgency=low
 
   * add auth logs
