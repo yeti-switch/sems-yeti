@@ -253,8 +253,12 @@ struct SBCCallProfile
   bool rtprelay_dtmf_filtering;
   bool rtprelay_dtmf_detection;
   bool rtprelay_force_dtmf_relay;
+
+  //wether to filter inbound dtmf in direction A->B
   bool aleg_rtp_filter_inband_dtmf;
+  //whether to filter inbound dtmf in direction B->A
   bool bleg_rtp_filter_inband_dtmf;
+
   bool force_transcoding;
 
   string rtprelay_interface;

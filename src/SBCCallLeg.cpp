@@ -894,7 +894,7 @@ void SBCCallLeg::applyAProfile()
         setEnableRtpPing(call_profile.aleg_rtp_ping);
         setRtpTimeout(call_profile.dead_rtp_time);
         setIgnoreRelayStreams(call_profile.filter_noaudio_streams);
-        setEnableInboundDtmfFiltering(call_profile.aleg_rtp_filter_inband_dtmf);
+        setEnableInboundDtmfFiltering(call_profile.bleg_rtp_filter_inband_dtmf);
 
         if(call_profile.transcoder.isActive()) {
             setRtpRelayMode(RTP_Transcoding);
@@ -1030,7 +1030,7 @@ void SBCCallLeg::applyBProfile()
         setEnableRtpPing(call_profile.bleg_rtp_ping);
         setRtpTimeout(call_profile.dead_rtp_time);
         setIgnoreRelayStreams(call_profile.filter_noaudio_streams);
-        setEnableInboundDtmfFiltering(call_profile.bleg_rtp_filter_inband_dtmf);
+        setEnableInboundDtmfFiltering(call_profile.aleg_rtp_filter_inband_dtmf);
 
         // copy stats counters
         rtp_pegs = call_profile.bleg_rtp_counters;
