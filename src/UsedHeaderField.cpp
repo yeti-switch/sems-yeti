@@ -79,7 +79,6 @@ void UsedHeaderField::readFromTuple(const pqxx::result::tuple &t)
 bool UsedHeaderField::getValue(const AmSipRequest &req,string &val) const
 {
     string hdr;
-    const char *sptr;
     sip_nameaddr na;
     sip_uri uri;
 
@@ -96,12 +95,14 @@ bool UsedHeaderField::getValue(const AmSipRequest &req,string &val) const
         val = hdr;
         goto succ;
     case Uri:
-        sptr = hdr.c_str();
-        if(parse_nameaddr(&na,&sptr,hdr.length()) < 0 ||
-           parse_uri(&uri,na.addr.s,na.addr.len) < 0)
-        {
-            ERROR("invalid uri '%s' in header '%s'",
+        if(parse_first_nameaddr(&na,hdr.c_str(),hdr.length()) < 0) {
+            ERROR("invalid first nameaddr '%s' in header '%s'",
                   hdr.c_str(),name.c_str());
+            return false;
+        }
+        if(parse_uri(&uri,na.addr.s,na.addr.len) < 0) {
+            ERROR("invalid uri '%.*s' in header '%s'",
+                  na.addr.len,na.addr.s,name.c_str());
             return false;
         }
         switch(part) {
