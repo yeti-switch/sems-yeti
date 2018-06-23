@@ -145,16 +145,16 @@ bool UsedHeaderField::getValue(const AmSipRequest &req,string &val) const
     return false;
 succ:
     if(val.empty()) {
-        DBG("'%s':%s:%s:'%s' processed. got empty value. return null",
+        DBG("%s[%s:%s:%s] processed. got empty value. return null",
             name.c_str(), type2str(),part2str(),param.c_str());
         return false;
     }
     if(fixup_utf8_inplace(val)) {
-        WARN("value for %s[%s:%s]"
+        WARN("value for %s[%s:%s:%s]"
              "contained at least one invalid utf8 sequence. wrong bytes erased",
              name.c_str(), type2str(),part2str(),param.c_str());
     }
-    DBG("'%s':%s:%s:'%s' processed. got '%s'",
+    DBG("%s[%s:%s:%s] processed. got '%s'",
         name.c_str(), type2str(),part2str(),param.c_str(), val.c_str());
     return true;
 }
