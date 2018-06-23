@@ -437,7 +437,7 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(
 	string from_name = c2stlstr(na.name);
 	from_name.erase(std::remove(from_name.begin(), from_name.end(), '"'),from_name.end());
 	if(fixup_utf8_inplace(from_name))
-		WARN("From display name had contained at least one invalid utf8 sequence. wrong bytes erased");
+		WARN("From display name contained at least one invalid utf8 sequence. wrong bytes erased");
 
 	if(!tnx.prepared("getprofile").exists())
 		throw GetProfileException(FC_NOT_PREPARED,true);
