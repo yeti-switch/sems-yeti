@@ -1,3 +1,11 @@
+sems-yeti (1.7.33-3) stable; urgency=low
+
+  * 56aa19b UsedHeaderField: fix logging
+  * 66f2774 UsedHeaderField: process combined headers
+  * 8fd1454 UsedHeaderField: fixup all wrong utf8 sequences in resulting valu
+
+ -- dev <dev@yeti-switch.org>  Sat, 23 Jun 2018 13:33:13 +0300
+
 sems-yeti (1.7.33-2) stable; urgency=low
 
   * swap aleg_rtp_filter_inband_dtmf, bleg_rtp_filter_inband_dtmf meaning
