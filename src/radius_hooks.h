@@ -5,6 +5,7 @@
 #include "yeti.h"
 
 static inline bool radius_auth(SBCCallLeg *call, const Cdr &cdr, SBCCallProfile &call_profile, const AmSipRequest &req){
+#if 0
 	PlaceholdersHash &v = call->getPlaceholders();
 	const string &local_tag = call->getLocalTag();
 
@@ -34,10 +35,12 @@ static inline bool radius_auth(SBCCallLeg *call, const Cdr &cdr, SBCCallProfile 
 				local_tag,v));
 		return true;
 	}
+#endif
 	return false;
 }
 
 static inline void radius_accounting_start(SBCCallLeg *call, const Cdr &cdr, SBCCallProfile &call_profile){
+#if 0
 	PlaceholdersHash &v = call->getPlaceholders();
 
 	if(call->isALeg()) {
@@ -97,10 +100,12 @@ static inline void radius_accounting_start(SBCCallLeg *call, const Cdr &cdr, SBC
 				call_profile.bleg_radius_acc_rules.interim_accounting_interval);
 		}
 	}
+#endif
 }
 
 static inline void radius_accounting_interim(SBCCallLeg *call, const Cdr &cdr)
 {
+#if 0
 	int profile_id, interval;
 	const struct timeval *leg_connect_time;
 	timeval duration, now;
@@ -138,10 +143,12 @@ static inline void radius_accounting_interim(SBCCallLeg *call, const Cdr &cdr)
 			call->getLocalTag(), v));
 
 	call->setTimer(YETI_RADIUS_INTERIM_TIMER, interval);
+#endif
 }
 
 static inline void radius_accounting_stop(SBCCallLeg *call, const Cdr &cdr)
 {
+#if 0
 	int profile_id;
 	const struct timeval *leg_connect_time;
 	timeval duration, now;
@@ -199,6 +206,7 @@ static inline void radius_accounting_stop(SBCCallLeg *call, const Cdr &cdr)
 		new RadiusRequestEvent(
 			RadiusRequestEvent::End, profile_id,
 			call->getLocalTag(), v));
+#endif
 }
 
 

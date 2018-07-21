@@ -131,8 +131,7 @@ SBCCallLeg::SBCCallLeg(
     router(yeti.router),
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl),
-    call_profile(*call_ctx->getCurrentProfile()),
-    placeholders_hash(call_profile.placeholders_hash)
+    call_profile(*call_ctx->getCurrentProfile())
 {
     set_sip_relay_only(false);
     if(call_profile.aleg_rel100_mode_id!=-1) {
@@ -165,7 +164,6 @@ SBCCallLeg::SBCCallLeg(
     AmSipSubscription* p_subs)
   : auth(NULL),
     call_profile(caller->getCallProfile()),
-    placeholders_hash(caller->getPlaceholders()),
     CallLeg(caller,p_dlg,p_subs),
     global_tag(caller->getGlobalTag()),
     logger(NULL),
@@ -815,7 +813,6 @@ void SBCCallLeg::onStart()
 void SBCCallLeg::updateCallProfile(const SBCCallProfile &new_profile)
 {
     call_profile = new_profile;
-    placeholders_hash.update(call_profile.placeholders_hash);
 }
 
 void SBCCallLeg::applyAProfile()

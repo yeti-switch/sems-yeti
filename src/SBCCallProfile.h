@@ -115,8 +115,6 @@ struct SBCCallProfile
 
   unsigned int bleg_transport_id;
 
-  PlaceholdersHash placeholders_hash;
-
   struct Contact {
     string displayname;
     string user;

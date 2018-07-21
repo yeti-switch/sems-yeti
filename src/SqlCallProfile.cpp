@@ -33,12 +33,14 @@ bool SqlCallProfile::skip(const pqxx::result::tuple &t){
 bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT &df){
 	profile_file = "SQL";
 
+#if 0
 	for(pqxx::result::tuple::const_iterator it = t.begin();
 		it!=t.end();++it)
 	{
 		const pqxx::result::field &f = *it;
 		placeholders_hash[f.name()] = f.c_str();
 	}
+#endif
 
 	assign_str(ruri,"ruri");
 	assign_str(from,"from");

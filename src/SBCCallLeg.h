@@ -59,7 +59,6 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   PayloadIdMapping transcoder_payload_mapping;
 
   SBCCallProfile call_profile;
-  PlaceholdersHash placeholders_hash;
 
   // Rate limiting
   auto_ptr<RateLimit> rtp_relay_rate_limit;
@@ -181,7 +180,6 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   SBCCallProfile &getCallProfile() { return call_profile; }
   void updateCallProfile(const SBCCallProfile &new_profile);
-  PlaceholdersHash &getPlaceholders() { return placeholders_hash; }
   CallStatus getCallStatus() { return CallLeg::getCallStatus(); }
 
   AmSipRequest &getAlegModifiedReq() { return aleg_modified_req; }
