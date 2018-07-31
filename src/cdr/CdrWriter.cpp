@@ -22,6 +22,7 @@ const static_field cdr_static_fields[] = {
 	{ "attempt_num", "integer" },
 	{ "is_last", "boolean" },
 	{ "legA_transport_protocol_id", "smallint" },
+	{ "legA_local_ip", "inet" },
 	{ "legA_local_port", "integer" },
 	{ "legA_remote_ip", "inet" },
 	{ "legA_remote_port", "integer" },
