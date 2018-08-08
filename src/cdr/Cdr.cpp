@@ -78,6 +78,8 @@ Cdr::Cdr()
     is_redirected(false),
     writed(false)
 {
+    DBG("Cdr[%p]()",this);
+
     timerclear(&start_time);
     timerclear(&bleg_invite_time);
     timerclear(&connect_time);
@@ -95,7 +97,7 @@ Cdr::Cdr()
 Cdr::Cdr(const Cdr& cdr,const SqlCallProfile &profile)
   : Cdr()
 {
-    //DBG("Cdr::%s(cdr = %p,profile = %p) = %p", FUNC_NAME, &cdr, &profile, this);
+    DBG("Cdr[%p](cdr = %p,profile = %p)", this, &cdr, &profile);
 
     update_sql(profile);
 
@@ -120,12 +122,14 @@ Cdr::Cdr(const Cdr& cdr,const SqlCallProfile &profile)
 Cdr::Cdr(const SqlCallProfile &profile)
   : Cdr()
 {
+    DBG("Cdr[%p](profile = %p)", this, &profile);
+
     update_sql(profile);
 }
 
 Cdr::~Cdr()
 {
-    //DBG("Cdr::~Cdr() %p",this);
+    DBG("~Cdr[::~Cdr[%p]()",this);
 }
 
 void Cdr::replace(string& s, const string& from, const string& to)

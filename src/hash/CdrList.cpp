@@ -28,7 +28,7 @@ int CdrList::insert(Cdr *cdr)
         return 1;
     }
 
-    DBG("insert(%s)",cdr->local_tag.c_str());
+    DBG("insert(%p, %s)",cdr,cdr->local_tag.c_str());
 
     AmLock l(*cdr);
 
@@ -54,7 +54,7 @@ bool CdrList::remove(Cdr *cdr)
         return false;
     }
 
-    DBG("remove(%s)",cdr->local_tag.c_str());
+    DBG("remove(%p, %s)",cdr,cdr->local_tag.c_str());
 
     AmLock cdr_lock(*cdr);
 
@@ -69,11 +69,13 @@ bool CdrList::remove(Cdr *cdr)
     if(erase(cdr->local_tag)) {
         if(snapshots_buffering)
             postponed_active_calls.emplace_back(*cdr);
+        cdr->inserted2list = false;
         return true;
     } else {
         WARN("attempt to remove unknown active call: %s",
              cdr->local_tag.c_str());
     }
+
     return false;
 }
 

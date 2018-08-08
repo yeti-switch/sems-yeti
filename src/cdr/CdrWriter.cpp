@@ -661,6 +661,8 @@ int CdrThread::writecdr(cdr_writer_connection* conn, int entries_to_write)
         {
             CdrBase& cdr = **i;
 
+            DBG("writecdr(): process cdr %p",&cdr);
+
             pqxx::prepare::invocation invoc = cdr.get_invocation(tnx);
 
             invoc(conn->isMaster());

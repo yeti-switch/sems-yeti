@@ -1,3 +1,9 @@
+sems-yeti (1.7.33-3p4) stable; urgency=low
+
+  * cdr: additional debug
+
+ -- dev <dev@yeti-switch.org>  Wed, 08 Aug 2018 20:51:23 +0300
+
 sems-yeti (1.7.33-3p3) stable; urgency=low
 
   * fix cdr_static_fields
