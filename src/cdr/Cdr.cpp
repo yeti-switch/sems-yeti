@@ -127,9 +127,16 @@ Cdr::Cdr(const SqlCallProfile &profile)
     update_sql(profile);
 }
 
+Cdr::Cdr(const Cdr& cdr)
+  : CdrBase(CdrBase::Call)
+{
+    DBG("Cdr[%p](cdr = %p)", this, &cdr);
+    operator=(cdr);
+}
+
 Cdr::~Cdr()
 {
-    DBG("~Cdr[::~Cdr[%p]()",this);
+    DBG("~Cdr[%p]()",this);
 }
 
 void Cdr::replace(string& s, const string& from, const string& to)
@@ -933,7 +940,7 @@ void Cdr::to_csv_stream(ofstream &s, const DynFieldsT &df)
 #undef add_value
 }
 
-void Cdr::snapshot_info(AmArg &s, const DynFieldsT &df)
+void Cdr::snapshot_info(AmArg &s, const DynFieldsT &df) const
 {
    static char strftime_buf[64] = {0};
    static struct tm tt;
@@ -997,7 +1004,7 @@ void Cdr::snapshot_info(AmArg &s, const DynFieldsT &df)
 }
 
 void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df,
-                                 const unordered_set<string> &wanted_fields)
+                                 const unordered_set<string> &wanted_fields) const
 {
     static char strftime_buf[64] = {0};
     static struct tm tt;

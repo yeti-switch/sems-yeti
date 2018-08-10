@@ -68,7 +68,7 @@ bool CdrList::remove(Cdr *cdr)
 
     if(erase(cdr->local_tag)) {
         if(snapshots_buffering)
-            postponed_active_calls.emplace_back(*cdr);
+            postponed_active_calls.emplace(*cdr);
         cdr->inserted2list = false;
         return true;
     } else {
@@ -396,7 +396,9 @@ void CdrList::onTimer()
     unlock();
 
     if(snapshots_buffering) {
-        for(Cdr &cdr: local_postponed_calls) {
+        while(!local_postponed_calls.empty()) {
+            const Cdr &cdr = local_postponed_calls.front();
+
             calls.push(AmArg());
             AmArg &call = calls.back();
 
@@ -418,8 +420,9 @@ void CdrList::onTimer()
                         timerisset(&cdr.end_time) ?
                         timeval2str(cdr.end_time) : AmArg();
             }
+
+            local_postponed_calls.pop();
         }
-        local_postponed_calls.clear();
     }
 
     //serialize to json body for clickhouse

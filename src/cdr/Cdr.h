@@ -126,6 +126,7 @@ struct Cdr
 
     Cdr();
     Cdr(const Cdr& cdr,const SqlCallProfile &profile);
+    Cdr(const Cdr& cdr);
     Cdr(const SqlCallProfile &profile);
     ~Cdr();
 
@@ -166,8 +167,8 @@ struct Cdr
     char *serialize_versions() const;
 
     void add_versions_to_amarg(AmArg &arg) const;
-    void snapshot_info(AmArg &s, const DynFieldsT &df);
-    void snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered_set<string> &wanted_fields);
+    void snapshot_info(AmArg &s, const DynFieldsT &df) const;
+    void snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered_set<string> &wanted_fields) const;
     void info(AmArg &s);
 };
 

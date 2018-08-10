@@ -29,7 +29,7 @@ class CdrList
     AmCondition<bool> stopped;
     SqlRouter *router;
 
-    typedef vector<Cdr> PostponedCdrsContainer;
+    typedef queue<Cdr> PostponedCdrsContainer;
     PostponedCdrsContainer postponed_active_calls;
     AmMutex postponed_active_calls_mutex;
 
