@@ -134,6 +134,8 @@ SBCCallLeg::SBCCallLeg(
     call_profile(*call_ctx->getCurrentProfile()),
     placeholders_hash(call_profile.placeholders_hash)
 {
+    DBG("SBCCallLeg[%p](ctx %p,%p,%p)",this,call_ctx,p_dlg,p_subs);
+
     set_sip_relay_only(false);
     if(call_profile.aleg_rel100_mode_id!=-1) {
         dlg->setRel100State((Am100rel::State)call_profile.aleg_rel100_mode_id);
@@ -176,6 +178,8 @@ SBCCallLeg::SBCCallLeg(
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
 {
+    DBG("SBCCallLeg[%p](caller %p,%p,%p)",this,caller,p_dlg,p_subs);
+
     if(call_profile.bleg_rel100_mode_id!=-1) {
       dlg->setRel100State((Am100rel::State)call_profile.bleg_rel100_mode_id);
     } else {
@@ -211,7 +215,9 @@ SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
     router(yeti.router),
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
-{ }
+{
+    DBG("SBCCallLeg[%p](%p,%p)",this,p_dlg,p_subs);
+}
 
 void SBCCallLeg::init()
 {
@@ -1275,6 +1281,8 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
 
 SBCCallLeg::~SBCCallLeg()
 {
+    DBG("~SBCCallLeg[%p]",this);
+
     if (auth)
         delete auth;
     if (logger) dec_ref(logger);
