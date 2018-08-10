@@ -1,3 +1,10 @@
+sems-yeti (1.7.33-3p5) stable; urgency=low
+
+  * 5d81444 SBCCallLeg: log constructors/desctructor
+  * 551f9ce fix Cdr destructor logging. logging for copy constructor. use std::queue for postponed_active_calls
+
+ -- dev <dev@yeti-switch.org>  Fri, 10 Aug 2018 14:50:09 +0300
+
 sems-yeti (1.7.33-3p4) stable; urgency=low
 
   * cdr: additional debug
