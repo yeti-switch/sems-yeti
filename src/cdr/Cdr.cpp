@@ -412,7 +412,6 @@ void Cdr::update_internal_reason(DisconnectInitiator initiator,string reason, in
         disconnect_rewrited_reason = reason;
         disconnect_rewrited_code = code;
     }
-    unlock();
 }
 
 void Cdr::setSuppress(bool s)
