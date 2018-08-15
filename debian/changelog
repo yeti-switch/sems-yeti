@@ -1,3 +1,9 @@
+sems-yeti (1.7.33-3p7) stable; urgency=low
+
+  * fixes to make compiler and valgrind happy
+
+ -- dev <dev@yeti-switch.org>  Wed, 15 Aug 2018 18:45:19 +0300
+
 sems-yeti (1.7.33-3p6) stable; urgency=low
 
   * cdr: update_internal_reason: fix double mutex unlock
