@@ -198,9 +198,9 @@ class _RegisterCache
 
   auto_ptr<RegCacheStorageHandler> storage_handler;
 
-  unsigned int gbc_bucket_id;
-
-  AmSharedVar<bool> running;
+  AmTimerFd timer;
+  AmEventFd stop_event;
+  int epoll_fd;
 
   // stats
   ::atomic_int active_regs;

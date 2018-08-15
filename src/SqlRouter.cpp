@@ -48,6 +48,7 @@ SqlRouter::SqlRouter()
     master_pool(NULL),
     slave_pool(NULL),
     cdr_writer(NULL),
+    cache_enabled(false),
     cache(NULL),
     mi(5)
 {
@@ -334,7 +335,6 @@ void SqlRouter::getprofiles(const AmSipRequest &req,CallCtx &ctx, Auth::auth_id_
 	ProfilesCacheEntry *entry = NULL;
 	bool getprofile_fail = true;
 	int refuse_code = 0xffff;
-	string req_hdrs,hdr;
 	struct timeval start_time;
 
 	DBG("Lookup profile for request: \n %s",req.print().c_str());
@@ -393,6 +393,8 @@ void SqlRouter::getprofiles(const AmSipRequest &req,CallCtx &ctx, Auth::auth_id_
 		ctx.profiles = entry->profiles;
 		if(cache_enabled&&timerisset(&entry->expire_time))
 			cache->insert_profile(&req,entry);
+		entry->profiles.clear();
+		delete entry;
 	}
 	return;
 }

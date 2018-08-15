@@ -265,6 +265,8 @@ void Yeti::on_stop()
 
     stopped = true;
     ev_pending.set(true);
+
+    join();
 }
 
 #define ON_EVENT_TYPE(type) if(type *e = dynamic_cast<type *>(ev))

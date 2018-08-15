@@ -190,10 +190,15 @@ _RegisterCache::_RegisterCache()
 {
   // debug register cache WRITE operations
   setStorageHandler(new RegCacheLogHandler());
+  if((epoll_fd = epoll_create(10)) == -1) {
+    throw string("epoll_create call failed");
+  }
 }
 
 _RegisterCache::~_RegisterCache()
 {
+  if(epoll_fd!=-1)
+    close(epoll_fd);
   DBG("##### REG CACHE DUMP #####");
   reg_cache_ht.dump();
   DBG("##### ID IDX DUMP #####");
@@ -225,25 +230,46 @@ void _RegisterCache::gbc(unsigned int bucket_id)
 
 void _RegisterCache::on_stop()
 {
-  running.set(false);
+  stop_event.fire();
+  join();
 }
 
 void _RegisterCache::run()
 {
-  setThreadName("sip-reg-cache");
-  struct timespec tick,rem;
-  tick.tv_sec  = (REG_CACHE_SINGLE_CYCLE/1000000L);
-  tick.tv_nsec = (REG_CACHE_SINGLE_CYCLE - (tick.tv_sec)*1000000L) * 1000L;
+  int ret;
+  int fd;
+  bool running;
+  unsigned int gbc_bucket_id;
+  struct epoll_event events[2];
 
-  running.set(true);
+  setThreadName("sip-reg-cache");
+
+  timer.set(REG_CACHE_SINGLE_CYCLE, true);
+  timer.link(epoll_fd);
+  stop_event.link(epoll_fd);
 
   gbc_bucket_id = 0;
-  while(running.get()) {
-    gbc(gbc_bucket_id);
-    gbc_bucket_id = (gbc_bucket_id+1);
-    gbc_bucket_id &= (REG_CACHE_TABLE_ENTRIES-1);
-    nanosleep(&tick,&rem);
-  }  
+  running = true;
+  do {
+      ret = epoll_wait(epoll_fd, events, 2, -1);
+      if(ret == -1 && errno != EINTR){
+          ERROR("epoll_wait: %s\n",strerror(errno));
+      }
+      if(ret < 1)
+          continue;
+      for (int n = 0; n < ret; ++n) {
+          fd = events[n].data.fd;
+          if(fd==timer) {
+              gbc(gbc_bucket_id);
+              gbc_bucket_id = (gbc_bucket_id+1);
+              gbc_bucket_id &= (REG_CACHE_TABLE_ENTRIES-1);
+              timer.read();
+          } else if(fd==stop_event) {
+              running = false;
+              break;
+          }
+      }
+  } while(running);
 }
 
 /**
