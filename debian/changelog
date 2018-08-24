@@ -1,3 +1,9 @@
+sems-yeti (1.7.33-3p8) stable; urgency=low
+
+  * libsems 1.7.72-x
+
+ -- dev <dev@yeti-switch.org>  Fri, 24 Aug 2018 13:37:43 +0300
+
 sems-yeti (1.7.33-3p7) stable; urgency=low
 
   * fixes to make compiler and valgrind happy
