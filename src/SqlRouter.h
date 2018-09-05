@@ -42,7 +42,7 @@ public:
       bool success,
       AmArg &ret,
       Auth::auth_id_type auth_id = 0);
-  void send_auth_challenge(const AmSipRequest &req, AmArg &ret) override;
+  void send_and_log_auth_challenge(const AmSipRequest &req, const string &internal_reason);
   void dump_config();
   void clearStats();
   void clearCache();

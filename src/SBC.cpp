@@ -243,7 +243,8 @@ AmSession* SBCFactory::onInvite(
             router.log_auth(req,false,ret);
             break;
         default:
-            router.send_auth_challenge(req,ret);
+            router.send_and_log_auth_challenge(req,ret.asCStr());
+            break;
         }
         delete call_ctx;
         return NULL;
@@ -267,7 +268,7 @@ AmSession* SBCFactory::onInvite(
 
         if(!authorized) {
             DBG("auth required for not authorized request. send auth challenge");
-            router.send_auth_challenge(req,ret);
+            router.send_and_log_auth_challenge(req,"no Authorization header");
         } else {
             ERROR("got callprofile with auth_required "
                 "for already authorized request. reply internal error");

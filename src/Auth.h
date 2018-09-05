@@ -49,6 +49,7 @@ class Auth {
      * @return 0 on success
      */
     int reload_credentials(pqxx::nontransaction &t, size_t &credentials_count);
+    void send_auth_challenge(const AmSipRequest &req);
   public:
     Auth();
     void auth_info(AmArg &ret);
@@ -65,7 +66,5 @@ class Auth {
     *         <0 on error
     */
     auth_id_type check_invite_auth(const AmSipRequest &req, AmArg &ret);
-
-    virtual void send_auth_challenge(const AmSipRequest &req, AmArg &ret);
 };
 

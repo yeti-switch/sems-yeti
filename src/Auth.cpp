@@ -117,6 +117,7 @@ Auth::auth_id_type Auth::check_invite_auth(const AmSipRequest &req,  AmArg &ret)
     string username = find_attribute("username", auth_hdr);
     if(username.empty()) {
         DBG("no username attribute in " SIP_HDR_AUTHORIZATION " header");
+        ret = "no username in Authorization header";
         return -NO_USERNAME;
     }
 
@@ -124,8 +125,9 @@ Auth::auth_id_type Auth::check_invite_auth(const AmSipRequest &req,  AmArg &ret)
 
     auto range = credentials.equal_range(username);
     if(range.first == credentials.end()) {
-        DBG("no credentials for username '%s'",username.c_str());
         credentials_mutex.unlock();
+        DBG("no credentials for username '%s'",username.c_str());
+        ret = "no credentials for username";
         return -NO_CREDENTIALS;
     }
 
@@ -165,20 +167,15 @@ Auth::auth_id_type Auth::check_invite_auth(const AmSipRequest &req,  AmArg &ret)
     return -UAC_AUTH_ERROR;
 }
 
-void Auth::send_auth_challenge(const AmSipRequest &req, AmArg &ret)
+void Auth::send_auth_challenge(const AmSipRequest &req)
 {
-    AmArg args;
-    args.push((AmObject *) &req);
+    AmArg args, ret;
     args.push(realm);
-    args.push(string());
-    args.push(string());
 
     ret.clear();
+    uac_auth->invoke("getChallenge", args, ret);
 
-    uac_auth->invoke("checkAuth", args, ret);
-
-    AmSipDialog::reply_error(req,
-        ret[0].asInt(), ret[1].asCStr(),ret[2].asCStr());
+    AmSipDialog::reply_error(req, 401, "Unauthorized", ret.asCStr());
 }
 
 void Auth::auth_info(AmArg &ret)

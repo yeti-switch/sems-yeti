@@ -620,10 +620,13 @@ void SqlRouter::log_auth(
         auth_id));
 }
 
-void SqlRouter::send_auth_challenge(const AmSipRequest &req, AmArg &ret)
+void SqlRouter::send_and_log_auth_challenge(const AmSipRequest &req, const string &internal_reason)
 {
-    Auth::send_auth_challenge(req,ret);
-    log_auth(req,false,ret);
+    Auth::send_auth_challenge(req);
+    cdr_writer->post_auth_log(
+        new AuthCdr(
+            req,used_header_fields, false,
+            401, "Unauthorized", internal_reason, 0));
 }
 
 void SqlRouter::dump_config()
