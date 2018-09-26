@@ -1,3 +1,10 @@
+sems-yeti (1.7.34-1) stable; urgency=low
+
+  * f4b3f41 Yeti::load_config: allow to specify FQDN in the cfg_host parameter
+  * f5de2e2 fix auth logs
+
+ -- dev <dev@yeti-switch.org>  Wed, 26 Sep 2018 16:07:37 +0300
+
 sems-yeti (1.7.33-3p8) stable; urgency=low
 
   * libsems 1.7.72-x
