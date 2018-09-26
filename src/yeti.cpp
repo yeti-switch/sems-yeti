@@ -22,6 +22,7 @@
 #include "Sensors.h"
 #include "AmEventDispatcher.h"
 #include "ampi/SctpBusAPI.h"
+#include "sip/resolver.h"
 
 #include "YetiEvent.pb.h"
 
@@ -104,10 +105,11 @@ bool Yeti::load_config() {
 
 	config.node_id = AmConfig::node_id;
 
+	dns_handle dh;
 	sockaddr_storage a;
 	string address = ycfg.getParameter("cfg_host",YETI_SCTP_DEFAULT_HOST);
-	if(!am_inet_pton(address.c_str(),&a)) {
-		ERROR("configuration error. invalid address '%s' in option 'cfg_host`'",
+	if(-1==resolver::instance()->resolve_name(address.c_str(),&dh,&a,IPv4)) {
+		ERROR("configuration error. cfg_host contains invalid address or unresolvable FQDN: %s",
 			address.c_str());
 		return false;
 	}
