@@ -2,7 +2,7 @@
 #include "AmUtils.h"
 #include "log.h"
 #include "AmArg.h"
-#include "AmConfig.h"
+#include "AmLcConfig.h"
 #include "SBCCallControlAPI.h"
 #include <string.h>
 #include <syslog.h>

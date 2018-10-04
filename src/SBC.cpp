@@ -136,9 +136,9 @@ SBCFactory::~SBCFactory() {
 
 int SBCFactory::onLoad()
 {
-  if(cfg.loadFile(AmConfig::ModConfigPath + string(MOD_NAME ".conf"))) {
+  if(cfg.loadFile(AmConfig.configs_path + string(MOD_NAME ".conf"))) {
     ERROR("No configuration for sbc present (%s)\n",
-	 (AmConfig::ModConfigPath + string(MOD_NAME ".conf")).c_str()
+     (AmConfig.configs_path + string(MOD_NAME ".conf")).c_str()
 	 );
     return -1;
   }
@@ -162,7 +162,7 @@ int SBCFactory::onLoad()
   vector<string> regex_maps = explode(cfg.getParameter("regex_maps"), ",");
   for (vector<string>::iterator it =
 	 regex_maps.begin(); it != regex_maps.end(); it++) {
-    string regex_map_file_name = AmConfig::ModConfigPath + *it + ".conf";
+    string regex_map_file_name = AmConfig.configs_path + *it + ".conf";
     RegexMappingVector v;
     if (!read_regex_mapping(regex_map_file_name, "=>",
 			    ("SBC regex mapping " + *it+":").c_str(), v)) {
@@ -201,8 +201,8 @@ inline void answer_100_trying(const AmSipRequest &req, CallCtx *ctx)
 	reply.reason = "Connecting";
 	reply.tt = req.tt;
 
-	if (AmConfig::Signature.length())
-		reply.hdrs += SIP_HDR_COLSP(SIP_HDR_SERVER) + AmConfig::Signature + CRLF;
+    if (AmConfig.signature.length())
+        reply.hdrs += SIP_HDR_COLSP(SIP_HDR_SERVER) + AmConfig.signature + CRLF;
 
 	if(SipCtrlInterface::send(reply,string(""),ctx->early_trying_logger,NULL)){
 		ERROR("Could not send early 100 Trying. call-id=%s, cseq = %i\n",

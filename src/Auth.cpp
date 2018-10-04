@@ -1,6 +1,7 @@
 #include "Auth.h"
 #include "AmApi.h"
 #include "AmPlugIn.h"
+#include "AmSipDialog.h"
 #include "sip/defs.h"
 #include "md5.h"
 #include "AmUriParser.h"

@@ -116,8 +116,8 @@ int _Sensors::load_sensors_config(){
 				try { capture_port = row["o_target_port"].as<unsigned short>(15060);
 				} catch(...) { capture_port = 15060; }
 
-				try { capture_id = row["o_hep_capture_id"].as<int>(AmConfig::node_id);
-				} catch(...) { capture_id = AmConfig::node_id; }
+                try { capture_id = row["o_hep_capture_id"].as<int>(AmConfig.node_id);
+                } catch(...) { capture_id = AmConfig.node_id; }
 
 				try { capture_password = row["o_capture_password"].c_str();
 				} catch(...) { }

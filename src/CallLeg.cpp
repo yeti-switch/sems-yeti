@@ -1,6 +1,6 @@
 #include "CallLeg.h"
 #include "AmSessionContainer.h"
-#include "AmConfig.h"
+#include "AmLcConfig.h"
 #include "ampi/MonitoringAPI.h"
 #include "AmSipHeaders.h"
 #include "AmUtils.h"
@@ -1058,7 +1058,7 @@ void CallLeg::addNewCallee(CallLeg *callee, ConnectLegEvent *e,
 
   other_legs.push_back(b);
 
-  if (AmConfig::LogSessions) {
+  if (AmConfig.log_sessions) {
     TRACE("Starting B2B callee session %s\n",
           callee->getLocalTag().c_str()/*, invite_req.cmd.c_str()*/);
   }

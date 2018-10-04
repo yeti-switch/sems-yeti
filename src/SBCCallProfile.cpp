@@ -30,7 +30,7 @@
 #include "log.h"
 #include "AmUtils.h"
 #include "AmPlugIn.h"
-#include "AmConfig.h"
+#include "AmLcConfig.h"
 
 #include "SBCCallControlAPI.h"
 #include "RTPParameters.h"
@@ -109,8 +109,8 @@ void PlaceholdersHash::update(const PlaceholdersHash &h)
     if (what == "default") iface = 0;					\
     else {								\
       map<string,unsigned short>::iterator name_it =			\
-	AmConfig::RTP_If_names.find(what);				\
-      if (name_it != AmConfig::RTP_If_names.end())			\
+    AmConfig.media_if_names.find(what);				\
+      if (name_it != AmConfig.media_if_names.end())			\
 	iface = name_it->second;					\
       else {								\
 	ERROR("selected " #what " '%s' does not exist as a media interface. " \
@@ -130,8 +130,8 @@ void PlaceholdersHash::update(const PlaceholdersHash &h)
 	if (what == "default") iface = 0;		\
 	else {								\
 	  map<string,unsigned short>::iterator name_it =		\
-	    AmConfig::SIP_If_names.find(what);				\
-	  if (name_it != AmConfig::RTP_If_names.end()) \
+        AmConfig.sip_if_names.find(what);				\
+      if (name_it != AmConfig.sip_if_names.end()) \
 	    iface = name_it->second;					\
 	  else {							\
 	    ERROR("selected " #what " '%s' does not exist as a signaling" \
@@ -765,8 +765,8 @@ bool SBCCallProfile::evaluateOutboundInterface() {
     outbound_interface_value = 0;
   } else {
     map<string,unsigned short>::const_iterator name_it =
-      AmConfig::SIP_If_names.find(outbound_interface);
-    if (name_it != AmConfig::SIP_If_names.end()) {
+      AmConfig.sip_if_names.find(outbound_interface);
+    if (name_it != AmConfig.sip_if_names.end()) {
       outbound_interface_value = name_it->second;
     } else {
       ERROR("selected outbound_interface '%s' does not exist as a signaling"
@@ -797,8 +797,8 @@ static int apply_outbound_interface(const string& oi, AmBasicSipDialog& dlg)
   if (oi == "default")
     dlg.setOutboundInterface(0);
   else {
-    map<string,unsigned short>::iterator name_it = AmConfig::SIP_If_names.find(oi);
-    if (name_it != AmConfig::SIP_If_names.end()) {
+    map<string,unsigned short>::iterator name_it = AmConfig.sip_if_names.find(oi);
+    if (name_it != AmConfig.sip_if_names.end()) {
       dlg.setOutboundInterface(name_it->second);
     } else {
       ERROR("selected [aleg_]outbound_interface '%s' "
@@ -1054,7 +1054,7 @@ string SBCCallProfile::retarget(const string& alias, AmBasicSipDialog& dlg) cons
 
     // sticky interface
     DBG("setting from registration cache: outbound_interface='%s'\n",
-	AmConfig::SIP_Ifs[alias_entry.local_if].name.c_str());
+        AmConfig.sip_ifs[alias_entry.local_if].name.c_str());
     dlg.setOutboundInterface(alias_entry.local_if);
 
     return new_r_uri;

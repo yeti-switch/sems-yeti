@@ -222,7 +222,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	if(!readDynFields(t,df)) return false;
 
 	assign_int(dump_level_id,"dump_level_id",0);
-	dump_level_id |= AmConfig::DumpLevel;
+    dump_level_id |= AmConfig.dump_level;
 	log_rtp = dump_level_id&LOG_RTP_MASK;
 	log_sip = dump_level_id&LOG_SIP_MASK;
 
@@ -264,7 +264,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	assign_int_safe(aleg_conn_location_id,"aleg_sdp_c_location_id",0,0);
 	assign_int_safe(bleg_conn_location_id,"bleg_sdp_c_location_id",0,0);
 
-	assign_int_safe(dead_rtp_time,"dead_rtp_time",AmConfig::DeadRtpTime,AmConfig::DeadRtpTime);
+    assign_int_safe(dead_rtp_time,"dead_rtp_time",AmConfig.dead_rtp_time,AmConfig.dead_rtp_time);
 
 	assign_bool_safe(aleg_relay_reinvite,"aleg_relay_reinvite",true,true);
 	assign_bool_safe(bleg_relay_reinvite,"bleg_relay_reinvite",true,true);

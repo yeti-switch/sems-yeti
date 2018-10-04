@@ -83,9 +83,9 @@ bool Yeti::load_config() {
 
 	AmConfigReader ycfg;
 
-	if(ycfg.loadFile(AmConfig::ModConfigPath + string(MOD_NAME ".conf"))) {
+    if(ycfg.loadFile(AmConfig.configs_path + string(MOD_NAME ".conf"))) {
 		ERROR("No configuration for " MOD_NAME " present (%s)\n",
-			(AmConfig::ModConfigPath + string(MOD_NAME ".conf")).c_str());
+            (AmConfig.configs_path + string(MOD_NAME ".conf")).c_str());
 		return false;
 	}
 
@@ -103,12 +103,12 @@ bool Yeti::load_config() {
 		WARN("node_id from sems.conf will be used instead of obsoleted node_id in yeti.conf");
 	}
 
-	config.node_id = AmConfig::node_id;
+    config.node_id = AmConfig.node_id;
 
 	dns_handle dh;
 	sockaddr_storage a;
 	string address = ycfg.getParameter("cfg_host",YETI_SCTP_DEFAULT_HOST);
-	if(-1==resolver::instance()->resolve_name(address.c_str(),&dh,&a,IPv4)) {
+    if(-1==resolver::instance()->resolve_name(address.c_str(),&dh,&a,IPv4_only)) {
 		ERROR("configuration error. cfg_host contains invalid address or unresolvable FQDN: %s",
 			address.c_str());
 		return false;
@@ -280,7 +280,7 @@ void Yeti::process(AmEvent *ev)
 			//send cfg request
 			YetiEvent e;
 			CfgRequest &c = *e.mutable_cfg_request();
-			c.set_node_id(AmConfig::node_id);
+            c.set_node_id(AmConfig.node_id);
 			c.set_cfg_part(YETI_CFG_PART);
 			if(!AmEventDispatcher::instance()->post(
 				SCTP_BUS_EVENT_QUEUE,

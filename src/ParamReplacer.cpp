@@ -45,10 +45,11 @@
 int getOutboundInterface(const string &next_hop,
                          const string &outbound_proxy,bool force_outbound_proxy,
                          const string &route,
-                         const string &ruri){
+                         const string &ruri)
+{
 
-    if(AmConfig::SIP_Ifs.size() == 1){
-      return 0;
+    if(AmConfig.sip_ifs.size() == 1) {
+        return 0;
     }
 
     // Destination priority:
@@ -65,54 +66,50 @@ int getOutboundInterface(const string &next_hop,
     list<sip_destination> ip_list;
     if(!next_hop.empty() &&
        !parse_next_hop(stl2cstr(next_hop),ip_list) &&
-       !ip_list.empty()) {
-
-      dest_ip = c2stlstr(ip_list.front().host);
-    }
-    else if(!outbound_proxy.empty() && force_outbound_proxy) {
+       !ip_list.empty())
+    {
+        dest_ip = c2stlstr(ip_list.front().host);
+    } else if(!outbound_proxy.empty() && force_outbound_proxy) {
       dest_uri = outbound_proxy;
-    }
-    else if(!route.empty()){
-      // parse first route
-      sip_header fr;
-      fr.value = stl2cstr(route);
-      sip_uri* route_uri = get_first_route_uri(&fr);
-      if(!route_uri){
-        ERROR("Could not parse route route='%s'",route.c_str());
-        goto error;
-      }
+    } else if(!route.empty()) {
+        // parse first route
+        sip_header fr;
+        fr.value = stl2cstr(route);
+        sip_uri* route_uri = get_first_route_uri(&fr);
+        if(!route_uri){
+            ERROR("Could not parse route route='%s'",route.c_str());
+            goto error;
+        }
 
-      dest_ip = c2stlstr(route_uri->host);
-    }
-    else {
-      dest_uri = ruri;
+        dest_ip = c2stlstr(route_uri->host);
+    } else {
+        dest_uri = ruri;
     }
 
     if(dest_uri.empty() && dest_ip.empty()) {
-      ERROR("No destination found");
-      goto error;
-    }
-
-    if(!dest_uri.empty()){
-      sip_uri d_uri;
-      if(parse_uri(&d_uri,dest_uri.c_str(),dest_uri.length()) < 0){
-        ERROR("Could not parse destination URI dest_uri='%s'",dest_uri.c_str());
+        ERROR("No destination found");
         goto error;
-      }
-
-      dest_ip = c2stlstr(d_uri.host);
     }
 
-    if(get_local_addr_for_dest(dest_ip,local_ip) < 0){
-      ERROR("No local address for dest '%s'",dest_ip.c_str());
-      goto error;
+    if(!dest_uri.empty()) {
+        sip_uri d_uri;
+        if(parse_uri(&d_uri,dest_uri.c_str(),dest_uri.length()) < 0) {
+            ERROR("Could not parse destination URI dest_uri='%s'",dest_uri.c_str());
+            goto error;
+        }
+        dest_ip = c2stlstr(d_uri.host);
     }
 
-    if_it = AmConfig::LocalSIPIP2If.find(local_ip);
-    if(if_it == AmConfig::LocalSIPIP2If.end()){
-      ERROR("Could not find a local interface for resolved local IP local_ip='%s'",
-        local_ip.c_str());
-      goto error;
+    if(get_local_addr_for_dest(dest_ip,local_ip,IPv4_only) < 0) {
+        ERROR("No local address for dest '%s'",dest_ip.c_str());
+        goto error;
+    }
+
+    if_it = AmConfig.local_sip_ip2if.find(local_ip);
+    if(if_it == AmConfig.local_sip_ip2if.end()) {
+        ERROR("Could not find a local interface for resolved local IP local_ip='%s'",
+              local_ip.c_str());
+        goto error;
     }
 
     return if_it->second;
@@ -409,14 +406,15 @@ string replaceParameters(const string& s,
 	    res += int2str(req.local_if);
 	    break;
 	  } else if (s[p+1] == 'n') { // $Rn received interface name
-	    if (req.local_if < AmConfig::SIP_Ifs.size()) {
-	      res += AmConfig::SIP_Ifs[req.local_if].name;
+        if (req.local_if < AmConfig.sip_ifs.size()) {
+          res += AmConfig.sip_ifs[req.local_if].name;
 	    }
 	    break;
 	  } else if (s[p+1] == 'I') { // $RI received interface public IP
-	    if (req.local_if < AmConfig::SIP_Ifs.size()) {
-	      res += AmConfig::SIP_Ifs[req.local_if].PublicIP;
-	    }
+        if (req.local_if < AmConfig.sip_ifs.size()) {
+          //TODO: use smth like req.local_proto to get correct public_ip
+          res += AmConfig.sip_ifs[req.local_if].proto_info[0]->public_ip;
+        }
 	    break;
 	  }
 	  WARN("unknown replacement $R%c\n", s[p+1]);
@@ -434,7 +432,8 @@ string replaceParameters(const string& s,
 														  call_profile->force_outbound_proxy,
 														  req.route,
 														  call_profile->ruri);
-			res += AmConfig::SIP_Ifs[outbound_interface].LocalIP;
+            //TODO: use smth like req.local_proto to get correct public_ip
+            res += AmConfig.sip_ifs[outbound_interface].proto_info[0]->local_ip;
 			break;
 		} else if (s[p+1] == 'I') { // $OI outbound public IP
 			if(outbound_interface == -1)
@@ -443,14 +442,7 @@ string replaceParameters(const string& s,
 														  call_profile->force_outbound_proxy,
 														  req.route,
 														  call_profile->ruri);
-			AmConfig::SIP_interface &sip_iface = AmConfig::SIP_Ifs[outbound_interface];
-			if(sip_iface.PublicIP.empty()){
-				WARN("no public ip for outbound interface '%s' using localIP instead",
-					 sip_iface.name.c_str());
-				res += sip_iface.LocalIP;
-			} else {
-				res += sip_iface.PublicIP;
-			}
+            res += AmConfig.sip_ifs[outbound_interface].proto_info[0]->getIP();
 			break;
 		}
 		WARN("unknown replacement $O%c\n", s[p+1]);
@@ -482,7 +474,7 @@ string replaceParameters(const string& s,
 	    break;
 	  }
 	  else if(s[p+1] == 'i') {
-	    res += AmConfig::SIP_Ifs[alias_entry.local_if].name;
+        res += AmConfig.sip_ifs[alias_entry.local_if].name;
 	    break;
 	  }
 	  
