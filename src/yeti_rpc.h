@@ -35,6 +35,7 @@ class YetiRpc
     bool assert_event_id(const AmArg &args,AmArg &ret);
 
     rpc_handler DropCall;
+    rpc_handler RemoveCall;
     rpc_handler ClearStats;
     rpc_handler ClearCache;
     rpc_handler ShowCache;
