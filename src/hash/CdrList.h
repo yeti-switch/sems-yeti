@@ -69,6 +69,7 @@ class CdrList
 
     int insert(Cdr *cdr);
     bool remove(Cdr *cdr);
+    bool remove_by_local_tag(const string &local_tag);
 
     void getFields(AmArg &ret,SqlRouter *r);
     void validate_fields(const vector<string> &wanted_fields, const SqlRouter *router);

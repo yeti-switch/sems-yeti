@@ -211,6 +211,9 @@ void YetiRpc::init_rpc_tree()
 		leaf(request,request_call,"call","active calls control");
 			method_arg(request_call,"disconnect","drop call",DropCall,
 					   "","<LOCAL-TAG>","drop call by local_tag");
+			method_arg(request_call,"remove","remove call from container",RemoveCall,
+					   "","<LOCAL-TAG>","remove call by local_tag");
+
 
 		leaf(request,request_media,"media","media processor instance");
 			method_arg(request_media,"payloads","loaded codecs",showPayloads,"show supported codecs",
@@ -672,6 +675,31 @@ void YetiRpc::DropCall(const AmArg& args, AmArg& ret){
 		throw CallNotFoundException(local_tag);
 	}
 	ret = "Dropped from sessions container";
+}
+
+void YetiRpc::RemoveCall(const AmArg& args, AmArg& ret){
+	string local_tag;
+	handler_log();
+
+	if (!args.size()){
+		throw AmSession::Exception(500,"Parameters error: expected local tag of active call");
+	}
+
+	local_tag = args[0].asCStr();
+
+	if (AmSessionContainer::instance()->postEvent(
+		local_tag,
+		new SBCControlEvent("teardown")))
+	{
+		ret = "Call found in sessions container. teardown command sent";
+		return;
+	}
+
+	if(cdr_list.remove_by_local_tag(local_tag)) {
+		ret = "Removed from active calls container";
+	} else {
+		ret = "Failed to remove from active calls container";
+	}
 }
 
 void YetiRpc::showVersion(const AmArg& args, AmArg& ret) {

@@ -79,6 +79,16 @@ bool CdrList::remove(Cdr *cdr)
     return false;
 }
 
+bool CdrList::remove_by_local_tag(const string &local_tag)
+{
+    AmLock l(*this);
+
+    if(erase(local_tag))
+        return true;
+
+    return false;
+}
+
 long int CdrList::getCallsCount()
 {
     AmLock l(*this);
@@ -499,6 +509,12 @@ inline void CdrList::cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ct
     add_field(resources);
     add_field(active_resources);
     arg["active_resources_json"] = cdr->active_resources_amarg;
+
+    add_field(disconnect_initiator);
+    add_field(disconnect_code);
+    add_field(disconnect_reason);
+    add_field(disconnect_internal_code);
+    add_field(disconnect_internal_reason);
 
     //cdr->add_versions_to_amarg(arg);
 
