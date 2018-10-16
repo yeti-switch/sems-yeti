@@ -1,3 +1,10 @@
+sems-yeti (1.7.34-2) stable; urgency=low
+
+  * add yeti.request.call.remove rpc command
+  * serialize disconnect_codes/reasons to active calls response
+
+ -- dev <dev@yeti-switch.org>  Wed, 26 Sep 2018 16:07:37 +0300
+
 sems-yeti (1.7.34-1) stable; urgency=low
 
   * f4b3f41 Yeti::load_config: allow to specify FQDN in the cfg_host parameter
