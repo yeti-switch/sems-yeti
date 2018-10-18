@@ -15,9 +15,9 @@ class AuthCdr
     timeval request_time;
     int transport_proto_id;
     string remote_ip;
-    short remote_port;
+    unsigned short remote_port;
     string local_ip;
-    short local_port;
+    unsigned short local_port;
     string method;
     string r_uri;
     string from_uri;
