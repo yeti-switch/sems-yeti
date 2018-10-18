@@ -1,3 +1,9 @@
+sems-yeti (1.7.34-3) stable; urgency=low
+
+  * fix auth cdr ports
+
+ -- dev <dev@yeti-switch.org>  Thu, 18 Oct 2018 14:58:51 +0300
+
 sems-yeti (1.7.34-2) stable; urgency=low
 
   * add yeti.request.call.remove rpc command
