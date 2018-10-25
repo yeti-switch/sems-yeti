@@ -87,14 +87,8 @@ struct Cdr
 
     vector<AmArg> trusted_hdrs;
 
-    AmRtpStream::PayloadsHistory legA_payloads;
-    AmRtpStream::PayloadsHistory legB_payloads;
-
-    AmRtpStream::ErrorsStats legA_stream_errors;
-    AmRtpStream::ErrorsStats legB_stream_errors;
-
-    long legA_bytes_recvd, legB_bytes_recvd;
-    long legA_bytes_sent, legB_bytes_sent;
+    AmRtpStream::MediaStats aleg_media_stats;
+    AmRtpStream::MediaStats bleg_media_stats;
 
     string resources;
     string active_resources;

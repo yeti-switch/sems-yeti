@@ -69,10 +69,6 @@ Cdr::Cdr()
     active_resources("[]"),
     failed_resource_type_id(-1),
     failed_resource_id(-1),
-    legA_bytes_recvd(0),
-    legB_bytes_recvd(0),
-    legA_bytes_sent(0),
-    legB_bytes_sent(0),
     isup_propagation_delay(0),
     audio_record_enabled(false),
     is_redirected(false),
@@ -494,15 +490,20 @@ char *Cdr::serialize_rtp_stats()
     static const char *fields[] = {
         "lega_rx_payloads",
         "lega_tx_payloads",
+
         "legb_rx_payloads",
         "legb_tx_payloads",
+
         "lega_rx_bytes",
         "lega_tx_bytes",
+
         "legb_rx_bytes",
         "legb_tx_bytes",
+
         "lega_rx_decode_errs",
         "lega_rx_no_buf_errs",
         "lega_rx_parse_errs",
+
         "legb_rx_decode_errs",
         "legb_rx_no_buf_errs",
         "legb_rx_parse_errs",
@@ -512,38 +513,38 @@ char *Cdr::serialize_rtp_stats()
 
     //tx/rx uploads
     add_str2json(join_str_vector2(
-                    legA_payloads.incoming,
-                    legA_payloads.incoming_relayed,","
+                    aleg_media_stats.payloads.incoming,
+                    aleg_media_stats.payloads.incoming_relayed,","
                 ).c_str());
 
     add_str2json(join_str_vector2(
-                    legA_payloads.outgoing,
-                    legA_payloads.outgoing_relayed,","
+                    aleg_media_stats.payloads.outgoing,
+                    aleg_media_stats.payloads.outgoing_relayed,","
                 ).c_str());
 
     add_str2json(join_str_vector2(
-                    legB_payloads.incoming,
-                    legB_payloads.incoming_relayed,","
+                    bleg_media_stats.payloads.incoming,
+                    bleg_media_stats.payloads.incoming_relayed,","
                 ).c_str());
 
     add_str2json(join_str_vector2(
-                    legB_payloads.outgoing,
-                    legB_payloads.outgoing_relayed,","
+                    bleg_media_stats.payloads.outgoing,
+                    bleg_media_stats.payloads.outgoing_relayed,","
                 ).c_str());
 
     //tx/rx bytes
-    add_num2json(legA_bytes_recvd);
-    add_num2json(legA_bytes_sent);
-    add_num2json(legB_bytes_recvd);
-    add_num2json(legB_bytes_sent);
+    add_num2json(aleg_media_stats.incoming_bytes);
+    add_num2json(aleg_media_stats.outgoing_bytes);
+    add_num2json(bleg_media_stats.incoming_bytes);
+    add_num2json(bleg_media_stats.outgoing_bytes);
 
     //tx/rx rtp errors
-    add_num2json(legA_stream_errors.decode_errors);
-    add_num2json(legA_stream_errors.out_of_buffer_errors);
-    add_num2json(legA_stream_errors.rtp_parse_errors);
-    add_num2json(legB_stream_errors.decode_errors);
-    add_num2json(legB_stream_errors.out_of_buffer_errors);
-    add_num2json(legB_stream_errors.rtp_parse_errors);
+    add_num2json(aleg_media_stats.errors.decode_errors);
+    add_num2json(aleg_media_stats.errors.out_of_buffer_errors);
+    add_num2json(aleg_media_stats.errors.rtp_parse_errors);
+    add_num2json(bleg_media_stats.errors.decode_errors);
+    add_num2json(bleg_media_stats.errors.out_of_buffer_errors);
+    add_num2json(bleg_media_stats.errors.rtp_parse_errors);
 
     s = cJSON_PrintUnformatted(j);
     cJSON_Delete(j);

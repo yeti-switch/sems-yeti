@@ -2668,17 +2668,8 @@ void SBCCallLeg::onRTPStreamDestroy(AmRtpStream *stream) {
     with_cdr_for_read {
         if(cdr->writed) return;
         cdr->lock();
-        if(a_leg) {
-            stream->getPayloadsHistory(cdr->legA_payloads);
-            stream->getErrorsStats(cdr->legA_stream_errors);
-            cdr->legA_bytes_recvd = stream->getRcvdBytes();
-            cdr->legA_bytes_sent = stream->getSentBytes();
-        } else {
-            stream->getPayloadsHistory(cdr->legB_payloads);
-            stream->getErrorsStats(cdr->legB_stream_errors);
-            cdr->legB_bytes_recvd = stream->getRcvdBytes();
-            cdr->legB_bytes_sent = stream->getSentBytes();
-        }
+        if(a_leg) stream->getMediaStats(cdr->aleg_media_stats);
+        else stream->getMediaStats(cdr->bleg_media_stats);
         cdr->unlock();
     }
 }
