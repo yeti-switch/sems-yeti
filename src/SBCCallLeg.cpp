@@ -3004,7 +3004,11 @@ bool SBCCallLeg::getSdpOffer(AmSdp& offer){
     } else {
         DBG("provide saved initial offer for legB");
         offer = call_ctx->bleg_initial_offer;
-        m->replaceConnectionAddress(offer,a_leg, localMediaIP(), advertisedIP());
+        int addr_type = dlg->getOutboundAddrType();
+        m->replaceConnectionAddress(offer,a_leg,
+                                    localMediaIP(addr_type),
+                                    advertisedIP(addr_type),
+                                    addr_type);
     }
     offer.origin.sessV = local_sdp.origin.sessV+1; //increase session version. rfc4566 5.2 <sess-version>
     return true;
