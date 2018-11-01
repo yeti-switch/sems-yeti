@@ -13,9 +13,11 @@
 #if defined DBG_SDP_PROCESSING
 #define DBG_SDP_PAYLOAD(payload,prefix) dump_SdpPayload(payload,prefix)
 #define DBG_SDP_MEDIA(media,prefix) dump_SdpMedia(media,prefix)
+#define DBG_SDP(sdp,prefix) dump_Sdp(sdp,prefix)
 #else
 #define DBG_SDP_PAYLOAD(payload,prefix) ;
 #define DBG_SDP_MEDIA(media,prefix) ;
+#define DBG_SDP(sdp,prefix) ;
 #endif
 
 const char *conn_location2str(int location_id){
@@ -43,9 +45,7 @@ int AmMimeBody2Sdp(const AmMimeBody &body,AmSdp &sdp){
 	return 0;
 }
 
-void dump_SdpPayload(const vector<SdpPayload> &p,string prefix){
-	if(!prefix.empty())
-		prefix.insert(0,"for ");
+void dump_SdpPayload(const vector<SdpPayload> &p,const string &prefix){
 	DBG("        dump SdpPayloads %s %p:",prefix.c_str(),&p);
 	if(!p.size()){
 		DBG("            empty payloads container");
@@ -64,7 +64,7 @@ void dump_SdpPayload(const vector<SdpPayload> &p,string prefix){
 	}
 }
 
-void dump_SdpMedia(const vector<SdpMedia> &m,string prefix){
+void dump_SdpMedia(const vector<SdpMedia> &m,const string &prefix){
 	DBG("DUMP SdpMedia %s %p:",prefix.c_str(),&m);
 	if(m.empty()){
 		DBG("    SdpMedia %s is empty",prefix.c_str());
@@ -85,6 +85,12 @@ void dump_SdpMedia(const vector<SdpMedia> &m,string prefix){
 				media.type2str(media.type).c_str(),media.port);
 		}
 	}
+}
+
+void dump_Sdp(const AmSdp &sdp,const string &prefix) {
+	DBG("DUMP Sdp %s %p:",prefix.c_str(),&sdp);
+	DBG("    sdp[%p] conn = %s",&sdp,sdp.conn.debugPrint().c_str());
+	dump_SdpMedia(sdp.media,prefix);
 }
 
 static const SdpPayload *findPayload(const std::vector<SdpPayload>& payloads, const SdpPayload &payload, int transport)
@@ -323,7 +329,7 @@ int filter_arrange_SDP(AmSdp& sdp,
 	int media_idx = 0;
 	int stream_idx = 0;
 
-	DBG_SDP_MEDIA(sdp.media,"filter_arrange_SDP_in");
+	DBG_SDP(sdp,"filter_arrange_SDP_in");
 
 	for (vector<SdpMedia>::iterator m_it =
 		 sdp.media.begin();m_it != sdp.media.end(); m_it++)
@@ -378,7 +384,7 @@ int filter_arrange_SDP(AmSdp& sdp,
 		stream_idx++;
 	}
 
-	DBG_SDP_MEDIA(sdp.media,"filter_arrange_SDP_out");
+	DBG_SDP(sdp,"filter_arrange_SDP_out");
 
 	if ((!media_line_left) && media_line_filtered_out) {
 		DBG("all streams were marked as inactive\n");
@@ -510,7 +516,7 @@ int processSdpOffer(SBCCallProfile &call_profile,
 	negotiated_media = sdp.media;
 
 	DBG_SDP_PAYLOAD(static_codecs_filter,"static_codecs_filter");
-	DBG_SDP_MEDIA(negotiated_media,"negotiateRequestSdp");
+	DBG_SDP(sdp,"negotiateRequestSdp");
 
 	string n_body;
 	sdp.print(n_body);
@@ -549,7 +555,7 @@ int filterSdpOffer(SBCCallLeg *call,
 		return res;
 	}
 
-	DBG_SDP_MEDIA(sdp.media,"filterSdpOffer_in");
+	DBG_SDP(sdp,"filterSdpOffer_in");
 
 	normalizeSDP(sdp, false, "");
 
@@ -575,7 +581,7 @@ int filterSdpOffer(SBCCallLeg *call,
 								call_profile.bleg_conn_location_id :
 								call_profile.aleg_conn_location_id);
 
-	DBG_SDP_MEDIA(sdp.media,"filterSdpOffer_out");
+	DBG_SDP(sdp,"filterSdpOffer_out");
 
 	//update body
 	string n_body;
