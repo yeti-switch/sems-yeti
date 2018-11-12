@@ -243,7 +243,9 @@ void SBCCallLeg::init()
             replace(call_profile.callid,"%uuid",id);
         }
         setSensor(Sensors::instance()->getSensor(call_profile.bleg_sensor_id));
-        cdr->update_init_bleg(call_profile.callid.empty()? getCallID() : call_profile.callid);
+        cdr->update_init_bleg(
+            call_profile.callid.empty()? getCallID() : call_profile.callid,
+            getLocalTag());
     }
 
     if(call_profile.record_audio){

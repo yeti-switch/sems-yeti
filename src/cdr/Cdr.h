@@ -79,6 +79,7 @@ struct Cdr
     string orig_call_id;
     string term_call_id;
     string local_tag;
+    string bleg_local_tag;
     string global_tag;
     int time_limit;
 
@@ -132,7 +133,7 @@ struct Cdr
     void update(const AmISUP &isup);
     void update(const AmSipReply &reply);
     void update_init_aleg(const string &leg_local_tag, const string &leg_global_tag, const string &leg_orig_call_id);
-    void update_init_bleg(const string &leg_term_call_id);
+    void update_init_bleg(const string &leg_term_call_id, const string &leg_local_tag);
     void update(UpdateAction act);
     void update(const ResourceList &rl);
     void update_failed_resource(const Resource &r);
@@ -155,6 +156,9 @@ struct Cdr
 
     //serializators
     char *serialize_rtp_stats();
+    char *serialize_media_stats();
+    void serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::MediaStats &m);
+
     char *serialize_timers_data();
     char *serialize_dtmf_events();
     char *serialize_dynamic(const DynFieldsT &df);

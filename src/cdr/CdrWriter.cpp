@@ -43,10 +43,12 @@ const static_field cdr_static_fields[] = {
 	{ "orig_call_id", "varchar" },
 	{ "term_call_id", "varchar" },
 	{ "local_tag", "varchar" },
+	{ "bleg_local_tag", "varchar" },
 	{ "msg_logger_path", "varchar" },
 	{ "dump_level_id", "integer" },
 	{ "audio_record_enabled", "boolean"},
 	{ "rtp_stats", "json" }, //stats variables serialized to json
+	{ "media_stats", "json" }, //media stats serialized to json
 	{ "global_tag", "varchar" },
 	{ "resources", "varchar" },
 	{ "active_resources", "json" },
