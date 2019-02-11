@@ -210,7 +210,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   bool isALeg() { return a_leg; }
 
   virtual void setMediaSession(AmB2BMedia *new_session);
-  virtual void computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &mask);
+  virtual void computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &mask, PayloadRelayMap& map) override;
   virtual void processLocalRequest(AmSipRequest &req);
 
   void setSensor(msg_sensor *_sensor);

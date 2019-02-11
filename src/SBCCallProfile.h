@@ -471,8 +471,6 @@ struct SBCCallProfile
 	force_transcoding(false)
   { }
 
-  bool readFromConfiguration(const string& name, const string profile_file_name);
-
   bool operator==(const SBCCallProfile& rhs) const;
   string print() const;
 

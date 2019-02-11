@@ -2903,7 +2903,7 @@ void SBCCallLeg::setSensor(msg_sensor *_sensor){
     }
 }
 
-void SBCCallLeg::computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &mask)
+void SBCCallLeg::computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &mask, PayloadRelayMap& map)
 {
     if(call_profile.force_transcoding) {
         enable = false;
@@ -2950,7 +2950,7 @@ void SBCCallLeg::computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &
         mask = m1;
     } else {
         // for non-transcoding modes use default
-        CallLeg::computeRelayMask(m, enable, mask);
+        CallLeg::computeRelayMask(m, enable, mask, map);
     }
 }
 

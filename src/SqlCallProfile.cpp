@@ -95,9 +95,6 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	dstcfg.setParameter(cfgkey, t[cfgprefix cfgkey].c_str());	\
 	} else if (column_exist(t,cfgkey)) {				\
 		dstcfg.setParameter(cfgkey, t[cfgkey].c_str());		\
-	} else if (SBCFactory::instance()->cfg.hasParameter(cfgkey)) {	\
-	  dstcfg.setParameter(cfgkey, SBCFactory::instance()->		\
-			  cfg.getParameter(cfgkey));			\
 	}
 #define	CP_SESSION_REFRESH_METHOD(method_id,dstcfg)\
 	switch(method_id){\
@@ -119,7 +116,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	}
 
 	if (sst_enabled.size() && sst_enabled != "no") {
-		if (NULL == SBCFactory::instance()->session_timer_fact) {
+		if (nullptr == SBCFactory::instance()->session_timer_fact) {
 			ERROR("session_timer module not loaded thus SST not supported, but required");
 			return false;
 		}

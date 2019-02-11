@@ -639,57 +639,6 @@ string replaceParameters(const string& s,
 	  skip_chars = skip_p-p;
 	} break;
 
-	case 'M': { // regex map
-	  if (s[p+1] != '(') {
-	    WARN("Error parsing $M regex map replacement (missing '(')\n");
-	    break;
-	  }
-	  if (s.length()<p+3) {
-	    WARN("Error parsing $M regex map replacement (short string)\n");
-	    break;
-	  }
-
-	  size_t skip_p = p+2;
-	  skip_p = skip_to_end_of_brackets(s, skip_p);
-
-	  if (skip_p==s.length()) {
-	    WARN("Error parsing $M regex map replacement (unclosed brackets)\n");
-	    skip_chars = skip_p-p;
-	    break;
-	  }
-
-	  string map_str = s.substr(p+2, skip_p-p-2);
-	  size_t spos = map_str.rfind("=>");
-	  if (spos == string::npos) {
-	    skip_chars = skip_p-p;
-	    WARN("Error parsing $M regex map replacement: no => found in '%s'\n",
-		 map_str.c_str());
-	    break;
-	  }
-
-	  string map_val = map_str.substr(0, spos);
-	  string map_val_replaced = 
-	    replaceParameters(map_val, r_type, req, 
-			      call_profile, app_param,
-			      ruri_parser, from_parser, to_parser,
-			      rebuild_ruri, rebuild_from, rebuild_to);
-
-	  string mapping_name = map_str.substr(spos+2);
-
-	  string map_res; 
-	  if (SBCFactory::instance()->regex_mappings.
-	      mapRegex(mapping_name, map_val_replaced.c_str(), map_res)) {
-	    DBG("matched regex mapping '%s' (orig '%s) in '%s'\n",
-		map_val_replaced.c_str(), map_val.c_str(), mapping_name.c_str());
-	    res+=map_res;
-	  } else {
-	    DBG("no match in regex mapping '%s' (orig '%s') in '%s'\n",
-		map_val_replaced.c_str(), map_val.c_str(), mapping_name.c_str());
-	  }
- 
-	  skip_chars = skip_p-p;
-	} break;
-
 	case '_': { // modify
 	  if (s.length()<p+4) { // $_O()
 	    WARN("Error parsing $_ modifier replacement (short string)\n");
