@@ -172,6 +172,8 @@ bool Yeti::load_config() {
 
 int Yeti::onLoad() {
 
+	start_time = time(nullptr);
+
 	start();
 
 	if(!load_config())
