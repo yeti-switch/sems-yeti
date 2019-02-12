@@ -633,22 +633,29 @@ char *Cdr::serialize_rtp_stats()
 
 char *Cdr::serialize_media_stats()
 {
-    cJSON *j, *i;
+    cJSON *j = nullptr, *i;
     char *s;
 
     j = cJSON_CreateArray();
 
-    i = cJSON_CreateObject();
-    cJSON_AddItemToArray(j,i);
-    serialize_media_stats(i,local_tag,aleg_media_stats);
+    if(timerisset(&aleg_media_stats.time_start)) {
+        j = cJSON_CreateArray();
+        i = cJSON_CreateObject();
+        cJSON_AddItemToArray(j,i);
+        serialize_media_stats(i,local_tag,aleg_media_stats);
+    }
 
-    i = cJSON_CreateObject();
-    cJSON_AddItemToArray(j,i);
-    serialize_media_stats(i,bleg_local_tag,bleg_media_stats);
+    if(timerisset(&bleg_media_stats.time_start)) {
+        if(!j) j = cJSON_CreateArray();
+        i = cJSON_CreateObject();
+        cJSON_AddItemToArray(j,i);
+        serialize_media_stats(i,bleg_local_tag,bleg_media_stats);
+    }
+
+    if(!j) return strdup("[]");
 
     s = cJSON_PrintUnformatted(j);
     cJSON_Delete(j);
-
 
     /*FILE *f = fopen("/tmp/stats.json","w+");
     fprintf(f,"%s",s);
