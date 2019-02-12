@@ -35,14 +35,14 @@
 #define YETI_QUEUE_NAME MOD_NAME
 #define YETI_SCTP_CONNECTION_ID 0
 #define YETI_SCTP_DST_SESSION_NAME "mgmt"
-#define YETI_SCTP_RECONNECT_INTERVAL 5
+#define YETI_SCTP_RECONNECT_INTERVAL 120
 #define YETI_SCTP_DEFAULT_HOST "127.0.0.1"
 #define YETI_SCTP_DEFAULT_PORT 4444
 
-static char opt_name_host[] = "host";
+static char opt_name_host[] = "address";
 static char opt_name_port[] = "port";
 static char opt_name_timeout[] = "timeout";
-static char section_name_mgmt[] = "mgmt";
+static char section_name_mgmt[] = "management";
 
 static char opt_name_core_options_handling[] = "core_options_handling";
 static char opt_name_registrations_enabled[] = "registrations_enabled";
