@@ -6,6 +6,7 @@
 #include "RTPParameters.h"
 #include "sdp_filter.h"
 #include "sip/parse_via.h"
+#include "sip/resolver.h"
 
 SqlCallProfile::SqlCallProfile():
 	aleg_override_id(0),
@@ -320,6 +321,9 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	assign_int_safe_silent(outbound_proxy_transport_id,"bleg_outbound_proxy_transport_protocol_id",0,0);
 	assign_int_safe_silent(aleg_outbound_proxy_transport_id,"aleg_outbound_proxy_transport_protocol_id",0,0);
 
+	assign_int_safe_silent(bleg_protocol_priority_id,"bleg_protocol_priority_id",
+						   dns_priority::IPv4_only,dns_priority::IPv4_only);
+
 	assign_int_safe_silent(bleg_max_30x_redirects,"bleg_max_30x_redirects",0,0);
 	assign_int_safe_silent(bleg_max_transfers, "bleg_max_transfers",0,0);
 
@@ -349,6 +353,9 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 	} else {
 		DBG("RURI      = '%s'\n", ruri.c_str());
 		DBG("RURI transport id = %d",bleg_transport_id);
+		DBG("bleg_protocol_priority_id = %d(%s)",
+			bleg_protocol_priority_id,
+			dns_priority_str(static_cast<const dns_priority>(bleg_protocol_priority_id)));
 		DBG("From = '%s'\n", from.c_str());
 		DBG("To   = '%s'\n", to.c_str());
 		// if (!contact.empty()) {
@@ -826,6 +833,21 @@ bool SqlCallProfile::eval_transport_ids()
 	return true;
 }
 
+bool SqlCallProfile::eval_protocol_priority()
+{
+	switch(bleg_protocol_priority_id) {
+	case IPv4_only:
+	case IPv6_only:
+	case Dualstack:
+	case IPv4_pref:
+	case IPv6_pref:
+		return true;
+	default:
+		ERROR("unknown protocol priority: %d", bleg_protocol_priority_id);
+	}
+	return false;
+}
+
 bool SqlCallProfile::eval(){
 	if(!outbound_interface.empty())
 		if(!evaluateOutboundInterface())
@@ -835,6 +857,7 @@ bool SqlCallProfile::eval(){
 		return true;
 	}
 	return eval_transport_ids() &&
+		   eval_protocol_priority() &&
 		   eval_resources() &&
 		   eval_radius();
 }

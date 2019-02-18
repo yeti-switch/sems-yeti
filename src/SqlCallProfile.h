@@ -53,6 +53,7 @@ struct SqlCallProfile
 	bool eval_resources();
 	bool eval_radius();
 	bool eval_transport_ids();
+	bool eval_protocol_priority();
 	bool eval();
 
 	void infoPrint(const DynFieldsT &df);

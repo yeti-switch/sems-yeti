@@ -1051,6 +1051,8 @@ void SBCCallLeg::applyBProfile()
     if(!call_profile.bleg_dlg_contact_params.empty())
         dlg->setContactParams(call_profile.bleg_dlg_contact_params);
 
+    dlg->setResolvePriority(call_profile.bleg_protocol_priority_id);
+
     setInviteTransactionTimeout(call_profile.inv_transaction_timeout);
     setInviteRetransmitTimeout(call_profile.inv_srv_failover_timeout);
 }
