@@ -176,6 +176,9 @@ void YetiRpc::init_rpc_tree()
 		leaf(show,show_recorder,"recorder","audio recorder instance");
 			method(show_recorder,"stats","show audio recorder processor stats",showRecorderStats,"");
 
+		leaf(show,show_cdrwriter,"cdrwriter","cdrwriter");
+			method(show_cdrwriter,"retry_queues","show cdrwriter threads retry_queue content",showCdrWriterRetryQueues,"");
+
 	/* request */
 	leaf(root,request,"request","modify commands");
 
@@ -258,6 +261,9 @@ void YetiRpc::init_rpc_tree()
 			leaf(request_auth,request_auth_credentials,"credentials","credentials");
 				method(request_auth_credentials,"reload","reload auth credentials hash",requestAuthCredentialsReload,"");
 
+		leaf(request,request_cdrwriter,"cdrwriter","cdrwriter");
+			method(request_cdrwriter,"pause","pause CDRs processing",requestCdrWriterPause,"");
+			method(request_cdrwriter,"resume","resume CDRs processing",requestCdrWriterResume,"");
 	/* set */
 	leaf(root,lset,"set","set");
 		leaf(lset,set_system,"system","system commands");
@@ -274,6 +280,9 @@ void YetiRpc::init_rpc_tree()
 			method(set_system_dump_level,"signalling","",setSystemDumpLevelSignalling,"");
 			method(set_system_dump_level,"rtp","",setSystemDumpLevelRtp,"");
 			method(set_system_dump_level,"full","",setSystemDumpLevelFull,"");
+
+		leaf(lset,set_cdrwriter,"cdrwriter","cdrwriter");
+			method(set_cdrwriter,"retry_interval","set cdrwriter retry_interval",setCdrWriterRetryInterval,"");
 
 #undef leaf
 #undef method
@@ -1053,6 +1062,38 @@ void YetiRpc::showAuthCredentialsById(const AmArg& args, AmArg& ret)
 void YetiRpc::requestAuthCredentialsReload(const AmArg&, AmArg& ret)
 {
 	router.db_reload_credentials(ret);
+}
+
+void YetiRpc::requestCdrWriterPause(const AmArg&, AmArg& ret)
+{
+	router.setCdrWriterPaused(true);
+	ret = RPC_CMD_SUCC;
+}
+
+void YetiRpc::requestCdrWriterResume(const AmArg&, AmArg& ret)
+{
+	router.setCdrWriterPaused(false);
+	ret = RPC_CMD_SUCC;
+}
+
+void YetiRpc::setCdrWriterRetryInterval(const AmArg& args, AmArg& ret)
+{
+	if(!args.size() || !isArgCStr(args[0]))
+		throw AmSession::Exception(500, "required interval value");
+	int interval;
+	if(!str2int(args[0].asCStr(),interval))
+		throw AmSession::Exception(500, "failed to cast str2int");
+	if(interval < 0)
+		throw AmSession::Exception(500, "wrong interval value. must be positive integer");
+
+	router.setRetryInterval(interval);
+
+	ret = RPC_CMD_SUCC;
+}
+
+void YetiRpc::showCdrWriterRetryQueues(const AmArg&, AmArg& ret)
+{
+	router.showRetryQueues(ret);
 }
 
 DEFINE_CORE_PROXY_METHOD(showMediaStreams);

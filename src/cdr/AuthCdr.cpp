@@ -135,3 +135,12 @@ void AuthCdr::invoc(
 
 void AuthCdr::to_csv_stream(ofstream &s, const DynFieldsT &df)
 { }
+
+void AuthCdr::info(AmArg &s)
+{
+    s["request_time"] = timeval2str(request_time);
+    s["remote_ip"] = remote_ip;
+    s["remote_port"] = remote_port;
+    s["r_uri"] = r_uri;
+    s["method"] = method;
+}

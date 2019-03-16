@@ -732,6 +732,11 @@ void SqlRouter::showOpenedFiles(AmArg &arg){
 	}
 }
 
+void SqlRouter::showRetryQueues(AmArg &arg)
+{
+    cdr_writer->showRetryQueues(arg);
+}
+
 void SqlRouter::getStats(AmArg &arg){
   AmArg underlying_stats;
       /* SqlRouter stats */

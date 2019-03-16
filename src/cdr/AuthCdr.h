@@ -51,4 +51,5 @@ class AuthCdr
         const DynFieldsT &,
         bool) override;
     void to_csv_stream(ofstream &s, const DynFieldsT &df) override;
+    void info(AmArg &s) override;
 };

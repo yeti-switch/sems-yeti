@@ -34,6 +34,7 @@ class CdrBase
         const DynFieldsT &df,
         bool serialize_dynamic_fields) = 0;
     virtual void to_csv_stream(ofstream &s, const DynFieldsT &df) = 0;
+    virtual void info(AmArg &s) = 0;
 
     virtual ~CdrBase() { }
 };

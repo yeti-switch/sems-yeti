@@ -59,14 +59,11 @@ const static_field cdr_static_fields[] = {
 
 
 CdrWriter::CdrWriter()
-{
-
-}
+  : paused(false)
+{ }
 
 CdrWriter::~CdrWriter()
-{
-
-}
+{ }
 
 int CdrWriter::configure(CdrWriterCfg& cfg)
 {
@@ -160,6 +157,13 @@ void CdrWriter::getConfig(AmArg &arg){
 	AmArg params;
 
 	arg["failover_to_slave"] = config.failover_to_slave;
+	arg["failover_requeue"] = config.failover_requeue;
+	arg["serialize_dynamic_fields"] = config.serialize_dynamic_fields;
+	arg["check_interval"] = config.check_interval;
+	arg["retry_interval"] = config.retry_interval;
+	arg["batch_timeout"] = config.batch_timeout;
+	arg["batch_size"] = config.batch_size;
+	arg["paused"] = paused;
 
 	int param_num = 1;
 	//static params
@@ -180,9 +184,9 @@ void CdrWriter::getConfig(AmArg &arg){
 		arg["failover_file_completed_dir"] = config.failover_file_completed_dir;
 	}
 
-	arg["master_db"] = config.masterdb.conn_str();
+	arg["master_db"] = config.masterdb.info_str();
 	if(config.failover_to_slave){
-		arg["slave_db"] = config.slavedb.conn_str();
+		arg["slave_db"] = config.slavedb.info_str();
 	}
 }
 
@@ -192,6 +196,20 @@ void CdrWriter::showOpenedFiles(AmArg &arg){
 		t->showOpenedFiles(a);
 		if(a.getType()!=AmArg::Undef)
 			arg.push(a);
+	}
+}
+
+void CdrWriter::showRetryQueues(AmArg &arg)
+{
+	AmArg &cdr_threads = arg["cdr_threads"];
+	AmArg &auth_log_threads = arg["auth_log_threads"];
+	for(auto &t: cdrthreadpool) {
+		cdr_threads.push(AmArg());
+		t->showRetryQueue(cdr_threads.back());
+	}
+	for(auto &t: auth_log_threadpool) {
+		auth_log_threads.push(AmArg());
+		t->showRetryQueue(auth_log_threads.back());
 	}
 }
 
@@ -223,12 +241,30 @@ void CdrWriter::clearStats(){
 		t->clearStats();
 }
 
+void CdrWriter::setPaused(bool p)
+{
+	if(paused != p) {
+		paused = p;
+		INFO("CDRs processing %s",paused ? "paused" : "resumed");
+		for(auto &t: cdrthreadpool)
+			t->setPaused(paused);
+		for(auto &t: auth_log_threadpool)
+			t->setPaused(paused);
+	}
+}
+
+void CdrWriter::setRetryInterval(int retry_interval)
+{
+	for(auto &t: cdrthreadpool)
+		t->setRetryInterval(retry_interval);
+	for(auto &t: auth_log_threadpool)
+		t->setRetryInterval(retry_interval);
+}
 void CdrThread::postcdr(CdrBase* cdr)
 {
 	queue_mut.lock();
-	//queue.push_back(cdr);
 	queue.emplace_back(cdr);
-	if(!db_err)
+	if(!db_err && !paused)
 		queue_run.set(true);
 	queue_mut.unlock();
 }
@@ -237,7 +273,8 @@ void CdrThread::postcdr(CdrBase* cdr)
 CdrThread::CdrThread() :
 	queue_run(false),stopped(false),
 	masterconn(NULL),slaveconn(NULL),gotostop(false),
-	masteralarm(false),slavealarm(false),db_err(false)
+	masteralarm(false),slavealarm(false),db_err(false),
+	paused(false)
 {
 	clearStats();
 }
@@ -250,10 +287,9 @@ CdrThread::~CdrThread()
 void CdrThread::getStats(AmArg &arg){
 	queue_mut.lock();
 		arg["queue_len"] = (int)queue.size();
+		arg["retry_queue_len"] = retry_queue.size();
 	queue_mut.unlock();
 
-	arg["stopped"] = stopped.get();
-	arg["queue_run"] = queue_run.get();
 	arg["db_exceptions"] = stats.db_exceptions;
 	arg["writed_cdrs"] = stats.writed_cdrs;
 	arg["tried_cdrs"] = stats.tried_cdrs;
@@ -264,6 +300,16 @@ void CdrThread::showOpenedFiles(AmArg &arg){
 		arg = write_path;
 	} else {
 		arg = AmArg();
+	}
+}
+
+void CdrThread::showRetryQueue(AmArg &arg)
+{
+	AmLock l(queue_mut);
+	arg.assertArray();
+	for(const auto &cdr: retry_queue) {
+		arg.push(AmArg());
+		cdr->info(arg.back());
 	}
 }
 
@@ -297,7 +343,7 @@ void CdrThread::on_stop(){
 void CdrThread::run()
 {
     time_t now, batch_timeout_time;
-    int entries_to_write, no_batch_entries_left;
+    size_t entries_to_write, no_batch_entries_left;
 
     INFO("Starting CdrWriter thread");
 
@@ -309,7 +355,7 @@ void CdrThread::run()
 
     time(&now);
 
-    next_check_time = now+config.check_interval;
+    next_retry_time = next_check_time = now+config.check_interval;
     batch_timeout_time = now+config.batch_timeout;
     no_batch_entries_left = 0;
 
@@ -326,9 +372,27 @@ void CdrThread::run()
             check_db(now);
         }
 
-        if(db_err) {
+        if(db_err || paused) {
             queue_run.set(false);
             continue;
+        }
+
+        if(!retry_queue.empty() && (!config.retry_interval || now >= next_retry_time)) {
+            next_retry_time = now + config.retry_interval;
+            DBG("retry_queue time reached (interval: %d). queue size: %zd",
+                config.retry_interval,retry_queue.size());
+            if(write_with_failover(retry_queue,1,true)) {
+                stats.writed_cdrs++;
+                queue_mut.lock();
+                retry_queue.pop_front();
+                queue_mut.unlock();
+                DBG("1 record is removed from retry_queue. entries left %zd",
+                    retry_queue.size());
+                if(!config.retry_interval && !retry_queue.empty()) {
+                    //agressive retry
+                    queue_run.set(true);
+                }
+            }
         }
 
         queue_mut.lock();
@@ -357,12 +421,12 @@ void CdrThread::run()
 
         queue_mut.unlock();
 
-        if(write_with_failover(entries_to_write)) {
+        if(write_with_failover(queue,entries_to_write)) {
             stats.writed_cdrs+=entries_to_write;
 
             queue_mut.lock();
 
-            for(int i = 0; i < entries_to_write; i++)
+            for(size_t i = 0; i < entries_to_write; i++)
                 queue.pop_front();
 
             if(!queue.empty()) //process next batch immediately if available
@@ -370,7 +434,7 @@ void CdrThread::run()
 
             queue_mut.unlock();
 
-            DBG("%d records are deleted from queue",entries_to_write);
+            DBG("%zd records are removed from queue",entries_to_write);
             continue;
         }
 
@@ -378,16 +442,28 @@ void CdrThread::run()
 
         if(!no_batch_entries_left) {
             no_batch_entries_left = entries_to_write;
-            DBG("switch to non batch mode. set non batch entries left to: %d ",
+            DBG("switch to non batch mode. set non batch entries left to: %zd ",
                 no_batch_entries_left);
+            queue_run.set(true);
             continue;
         }
 
-        //no batch mode processing
-
+        //no batch mode failed write processing
         if(config.failover_requeue) {
-            DBG("requeuing is enabled. leave CDRs in the queue. non batch entries left: %d",
-                no_batch_entries_left);
+            queue_mut.lock();
+            retry_queue.emplace_back(queue.front().release());
+            queue.pop_front();
+            if(!queue.empty())
+                queue_run.set(true);
+            queue_mut.unlock();
+
+            no_batch_entries_left--;
+
+            DBG("requeuing is enabled. CDR moved to retry_queue. "
+                "non batch entries left: %zd. "
+                "retry_queue size: %zd",
+                no_batch_entries_left, retry_queue.size());
+
             continue;
         }
 
@@ -488,44 +564,49 @@ void CdrThread::check_db(time_t now)
     }
 }
 
-bool CdrThread::write_with_failover(int entries_to_write)
+bool CdrThread::write_with_failover(cdr_queue_t &cdr_queue, size_t entries_to_write, bool retry)
 {
-    if(0==writecdr(masterconn,entries_to_write)) {
-        DBG("%d records were written into master",entries_to_write);
+    if(0==writecdr(cdr_queue,masterconn,entries_to_write,retry)) {
+        DBG("%zd records were written into master",entries_to_write);
         closefile();
         return true;
     }
 
     ERROR("Cant write record to master database");
 
-    db_err = true;
+    if(!retry) {
+        /* do not set db_err on retry
+         * if error caused by connection instead of exception for unsupported/wrong CDR
+         * it will be raised again by normal write_with_failover */
+        db_err = true;
+    }
 
     if (config.failover_to_slave) {
-        DBG("failover_to_slave enabled");
+        //DBG("failover_to_slave enabled");
         if(!slaveconn) {
             ERROR("no slave CDR database connection");
         }
 
-        if(0==writecdr(slaveconn,entries_to_write)) {
-            DBG("%d CDRs were written into slave",entries_to_write);
+        if(0==writecdr(cdr_queue,slaveconn,entries_to_write,retry)) {
+            DBG("%zd CDRs were written into slave",entries_to_write);
             closefile();
             return true;
         }
 
         ERROR("Cant write CDR to slave database");
     } else {
-        DBG("failover_to_slave disabled");
+        //DBG("failover_to_slave disabled");
     }
 
     if(config.failover_to_file) {
         DBG("failover_to_file enabled");
-        if(0==writecdrtofile()) {
-            DBG("%d CDRs were written into file",entries_to_write);
+        if(0==writecdrtofile(cdr_queue)) {
+            DBG("%zd CDRs were written into file",entries_to_write);
             return true;
         }
         ERROR("can't write CDR to file");
     } else {
-        DBG("failover_to_file disabled");
+        //DBG("failover_to_file disabled");
     }
 
     return false;
@@ -638,11 +719,12 @@ void CdrThread::dbg_writecdr(AmArg &fields_values,Cdr &cdr){
 	//TrustedHeaders::instance()->print_hdrs(cdr.trusted_hdrs);
 }
 
-int CdrThread::writecdr(cdr_writer_connection* conn, int entries_to_write)
+int CdrThread::writecdr(cdr_queue_t &cdr_queue, cdr_writer_connection* conn, size_t entries_to_write, bool retry)
 {
     int ret = 1;
 
-    DBG("%s[%p](conn = %p,entries_to_write = %d)",FUNC_NAME,this,conn,entries_to_write);
+    DBG("writecdr[%p](conn = %p,entries_to_write = %zd, retry = %d)",
+        this,conn,entries_to_write,retry);
 
     Yeti::global_config &gc = Yeti::instance().config;
 
@@ -655,7 +737,7 @@ int CdrThread::writecdr(cdr_writer_connection* conn, int entries_to_write)
     try {
         cdr_transaction tnx(*conn);
 
-        for(auto i = queue.begin();
+        for(auto i = cdr_queue.begin();
             entries_to_write;
             entries_to_write--, ++i)
         {
@@ -757,13 +839,13 @@ void CdrThread::write_header(){
 	wf.flush();
 }
 
-int CdrThread::writecdrtofile() {
+int CdrThread::writecdrtofile(cdr_queue_t &cdr_queue) {
 #define quote(v) "'"<<v<< "'" << ','
 	if(!openfile()){
 		return -1;
 	}
 
-	CdrBase *cdr = queue.front().get();
+	CdrBase *cdr = cdr_queue.front().get();
 
 	ofstream &s = *wfp.get();
 	Yeti::global_config &gc = Yeti::instance().config;
@@ -834,6 +916,7 @@ int CdrThreadCfg::cfg2CdrThCfg(AmConfigReader& cfg, string& prefix){
 int CdrWriterCfg::cfg2CdrWrCfg(AmConfigReader& cfg){
 	poolsize=cfg.getParameterInt(name+"_pool_size",10);
 	check_interval = cfg.getParameterInt("cdr_check_interval",DEFAULT_CHECK_INTERVAL_MSEC)/1000;
+	retry_interval = check_interval;
 	batch_timeout = cfg.getParameterInt("cdr_batch_timeout",DEFAULT_BATCH_TIMEOUT_MSEC)/1000;
 	batch_size = cfg.getParameterInt("cdr_batch_size",DEFAULT_BATCH_SIZE);
 	failover_to_slave = cfg.getParameterInt("cdr_failover_to_slave",1);

@@ -169,7 +169,7 @@ struct Cdr
     void add_versions_to_amarg(AmArg &arg) const;
     void snapshot_info(AmArg &s, const DynFieldsT &df) const;
     void snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered_set<string> &wanted_fields) const;
-    void info(AmArg &s);
+    void info(AmArg &s) override;
 };
 
 #endif // CDR_H

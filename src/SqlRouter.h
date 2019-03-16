@@ -51,6 +51,9 @@ public:
   void getStats(AmArg &arg);
   void getConfig(AmArg &arg);
   void showOpenedFiles(AmArg &arg);
+  void showRetryQueues(AmArg &arg);
+  void setCdrWriterPaused(bool paused) { cdr_writer->setPaused(paused); }
+  void setRetryInterval(int interval) { cdr_writer->setRetryInterval(interval); }
 
   const DynFieldsT &getDynFields() const { return dyn_fields; }
 
