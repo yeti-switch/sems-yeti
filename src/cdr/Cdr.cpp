@@ -1199,6 +1199,7 @@ void Cdr::info(AmArg &s)
     s["dump_level"] = dump_level2str(dump_level_id);
     if(dump_level_id)
         s["logger_path"] = msg_logger_path;
+    s["local_tag"] = local_tag;
     s["internal_reason"] = disconnect_internal_reason;
     s["internal_code"] = disconnect_internal_code;
     s["initiator"] = DisconnectInitiator2Str(disconnect_initiator);
