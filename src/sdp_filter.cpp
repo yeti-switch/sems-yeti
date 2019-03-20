@@ -484,6 +484,30 @@ int processSdpOffer(SBCCallProfile &call_profile,
 		return res;
 	}
 
+	if(local) {
+		//check if sdp offer can be processed locally
+		auto m_it = sdp.media.begin();
+		for(const auto &m: negotiated_media) {
+			if(m_it == sdp.media.end()) {
+				DBG("in-dialog offer contains less streams(%zd) than in negotiated_media(%zd). not acceptable",
+					sdp.media.size(), negotiated_media.size());
+				return -488;
+			}
+			if(m.type != m_it->type) {
+				DBG("in-dialog offer changes media type for stream %zd from %d to %d. not acceptable",
+					std::distance(sdp.media.begin(),m_it),
+					m.type, m_it->type);
+				return -488;
+			}
+			++m_it;
+		}
+		//disable all additional streams from offer
+		while(m_it != sdp.media.end()) {
+			m_it->port = 0;
+			m_it++;
+		}
+	}
+
 	CodecsGroupEntry codecs_group;
 	CodecsGroups::instance()->get(static_codecs_id, codecs_group);
 

@@ -421,6 +421,8 @@ void SBCCallLeg::processRouting()
     PROF_END(sdp_processing);
     PROF_PRINT("initial sdp processing",sdp_processing);
 
+    call_ctx->bleg_negotiated_media = call_ctx->bleg_initial_offer.media;
+
     if(cdr->time_limit){
         DBG("%s() save timer %d with timeout %d",FUNC_NAME,
             YETI_CALL_DURATION_TIMER,
