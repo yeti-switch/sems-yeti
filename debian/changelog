@@ -1,3 +1,10 @@
+sems-yeti (1.7.35-1) stable; urgency=low
+
+  * 710cc01 check streams type/count against previously negotiated media on in-dialog INVITE/UPDATE local processing
+  * 7b1e29a cdrwriter: separate retry_queue
+
+ -- dev <dev@yeti-switch.org>  Wed, 20 Mar 2019 17:24:33 +0200
+
 sems-yeti (1.7.34-2) stable; urgency=low
 
   * add yeti.request.call.remove rpc command
