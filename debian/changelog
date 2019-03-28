@@ -1,3 +1,9 @@
+sems-yeti (1.7.35-2) stable; urgency=low
+
+  * fix auth cdr ports
+
+ -- dev <dev@yeti-switch.org>  Thu, 28 Mar 2019 11:16:00 +0200
+
 sems-yeti (1.7.35-1) stable; urgency=low
 
   * 710cc01 check streams type/count against previously negotiated media on in-dialog INVITE/UPDATE local processing
