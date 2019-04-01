@@ -43,8 +43,9 @@ struct CdrThreadCfg
     bool serialize_dynamic_fields;
     string failover_file_dir;
     int check_interval;
+    int retry_interval;
     int batch_timeout;
-    int batch_size;
+    size_t batch_size;
     string failover_file_completed_dir;
     DbConfig masterdb,slavedb;
     PreparedQueriesT prepared_queries;
@@ -58,7 +59,6 @@ struct CdrWriterCfg
   : public CdrThreadCfg
 {
     unsigned int poolsize;
-    bool serialize_dynamic_fields;
     string name;
     int cfg2CdrWrCfg(AmConfigReader& cfg);
 };
@@ -66,9 +66,14 @@ struct CdrWriterCfg
 class CdrThread
   : public AmThread
 {
-    std::list< std::unique_ptr<CdrBase> > queue;
+    using cdr_queue_t = std::list< std::unique_ptr<CdrBase> >;
+
+    cdr_queue_t queue;
+    cdr_queue_t retry_queue;
     AmMutex queue_mut;
     AmCondition<bool> queue_run;
+
+    bool paused;
 
     AmCondition<bool> stopped;
     bool gotostop;
@@ -81,8 +86,8 @@ class CdrThread
     string completed_path;
 
     volatile bool db_err;
-    int non_batch_entries_left;
     time_t next_check_time;
+    time_t next_retry_time;
 
     CdrThreadCfg config;
 
@@ -91,9 +96,9 @@ class CdrThread
     int connectdb();
     void prepare_queries(pqxx::connection *c);
     void dbg_writecdr(AmArg &fields_values,Cdr &cdr);
-    bool write_with_failover(int entries_to_write);
-    int writecdr(cdr_writer_connection* conn,int entries_to_write);
-    int writecdrtofile();
+    bool write_with_failover(cdr_queue_t &cdr_queue, size_t entries_to_write,  bool retry = false);
+    int writecdr(cdr_queue_t &cdr_queue, cdr_writer_connection* conn,size_t entries_to_write, bool retry);
+    int writecdrtofile(cdr_queue_t &cdr_queue);
     bool openfile();
     void write_header();
 
@@ -110,27 +115,35 @@ class CdrThread
     void closefile();
     void getStats(AmArg &arg);
     void showOpenedFiles(AmArg &arg);
+    void showRetryQueue(AmArg &arg);
     void postcdr(CdrBase* cdr);
     int configure(CdrThreadCfg& cfg);
     void run();
     void on_stop();
+
+    void setPaused(bool p) { paused = p; }
+    void setRetryInterval(int interval) { config.retry_interval = interval; }
 };
 
 class CdrWriter {
     vector<unique_ptr<CdrThread>> cdrthreadpool;
     vector<unique_ptr<CdrThread>> auth_log_threadpool;
     CdrWriterCfg config;
+    bool paused;
   public:
     void clearStats();
     void closeFiles();
     void getStats(AmArg &arg);
     void getConfig(AmArg &arg);
     void showOpenedFiles(AmArg &arg);
+    void showRetryQueues(AmArg &arg);
     void postcdr(CdrBase* cdr);
     void post_auth_log(CdrBase *cdr);
     int configure(CdrWriterCfg& cfg);
     void start();
     void stop();
+    void setPaused(bool p);
+    void setRetryInterval(int retry_interval);
     CdrWriter();
     ~CdrWriter();
 };

@@ -70,6 +70,7 @@ struct SimpleRelayCreator {
 };
 
 class SBCFactory: public AmSessionFactory,
+    public AmConfigFactory,
     public AmDynInvoke,
     public AmDynInvokeFactory
 {
@@ -87,17 +88,16 @@ class SBCFactory: public AmSessionFactory,
   auto_ptr<CallLegCreator> callLegCreator;
   auto_ptr<SimpleRelayCreator> simpleRelayCreator;
 
-  void getRegexMapNames(const AmArg& args, AmArg& ret);
-  void setRegexMap(const AmArg& args, AmArg& ret);
   void postControlCmd(const AmArg& args, AmArg& ret);
 
  public:
-  DECLARE_MODULE_INSTANCE(SBCFactory);
+  static SBCFactory* instance();
 
   SBCFactory(const string& _app_name);
   ~SBCFactory();
 
   int onLoad();
+  int configure(const std::string& config) override;
 
   void setCallLegCreator(CallLegCreator* clc) { callLegCreator.reset(clc); }
   CallLegCreator* getCallLegCreator() { return callLegCreator.get(); }
@@ -112,13 +112,10 @@ class SBCFactory: public AmSessionFactory,
 
   void onOoDRequest(const AmSipRequest& req);
 
-  AmConfigReader cfg;
   AmSessionEventHandlerFactory* session_timer_fact;
 
   // hack for routing of OoD (e.g. REGISTER) messages
   AmDynInvokeFactory* gui_fact;
-
-  RegexMapper regex_mappings;
 
   AmEventQueueProcessor subnot_processor;
 

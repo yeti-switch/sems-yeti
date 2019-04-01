@@ -118,4 +118,9 @@ class YetiRpc
     rpc_handler showAuthCredentialsByUser;
     rpc_handler showAuthCredentialsById;
     rpc_handler requestAuthCredentialsReload;
+
+    rpc_handler requestCdrWriterPause;
+    rpc_handler requestCdrWriterResume;
+    rpc_handler setCdrWriterRetryInterval;
+    rpc_handler showCdrWriterRetryQueues;
 };

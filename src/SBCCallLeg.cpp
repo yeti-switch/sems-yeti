@@ -243,7 +243,9 @@ void SBCCallLeg::init()
             replace(call_profile.callid,"%uuid",id);
         }
         setSensor(Sensors::instance()->getSensor(call_profile.bleg_sensor_id));
-        cdr->update_init_bleg(call_profile.callid.empty()? getCallID() : call_profile.callid);
+        cdr->update_init_bleg(
+            call_profile.callid.empty()? getCallID() : call_profile.callid,
+            getLocalTag());
     }
 
     if(call_profile.record_audio){
@@ -420,6 +422,8 @@ void SBCCallLeg::processRouting()
     }
     PROF_END(sdp_processing);
     PROF_PRINT("initial sdp processing",sdp_processing);
+
+    call_ctx->bleg_negotiated_media = call_ctx->bleg_initial_offer.media;
 
     if(cdr->time_limit){
         DBG("%s() save timer %d with timeout %d",FUNC_NAME,
@@ -1048,6 +1052,8 @@ void SBCCallLeg::applyBProfile()
 
     if(!call_profile.bleg_dlg_contact_params.empty())
         dlg->setContactParams(call_profile.bleg_dlg_contact_params);
+
+    dlg->setResolvePriority(call_profile.bleg_protocol_priority_id);
 
     setInviteTransactionTimeout(call_profile.inv_transaction_timeout);
     setInviteRetransmitTimeout(call_profile.inv_srv_failover_timeout);
@@ -2668,17 +2674,8 @@ void SBCCallLeg::onRTPStreamDestroy(AmRtpStream *stream) {
     with_cdr_for_read {
         if(cdr->writed) return;
         cdr->lock();
-        if(a_leg) {
-            stream->getPayloadsHistory(cdr->legA_payloads);
-            stream->getErrorsStats(cdr->legA_stream_errors);
-            cdr->legA_bytes_recvd = stream->getRcvdBytes();
-            cdr->legA_bytes_sent = stream->getSentBytes();
-        } else {
-            stream->getPayloadsHistory(cdr->legB_payloads);
-            stream->getErrorsStats(cdr->legB_stream_errors);
-            cdr->legB_bytes_recvd = stream->getRcvdBytes();
-            cdr->legB_bytes_sent = stream->getSentBytes();
-        }
+        if(a_leg) stream->getMediaStats(cdr->aleg_media_stats);
+        else stream->getMediaStats(cdr->bleg_media_stats);
         cdr->unlock();
     }
 }
@@ -2910,54 +2907,20 @@ void SBCCallLeg::setSensor(msg_sensor *_sensor){
     }
 }
 
-void SBCCallLeg::computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &mask)
+void SBCCallLeg::computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &mask, PayloadRelayMap& map)
 {
     if(call_profile.force_transcoding) {
         enable = false;
         mask.clear();
+        map.clear();
         return;
     }
 
-    if (call_profile.transcoder.isActive()) {
-        TRACE("entering transcoder's computeRelayMask(%s)\n", a_leg ? "A leg" : "B leg");
+    CallLeg::computeRelayMask(m, enable, mask, map);
 
-        //SBCCallProfile::TranscoderSettings &transcoder_settings = call_profile.transcoder;
-        PayloadMask m1/*, m2*/;
-        //bool use_m1 = false;
-        /* if "m" contains only "norelay" codecs, relay is enabled for them (main idea
-         * of these codecs is to limit network bandwidth and it makes not much sense
-         * to transcode between codecs 'which are better to avoid', right?)
-         *
-         * if "m" contains other codecs, relay is enabled as well
-         *
-         * => if m contains at least some codecs, relay is enabled */
-        enable = !m.payloads.empty();
-
-        /*vector<SdpPayload> &norelay_payloads =
-          a_leg ? transcoder_settings.audio_codecs_norelay_aleg : transcoder_settings.audio_codecs_norelay;*/
-
-        vector<SdpPayload>::const_iterator p;
-        for (p = m.payloads.begin(); p != m.payloads.end(); ++p) {
-            // do not mark telephone-event payload for relay (and do not use it for
-            // transcoding as well)
-            if(strcasecmp("telephone-event",p->encoding_name.c_str()) == 0) continue;
-
-            // mark every codec for relay in m2
-            TRACE("marking payload %d for relay\n", p->payload_type);
-            m1.set(p->payload_type);
-        }
-
-        /*TRACE("using %s\n", use_m1 ? "m1" : "m2");
-        if (use_m1) mask = m1;
-        else mask = m2;*/
-        if(call_profile.force_relay_CN){
-            mask.set(COMFORT_NOISE_PAYLOAD_TYPE);
-            TRACE("m1: marking payload 13 (CN) for relay\n");
-        }
-        mask = m1;
-    } else {
-        // for non-transcoding modes use default
-        CallLeg::computeRelayMask(m, enable, mask);
+    if(call_profile.force_relay_CN) {
+        mask.set(COMFORT_NOISE_PAYLOAD_TYPE);
+        TRACE("mark payload 13(CN) for relay");
     }
 }
 
@@ -2981,6 +2944,8 @@ int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote){
 
     AmB2BMedia *m = getMediaSession();
     if(!m) return ret;
+
+    m->updateStreams(false /* recompute relay and other parameters in direction A -> B*/,this);
 
     if(CallLeg::Ringing==getCallStatus())
         m->setRtpTimeout(0);
@@ -3013,7 +2978,11 @@ bool SBCCallLeg::getSdpOffer(AmSdp& offer){
     } else {
         DBG("provide saved initial offer for legB");
         offer = call_ctx->bleg_initial_offer;
-        m->replaceConnectionAddress(offer,a_leg, localMediaIP(), advertisedIP());
+        int addr_type = dlg->getOutboundAddrType();
+        m->replaceConnectionAddress(offer,a_leg,
+                                    localMediaIP(addr_type),
+                                    advertisedIP(addr_type),
+                                    addr_type);
     }
     offer.origin.sessV = local_sdp.origin.sessV+1; //increase session version. rfc4566 5.2 <sess-version>
     return true;

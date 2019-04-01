@@ -45,10 +45,11 @@
 int getOutboundInterface(const string &next_hop,
                          const string &outbound_proxy,bool force_outbound_proxy,
                          const string &route,
-                         const string &ruri){
+                         const string &ruri)
+{
 
-    if(AmConfig::SIP_Ifs.size() == 1){
-      return 0;
+    if(AmConfig.sip_ifs.size() == 1) {
+        return 0;
     }
 
     // Destination priority:
@@ -65,54 +66,50 @@ int getOutboundInterface(const string &next_hop,
     list<sip_destination> ip_list;
     if(!next_hop.empty() &&
        !parse_next_hop(stl2cstr(next_hop),ip_list) &&
-       !ip_list.empty()) {
-
-      dest_ip = c2stlstr(ip_list.front().host);
-    }
-    else if(!outbound_proxy.empty() && force_outbound_proxy) {
+       !ip_list.empty())
+    {
+        dest_ip = c2stlstr(ip_list.front().host);
+    } else if(!outbound_proxy.empty() && force_outbound_proxy) {
       dest_uri = outbound_proxy;
-    }
-    else if(!route.empty()){
-      // parse first route
-      sip_header fr;
-      fr.value = stl2cstr(route);
-      sip_uri* route_uri = get_first_route_uri(&fr);
-      if(!route_uri){
-        ERROR("Could not parse route route='%s'",route.c_str());
-        goto error;
-      }
+    } else if(!route.empty()) {
+        // parse first route
+        sip_header fr;
+        fr.value = stl2cstr(route);
+        sip_uri* route_uri = get_first_route_uri(&fr);
+        if(!route_uri){
+            ERROR("Could not parse route route='%s'",route.c_str());
+            goto error;
+        }
 
-      dest_ip = c2stlstr(route_uri->host);
-    }
-    else {
-      dest_uri = ruri;
+        dest_ip = c2stlstr(route_uri->host);
+    } else {
+        dest_uri = ruri;
     }
 
     if(dest_uri.empty() && dest_ip.empty()) {
-      ERROR("No destination found");
-      goto error;
-    }
-
-    if(!dest_uri.empty()){
-      sip_uri d_uri;
-      if(parse_uri(&d_uri,dest_uri.c_str(),dest_uri.length()) < 0){
-        ERROR("Could not parse destination URI dest_uri='%s'",dest_uri.c_str());
+        ERROR("No destination found");
         goto error;
-      }
-
-      dest_ip = c2stlstr(d_uri.host);
     }
 
-    if(get_local_addr_for_dest(dest_ip,local_ip) < 0){
-      ERROR("No local address for dest '%s'",dest_ip.c_str());
-      goto error;
+    if(!dest_uri.empty()) {
+        sip_uri d_uri;
+        if(parse_uri(&d_uri,dest_uri.c_str(),dest_uri.length()) < 0) {
+            ERROR("Could not parse destination URI dest_uri='%s'",dest_uri.c_str());
+            goto error;
+        }
+        dest_ip = c2stlstr(d_uri.host);
     }
 
-    if_it = AmConfig::LocalSIPIP2If.find(local_ip);
-    if(if_it == AmConfig::LocalSIPIP2If.end()){
-      ERROR("Could not find a local interface for resolved local IP local_ip='%s'",
-        local_ip.c_str());
-      goto error;
+    if(get_local_addr_for_dest(dest_ip,local_ip,IPv4_only) < 0) {
+        ERROR("No local address for dest '%s'",dest_ip.c_str());
+        goto error;
+    }
+
+    if_it = AmConfig.local_sip_ip2if.find(local_ip);
+    if(if_it == AmConfig.local_sip_ip2if.end()) {
+        ERROR("Could not find a local interface for resolved local IP local_ip='%s'",
+              local_ip.c_str());
+        goto error;
     }
 
     return if_it->second;
@@ -409,14 +406,15 @@ string replaceParameters(const string& s,
 	    res += int2str(req.local_if);
 	    break;
 	  } else if (s[p+1] == 'n') { // $Rn received interface name
-	    if (req.local_if < AmConfig::SIP_Ifs.size()) {
-	      res += AmConfig::SIP_Ifs[req.local_if].name;
+        if (req.local_if < AmConfig.sip_ifs.size()) {
+          res += AmConfig.sip_ifs[req.local_if].name;
 	    }
 	    break;
 	  } else if (s[p+1] == 'I') { // $RI received interface public IP
-	    if (req.local_if < AmConfig::SIP_Ifs.size()) {
-	      res += AmConfig::SIP_Ifs[req.local_if].PublicIP;
-	    }
+        if (req.local_if < AmConfig.sip_ifs.size()) {
+          //TODO: use smth like req.local_proto to get correct public_ip
+          res += AmConfig.sip_ifs[req.local_if].proto_info[0]->public_ip;
+        }
 	    break;
 	  }
 	  WARN("unknown replacement $R%c\n", s[p+1]);
@@ -434,7 +432,8 @@ string replaceParameters(const string& s,
 														  call_profile->force_outbound_proxy,
 														  req.route,
 														  call_profile->ruri);
-			res += AmConfig::SIP_Ifs[outbound_interface].LocalIP;
+            //TODO: use smth like req.local_proto to get correct public_ip
+            res += AmConfig.sip_ifs[outbound_interface].proto_info[0]->local_ip;
 			break;
 		} else if (s[p+1] == 'I') { // $OI outbound public IP
 			if(outbound_interface == -1)
@@ -443,14 +442,7 @@ string replaceParameters(const string& s,
 														  call_profile->force_outbound_proxy,
 														  req.route,
 														  call_profile->ruri);
-			AmConfig::SIP_interface &sip_iface = AmConfig::SIP_Ifs[outbound_interface];
-			if(sip_iface.PublicIP.empty()){
-				WARN("no public ip for outbound interface '%s' using localIP instead",
-					 sip_iface.name.c_str());
-				res += sip_iface.LocalIP;
-			} else {
-				res += sip_iface.PublicIP;
-			}
+            res += AmConfig.sip_ifs[outbound_interface].proto_info[0]->getIP();
 			break;
 		}
 		WARN("unknown replacement $O%c\n", s[p+1]);
@@ -482,7 +474,7 @@ string replaceParameters(const string& s,
 	    break;
 	  }
 	  else if(s[p+1] == 'i') {
-	    res += AmConfig::SIP_Ifs[alias_entry.local_if].name;
+        res += AmConfig.sip_ifs[alias_entry.local_if].name;
 	    break;
 	  }
 	  
@@ -644,57 +636,6 @@ string replaceParameters(const string& s,
 	    //TODO: find out how to correct skip_chars correctly
 	    replaceParsedParam(s, p, uri_parser, res);
 	  }
-	  skip_chars = skip_p-p;
-	} break;
-
-	case 'M': { // regex map
-	  if (s[p+1] != '(') {
-	    WARN("Error parsing $M regex map replacement (missing '(')\n");
-	    break;
-	  }
-	  if (s.length()<p+3) {
-	    WARN("Error parsing $M regex map replacement (short string)\n");
-	    break;
-	  }
-
-	  size_t skip_p = p+2;
-	  skip_p = skip_to_end_of_brackets(s, skip_p);
-
-	  if (skip_p==s.length()) {
-	    WARN("Error parsing $M regex map replacement (unclosed brackets)\n");
-	    skip_chars = skip_p-p;
-	    break;
-	  }
-
-	  string map_str = s.substr(p+2, skip_p-p-2);
-	  size_t spos = map_str.rfind("=>");
-	  if (spos == string::npos) {
-	    skip_chars = skip_p-p;
-	    WARN("Error parsing $M regex map replacement: no => found in '%s'\n",
-		 map_str.c_str());
-	    break;
-	  }
-
-	  string map_val = map_str.substr(0, spos);
-	  string map_val_replaced = 
-	    replaceParameters(map_val, r_type, req, 
-			      call_profile, app_param,
-			      ruri_parser, from_parser, to_parser,
-			      rebuild_ruri, rebuild_from, rebuild_to);
-
-	  string mapping_name = map_str.substr(spos+2);
-
-	  string map_res; 
-	  if (SBCFactory::instance()->regex_mappings.
-	      mapRegex(mapping_name, map_val_replaced.c_str(), map_res)) {
-	    DBG("matched regex mapping '%s' (orig '%s) in '%s'\n",
-		map_val_replaced.c_str(), map_val.c_str(), mapping_name.c_str());
-	    res+=map_res;
-	  } else {
-	    DBG("no match in regex mapping '%s' (orig '%s') in '%s'\n",
-		map_val_replaced.c_str(), map_val.c_str(), mapping_name.c_str());
-	  }
- 
 	  skip_chars = skip_p-p;
 	} break;
 

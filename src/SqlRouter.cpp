@@ -2,7 +2,7 @@
 #include "AmUtils.h"
 #include "log.h"
 #include "AmArg.h"
-#include "AmConfig.h"
+#include "AmLcConfig.h"
 #include "SBCCallControlAPI.h"
 #include <string.h>
 #include <syslog.h>
@@ -730,6 +730,11 @@ void SqlRouter::showOpenedFiles(AmArg &arg){
 	if(cdr_writer){
 		cdr_writer->showOpenedFiles(arg);
 	}
+}
+
+void SqlRouter::showRetryQueues(AmArg &arg)
+{
+    cdr_writer->showRetryQueues(arg);
 }
 
 void SqlRouter::getStats(AmArg &arg){

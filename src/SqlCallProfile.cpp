@@ -6,6 +6,7 @@
 #include "RTPParameters.h"
 #include "sdp_filter.h"
 #include "sip/parse_via.h"
+#include "sip/resolver.h"
 
 SqlCallProfile::SqlCallProfile():
 	aleg_override_id(0),
@@ -95,9 +96,6 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	dstcfg.setParameter(cfgkey, t[cfgprefix cfgkey].c_str());	\
 	} else if (column_exist(t,cfgkey)) {				\
 		dstcfg.setParameter(cfgkey, t[cfgkey].c_str());		\
-	} else if (SBCFactory::instance()->cfg.hasParameter(cfgkey)) {	\
-	  dstcfg.setParameter(cfgkey, SBCFactory::instance()->		\
-			  cfg.getParameter(cfgkey));			\
 	}
 #define	CP_SESSION_REFRESH_METHOD(method_id,dstcfg)\
 	switch(method_id){\
@@ -119,7 +117,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	}
 
 	if (sst_enabled.size() && sst_enabled != "no") {
-		if (NULL == SBCFactory::instance()->session_timer_fact) {
+		if (nullptr == SBCFactory::instance()->session_timer_fact) {
 			ERROR("session_timer module not loaded thus SST not supported, but required");
 			return false;
 		}
@@ -222,7 +220,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	if(!readDynFields(t,df)) return false;
 
 	assign_int(dump_level_id,"dump_level_id",0);
-	dump_level_id |= AmConfig::DumpLevel;
+    dump_level_id |= AmConfig.dump_level;
 	log_rtp = dump_level_id&LOG_RTP_MASK;
 	log_sip = dump_level_id&LOG_SIP_MASK;
 
@@ -264,7 +262,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	assign_int_safe(aleg_conn_location_id,"aleg_sdp_c_location_id",0,0);
 	assign_int_safe(bleg_conn_location_id,"bleg_sdp_c_location_id",0,0);
 
-	assign_int_safe(dead_rtp_time,"dead_rtp_time",AmConfig::DeadRtpTime,AmConfig::DeadRtpTime);
+    assign_int_safe(dead_rtp_time,"dead_rtp_time",AmConfig.dead_rtp_time,AmConfig.dead_rtp_time);
 
 	assign_bool_safe(aleg_relay_reinvite,"aleg_relay_reinvite",true,true);
 	assign_bool_safe(bleg_relay_reinvite,"bleg_relay_reinvite",true,true);
@@ -323,6 +321,9 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	assign_int_safe_silent(outbound_proxy_transport_id,"bleg_outbound_proxy_transport_protocol_id",0,0);
 	assign_int_safe_silent(aleg_outbound_proxy_transport_id,"aleg_outbound_proxy_transport_protocol_id",0,0);
 
+	assign_int_safe_silent(bleg_protocol_priority_id,"bleg_protocol_priority_id",
+						   dns_priority::IPv4_only,dns_priority::IPv4_only);
+
 	assign_int_safe_silent(bleg_max_30x_redirects,"bleg_max_30x_redirects",0,0);
 	assign_int_safe_silent(bleg_max_transfers, "bleg_max_transfers",0,0);
 
@@ -352,6 +353,9 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 	} else {
 		DBG("RURI      = '%s'\n", ruri.c_str());
 		DBG("RURI transport id = %d",bleg_transport_id);
+		DBG("bleg_protocol_priority_id = %d(%s)",
+			bleg_protocol_priority_id,
+			dns_priority_str(static_cast<const dns_priority>(bleg_protocol_priority_id)));
 		DBG("From = '%s'\n", from.c_str());
 		DBG("To   = '%s'\n", to.c_str());
 		// if (!contact.empty()) {
@@ -829,6 +833,21 @@ bool SqlCallProfile::eval_transport_ids()
 	return true;
 }
 
+bool SqlCallProfile::eval_protocol_priority()
+{
+	switch(bleg_protocol_priority_id) {
+	case IPv4_only:
+	case IPv6_only:
+	case Dualstack:
+	case IPv4_pref:
+	case IPv6_pref:
+		return true;
+	default:
+		ERROR("unknown protocol priority: %d", bleg_protocol_priority_id);
+	}
+	return false;
+}
+
 bool SqlCallProfile::eval(){
 	if(!outbound_interface.empty())
 		if(!evaluateOutboundInterface())
@@ -838,6 +857,7 @@ bool SqlCallProfile::eval(){
 		return true;
 	}
 	return eval_transport_ids() &&
+		   eval_protocol_priority() &&
 		   eval_resources() &&
 		   eval_radius();
 }

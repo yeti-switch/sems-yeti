@@ -14,8 +14,9 @@ using std::vector;
 
 int AmMimeBody2Sdp(const AmMimeBody &body,AmSdp &sdp);
 
-void dump_SdpPayload(const vector<SdpPayload> &p,string prefix="");
-void dump_SdpMedia(const vector<SdpMedia> &m,string prefix="");
+void dump_SdpPayload(const vector<SdpPayload> &p,const string &prefix="");
+void dump_SdpMedia(const vector<SdpMedia> &m,const string &prefix="");
+void dump_Sdp(const AmSdp &sdp,const string &prefix="");
 
 void fix_dynamic_payloads(AmSdp &sdp,PayloadIdMapping &mapping);
 

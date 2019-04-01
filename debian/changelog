@@ -1,3 +1,16 @@
+sems-yeti (1.8.0-1) stable; urgency=low
+
+  * check streams type/count against previously negotiated media on in-dialog INVITE/UPDATE local processing
+  * SBCCallLeg: use core computeRelayMask. manually update streams onSdpCompleted in aleg
+  * cdrwriter: separate retry_queue
+  * process bleg_protocol_priority_id
+  * Yeti::configure: rename cfg opts: mgmt -> management, host -> address
+  * Cdr: serialize media stats
+  * SBCCallLeg::getSdpOffer: use dlg addr type on media address replace
+  * Cdr: use AmRtpStream::MediaStats
+
+ -- dev <dev@yeti-switch.org>  Mon, 01 Apr 2019 20:56:19 +0300
+
 sems-yeti (1.7.34-3) stable; urgency=low
 
   * fix auth cdr ports

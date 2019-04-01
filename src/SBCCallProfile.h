@@ -33,6 +33,7 @@
 #include "atomic_types.h"
 #include "sip/msg_logger.h"
 #include "ampi/RadiusClientAPI.h"
+#include "sip/resolver.h"
 
 #include <set>
 #include <string>
@@ -114,6 +115,7 @@ struct SBCCallProfile
   string to;         /* updated if set */
 
   unsigned int bleg_transport_id;
+  unsigned int bleg_protocol_priority_id;
 
   PlaceholdersHash placeholders_hash;
 
@@ -416,6 +418,7 @@ struct SBCCallProfile
   SBCCallProfile()
   : auth_enabled(false),
     bleg_transport_id(0),
+    bleg_protocol_priority_id(dns_priority::IPv4_only),
     outbound_proxy_transport_id(0),
     aleg_outbound_proxy_transport_id(0),
     transparent_dlg_id(false),
@@ -470,8 +473,6 @@ struct SBCCallProfile
 	auth_required(false),
 	force_transcoding(false)
   { }
-
-  bool readFromConfiguration(const string& name, const string profile_file_name);
 
   bool operator==(const SBCCallProfile& rhs) const;
   string print() const;
