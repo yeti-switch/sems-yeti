@@ -261,7 +261,7 @@ EOF
 fi
 
 cat >>Dockerfile <<EOF
-RUN apt-get install --yes --no-install-recommends --force-yes libsems1-dev libhiredis-dev libcurl3-dev libpqxx3-dev libspandsp-dev libprotobuf-dev protobuf-compiler
+RUN apt-get install --yes --no-install-recommends --force-yes libsems1-dev libhiredis-dev libcurl3-dev libpqxx3-dev libspandsp-dev libprotobuf-dev libsamplerate0-dev protobuf-compiler
 
 RUN rm -f Dockerfile
 RUN git checkout .travis.yml || true
