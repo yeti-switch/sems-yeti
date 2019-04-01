@@ -4,7 +4,7 @@ language: generic
 services:
   - docker
 env:
-  - TRAVIS_DEBIAN_DISTRIBUTION=jessie
+  - TRAVIS_DEBIAN_DISTRIBUTION=stretch
 
 script:
   - sh script.sh

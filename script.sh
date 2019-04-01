@@ -185,7 +185,7 @@ cat >Dockerfile <<EOF
 FROM debian:${TRAVIS_DEBIAN_DISTRIBUTION}
 RUN echo "deb ${TRAVIS_DEBIAN_MIRROR} ${TRAVIS_DEBIAN_DISTRIBUTION} main" > /etc/apt/sources.list
 RUN echo "deb-src ${TRAVIS_DEBIAN_MIRROR} ${TRAVIS_DEBIAN_DISTRIBUTION} main" >> /etc/apt/sources.list
-RUN echo "deb http://pkg.yeti-switch.org/debian/jessie unstable main ext" >> /etc/apt/sources.list
+RUN echo "deb [arch=amd64] http://pkg.yeti-switch.org/debian/stretch 1.8 main" >> /etc/apt/sources.list
 EOF
 
 if [ "${TRAVIS_DEBIAN_BACKPORTS}" = true ]
