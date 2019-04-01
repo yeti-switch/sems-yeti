@@ -106,7 +106,11 @@ static const SdpPayload *findPayload(const std::vector<SdpPayload>& payloads, co
 		payload.payload_type,payload.encoding_name.c_str(),
 		payload.clock_rate,payload.encoding_param);
 
-	bool static_payload = (transport == TP_RTPAVP && payload.payload_type >= 0 && payload.payload_type < 20);
+	bool static_payload =
+		((transport == TP_RTPAVP || transport == TP_RTPSAVP)
+		 && payload.payload_type >= 0
+		 && payload.payload_type < DYNAMIC_PAYLOAD_TYPE_START);
+
 	for (vector<SdpPayload>::const_iterator p = payloads.begin(); p != payloads.end(); ++p) {
 		DBG_FP("findPayload: next payload payload = {%d,'%s'/%d/%d}",
 			p->payload_type,p->encoding_name.c_str(),
