@@ -1,3 +1,17 @@
+sems-yeti (1.8.0-1) stable; urgency=low
+
+  * add yeti.request.call.remove rpc command. serialize disconnect_codes/reasons to active calls response
+  * check streams type/count against previously negotiated media on in-dialog INVITE/UPDATE local processing
+  * SBCCallLeg: use core computeRelayMask. manually update streams onSdpCompleted in aleg
+  * cdrwriter: separate retry_queue
+  * process bleg_protocol_priority_id
+  * Yeti::configure: rename cfg opts: mgmt -> management, host -> address
+  * Cdr: serialize media stats
+  * SBCCallLeg::getSdpOffer: use dlg addr type on media address replace
+  * Cdr: use AmRtpStream::MediaStats
+
+ -- dev <dev@yeti-switch.org>  Mon, 01 Apr 2019 20:56:19 +0300
+
 sems-yeti (1.7.34-1) stable; urgency=low
 
   * f4b3f41 Yeti::load_config: allow to specify FQDN in the cfg_host parameter
