@@ -11,8 +11,30 @@
 #include "../RTPParameters.h"
 
 #include <stdio.h>
+//#include <float.h>
+#include <type_traits>
 
 #define DTMF_EVENTS_MAX 50
+
+#ifdef cJSON_AddNumberToObject
+#undef cJSON_AddNumberToObject
+#endif
+
+template <typename T>
+void cJSON_AddNumberToObject(cJSON *object,const char *name,T n) {
+    //if(fabs((double)n-(int)n)<=DBL_EPSILON) {
+    if(std::is_integral<T>::value) {
+        if(n > INT_MAX) {
+            cJSON_AddItemToObject(object, name, cJSON_CreateNumber(INT_MAX));
+            return;
+        }
+        if(std::is_signed<T>::value && n < INT_MIN) {
+            cJSON_AddItemToObject(object, name, cJSON_CreateNumber(INT_MIN));
+            return;
+        }
+    }
+    cJSON_AddItemToObject(object, name, cJSON_CreateNumber(static_cast<double>(n)));
+}
 
 static string user_agent_hdr(SIP_HDR_USER_AGENT);
 static string server_hdr(SIP_HDR_SERVER);
@@ -769,10 +791,10 @@ char *Cdr::serialize_dynamic(const DynFieldsT &df) {
 
         switch(arg.getType()) {
         case AmArg::Int:
-            cJSON_AddNumberToObject(j,namep,arg.asInt());
+            cJSON_AddItemToObject(j, namep, cJSON_CreateNumber(static_cast<double>(arg.asInt())));
             break;
         case AmArg::LongLong:
-            cJSON_AddNumberToObject(j,namep,arg.asLongLong());
+            cJSON_AddItemToObject(j, namep, cJSON_CreateNumber(static_cast<double>(arg.asLongLong())));
             break;
         case AmArg::Bool:
             cJSON_AddBoolToObject(j,namep,arg.asBool());
