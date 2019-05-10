@@ -1,3 +1,9 @@
+sems-yeti (1.8.0-2) stable; urgency=low
+
+  * Cdr: avoid autocast of the huge values for integral types to double. cut them by max 32 bit signed int value
+
+ -- dev <dev@yeti-switch.org>  Fri, 10 May 2019 12:26:41 +0300
+
 sems-yeti (1.8.0-1) stable; urgency=low
 
   * check streams type/count against previously negotiated media on in-dialog INVITE/UPDATE local processing
