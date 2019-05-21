@@ -316,6 +316,19 @@ void normalize_conn_location(AmSdp &sdp, int location_id){
 	}
 }
 
+void clear_ice_params(AmSdp &sdp)
+{
+	sdp.ice_pwd.clear();
+	sdp.ice_ufrag.clear();
+	sdp.use_ice = false;
+	for(auto &m : sdp.media) {
+		m.ice_pwd.clear();
+		m.ice_ufrag.clear();
+		m.ice_candidate.clear();
+		m.is_ice = false;
+	}
+}
+
 inline bool is_telephone_event(const SdpPayload &p){
 	string c = p.encoding_name;
 	std::transform(c.begin(), c.end(), c.begin(), ::toupper);
@@ -594,10 +607,10 @@ int filterSdpOffer(SBCCallLeg *call,
 
 	filter_arrange_SDP(sdp,static_codecs, true);
 	fix_dynamic_payloads(sdp,call->getTranscoderMapping());
-
 	filterSDPalines(sdp, a_leg ?
 						call_profile.sdpalinesfilter :
 						call_profile.bleg_sdpalinesfilter);
+	clear_ice_params(sdp);
 
 	res = cutNoAudioStreams(sdp,call_profile.filter_noaudio_streams);
 	if(0 != res){
@@ -806,10 +819,10 @@ int processSdpAnswer(SBCCallLeg *call,
 	filterSDPalines(sdp, a_leg ?
 						call_profile.sdpalinesfilter :
 						call_profile.bleg_sdpalinesfilter);
-
 	normalize_conn_location(sdp, a_leg ?
 								call_profile.bleg_conn_location_id :
 								call_profile.aleg_conn_location_id);
+	clear_ice_params(sdp);
 
 	DBG_SDP_MEDIA(sdp.media,"processSdpAnswer_out");
 
