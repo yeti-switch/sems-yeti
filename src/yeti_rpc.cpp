@@ -696,19 +696,22 @@ void YetiRpc::RemoveCall(const AmArg& args, AmArg& ret){
 
 	local_tag = args[0].asCStr();
 
+	string ret_reason;
+
 	if (AmSessionContainer::instance()->postEvent(
 		local_tag,
 		new SBCControlEvent("teardown")))
 	{
-		ret = "Call found in sessions container. teardown command sent";
-		return;
+		ret_reason = "Call found in sessions container. teardown command sent";
 	}
 
 	if(cdr_list.remove_by_local_tag(local_tag)) {
-		ret = "Removed from active calls container";
+		ret_reason += ". Removed from active calls container";
 	} else {
-		ret = "Failed to remove from active calls container";
+		ret_reason += ". Failed to remove from active calls container";
 	}
+
+	ret = ret_reason;
 }
 
 void YetiRpc::showVersion(const AmArg& args, AmArg& ret) {
