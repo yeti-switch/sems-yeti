@@ -74,8 +74,8 @@ EXPORT_PLUGIN_CONF_FACTORY(SBCFactory)
 
 SBCFactory* SBCFactory::instance()
 {
-    static SBCFactory _instance(MOD_NAME);
-    return &_instance;
+    static auto _instance = new SBCFactory(MOD_NAME);
+    return _instance;
 }
 
 
