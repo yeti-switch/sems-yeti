@@ -1,3 +1,9 @@
+sems-yeti (1.7.35-3) stable; urgency=low
+
+  * fix other leg termination for connected calls on failed reinvites
+
+ -- dev <dev@yeti-switch.org>  Tue, 04 Jun 2019 19:23:05 +0300
+
 sems-yeti (1.7.35-2) stable; urgency=low
 
   * fix auth cdr ports
