@@ -270,22 +270,22 @@ void SBCCallLeg::terminateLegOnReplyException(const AmSipReply& reply,const Inte
 {
     getCtx_void
 
-    if(!a_leg) {
-        if(!getOtherId().empty()) { //ignore not connected B legs
-            with_cdr_for_read {
-                cdr->update_internal_reason(DisconnectByTS,e.internal_reason,e.internal_code);
-                cdr->update(reply);
-            }
-        }
-        relayError(reply.cseq_method,reply.cseq,true,e.response_code,e.response_reason.c_str());
-        disconnect(false,false);
-    } else {
+    if(!getOtherId().empty()) { //ignore not connected B legs
         with_cdr_for_read {
             cdr->update_internal_reason(DisconnectByTS,e.internal_reason,e.internal_code);
             cdr->update(reply);
         }
     }
-    stopCall(CallLeg::StatusChangeCause::InternalError);
+
+    relayError(reply.cseq_method,reply.cseq,true,e.response_code,e.response_reason.c_str());
+
+    if(getCallStatus()==Connected) {
+        DBG("if(getCallStatus()==Connected) {");
+        stopCall(CallLeg::StatusChangeCause::InternalError);
+    } else {
+        DBG("if(getCallStatus()==Connected) { else");
+        terminateLeg();
+    }
 }
 
 void SBCCallLeg::processRouting()
@@ -1718,7 +1718,6 @@ void SBCCallLeg::onRemoteDisappeared(const AmSipReply& reply)
                     DisconnectByTS,
                     reinvite_failed, 200
                 );
-                cdr->update_aleg_reason("Bye",200);
                 cdr->update_bleg_reason("Bye",200);
             }
         }
