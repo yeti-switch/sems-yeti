@@ -14,7 +14,8 @@ class Yeti
     AmObject
 {
     static Yeti* _instance;
-    bool load_config();
+    bool request_config();
+    bool wait_and_apply_config();
     bool stopped;
 
     sockaddr_storage cfg_remote_address;

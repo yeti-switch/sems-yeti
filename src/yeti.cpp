@@ -121,10 +121,8 @@ static int check_dir_write_permissions(const string &dir)
     return 0;
 }
 
-bool Yeti::load_config() {
-
-    config.node_id = AmConfig.node_id;
-
+bool Yeti::request_config()
+{
     SctpBusAddConnection *new_connection = new SctpBusAddConnection();
     new_connection->reconnect_interval = YETI_SCTP_RECONNECT_INTERVAL;
     new_connection->remote_address = cfg_remote_address;
@@ -136,6 +134,10 @@ bool Yeti::load_config() {
         return false;
     }
 
+    return true;
+}
+
+bool Yeti::wait_and_apply_config() {
     if(!intial_config_received.wait_for_to(cfg_remote_timeout)) {
         ERROR("timeout waiting yeti config via SCTP");
         return false;
@@ -228,9 +230,11 @@ int Yeti::onLoad() {
 
     start_time = time(nullptr);
 
+    config.node_id = AmConfig.node_id;
+
     start();
 
-    if(!load_config())
+    if(!wait_and_apply_config())
         return -1;
 
     calls_show_limit = static_cast<int>(cfg.getParameterInt("calls_show_limit",100));
@@ -306,6 +310,12 @@ void Yeti::run()
     DBG("start yeti-worker");
 
     AmEventDispatcher::instance()->addEventQueue(YETI_QUEUE_NAME, this);
+
+    if(!request_config()) {
+        ERROR("failed to send config request");
+        return;
+    }
+
     stopped = false;
     while(!stopped) {
         waitForEvent();
@@ -335,6 +345,7 @@ void Yeti::on_stop()
 void Yeti::process(AmEvent *ev)
 {
     ON_EVENT_TYPE(SctpBusConnectionStatus) {
+        DBG("on SctpBusConnectionStatus. status: %d",e->status);
         if(e->status == SctpBusConnectionStatus::Connected) {
             //send cfg request
             YetiEvent e;
@@ -357,6 +368,8 @@ void Yeti::process(AmEvent *ev)
     }
 
     ON_EVENT_TYPE(SctpBusRawReply) {
+        DBG("on SctpBusRawReply");
+
         if(intial_config_received.get())
             return; //ignore subsequent config replies
 
