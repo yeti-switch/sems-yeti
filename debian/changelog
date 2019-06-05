@@ -1,3 +1,12 @@
+sems-yeti (1.8.1-1) stable; urgency=low
+
+  * 782c462 SBCCallLeg::terminateLegOnReplyException: fix other leg termination for connected calls on failed reinvites
+  * c230b96 SBC: allocate SBCFactory in heap. fixes segfault on node shutdown
+  * b7e618e sdp_filter: filter out ICE params on SDP filtering
+  * 31ff7c8 yeti_rpc: RemoveCall: force removing from cdr_list even on presence in sessions container
+
+ -- dev <dev@yeti-switch.org>  Wed, 05 Jun 2019 12:05:06 +0300
+
 sems-yeti (1.8.0-2) stable; urgency=low
 
   * Cdr: avoid autocast of the huge values for integral types to double. cut them by max 32 bit signed int value
