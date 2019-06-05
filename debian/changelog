@@ -1,3 +1,9 @@
+sems-yeti (1.8.1-2) stable; urgency=low
+
+  * move sctp connection create event posting to the yeti worker thread. fixes racing
+
+ -- dev <dev@yeti-switch.org>  Wed, 05 Jun 2019 19:00:45 +0300
+
 sems-yeti (1.8.1-1) stable; urgency=low
 
   * 782c462 SBCCallLeg::terminateLegOnReplyException: fix other leg termination for connected calls on failed reinvites
