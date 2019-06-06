@@ -1,3 +1,9 @@
+sems-yeti (1.7.35-4) stable; urgency=low
+
+  * increase version to resolve package conflict in repo 
+
+ -- dev <dev@yeti-switch.org>  Thu, 06 Jun 2019 16:17:21 +0300
+
 sems-yeti (1.7.35-3) stable; urgency=low
 
   * fix other leg termination for connected calls on failed reinvites
