@@ -1,3 +1,9 @@
+sems-yeti (1.8.1-3) stable; urgency=low
+
+  * ParamReplacer: remove $OI placeholder. resolve $Oi to the public_ip if set
+
+ -- dev <dev@yeti-switch.org>  Thu, 06 Jun 2019 15:02:11 +0300
+
 sems-yeti (1.8.1-2) stable; urgency=low
 
   * move sctp connection create event posting to the yeti worker thread. fixes racing
