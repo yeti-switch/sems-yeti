@@ -433,15 +433,6 @@ string replaceParameters(const string& s,
 														  req.route,
 														  call_profile->ruri);
             //TODO: use smth like req.local_proto to get correct public_ip
-            res += AmConfig.sip_ifs[outbound_interface].proto_info[0]->local_ip;
-			break;
-		} else if (s[p+1] == 'I') { // $OI outbound public IP
-			if(outbound_interface == -1)
-				outbound_interface = getOutboundInterface(call_profile->next_hop,
-														  call_profile->outbound_proxy,
-														  call_profile->force_outbound_proxy,
-														  req.route,
-														  call_profile->ruri);
             res += AmConfig.sip_ifs[outbound_interface].proto_info[0]->getIP();
 			break;
 		}
