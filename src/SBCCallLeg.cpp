@@ -2185,8 +2185,23 @@ void SBCCallLeg::onRoutingReady()
             ruri = ctx.ruri_parser.uri_str();
         }
     }
+
     from = call_profile.from.empty() ? aleg_modified_req.from : call_profile.from;
     to = call_profile.to.empty() ? aleg_modified_req.to : call_profile.to;
+
+    AmUriParser from_uri, to_uri;
+    if(!from_uri.parse_nameaddr(from)) {
+        DBG("Error parsing From-URI '%s'\n",from.c_str());
+        throw AmSession::Exception(400,"Failed to parse From-URI");
+    }
+
+    if(!to_uri.parse_nameaddr(to)) {
+        DBG("Error parsing To-URI '%s'\n",to.c_str());
+        throw AmSession::Exception(400,"Failed to parse To-URI");
+    }
+
+    from = from_uri.nameaddr_str();
+    to = to_uri.nameaddr_str();
 
     applyAProfile();
     call_profile.apply_a_routing(ctx,aleg_modified_req,*dlg);
