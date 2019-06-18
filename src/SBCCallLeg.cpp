@@ -579,27 +579,6 @@ bool SBCCallLeg::connectCallee(const AmSipRequest &orig_req)
         throw AmSession::Exception(400,"Failed to parse R-URI");
     }
 
-    call_profile.sst_aleg_enabled = ctx.replaceParameters(
-        call_profile.sst_aleg_enabled,
-        "enable_aleg_session_timer",
-        orig_req
-    );
-
-    call_profile.sst_enabled = ctx.replaceParameters(
-        call_profile.sst_enabled,
-        "enable_session_timer", orig_req
-    );
-
-    if ((call_profile.sst_aleg_enabled == "yes") ||
-        (call_profile.sst_enabled == "yes"))
-    {
-        call_profile.eval_sst_config(ctx,orig_req,call_profile.sst_a_cfg);
-        if(applySSTCfg(call_profile.sst_a_cfg,&orig_req) < 0) {
-            throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-        }
-    }
-
-
     if (!call_profile.evaluate(ctx, orig_req)) {
         ERROR("call profile evaluation failed\n");
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
@@ -2148,9 +2127,7 @@ void SBCCallLeg::onRoutingReady()
         call_profile.sst_enabled,
         "enable_session_timer", aleg_modified_req);
 
-    if ((call_profile.sst_aleg_enabled == "yes") ||
-        (call_profile.sst_enabled == "yes"))
-    {
+    if (call_profile.sst_aleg_enabled == "yes") {
         call_profile.eval_sst_config(ctx,aleg_modified_req,call_profile.sst_a_cfg);
         if(applySSTCfg(call_profile.sst_a_cfg,&aleg_modified_req) < 0) {
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
