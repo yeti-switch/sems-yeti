@@ -1,3 +1,10 @@
+sems-yeti (1.7.35-6) stable; urgency=low
+
+  * skip SST processing for Aleg on rerouting
+  * ignore Bleg SST enable setings on applying for Aleg
+
+ -- dev <dev@yeti-switch.org>  Tue, 18 Jun 2019 17:20:09 +0300
+
 sems-yeti (1.7.35-5) stable; urgency=low
 
   * SBCCallLeg::onRoutingReady: from/to nameaddr. fixes display name missed quotes case
