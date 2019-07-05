@@ -1190,8 +1190,8 @@ void SBCCallLeg::applyBProfile()
     // was read from caller but reading directly from profile now
     if (call_profile.outbound_interface_value >= 0) {
         dlg->setOutboundInterface(call_profile.outbound_interface_value);
-        dlg->setOutboundAddrType(IP_info::IPv4);
-        dlg->setOutboundTransport(0);
+        dlg->setOutboundAddrType(AT_V4);
+        dlg->setOutboundProtoId(0);
     }
 
     // was read from caller but reading directly from profile now
@@ -3182,7 +3182,7 @@ bool SBCCallLeg::getSdpOffer(AmSdp& offer){
     } else {
         DBG("provide saved initial offer for legB");
         offer = call_ctx->bleg_initial_offer;
-        int addr_type = dlg->getOutboundAddrType();
+        auto addr_type = dlg->getOutboundAddrType();
         m->replaceConnectionAddress(offer,a_leg,
                                     localMediaIP(addr_type),
                                     advertisedIP(addr_type),
