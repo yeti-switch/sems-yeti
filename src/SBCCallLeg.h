@@ -103,7 +103,9 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void init();
 
   void terminateLegOnReplyException(const AmSipReply& reply,const InternalException &e);
-  void processRouting();
+  
+  void processAorResolving();
+  void processResourcesAndSdp();
 
   /*! create new B leg (serial fork)*/
   /*! choose next profile, create cdr and check resources */
@@ -111,6 +113,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   bool connectCallee(const AmSipRequest &orig_req);
 
   void onRadiusReply(const RadiusReplyEvent &ev);
+  void onRedisReply(const RedisReplyEvent &e);
   void onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event);
   bool onTimerEvent(int timer_id);
   void onInterimRadiusTimer();

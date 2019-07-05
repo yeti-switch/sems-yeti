@@ -25,6 +25,7 @@
 #include "sip/resolver.h"
 
 #include "YetiEvent.pb.h"
+#include "RedisConnection.h"
 
 #define YETI_CFG_PART "signalling"
 #define YETI_CFG_DEFAULT_TIMEOUT 5000
@@ -32,7 +33,6 @@
 #define YETI_DEFAULT_AUDIO_RECORDER_DIR "/var/spool/sems/record"
 #define YETI_DEFAULT_LOG_DIR "/var/spool/sems/logdump"
 
-#define YETI_QUEUE_NAME MOD_NAME
 #define YETI_SCTP_CONNECTION_ID 0
 #define YETI_SCTP_DST_SESSION_NAME "mgmt"
 #define YETI_SCTP_RECONNECT_INTERVAL 120
@@ -100,7 +100,8 @@ Yeti::Yeti(YetiBaseParams &params)
     YetiRpc(*this),
     AmEventQueue(this),
     intial_config_received(false),
-    cfg_error(false)
+    cfg_error(false),
+    auth_redis("auth")
 {}
 
 
@@ -285,6 +286,11 @@ int Yeti::onLoad() {
         return -1;
     }
 
+    if(configure_registrar()) {
+        ERROR("Failed to configure registrar");
+        return -1;
+    }
+
     if(router.run()){
         ERROR("SqlRouter start failed");
         return -1;
@@ -295,6 +301,9 @@ int Yeti::onLoad() {
         return -1;
     }
 
+    if(config.registrar_enabled)
+        auth_redis.start();
+
     if(cdr_list.getSnapshotsEnabled())
         cdr_list.start();
 
@@ -302,6 +311,26 @@ int Yeti::onLoad() {
 
     return 0;
 
+}
+
+int Yeti::configure_registrar()
+{
+    config.registrar_enabled = cfg.getParameterInt("registrar_enabled");
+    DBG("registrar_enabled: %d", config.registrar_enabled);
+    if(!config.registrar_enabled)
+        return 0;
+
+    config.registrar_redis_host = cfg.getParameter("registrar_redis_host");
+    if(config.registrar_redis_host.empty()) config.registrar_redis_host = "127.0.0.1";
+
+    config.registrar_redis_port = cfg.getParameterInt("registrar_redis_port");
+    if(!config.registrar_redis_port) config.registrar_redis_port = 6379;
+
+    if(0!=auth_redis.init(config.registrar_redis_host, config.registrar_redis_port)) {
+        return -1;
+    }
+
+    return 0;
 }
 
 void Yeti::run()
@@ -333,6 +362,7 @@ void Yeti::on_stop()
     cdr_list.stop();
     rctl.stop();
     router.stop();
+    auth_redis.stop();
 
     stopped = true;
     ev_pending.set(true);
@@ -344,6 +374,16 @@ void Yeti::on_stop()
 
 void Yeti::process(AmEvent *ev)
 {
+    ON_EVENT_TYPE(RedisReplyEvent) {
+        /*DBG("got RedisReplyEvent id = %d data:\n%s",
+            e->user_type_id,
+            AmArg::print(e->data).c_str());*/
+        switch(e->user_type_id) {
+        case YETI_REDIS_REGISTER_TYPE_ID:
+            processRedisRegisterReply(*e);
+            break;
+        }
+    } else
     ON_EVENT_TYPE(SctpBusConnectionStatus) {
         DBG("on SctpBusConnectionStatus. status: %d",e->status);
         if(e->status == SctpBusConnectionStatus::Connected) {
@@ -365,8 +405,7 @@ void Yeti::process(AmEvent *ev)
             }
         }
         return;
-    }
-
+    } else
     ON_EVENT_TYPE(SctpBusRawReply) {
         DBG("on SctpBusRawReply");
 
@@ -410,14 +449,86 @@ void Yeti::process(AmEvent *ev)
             intial_config_received.set(true);
         }
         return;
-    }
-
+    } else
     ON_EVENT_TYPE(AmSystemEvent) {
         if(e->sys_event==AmSystemEvent::ServerShutdown) {
             DBG("got shutdown event");
             stop();
         }
         return;
+    } else
+        DBG("got unknown event");
+}
+
+void Yeti::processRedisRegisterReply(RedisReplyEvent &e)
+{
+    static string contact_hdr = SIP_HDR_COLSP(SIP_HDR_CONTACT);
+    static string expires_param_prefix = ";expires=";
+
+    const AmSipRequest &req = *dynamic_cast<AmSipRequest *>(e.user_data.get());
+    //DBG("e.data: %s",AmArg::print(e.data).c_str());
+
+    if(RedisReplyEvent::SuccessReply!=e.result) {
+        ERROR("error reply from redis %s",AmArg::print(e.data).c_str());
+        AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        return;
     }
-    DBG("got unknown event");
+
+    if(isArgUndef(e.data)) {
+        DBG("nil reply from redis. no bindings");
+        AmSipDialog::reply_error(req, 200, "OK");
+        return;
+    }
+
+    /* response layout:
+     * [
+     *   [ contact1 , expires1 ]
+     *   [ contact2 , expires2 ]
+     * ]
+     */
+
+    if(!isArgArray(e.data)) {
+        ERROR("error/unexpected reply from redis: %s",AmArg::print(e.data).c_str());
+        AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        return;
+    }
+
+    string hdrs;
+    int n = static_cast<int>(e.data.size());
+    for(int i = 0; i < n; i++) {
+        AmArg &d = e.data[i];
+        if(!isArgArray(d) || d.size()!=2) {
+            ERROR("unexpected AoR layout in reply from redis: %s. skip it",AmArg::print(d).c_str());
+            continue;
+        }
+        AmArg &contact_arg = d[0];
+        if(!isArgCStr(contact_arg)) {
+            ERROR("unexpected contact variable type from redis. skip it");
+            continue;
+        }
+        string contact = contact_arg.asCStr();
+        if(contact.empty()) {
+            ERROR("empty contact in reply from redis. skip it");
+            continue;
+        }
+
+        AmArg &expires_arg = d[1];
+        if(!isArgLongLong(expires_arg)) {
+            ERROR("unexpected expires value in redis reply: %s, skip it",AmArg::print(expires_arg).c_str());
+            continue;
+        }
+
+        AmUriParser c;
+        c.uri = contact;
+        if(!c.parse_uri()) {
+            ERROR("failed to parse contact uri: %s, skip it",contact.c_str());
+            continue;
+        }
+
+        hdrs+=contact_hdr + c.print();
+        hdrs+=expires_param_prefix+longlong2str(expires_arg.asLongLong());
+        hdrs+=CRLF;
+    }
+
+    AmSipDialog::reply_error(req, 200, "OK", hdrs);
 }

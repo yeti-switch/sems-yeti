@@ -4,6 +4,10 @@
 #include "yeti_base.h"
 #include "yeti_radius.h"
 
+#define YETI_REDIS_REGISTER_TYPE_ID 0
+
+static const string YETI_QUEUE_NAME(MOD_NAME);
+
 class Yeti
   : public YetiRpc,
     public AmThread,
@@ -26,6 +30,8 @@ class Yeti
     bool registrations_enabled;
     bool core_options_handling;
 
+    RedisConnection auth_redis;
+
   public:
     Yeti(YetiBaseParams &params);
     ~Yeti();
@@ -35,11 +41,13 @@ class Yeti
 
     int onLoad();
     int configure(const std::string& config);
+    int configure_registrar();
 
     void run();
     void on_stop();
     void process(AmEvent *ev);
 
+    void processRedisRegisterReply(RedisReplyEvent &e);
     bool getRegistrationsEnabled() { return registrations_enabled; }
     bool getCoreOptionsHandling() { return core_options_handling; }
 };

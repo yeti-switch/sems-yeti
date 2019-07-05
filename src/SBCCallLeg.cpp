@@ -29,10 +29,13 @@
 #include "AmAudioFileRecorder.h"
 #include "radius_hooks.h"
 #include "Sensors.h"
+#include "RedisConnection.h"
 
 #include "sdp_filter.h"
 #include "ampi/RadiusClientAPI.h"
 #include "dtmf_sip_info.h"
+
+#include <cmath>
 
 using namespace std;
 
@@ -288,7 +291,69 @@ void SBCCallLeg::terminateLegOnReplyException(const AmSipReply& reply,const Inte
     }
 }
 
-void SBCCallLeg::processRouting()
+template <typename T>
+inline unsigned int len_in_chars(T s)
+{
+    return static_cast<unsigned int>(log10(s) + 1);
+}
+
+void SBCCallLeg::processAorResolving()
+{
+    DBG("%s(%p,leg%s)",FUNC_NAME,static_cast<void *>(this),a_leg?"A":"B");
+
+    //check for registered_aor_id in profiles
+    std::set<int> aor_ids;
+    for(const auto &p : call_ctx->profiles) {
+        if(0==p->disconnect_code_id && 0!=p->registered_aor_id) {
+            aor_ids.emplace(p->registered_aor_id);
+        }
+    }
+
+    if(aor_ids.empty()) {
+        //no aor resolving requested. continue as usual
+        processResourcesAndSdp();
+        return;
+    }
+
+    if(!yeti.config.registrar_enabled) {
+        ERROR("registrar feature disabled for node, but routing returned profiles with registered_aor_id set");
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+
+    size_t aors_count = aor_ids.size();
+    string str_size = long2str(static_cast<long>(aor_ids.size()));
+    DBG("got %s AoR ids to resolve", str_size.c_str());
+
+    if(yeti_aor_lookup.hash.empty()) {
+        ERROR("empty yeti_aor_lookup.hash. lua scripting error");
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+
+    char *cmd = static_cast<char *>(malloc(128));
+    char *s = cmd;
+
+    s += sprintf(cmd, "*%lu\r\n$7\r\nEVALSHA\r\n$40\r\n%s\r\n$%u\r\n%lu\r\n",
+        aors_count+3,
+        yeti_aor_lookup.hash.data(),
+        len_in_chars(aors_count), aors_count);
+
+    for(const auto &id : aor_ids) {
+        string id_str = int2str(id);
+        s += sprintf(s, "$%u\r\n%d\r\n",
+            len_in_chars(id), id);
+    }
+
+    //send request to redis
+    if(false==postRedisRequest(
+        getLocalTag(),
+        cmd,static_cast<size_t>(s-cmd)))
+    {
+        ERROR("failed to post auti_id resolve request");
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+}
+
+void SBCCallLeg::processResourcesAndSdp()
 {
     DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
 
@@ -432,14 +497,6 @@ void SBCCallLeg::processRouting()
         saveCallTimer(YETI_CALL_DURATION_TIMER,cdr->time_limit);
     }
 
-    if(0!=cdr_list.insert(cdr)){
-        ERROR("onInitialInvite(): double insert into active calls list. integrity threat");
-        ERROR("ctx: attempt = %d, cdr.logger_path = %s",
-            call_ctx->attempt_num,cdr->msg_logger_path.c_str());
-        log_stacktrace(L_ERR);
-        throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
-    }
-
     if(!call_profile.append_headers.empty()){
         replace(call_profile.append_headers,"%global_tag",getGlobalTag());
     }
@@ -461,7 +518,7 @@ void SBCCallLeg::processRouting()
     }
 
     PROF_END(func);
-    PROF_PRINT("yeti onRoutingReady()",func);
+    PROF_PRINT("yeti processResourcesAndSdp()",func);
     return;
 }
 
@@ -693,7 +750,7 @@ void SBCCallLeg::onRadiusReply(const RadiusReplyEvent &ev)
     try {
         switch(ev.result){
         case RadiusReplyEvent::Accepted:
-            processRouting();
+            processAorResolving();
             break;
         case RadiusReplyEvent::Rejected:
             throw InternalException(RADIUS_RESPONSE_REJECT, call_ctx->getOverrideId(a_leg));
@@ -706,7 +763,7 @@ void SBCCallLeg::onRadiusReply(const RadiusReplyEvent &ev)
             } else {
                 ERROR("[%s] radius error %d, but radius profile configured to ignore errors.",
                     getLocalTag().c_str(),ev.error_code);
-                processRouting();
+                processAorResolving();
             }
             break;
         }
@@ -715,6 +772,144 @@ void SBCCallLeg::onRadiusReply(const RadiusReplyEvent &ev)
     } catch(InternalException &e){
         onEarlyEventException(e.response_code,e.response_reason);
     }
+}
+
+struct aor_lookup_reply {
+    /* reply layout:
+     * [
+     *   auth_id1,
+     *   [
+     *     contact1,
+     *     path1,
+     *     contact2,
+     *     path2
+     *   ],
+     *   auth_id2,
+     *   [
+     *     contact3,
+     *     path3,
+     *   ],
+     * ]
+     */
+
+    struct aor_data {
+        string contact;
+        string path;
+        aor_data(const char *contact, const char *path)
+          : contact(contact),
+            path(path)
+        {}
+    };
+
+    std::map<int, std::list<aor_data> > aors;
+
+    //return false on errors
+    bool parse(const RedisReplyEvent &e)
+    {
+        if(RedisReplyEvent::SuccessReply!=e.result) {
+            ERROR("error reply from redis: %s",AmArg::print(e.data).c_str());
+            return false;
+        }
+        if(!isArgArray(e.data) || e.data.size()%2!=0) {
+            ERROR("unexpected redis reply layout: %s", AmArg::print(e.data).data());
+            return false;
+        }
+        int n = static_cast<int>(e.data.size())-1;
+        for(int i = 0; i < n; i+=2) {
+            AmArg &id_arg = e.data[i];
+            if(!isArgLongLong(id_arg)) {
+                ERROR("unexpected auth_id type. skip entry");
+                continue;
+            }
+            int auth_id = static_cast<int>(id_arg.asLongLong());
+
+            AmArg &aor_data_arg = e.data[i+1];
+            if(!isArgArray(aor_data_arg) || aor_data_arg.size()%2!=0) {
+                ERROR("unexpected aor_data_arg layout. skip entry");
+                continue;
+            }
+
+            int m = static_cast<int>(aor_data_arg.size())-1;
+            for(int j = 0; j < m; j+=2) {
+                AmArg &contact_arg = aor_data_arg[j];
+                AmArg &path_arg = aor_data_arg[j+1];
+                if(!isArgCStr(contact_arg) || !isArgCStr(path_arg)) {
+                    ERROR("unexpected contact_arg||path_arg type. skip entry");
+                    continue;
+                }
+
+                auto it = aors.find(auth_id);
+                if(it == aors.end()) {
+                    it = aors.insert(aors.begin(),
+                        std::pair<int, std::list<aor_data> >(auth_id,  std::list<aor_data>()));
+                }
+                it->second.emplace_back(contact_arg.asCStr(), path_arg.asCStr());
+            }
+        }
+        return true;
+    }
+};
+
+void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
+{
+    DBG("onRedisReply");
+    DBG("data: %s",AmArg::print(e.data).data());
+
+    //preprocess redis reply data
+    aor_lookup_reply r;
+    if(!r.parse(e)) {
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+
+    //resolve ruri in profiles
+    auto &profiles = call_ctx->profiles;
+    DBG("profiles before processing: %lu", profiles.size());
+    for(auto it = profiles.begin(); it != profiles.end();) {
+        SqlCallProfile &p = *(*it);
+        if(p.disconnect_code_id != 0 || p.registered_aor_id==0) {
+            ++it;
+            continue;
+        }
+
+        auto a = r.aors.find(p.registered_aor_id);
+        if(a == r.aors.end()) {
+            p.disconnect_code_id = FC_NOT_REGISTERED;
+            ++it;
+            continue;
+        }
+
+        auto &aors_list  = a->second;
+
+        auto aor_it = aors_list.begin();
+        //replace ruri in profile
+        p.ruri = aor_it->contact;
+        if(!aor_it->path.empty()) {
+            p.outbound_proxy = aor_it->path;
+        }
+
+        ++aor_it;
+        while(aor_it != aors_list.end()) {
+            SqlCallProfile *cloned_p = p.copy();
+
+            ++it;
+            it = profiles.insert(it, cloned_p);
+
+            cloned_p->ruri = aor_it->contact;
+            if(!aor_it->path.empty()) {
+                cloned_p->outbound_proxy = aor_it->path;
+            }
+
+            ++aor_it;
+        }
+
+        ++it;
+    }
+
+    DBG("profiles after processing: %lu", profiles.size());
+
+    //throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+
+    processResourcesAndSdp();
 }
 
 void SBCCallLeg::onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event)
@@ -993,8 +1188,11 @@ void SBCCallLeg::applyBProfile()
     dlg->setPatchRURINextHop(call_profile.patch_ruri_next_hop);
 
     // was read from caller but reading directly from profile now
-    if (call_profile.outbound_interface_value >= 0)
+    if (call_profile.outbound_interface_value >= 0) {
         dlg->setOutboundInterface(call_profile.outbound_interface_value);
+        dlg->setOutboundAddrType(IP_info::IPv4);
+        dlg->setOutboundTransport(0);
+    }
 
     // was read from caller but reading directly from profile now
     if (call_profile.rtprelay_enabled || call_profile.transcoder.isActive()) {
@@ -1862,6 +2060,11 @@ void SBCCallLeg::process(AmEvent* ev)
             return;
         }
 
+        if(RedisReplyEvent *redis_event = dynamic_cast<RedisReplyEvent *>(ev)) {
+            onRedisReply(*redis_event);
+            return;
+        }
+
         AmRtpTimeoutEvent *rtp_event = dynamic_cast<AmRtpTimeoutEvent*>(ev);
         if(rtp_event){
             DBG("rtp event id: %d",rtp_event->event_id);
@@ -2113,12 +2316,22 @@ void SBCCallLeg::onInvite(const AmSipRequest& req)
     }
 
     if(!radius_auth(this,*call_ctx->cdr,call_profile,req)) {
-        processRouting();
+        processAorResolving();
     }
 }
 
 void SBCCallLeg::onRoutingReady()
 {
+    Cdr *cdr = call_ctx->cdr;
+
+    if(0!=cdr_list.insert(cdr)){
+        ERROR("onInitialInvite(): double insert into active calls list. integrity threat");
+        ERROR("ctx: attempt = %d, cdr.logger_path = %s",
+            call_ctx->attempt_num,cdr->msg_logger_path.c_str());
+        log_stacktrace(L_ERR);
+        throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+
     call_profile.sst_aleg_enabled = ctx.replaceParameters(
         call_profile.sst_aleg_enabled,
         "enable_aleg_session_timer", aleg_modified_req);

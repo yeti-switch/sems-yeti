@@ -296,6 +296,8 @@ struct SBCCallProfile
 
   bool auth_required;
 
+  int registered_aor_id;
+
   struct TranscoderSettings {
     // non-replaced parameters
 	string /*callee_codec_capabilities_str, audio_codecs_str,
@@ -471,6 +473,7 @@ struct SBCCallProfile
 	bleg_max_30x_redirects(0),
 	bleg_max_transfers(0),
 	auth_required(false),
+	registered_aor_id(0),
 	force_transcoding(false)
   { }
 

@@ -286,7 +286,7 @@ void ResourceCache::registerResourcesInitializedCallback(cb_func *func){
 
 string ResourceCache::get_key(Resource &r){
 	ostringstream ss;
-	ss << r.type << ":" << r.id;
+	ss << "r:" << r.type << ":" << r.id;
 	return ss.str();
 }
 
@@ -317,7 +317,7 @@ bool ResourceCache::init_resources(bool initial){
 		get_resources_queue.clear();
 
 
-		redisAppendCommand(write_ctx,"KEYS *");
+		redisAppendCommand(write_ctx,"KEYS r:*");
 
 		int state = redisGetReply(write_ctx,(void **)&reply);
 		if(state!=REDIS_OK)

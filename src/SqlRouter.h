@@ -17,6 +17,8 @@
 #include "CallCtx.h"
 struct CallCtx;
 
+#include "RedisConnection.h"
+
 using std::string;
 using std::list;
 using std::vector;
@@ -90,7 +92,7 @@ private:
   PgConnectionPool *slave_pool;
   CdrWriter *cdr_writer;
   ProfilesCache *cache;
-  
+
   vector<UsedHeaderField> used_header_fields;
   int failover_to_slave;
   int cache_enabled;

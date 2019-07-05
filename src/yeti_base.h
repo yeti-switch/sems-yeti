@@ -3,6 +3,7 @@
 #include "SqlRouter.h"
 #include "hash/CdrList.h"
 #include "resources/ResourceControl.h"
+#include "RedisConnection.h"
 
 #include "AmConfigReader.h"
 
@@ -69,6 +70,10 @@ struct YetiBase {
         string audio_recorder_dir;
         bool audio_recorder_compress;
         string log_dir;
+
+        bool registrar_enabled;
+        string registrar_redis_host;
+        int registrar_redis_port;
     } config;
 
     AmConfigReader cfg;

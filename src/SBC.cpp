@@ -49,6 +49,7 @@ SBC - feature-wishlist
 #include "sip/pcap_logger.h"
 #include "sip/sip_parser.h"
 #include "sip/sip_trans.h"
+#include "sip/parse_nameaddr.h"
 
 #include "HeaderFilter.h"
 #include "ParamReplacer.h"
@@ -62,6 +63,7 @@ SBC - feature-wishlist
 #include "RegisterCache.h"
 
 #include <algorithm>
+#include <set>
 
 #include "yeti.h"
 #include "SipCtrlInterface.h"
@@ -155,6 +157,7 @@ int SBCFactory::onLoad()
     yeti_invoke = dynamic_cast<AmDynInvoke *>(yeti.get());
 
     registrations_enabled = yeti->getRegistrationsEnabled();
+    registrar_enabled = yeti->config.registrar_enabled;
 
     session_timer_fact = AmPlugIn::instance()->getFactory4Seh("session_timer");
     if(!session_timer_fact) {
@@ -224,7 +227,7 @@ AmSession* SBCFactory::onInvite(
     if(yeti->config.early_100_trying)
         answer_100_trying(req,call_ctx);
 
-    auth_id = router.check_invite_auth(req,ret);
+    auth_id = router.check_request_auth(req,ret);
     if(auth_id > 0) {
         DBG("successfully authorized with id %d",auth_id);
         router.log_auth(req,true,ret,auth_id);
@@ -286,6 +289,18 @@ AmSession* SBCFactory::onInvite(
         return nullptr;
     }
 
+    //check for registered_aor_id in profiles
+    std::set<int> aor_ids;
+    for(const auto &p : call_ctx->profiles) {
+        if(0!=p->registered_aor_id) {
+            aor_ids.emplace(p->registered_aor_id);
+        }
+    }
+
+    if(!aor_ids.empty()) {
+        DBG("got %zd AoR ids to resolve", aor_ids.size());
+    }
+
     SBCCallLeg* leg = callLegCreator->create(call_ctx);
     if(!leg) {
         DBG("failed to create B2B leg");
@@ -321,6 +336,36 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
     if (core_options_handling && req.method == SIP_METH_OPTIONS) {
         DBG("processing OPTIONS in core\n");
         AmSessionFactory::onOoDRequest(req);
+        return;
+    }
+
+    if(registrar_enabled && req.method == SIP_METH_REGISTER) {
+        AmArg ret;
+        DBG("process REGISTER");
+        Auth::auth_id_type auth_id = router.check_request_auth(req,ret);
+        if(auth_id > 0) {
+            DBG("successfully authorized with id %d",auth_id);
+            router.log_auth(req,true,ret,auth_id);
+            //process register here
+            processAuthorizedRegister(req, auth_id);
+            return;
+        } else if(auth_id < 0) {
+            DBG("auth error. reply with 401");
+            switch(-auth_id) {
+            case Auth::UAC_AUTH_ERROR:
+                AmSipDialog::reply_error(
+                    req,
+                    static_cast<unsigned int>(ret[0].asInt()),
+                    ret[1].asCStr(),
+                    ret[2].asCStr());
+                router.log_auth(req,false,ret);
+                break;
+            default:
+                router.send_and_log_auth_challenge(req,ret.asCStr());
+                break;
+            }
+        }
+        router.send_and_log_auth_challenge(req,"no Authorization header");
         return;
     }
 
@@ -361,6 +406,174 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
         delete relay.second;
     }
 #endif
+}
+
+void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_id_type auth_id)
+{
+    static string user_agent_header_name("User-Agent");
+    static string path_header_name("Path");
+    static string expires_param_header_name("expires");
+
+    list<cstring> contact_list;
+    vector<AmUriParser> contacts;
+
+    bool asterisk_contact = false;
+
+    if(parse_nameaddr_list(contact_list,
+        req.contact.c_str(), static_cast<int>(req.contact.length())) < 0)
+    {
+        DBG("could not parse contact list");
+        AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        return;
+    }
+
+    size_t end;
+    for(const auto &c: contact_list)
+    {
+        if(1==c.len && *c.s=='*') {
+            asterisk_contact = true;
+            continue;
+        }
+        AmUriParser contact_uri;
+        if (!contact_uri.parse_contact(c2stlstr(c), 0, end)) {
+            DBG("error parsing contact: '%.*s'\n",c.len, c.s);
+            AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+            return;
+        } else {
+            DBG("successfully parsed contact %s@%s\n",
+            contact_uri.uri_user.c_str(),
+            contact_uri.uri_host.c_str());
+            contacts.push_back(contact_uri);
+        }
+    }
+
+    if(asterisk_contact && !contacts.empty()) {
+        DBG("additional Contact headers with Contact: *");
+        AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        return;
+    }
+
+    if(contacts.empty() && !asterisk_contact) {
+        //request bindings list
+        if(false==postRedisRequestFmt(
+            YETI_QUEUE_NAME,
+            new AmSipRequest(req), YETI_REDIS_REGISTER_TYPE_ID,
+            "EVALSHA %s 1 %d",
+            yeti_register.hash.c_str(),
+            auth_id))
+        {
+            AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        }
+    } else {
+        //renew/replace/update binding
+        string contact;
+        bool expires_found = false;
+        string expires;
+
+        if(!asterisk_contact) {
+            AmUriParser &first_contact = contacts.front();
+            contact = first_contact.uri_str();
+            for(auto p: first_contact.params) {
+                DBG("param: %s -> %s",p.first.c_str(),p.second.c_str());
+                if(p.first==expires_param_header_name) {
+                    DBG("found expires param");
+                    expires_found = true;
+                    expires = p.second;
+                    break;
+                }
+            }
+        }
+
+        if(!expires_found) {
+            //try to find Expires header as failover
+            size_t start_pos = 0;
+            while (start_pos<req.hdrs.length()) {
+                size_t name_end, val_begin, val_end, hdr_end;
+                int res;
+                if ((res = skip_header(req.hdrs, start_pos, name_end, val_begin,
+                           val_end, hdr_end)) != 0)
+                {
+                    break;
+                }
+                if(0==strncasecmp(req.hdrs.c_str() + start_pos,
+                                  expires_param_header_name.c_str(), name_end-start_pos))
+                {
+                    DBG("matched Expires header: %.*s",
+                        static_cast<int>(hdr_end-start_pos), req.hdrs.c_str()+start_pos);
+                    expires = req.hdrs.substr(val_begin, val_end-val_begin);
+                    expires_found = true;
+                    break;
+                }
+                start_pos = hdr_end;
+            }
+        }
+
+        if(!expires_found) {
+            DBG("no either Contact param expire or header Expire");
+            AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+            return;
+        }
+        DBG("expires: %s",expires.c_str());
+
+        int expires_int;
+        if(!str2int(expires, expires_int)) {
+            DBG("failed to cast expires value '%s'",expires.c_str());
+            AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+            return;
+        }
+
+        if(asterisk_contact && expires_int!=0) {
+            DBG("non zero expires with Contact: *");
+            AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+            return;
+        }
+
+        //!TODO: check min/max expires
+
+        //find Path header
+        string path;
+        string user_agent;
+        size_t start_pos = 0;
+        while (start_pos<req.hdrs.length()) {
+            size_t name_end, val_begin, val_end, hdr_end;
+            int res;
+            if ((res = skip_header(req.hdrs, start_pos, name_end, val_begin,
+                val_end, hdr_end)) != 0)
+            {
+                break;
+            }
+            if(0==strncasecmp(req.hdrs.c_str() + start_pos,
+                              path_header_name.c_str(), name_end-start_pos))
+            {
+                DBG("matched Path header: %.*s",
+                    static_cast<int>(hdr_end-start_pos), req.hdrs.c_str()+start_pos);
+                path = req.hdrs.substr(val_begin, val_end-val_begin);
+                if(!user_agent.empty())
+                    break;
+            } else if(0==strncasecmp(req.hdrs.c_str() + start_pos,
+                                  user_agent_header_name.c_str(), name_end-start_pos))
+            {
+                user_agent = req.hdrs.substr(val_begin, val_end-val_begin);
+                if(!path.empty())
+                    break;
+            }
+            start_pos = hdr_end;
+        }
+
+        /*DBG("User-Agent: %s",user_agent.c_str());
+        DBG("Path: %s",path.c_str());*/
+
+        if(false==postRedisRequestFmt(
+            YETI_QUEUE_NAME,
+            new AmSipRequest(req), YETI_REDIS_REGISTER_TYPE_ID,
+            "EVALSHA %s 1 %d %s %d %s %s",
+            yeti_register.hash.c_str(),
+            auth_id, contact.c_str(),
+            expires_int, user_agent.c_str(), path.c_str()))
+        {
+            AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        }
+    }
 }
 
 void SBCFactory::invoke(const string& method, const AmArg& args, 

@@ -82,6 +82,7 @@ class SBCFactory: public AmSessionFactory,
 
   AmDynInvoke *yeti_invoke;
   bool registrations_enabled;
+  bool registrar_enabled;
 
   bool core_options_handling;
 
@@ -89,6 +90,8 @@ class SBCFactory: public AmSessionFactory,
   auto_ptr<SimpleRelayCreator> simpleRelayCreator;
 
   void postControlCmd(const AmArg& args, AmArg& ret);
+
+  void processAuthorizedRegister(const AmSipRequest& req, Auth::auth_id_type auth_id);
 
  public:
   static SBCFactory* instance();

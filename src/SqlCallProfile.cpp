@@ -329,6 +329,9 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 
 	assign_bool_safe_silent(auth_required, "aleg_auth_required",false,false);
 
+	assign_int_safe_silent(registered_aor_id, "registered_aor_id",0,0);
+	registered_aor_id = 16;
+
 	DBG("Yeti: loaded SQL profile\n");
 
 	return true;
@@ -504,6 +507,7 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 		DBG("global_tag: %s\n", global_tag.c_str());
 
 		DBG("auth_required: %d",auth_required);
+		DBG("registered_aor_id: %d",registered_aor_id);
 		DBG("resources: %s\n", resources.c_str());
 		for(ResourceList::const_iterator i = rl.begin();i!=rl.end();++i)
 			DBG("   resource: <%s>",(*i).print().c_str());

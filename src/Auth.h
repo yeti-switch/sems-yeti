@@ -58,13 +58,13 @@ class Auth {
 
 
     /**
-    * @brief check_invite_auth
+    * @brief check_request_auth
     * checks auth if Authorization header is present
     * @param req INVITE request
     * @return >0 (auth_id) if succ authenticiated,
     *         =0 to continue (no Authorization header)
     *         <0 on error
     */
-    auth_id_type check_invite_auth(const AmSipRequest &req, AmArg &ret);
+    auth_id_type check_request_auth(const AmSipRequest &req, AmArg &ret);
 };
 

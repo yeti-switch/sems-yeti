@@ -295,6 +295,7 @@ int SqlRouter::configure(AmConfigReader &cfg){
 	cache_buckets = cfg.getParameterInt("profiles_cache_buckets",65000);
 	cache = new ProfilesCache(used_header_fields,cache_buckets,cache_check_interval);
   }
+
   return 0;
 }
 

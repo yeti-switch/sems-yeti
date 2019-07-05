@@ -107,7 +107,7 @@ int Auth::reload_credentials(pqxx::nontransaction &t, size_t &credentials_count)
     return 0;
 }
 
-Auth::auth_id_type Auth::check_invite_auth(const AmSipRequest &req,  AmArg &ret)
+Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req,  AmArg &ret)
 {
     string auth_hdr =  getHeader(req.hdrs, SIP_HDR_AUTHORIZATION);
     if(auth_hdr.empty()) {
