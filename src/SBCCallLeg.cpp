@@ -84,11 +84,11 @@ static const char *callStatus2str(const CallLeg::CallStatus state)
     }
 
 #define with_cdr_for_read \
-    Cdr *cdr = call_ctx->getCdrSafe<false>();\
+    Cdr *cdr = call_ctx->getCdrSafeRead();\
     if(cdr)
 
 #define with_cdr_for_write \
-    Cdr *cdr = call_ctx->getCdrSafe<true>();\
+    Cdr *cdr = call_ctx->getCdrSafeWrite();\
     if(cdr)
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -126,22 +126,23 @@ SBCCallLeg::SBCCallLeg(
     AmSipSubscription* p_subs)
   : CallLeg(p_dlg,p_subs),
     m_state(BB_Init),
-    auth(NULL),
-    logger(NULL),
-    sensor(NULL),
     yeti(Yeti::instance()),
     call_ctx(call_ctx),
+    auth(nullptr),
+    call_profile(*call_ctx->getCurrentProfile()),
+    placeholders_hash(call_profile.placeholders_hash),
+    logger(nullptr),
+    sensor(nullptr),
     router(yeti.router),
     cdr_list(yeti.cdr_list),
-    rctl(yeti.rctl),
-    call_profile(*call_ctx->getCurrentProfile()),
-    placeholders_hash(call_profile.placeholders_hash)
+    rctl(yeti.rctl)
 {
-    DBG("SBCCallLeg[%p](ctx %p,%p,%p)",this,call_ctx,p_dlg,p_subs);
+    DBG("SBCCallLeg[%p](ctx %p,%p,%p)",
+        to_void(this),to_void(call_ctx),to_void(p_dlg),to_void(p_subs));
 
     set_sip_relay_only(false);
     if(call_profile.aleg_rel100_mode_id!=-1) {
-        dlg->setRel100State((Am100rel::State)call_profile.aleg_rel100_mode_id);
+        dlg->setRel100State(static_cast<Am100rel::State>(call_profile.aleg_rel100_mode_id));
     } else {
         dlg->setRel100State(Am100rel::REL100_IGNORED);
     }
@@ -150,8 +151,8 @@ SBCCallLeg::SBCCallLeg(
        && call_profile.rtprelay_bw_limit_peak > 0)
     {
         RateLimit* limit = new RateLimit(
-            call_profile.rtprelay_bw_limit_rate,
-            call_profile.rtprelay_bw_limit_peak,
+            static_cast<unsigned int>(call_profile.rtprelay_bw_limit_rate),
+            static_cast<unsigned int>(call_profile.rtprelay_bw_limit_peak),
             1000);
         rtp_relay_rate_limit.reset(limit);
     }
@@ -168,23 +169,24 @@ SBCCallLeg::SBCCallLeg(
     SBCCallLeg* caller,
     AmSipDialog* p_dlg,
     AmSipSubscription* p_subs)
-  : auth(NULL),
+  : CallLeg(caller,p_dlg,p_subs),
+    yeti(Yeti::instance()),
+    global_tag(caller->getGlobalTag()),
+    call_ctx(caller->getCallCtx()),
+    auth(nullptr),
     call_profile(caller->getCallProfile()),
     placeholders_hash(caller->getPlaceholders()),
-    CallLeg(caller,p_dlg,p_subs),
-    global_tag(caller->getGlobalTag()),
-    logger(NULL),
-    sensor(NULL),
-    call_ctx(caller->getCallCtx()),
-    yeti(Yeti::instance()),
+    logger(nullptr),
+    sensor(nullptr),
     router(yeti.router),
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
 {
-    DBG("SBCCallLeg[%p](caller %p,%p,%p)",this,caller,p_dlg,p_subs);
+    DBG("SBCCallLeg[%p](caller %p,%p,%p)",
+        to_void(this),to_void(caller),to_void(p_dlg),to_void(p_subs));
 
     if(call_profile.bleg_rel100_mode_id!=-1) {
-      dlg->setRel100State((Am100rel::State)call_profile.bleg_rel100_mode_id);
+      dlg->setRel100State(static_cast<Am100rel::State>(call_profile.bleg_rel100_mode_id));
     } else {
       dlg->setRel100State(Am100rel::REL100_IGNORED);
     }
@@ -211,15 +213,16 @@ SBCCallLeg::SBCCallLeg(
 SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
   : CallLeg(p_dlg,p_subs),
     m_state(BB_Init),
-    auth(NULL),
-    logger(NULL),
-    sensor(NULL),
     yeti(Yeti::instance()),
+    auth(nullptr),
+    logger(nullptr),
+    sensor(nullptr),
     router(yeti.router),
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
 {
-    DBG("SBCCallLeg[%p](%p,%p)",this,p_dlg,p_subs);
+    DBG("SBCCallLeg[%p](%p,%p)",
+        to_void(this),to_void(p_dlg),to_void(p_subs));
 }
 
 void SBCCallLeg::init()
@@ -275,12 +278,14 @@ void SBCCallLeg::terminateLegOnReplyException(const AmSipReply& reply,const Inte
 
     if(!getOtherId().empty()) { //ignore not connected B legs
         with_cdr_for_read {
-            cdr->update_internal_reason(DisconnectByTS,e.internal_reason,e.internal_code);
+            cdr->update_internal_reason(DisconnectByTS, e.internal_reason, e.internal_code);
             cdr->update(reply);
         }
     }
 
-    relayError(reply.cseq_method,reply.cseq,true,e.response_code,e.response_reason.c_str());
+    relayError(reply.cseq_method,reply.cseq,true,
+               static_cast<int>(e.response_code),
+               e.response_reason.c_str());
 
     if(getCallStatus()==Connected) {
         DBG("if(getCallStatus()==Connected) {");
@@ -355,9 +360,9 @@ void SBCCallLeg::processAorResolving()
 
 void SBCCallLeg::processResourcesAndSdp()
 {
-    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
 
-    SqlCallProfile *profile = NULL;
+    SqlCallProfile *profile = nullptr;
 
     ResourceCtlResponse rctl_ret;
     ResourceList::iterator ri;
@@ -397,7 +402,7 @@ void SBCCallLeg::processResourcesAndSdp()
                 rctl_ret,resource_config.internal_code_id);
             profile = call_ctx->getNextProfile(true);
 
-            if(NULL==profile){
+            if(nullptr==profile){
                 cdr->update_failed_resource(*ri);
                 DBG("%s() there are no profiles more",FUNC_NAME);
                 throw AmSession::Exception(503,"no more profiles");
@@ -415,7 +420,7 @@ void SBCCallLeg::processResourcesAndSdp()
                 cdr->update_failed_resource(*ri);
 
                 CodesTranslator::instance()->translate_db_code(
-                    resource_config.internal_code_id,
+                    static_cast<unsigned int>(resource_config.internal_code_id),
                     internal_code,internal_reason,
                     response_code,response_reason,
                     call_ctx->getOverrideId(a_leg));
@@ -425,7 +430,8 @@ void SBCCallLeg::processResourcesAndSdp()
 
                 cdr->update_internal_reason(DisconnectByTS, internal_reason, internal_code);
 
-                throw AmSession::Exception(response_code,response_reason);
+                throw AmSession::Exception(
+                    static_cast<int>(response_code),response_reason);
             }
 
             ParamReplacerCtx rctx(profile);
@@ -443,7 +449,7 @@ void SBCCallLeg::processResourcesAndSdp()
         string internal_reason, response_reason;
 
         CodesTranslator::instance()->translate_db_code(
-            resource_config.internal_code_id,
+            static_cast<unsigned int>(resource_config.internal_code_id),
             internal_code,internal_reason,
             response_code,response_reason,
             call_ctx->getOverrideId(a_leg));
@@ -453,7 +459,8 @@ void SBCCallLeg::processResourcesAndSdp()
 
         cdr->update_internal_reason(DisconnectByTS,internal_reason, internal_code);
 
-        throw AmSession::Exception(response_code,response_reason);
+        throw AmSession::Exception(
+            static_cast<int>(response_code),response_reason);
     }
 
     PROF_END(rchk);
@@ -508,12 +515,14 @@ void SBCCallLeg::processResourcesAndSdp()
             e.icode);
         rctl.put(call_profile.resource_handler);
         cdr->update_internal_reason(DisconnectByTS,e.internal_reason,e.internal_code);
-        throw AmSession::Exception(e.response_code,e.response_reason);
+        throw AmSession::Exception(
+            static_cast<int>(e.response_code),e.response_reason);
     } catch(AmSession::Exception &e) {
         DBG("%s() catched AmSession::Exception(%d,%s)",FUNC_NAME,
             e.code,e.reason.c_str());
         rctl.put(call_profile.resource_handler);
-        cdr->update_internal_reason(DisconnectByTS,e.reason,e.code);
+        cdr->update_internal_reason(DisconnectByTS,
+            e.reason,static_cast<unsigned int>(e.code));
         throw e;
     }
 
@@ -529,7 +538,7 @@ bool SBCCallLeg::chooseNextProfile(){
     int refuse_code;*/
     ResourceConfig resource_config;
     Cdr *cdr;
-    SqlCallProfile *profile = NULL;
+    SqlCallProfile *profile = nullptr;
     ResourceCtlResponse rctl_ret;
     ResourceList::iterator ri;
     bool has_profile = false;
@@ -537,7 +546,7 @@ bool SBCCallLeg::chooseNextProfile(){
     cdr = call_ctx->cdr;
     profile = call_ctx->getNextProfile(false);
 
-    if(NULL==profile){
+    if(nullptr==profile){
         //pretend that nothing happen. we were never called
         DBG("%s() no more profiles or refuse profile on serial fork. ignore it",FUNC_NAME);
         return false;
@@ -582,7 +591,7 @@ bool SBCCallLeg::chooseNextProfile(){
                 break;
             } else if(	rctl_ret == RES_CTL_NEXT){
                 profile = call_ctx->getNextProfile(false,true);
-                if(NULL==profile){
+                if(nullptr==profile){
                     cdr->update_failed_resource(*ri);
                     DBG("%s() there are no profiles more",FUNC_NAME);
                     break;
@@ -603,7 +612,7 @@ bool SBCCallLeg::chooseNextProfile(){
         string internal_reason, response_reason;
 
         CodesTranslator::instance()->translate_db_code(
-            resource_config.internal_code_id,
+            static_cast<unsigned int>(resource_config.internal_code_id),
             internal_code,internal_reason,
             response_code,response_reason,
             call_ctx->getOverrideId(a_leg));
@@ -754,12 +763,13 @@ void SBCCallLeg::onRadiusReply(const RadiusReplyEvent &ev)
             break;
         case RadiusReplyEvent::Rejected:
             throw InternalException(RADIUS_RESPONSE_REJECT, call_ctx->getOverrideId(a_leg));
-            break;
         case RadiusReplyEvent::Error:
             if(ev.reject_on_error){
                 ERROR("[%s] radius error %d. reject",
                     getLocalTag().c_str(),ev.error_code);
-                throw InternalException(ev.error_code, call_ctx->getOverrideId(a_leg));
+                throw InternalException(
+                    static_cast<unsigned int>(ev.error_code),
+                    call_ctx->getOverrideId(a_leg));
             } else {
                 ERROR("[%s] radius error %d, but radius profile configured to ignore errors.",
                     getLocalTag().c_str(),ev.error_code);
@@ -768,7 +778,7 @@ void SBCCallLeg::onRadiusReply(const RadiusReplyEvent &ev)
             break;
         }
     } catch(AmSession::Exception &e) {
-        onEarlyEventException(e.code,e.reason);
+        onEarlyEventException(static_cast<unsigned int>(e.code),e.reason);
     } catch(InternalException &e){
         onEarlyEventException(e.response_code,e.response_reason);
     }
@@ -912,9 +922,9 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
     processResourcesAndSdp();
 }
 
-void SBCCallLeg::onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event)
+void SBCCallLeg::onRtpTimeoutOverride(const AmRtpTimeoutEvent &)
 {
-    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
     unsigned int internal_code,response_code;
     string internal_reason,response_reason;
 
@@ -941,7 +951,7 @@ void SBCCallLeg::onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event)
 
 bool SBCCallLeg::onTimerEvent(int timer_id)
 {
-    DBG("%s(%p,%d,leg%s)",FUNC_NAME,this,timer_id,a_leg?"A":"B");
+    DBG("%s(%p,%d,leg%s)",FUNC_NAME,to_void(this),timer_id,a_leg?"A":"B");
     with_cdr_for_read {
         switch(timer_id){
         case YETI_CALL_DURATION_TIMER:
@@ -988,7 +998,7 @@ void SBCCallLeg::onFakeRingingTimer()
 
 void SBCCallLeg::onControlEvent(SBCControlEvent *event)
 {
-    DBG("%s(%p,leg%s) cmd = %s, event_id = %d",FUNC_NAME,this,a_leg?"A":"B",
+    DBG("%s(%p,leg%s) cmd = %s, event_id = %d",FUNC_NAME,to_void(this),a_leg?"A":"B",
         event->cmd.c_str(),event->event_id);
     if(event->cmd=="teardown"){
         onTearDown();
@@ -997,7 +1007,7 @@ void SBCCallLeg::onControlEvent(SBCControlEvent *event)
 
 void SBCCallLeg::onTearDown()
 {
-    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
     getCtx_void
     with_cdr_for_read {
         cdr->update_internal_reason(DisconnectByTS,"Teardown",200);
@@ -1008,7 +1018,7 @@ void SBCCallLeg::onTearDown()
 
 void SBCCallLeg::onSystemEventOverride(AmSystemEvent* event)
 {
-    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
     if (event->sys_event == AmSystemEvent::ServerShutdown) {
         onServerShutdown();
     }
@@ -1016,7 +1026,7 @@ void SBCCallLeg::onSystemEventOverride(AmSystemEvent* event)
 
 void SBCCallLeg::onServerShutdown()
 {
-    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
     getCtx_void
     with_cdr_for_read {
         cdr->update_internal_reason(DisconnectByTS,"ServerShutdown",200);
@@ -1106,7 +1116,7 @@ void SBCCallLeg::applyAProfile()
 int SBCCallLeg::applySSTCfg(AmConfigReader& sst_cfg, const AmSipRequest *p_req)
 {
     DBG("Enabling SIP Session Timers\n");
-    if (NULL == SBCFactory::instance()->session_timer_fact) {
+    if (nullptr == SBCFactory::instance()->session_timer_fact) {
         ERROR("session_timer module not loaded - "
               "unable to create call with SST\n");
         return -1;
@@ -1152,7 +1162,7 @@ void SBCCallLeg::applyBProfile()
         // adding auth handler
         AmSessionEventHandlerFactory* uac_auth_f =
             AmPlugIn::instance()->getFactory4Seh("uac_auth");
-        if (NULL == uac_auth_f)  {
+        if (nullptr == uac_auth_f)  {
             INFO("uac_auth module not loaded. uac auth NOT enabled.\n");
         } else {
             AmSessionEventHandler* h = uac_auth_f->getHandler(this);
@@ -1165,7 +1175,7 @@ void SBCCallLeg::applyBProfile()
     }
 
     if (call_profile.sst_enabled_value) {
-        if(applySSTCfg(call_profile.sst_b_cfg,NULL) < 0) {
+        if(applySSTCfg(call_profile.sst_b_cfg,nullptr) < 0) {
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
     }
@@ -1230,7 +1240,7 @@ void SBCCallLeg::applyBProfile()
     if(!call_profile.bleg_dlg_contact_params.empty())
         dlg->setContactParams(call_profile.bleg_dlg_contact_params);
 
-    dlg->setResolvePriority(call_profile.bleg_protocol_priority_id);
+    dlg->setResolvePriority(static_cast<int>(call_profile.bleg_protocol_priority_id));
 
     setInviteTransactionTimeout(call_profile.inv_transaction_timeout);
     setInviteRetransmitTimeout(call_profile.inv_srv_failover_timeout);
@@ -1238,19 +1248,19 @@ void SBCCallLeg::applyBProfile()
 
 int SBCCallLeg::relayEvent(AmEvent* ev)
 {
-    if(NULL==call_ctx) {
+    if(nullptr==call_ctx) {
         if(ev->event_id==B2BSipRequest && getOtherId().empty()) {
             B2BSipRequestEvent* req_ev = dynamic_cast<B2BSipRequestEvent*>(ev);
             assert(req_ev);
             AmSipRequest &req = req_ev->req;
             if(req.method==SIP_METH_BYE) {
-                DBG("relayEvent(%p) reply 200 OK for leg without call_ctx and other_id",this);
+                DBG("relayEvent(%p) reply 200 OK for leg without call_ctx and other_id",to_void(this));
                 dlg->reply(req,200,"OK");
                 delete ev;
                 return 0;
             }
         }
-        DBG("relayEvent(%p) zero ctx. ignore event",this);
+        DBG("relayEvent(%p) zero ctx. ignore event",to_void(this));
         return -1;
     }
 
@@ -1264,7 +1274,7 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
         AmSipRequest &req = req_ev->req;
 
         DBG("Yeti::relayEvent(%p) filtering request '%s' (c/t '%s') oa_state = %d\n",
-            this,req.method.c_str(), req.body.getCTStr().c_str(),
+            to_void(this),req.method.c_str(), req.body.getCTStr().c_str(),
             dlg_oa_state);
 
         try {
@@ -1340,7 +1350,8 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                     call_ctx->referrer_session.c_str());
                 if(!AmSessionContainer::instance()->postEvent(
                     call_ctx->referrer_session,
-                    new B2BNotifyEvent(reply.code,reply.reason)))
+                    new B2BNotifyEvent(
+                        static_cast<int>(reply.code),reply.reason)))
                 {
                     call_ctx->referrer_session.clear();
                 }
@@ -1351,7 +1362,7 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
         }
 
         DBG("Yeti::relayEvent(%p) filtering body for reply %d cseq.method '%s' (c/t '%s') oa_state = %d\n",
-            this,reply.code,reply_ev->trans_method.c_str(), reply.body.getCTStr().c_str(),
+            to_void(this),reply.code,reply_ev->trans_method.c_str(), reply.body.getCTStr().c_str(),
             dlg_oa_state);
 
         //append headers for 200 OK reply in direction B -> A
@@ -1464,7 +1475,7 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
 
 SBCCallLeg::~SBCCallLeg()
 {
-    DBG("~SBCCallLeg[%p]",this);
+    DBG("~SBCCallLeg[%p]",to_void(this));
 
     if (auth)
         delete auth;
@@ -1475,7 +1486,7 @@ SBCCallLeg::~SBCCallLeg()
 void SBCCallLeg::onBeforeDestroy()
 {
     DBG("%s(%p|%s,leg%s)",FUNC_NAME,
-        this,getLocalTag().c_str(),a_leg?"A":"B");
+        to_void(this),getLocalTag().c_str(),a_leg?"A":"B");
 
     if(call_profile.record_audio) {
         AmAudioFileRecorderProcessor::instance()->removeRecorder(getLocalTag());
@@ -1488,7 +1499,7 @@ void SBCCallLeg::onBeforeDestroy()
     if(call_ctx->dec_and_test()) {
         DBG("last leg destroy");
         SqlCallProfile *p = call_ctx->getCurrentProfile();
-        if(NULL!=p) rctl.put(p->resource_handler);
+        if(nullptr!=p) rctl.put(p->resource_handler);
         Cdr *cdr = call_ctx->cdr;
         if(cdr) {
             cdr_list.remove(cdr);
@@ -1499,7 +1510,7 @@ void SBCCallLeg::onBeforeDestroy()
     } else {
         call_ctx->unlock();
     }
-    call_ctx = NULL;
+    call_ctx = nullptr;
 }
 
 UACAuthCred* SBCCallLeg::getCredentials()
@@ -1528,7 +1539,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
                      (it->filter_list.find(req.method) != it->filter_list.end());
                 if (is_filtered) {
                     DBG("replying 405 to filtered message '%s'\n", req.method.c_str());
-                    dlg->reply(req, 405, "Method Not Allowed", NULL, "", SIP_FLAGS_VERBATIM);
+                    dlg->reply(req, 405, "Method Not Allowed", nullptr, "", SIP_FLAGS_VERBATIM);
                     return;
                 }
             }
@@ -1536,7 +1547,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
     }
 
     do {
-        DBG("onInDialogRequest(%p|%s,leg%s) '%s'",this,getLocalTag().c_str(),a_leg?"A":"B",req.method.c_str());
+        DBG("onInDialogRequest(%p|%s,leg%s) '%s'",to_void(this),getLocalTag().c_str(),a_leg?"A":"B",req.method.c_str());
 
         if(!call_ctx || !call_ctx->initial_invite)
             break;
@@ -1545,7 +1556,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
             && ((a_leg && !call_profile.aleg_relay_options)
                 || (!a_leg && !call_profile.bleg_relay_options)))
         {
-            dlg->reply(req, 200, "OK", NULL, "", SIP_FLAGS_VERBATIM);
+            dlg->reply(req, 200, "OK", nullptr, "", SIP_FLAGS_VERBATIM);
             return;
         } else if(req.method == SIP_METH_UPDATE
                   && ((a_leg && !call_profile.aleg_relay_update)
@@ -1562,7 +1573,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
             }
 
             AmSdp sdp;
-            int res = sdp.parse((const char *)sdp_body->getPayload());
+            int res = sdp.parse(reinterpret_cast<const char *>(sdp_body->getPayload()));
             if(0 != res) {
                 DBG("SDP parsing failed: %d. respond with 488\n",res);
                 dlg->reply(req,488,"Not Acceptable Here");
@@ -1594,7 +1605,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
                   && ((a_leg && !call_profile.aleg_relay_prack)
                       || (!a_leg && !call_profile.bleg_relay_prack)))
         {
-            dlg->reply(req,200, "OK", NULL, "", SIP_FLAGS_VERBATIM);
+            dlg->reply(req,200, "OK", nullptr, "", SIP_FLAGS_VERBATIM);
             return;
         } else if(req.method == SIP_METH_INVITE)
         {
@@ -1618,7 +1629,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
             }
 
             AmSdp sdp;
-            int res = sdp.parse((const char *)sdp_body->getPayload());
+            int res = sdp.parse(reinterpret_cast<const char *>(sdp_body->getPayload()));
             if(0 != res) {
                 DBG("replying 100 Trying to INVITE to be processed locally");
                 dlg->reply(req, 100, SIP_REPLY_TRYING);
@@ -1696,7 +1707,9 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
 
             sip_nameaddr refer_to_nameaddr;
             const char *refer_to_ptr = refer_to.c_str();
-            if(0!=parse_nameaddr(&refer_to_nameaddr, &refer_to_ptr,refer_to.length())) {
+            if(0!=parse_nameaddr(&refer_to_nameaddr,
+                &refer_to_ptr,static_cast<int>(refer_to.length())))
+            {
                 DBG("failed to parse Refer-To header: %s",refer_to.c_str());
                 dlg->reply(req,400,"Invalid Refer-To header");
                 return;
@@ -1760,7 +1773,7 @@ void SBCCallLeg::onInitialReply(B2BSipReplyEvent *e)
 void SBCCallLeg::onSipReply(const AmSipRequest& req, const AmSipReply& reply,
 			   AmBasicSipDialog::Status old_dlg_status)
 {
-    TransMap::iterator t = relayed_req.find(reply.cseq);
+    TransMap::iterator t = relayed_req.find(static_cast<int>(reply.cseq));
     bool fwd = t != relayed_req.end();
 
     DBG("onSipReply: %i %s (fwd=%i)\n",reply.code,reply.reason.c_str(),fwd);
@@ -1769,7 +1782,7 @@ void SBCCallLeg::onSipReply(const AmSipRequest& req, const AmSipReply& reply,
         CALL_EVENT_H(onSipReply, req, reply, old_dlg_status);
     }
 
-    if (NULL != auth) {
+    if (nullptr != auth) {
         // only for SIP authenticated
         unsigned int cseq_before = dlg->cseq;
         if (auth->onSipReply(req, reply, old_dlg_status)) {
@@ -1804,7 +1817,7 @@ void SBCCallLeg::onSipReply(const AmSipRequest& req, const AmSipReply& reply,
 void SBCCallLeg::onSendRequest(AmSipRequest& req, int &flags)
 {
     DBG("Yeti::onSendRequest(%p|%s) a_leg = %d",
-        this,getLocalTag().c_str(),a_leg);
+        to_void(this),getLocalTag().c_str(),a_leg);
 
     if(call_ctx &&
        !a_leg &&
@@ -1862,7 +1875,7 @@ void SBCCallLeg::onSendRequest(AmSipRequest& req, int &flags)
         }
     }
 
-    if (NULL != auth) {
+    if (nullptr != auth) {
         DBG("auth->onSendRequest cseq = %d\n", req.cseq);
         auth->onSendRequest(req, flags);
     }
@@ -1874,12 +1887,12 @@ void SBCCallLeg::onRemoteDisappeared(const AmSipReply& reply)
 {
     const static string reinvite_failed("reINVITE failed");
 
-    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
 
     if(call_ctx) {
         if(a_leg){
             //trace available values
-            if(call_ctx->initial_invite!=NULL) {
+            if(call_ctx->initial_invite!=nullptr) {
                 AmSipRequest &req = *call_ctx->initial_invite;
                 DBG("req.method = '%s'",req.method.c_str());
             } else {
@@ -1904,7 +1917,7 @@ void SBCCallLeg::onRemoteDisappeared(const AmSipReply& reply)
 
 void SBCCallLeg::onBye(const AmSipRequest& req)
 {
-    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
     if(!call_ctx) return;
     with_cdr_for_read {
         if(getCallStatus()!=CallLeg::Connected) {
@@ -1930,7 +1943,7 @@ void SBCCallLeg::onBye(const AmSipRequest& req)
 
 void SBCCallLeg::onOtherBye(const AmSipRequest& req)
 {
-    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
     if(call_ctx && a_leg) {
         if(getCallStatus()!=CallLeg::Connected) {
             //avoid considering of bye in not connected state as succ call
@@ -1955,7 +1968,7 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
     int rx_proto = 0;
     struct timeval now;
 
-    gettimeofday(&now, NULL);
+    gettimeofday(&now, nullptr);
 
     switch(e->event_id) {
     case Dtmf::SOURCE_SIP:
@@ -1976,7 +1989,7 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
         call_profile.aleg_dtmf_recv_modes&rx_proto :
         call_profile.bleg_dtmf_recv_modes&rx_proto))
     {
-        DBG("DTMF event for leg %p rejected",this);
+        DBG("DTMF event for leg %p rejected",to_void(this));
         e->processed = true;
         //write with zero tx_proto
         with_cdr_for_read cdr->add_dtmf_event(a_leg,e->event(),now,rx_proto,DTMF_TX_MODE_DISABLED);
@@ -1995,19 +2008,22 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
         DBG("dtmf sending is disabled");
         break;
     case DTMF_TX_MODE_RFC2833: {
-        DBG("send mode RFC2833 choosen for dtmf event for leg %p",this);
+        DBG("send mode RFC2833 choosen for dtmf event for leg %p",to_void(this));
         AmB2BMedia *ms = getMediaSession();
         if(ms) {
             DBG("sending DTMF (%i;%i)\n", e->event(), e->duration());
-            ms->sendDtmf(!a_leg,e->event(),e->duration());
+            ms->sendDtmf(!a_leg,
+                e->event(),static_cast<unsigned int>(e->duration()));
         }
     } break;
     case DTMF_TX_MODE_INFO_DTMF_RELAY:
-        DBG("send mode INFO/application/dtmf-relay choosen for dtmf event for leg %p",this);
+        DBG("send mode INFO/application/dtmf-relay choosen for dtmf event for leg %p",
+            to_void(this));
         relayEvent(new yeti_dtmf::DtmfInfoSendEventDtmfRelay(e));
         break;
     case DTMF_TX_MODE_INFO_DTMF:
-        DBG("send mode INFO/application/dtmf choosen for dtmf event for leg %p",this);
+        DBG("send mode INFO/application/dtmf choosen for dtmf event for leg %p",
+            to_void(this));
         relayEvent(new yeti_dtmf::DtmfInfoSendEventDtmf(e));
         break;
     default:
@@ -2049,7 +2065,7 @@ void SBCCallLeg::onControlCmd(string& cmd, AmArg& params)
 
 void SBCCallLeg::process(AmEvent* ev)
 {
-    DBG("%s(%p|%s,leg%s)",FUNC_NAME,this,
+    DBG("%s(%p|%s,leg%s)",FUNC_NAME,to_void(this),
         getLocalTag().c_str(),a_leg?"A":"B");
 
     do {
@@ -2130,7 +2146,7 @@ void SBCCallLeg::process(AmEvent* ev)
             }
             if(b2b_e->event_id==B2BTerminateLeg){
                 DBG("onEvent(%p|%s) terminate leg event",
-                    this,getLocalTag().c_str());
+                    to_void(this),getLocalTag().c_str());
             }
         }
 
@@ -2167,7 +2183,7 @@ void SBCCallLeg::process(AmEvent* ev)
 
         SBCCallTimerEvent* ct_event;
         if (ev->event_id == SBCCallTimerEvent_ID &&
-            (ct_event = dynamic_cast<SBCCallTimerEvent*>(ev)) != NULL)
+            (ct_event = dynamic_cast<SBCCallTimerEvent*>(ev)) != nullptr)
         {
             switch (m_state) {
             case BB_Connected:
@@ -2187,10 +2203,10 @@ void SBCCallLeg::process(AmEvent* ev)
                     removeTimer(ct_event->timer_id);
                     setTimer(ct_event->timer_id, ct_event->timeout);
                     return;
-                default:
-                    ERROR("unknown timer_action in sbc call timer event\n");
-                    return;
                 }
+                ERROR("unknown timer_action %d in sbc call timer event\n",
+                      ct_event->timer_action);
+                return;
             case BB_Init:
             case BB_Dialing:
                 switch (ct_event->timer_action) {
@@ -2201,11 +2217,10 @@ void SBCCallLeg::process(AmEvent* ev)
                 case SBCCallTimerEvent::Reset:
                     saveCallTimer(ct_event->timer_id, ct_event->timeout);
                     return;
-                default:
-                    ERROR("unknown timer_action in sbc call timer event\n");
-                    return;
                 }
-                break;
+                ERROR("unknown timer_action %d in sbc call timer event\n",
+                      ct_event->timer_action);
+                return;
             default:
                 break;
             }
@@ -2214,7 +2229,7 @@ void SBCCallLeg::process(AmEvent* ev)
 
     SBCControlEvent* ctl_event;
     if (ev->event_id == SBCControlEvent_ID &&
-        (ctl_event = dynamic_cast<SBCControlEvent*>(ev)) != NULL)
+        (ctl_event = dynamic_cast<SBCControlEvent*>(ev)) != nullptr)
     {
         onControlCmd(ctl_event->cmd, ctl_event->params);
         return;
@@ -2222,7 +2237,7 @@ void SBCCallLeg::process(AmEvent* ev)
 
     SBCOtherLegExceptionEvent *exception_event;
     if(ev->event_id == SBCExceptionEvent_ID &&
-       (exception_event = dynamic_cast<SBCOtherLegExceptionEvent*>(ev)) != NULL)
+       (exception_event = dynamic_cast<SBCOtherLegExceptionEvent*>(ev)) != nullptr)
     {
         onOtherException(exception_event->code,exception_event->reason);
     }
@@ -2244,7 +2259,7 @@ void SBCCallLeg::process(AmEvent* ev)
             B2BReferEvent *refer = dynamic_cast<B2BReferEvent *>(b2b_e);
             if(refer) onOtherRefer(*refer);
             return;
-        } break;
+        }
         case B2BNotify: {
             B2BNotifyEvent *notify = dynamic_cast<B2BNotifyEvent *>(b2b_e);
             if(notify) {
@@ -2252,7 +2267,7 @@ void SBCCallLeg::process(AmEvent* ev)
                 //TODO: set timer here for final code
             }
             return;
-        } break;
+        }
         default:
             break;
         }
@@ -2294,8 +2309,8 @@ void SBCCallLeg::onInvite(const AmSipRequest& req)
         }
     }
 
-    req.log(call_profile.log_sip?getLogger():NULL,
-            call_profile.aleg_sensor_level_id&LOG_SIP_MASK?getSensor():NULL);
+    req.log(call_profile.log_sip?getLogger():nullptr,
+            call_profile.aleg_sensor_level_id&LOG_SIP_MASK?getSensor():nullptr);
 
     uac_ruri.uri = uac_req.r_uri;
     if(!uac_ruri.parse_uri()) {
@@ -2462,7 +2477,7 @@ void SBCCallLeg::onRoutingReady()
 
 void SBCCallLeg::onInviteException(int code,string reason,bool no_reply)
 {
-    DBG("%s(%p,leg%s) %d:'%s' no_reply = %d",FUNC_NAME,this,a_leg?"A":"B",
+    DBG("%s(%p,leg%s) %d:'%s' no_reply = %d",FUNC_NAME,to_void(this),a_leg?"A":"B",
         code,reason.c_str(),no_reply);
 
     if(!call_ctx) return;
@@ -2484,10 +2499,11 @@ void SBCCallLeg::onInviteException(int code,string reason,bool no_reply)
 
 bool SBCCallLeg::onException(int code,const string &reason) noexcept
 {
-    DBG("%s(%p,leg%s) %d:'%s'",FUNC_NAME,this,a_leg?"A":"B",
+    DBG("%s(%p,leg%s) %d:'%s'",FUNC_NAME,to_void(this),a_leg?"A":"B",
         code,reason.c_str());
     with_cdr_for_read {
-        cdr->update_internal_reason(DisconnectByTS,reason,code);
+        cdr->update_internal_reason(DisconnectByTS,
+            reason,static_cast<unsigned int>(code));
         if(!a_leg) {
             switch(dlg->getStatus()) {
             case AmBasicSipDialog::Connected:
@@ -2521,7 +2537,7 @@ bool SBCCallLeg::onException(int code,const string &reason) noexcept
 
 void SBCCallLeg::onOtherException(int code,const string &reason) noexcept
 {
-    DBG("%s(%p,leg%s) %d:'%s'",FUNC_NAME,this,a_leg?"A":"B",
+    DBG("%s(%p,leg%s) %d:'%s'",FUNC_NAME,to_void(this),a_leg?"A":"B",
         code,reason.c_str());
     with_cdr_for_read {
         if(!a_leg) {
@@ -2557,7 +2573,7 @@ void SBCCallLeg::onOtherException(int code,const string &reason) noexcept
 void SBCCallLeg::onEarlyEventException(unsigned int code,const string &reason)
 {
     setStopped();
-    onInviteException(code,reason,false);
+    onInviteException(static_cast<int>(code),reason,false);
     if(code < 300){
         ERROR("%i is not final code. replace it with 500",code);
         code = 500;
@@ -2569,7 +2585,7 @@ void SBCCallLeg::connectCallee(
     const string& remote_party,
     const string& remote_uri,
     const string &from,
-    const AmSipRequest &original_invite,
+    const AmSipRequest &,
     const AmSipRequest &invite)
 {
     SBCCallLeg* callee_session = SBCFactory::instance()->getCallLegCreator()->create(this);
@@ -2589,9 +2605,9 @@ void SBCCallLeg::connectCallee(
     // set_sip_relay_only(true);
 }
 
-void SBCCallLeg::onCallConnected(const AmSipReply& reply)
+void SBCCallLeg::onCallConnected(const AmSipReply&)
 {
-    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
 
     if(call_ctx) {
         if(!call_ctx->transfer_intermediate_state) {
@@ -2617,7 +2633,7 @@ void SBCCallLeg::onCallConnected(const AmSipReply& reply)
 
 void SBCCallLeg::onStop()
 {
-    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
 
     if (a_leg && m_state == BB_Connected) { // m_state might be valid for A leg only
         stopCallTimers();
@@ -2672,7 +2688,7 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
     int internal_disconnect_code = 0;
 
     DBG("Yeti::onStateChange(%p|%s) a_leg = %d",
-        this,getLocalTag().c_str(),a_leg);
+        to_void(this),getLocalTag().c_str(),a_leg);
 
     switch(status){
     case CallLeg::Ringing: {
@@ -2716,7 +2732,7 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
 
     switch(cause.reason){
         case CallLeg::StatusChangeCause::SipReply:
-            if(cause.param.reply!=NULL){
+            if(cause.param.reply!=nullptr){
                 reason = "SipReply. code = "+int2str(cause.param.reply->code);
                 switch(cause.param.reply->code){
                 case 408:
@@ -2732,7 +2748,7 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
                 reason = "SipReply. empty reply";
             break;
         case CallLeg::StatusChangeCause::SipRequest:
-            if(cause.param.request!=NULL){
+            if(cause.param.request!=nullptr){
                 reason = "SipRequest. method = "+cause.param.request->method;
             } else
                 reason = "SipRequest. empty request";
@@ -2761,8 +2777,6 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
             break;
         case CallLeg::StatusChangeCause::Other:
             break;
-        default:
-            reason = "???";
     }
 
     if(status==CallLeg::Disconnected) {
@@ -2772,7 +2786,7 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
                 string internal_reason,response_reason;
 
                 CodesTranslator::instance()->translate_db_code(
-                    internal_disconnect_code,
+                    static_cast<unsigned int>(internal_disconnect_code),
                     internal_code,internal_reason,
                     response_code,response_reason,
                     call_ctx->getOverrideId(a_leg));
@@ -2782,14 +2796,14 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
         }
     }
 
-    DBG("%s(%p,leg%s,state = %s, cause = %s)",FUNC_NAME,this,a_leg?"A":"B",
+    DBG("%s(%p,leg%s,state = %s, cause = %s)",FUNC_NAME,to_void(this),a_leg?"A":"B",
         callStatus2str(status),
         reason.c_str());
 }
 
 void SBCCallLeg::onBLegRefused(AmSipReply& reply)
 {
-    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
     if(!call_ctx) return;
     Cdr* cdr = call_ctx->cdr;
     CodesTranslator *ct = CodesTranslator::instance();
@@ -2801,7 +2815,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     removeTimer(YETI_FAKE_RINGING_TIMER);
 
     cdr->update(reply);
-    cdr->update_bleg_reason(reply.reason,reply.code);
+    cdr->update_bleg_reason(reply.reason,static_cast<int>(reply.code));
 
     ct->rewrite_response(reply.code,reply.reason,
         intermediate_code,intermediate_reason,
@@ -2812,7 +2826,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     cdr->update_internal_reason(
         reply.local_reply ? DisconnectByTS : DisconnectByDST,
         intermediate_reason,intermediate_code);
-    cdr->update_aleg_reason(reply.reason,reply.code);
+    cdr->update_aleg_reason(reply.reason,static_cast<int>(reply.code));
 
     if(ct->stop_hunting(reply.code,call_ctx->getOverrideId(false))){
         DBG("stop hunting");
@@ -2822,7 +2836,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     DBG("continue hunting");
     //put current resources
     rctl.put(call_ctx->getCurrentProfile()->resource_handler);
-    if(call_ctx->initial_invite==NULL){
+    if(call_ctx->initial_invite==nullptr){
         ERROR("%s() intial_invite == NULL",FUNC_NAME);
         return;
     }
@@ -2847,21 +2861,22 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
         connectCallee(req);
     } catch(InternalException &e){
         cdr->update_internal_reason(DisconnectByTS,e.internal_reason,e.internal_code);
-        throw AmSession::Exception(e.response_code,e.response_reason);
+        throw AmSession::Exception(
+            static_cast<int>(e.response_code),e.response_reason);
     }
 }
 
-void SBCCallLeg::onCallFailed(CallFailureReason reason, const AmSipReply *reply)
+void SBCCallLeg::onCallFailed(CallFailureReason , const AmSipReply *)
 { }
 
-bool SBCCallLeg::onBeforeRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr)
+bool SBCCallLeg::onBeforeRTPRelay(AmRtpPacket* p, sockaddr_storage*)
 {
     if(rtp_relay_rate_limit.get() && rtp_relay_rate_limit->limit(p->getBufferSize()))
         return false; // drop
     return true; // relay
 }
 
-void SBCCallLeg::onAfterRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr)
+void SBCCallLeg::onAfterRTPRelay(AmRtpPacket* p, sockaddr_storage*)
 {
     for(list<::atomic_int*>::iterator it = rtp_pegs.begin();
         it != rtp_pegs.end(); ++it)
@@ -2871,7 +2886,7 @@ void SBCCallLeg::onAfterRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr)
 }
 
 void SBCCallLeg::onRTPStreamDestroy(AmRtpStream *stream) {
-    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
 
     if(!call_ctx) return;
 
@@ -2894,7 +2909,9 @@ bool SBCCallLeg::reinvite(const AmSdp &sdp, unsigned &request_cseq)
 
     string body_str;
     sdp.print(body_str);
-    sdp_body->parse(SIP_APPLICATION_SDP, (const unsigned char*)body_str.c_str(), body_str.length());
+    sdp_body->parse(SIP_APPLICATION_SDP,
+        reinterpret_cast<const unsigned char*>(body_str.c_str()),
+        static_cast<unsigned int>(body_str.length()));
 
     if (dlg->reinvite("", &body, SIP_FLAGS_VERBATIM) != 0) return false;
     request_cseq = dlg->cseq - 1;
@@ -3005,7 +3022,7 @@ void SBCCallLeg::createHoldRequest(AmSdp &sdp)
     // version number in every SDP passing through?)
 
     AmMimeBody *s = established_body.hasContentType(SIP_APPLICATION_SDP);
-    if (s) sdp.parse((const char*)s->getPayload());
+    if (s) sdp.parse(reinterpret_cast<const char*>(s->getPayload()));
     if (sdp.media.empty()) {
         // established SDP is not valid! generate complete fake
         sdp.version = 0;
@@ -3034,16 +3051,16 @@ void SBCCallLeg::setMediaSession(AmB2BMedia *new_session)
 {
     if (new_session) {
         if (call_profile.log_rtp) new_session->setRtpLogger(logger);
-        else new_session->setRtpLogger(NULL);
+        else new_session->setRtpLogger(nullptr);
 
         if(a_leg) {
             if(call_profile.aleg_sensor_level_id&LOG_RTP_MASK)
             new_session->setRtpASensor(sensor);
-            else new_session->setRtpASensor(NULL);
+            else new_session->setRtpASensor(nullptr);
         } else {
             if(call_profile.bleg_sensor_level_id&LOG_RTP_MASK)
             new_session->setRtpBSensor(sensor);
-            else new_session->setRtpBSensor(NULL);
+            else new_session->setRtpBSensor(nullptr);
         }
     }
     CallLeg::setMediaSession(new_session);
@@ -3072,17 +3089,18 @@ void SBCCallLeg::setLogger(msg_logger *_logger)
     if (logger) inc_ref(logger);
 
     if (call_profile.log_sip) dlg->setMsgLogger(logger);
-    else dlg->setMsgLogger(NULL);
+    else dlg->setMsgLogger(nullptr);
 
     AmB2BMedia *m = getMediaSession();
     if (m) {
         if (call_profile.log_rtp) m->setRtpLogger(logger);
-        else m->setRtpLogger(NULL);
+        else m->setRtpLogger(nullptr);
     }
 }
 
 void SBCCallLeg::setSensor(msg_sensor *_sensor){
-    DBG("SBCCallLeg[%p]: %cleg. change sensor to %p",this,a_leg?'A':'B',_sensor);
+    DBG("SBCCallLeg[%p]: %cleg. change sensor to %p",
+        to_void(this),a_leg?'A':'B',to_void(_sensor));
     if (sensor) dec_ref(sensor);
     sensor = _sensor;
     if (sensor) inc_ref(sensor);
@@ -3092,7 +3110,7 @@ void SBCCallLeg::setSensor(msg_sensor *_sensor){
     {
         dlg->setMsgSensor(sensor);
     } else {
-        dlg->setMsgSensor(NULL);
+        dlg->setMsgSensor(nullptr);
     }
 
     AmB2BMedia *m = getMediaSession();
@@ -3100,11 +3118,11 @@ void SBCCallLeg::setSensor(msg_sensor *_sensor){
         if(a_leg) {
             if(call_profile.aleg_sensor_level_id&LOG_RTP_MASK)
             m->setRtpASensor(sensor);
-            else m->setRtpASensor(NULL);
+            else m->setRtpASensor(nullptr);
         } else {
             if(call_profile.bleg_sensor_level_id&LOG_RTP_MASK)
             m->setRtpBSensor(sensor);
-            else m->setRtpBSensor(NULL);
+            else m->setRtpBSensor(nullptr);
         }
     } else {
         DBG("SBCCallLeg: no media session");
@@ -3129,7 +3147,7 @@ void SBCCallLeg::computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &
 }
 
 int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote){
-    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+    DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
 
     AmSdp offer(local),answer(remote);
 
@@ -3158,7 +3176,7 @@ int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote){
 }
 
 bool SBCCallLeg::getSdpOffer(AmSdp& offer){
-    DBG("%s(%p)",FUNC_NAME,this);
+    DBG("%s(%p)",FUNC_NAME,to_void(this));
 
     if(!call_ctx) {
         DBG("getSdpOffer[%s] missed call context",getLocalTag().c_str());
@@ -3231,7 +3249,7 @@ void SBCCallLeg::b2bConnectedErr(AmSipReply& reply)
 
 void SBCCallLeg::onOtherRefer(const B2BReferEvent &refer)
 {
-    DBG("%s(%p) to: %s",FUNC_NAME,this,refer.referred_to.c_str());
+    DBG("%s(%p) to: %s",FUNC_NAME,to_void(this),refer.referred_to.c_str());
 
     removeOtherLeg(refer.referrer_session);
 
@@ -3258,7 +3276,7 @@ void SBCCallLeg::onOtherRefer(const B2BReferEvent &refer)
 
 void SBCCallLeg::sendReferNotify(int code, string &reason)
 {
-    DBG("%s(%p) %d %s",FUNC_NAME,this,code,reason.c_str());
+    DBG("%s(%p) %d %s",FUNC_NAME,to_void(this),code,reason.c_str());
     if(last_refer_cseq.empty()) return;
     string body = "SIP/2.0 " + int2str(code) + " " + reason + CRLF;
     subs->sendReferNotify(dlg,last_refer_cseq,body,code >= 200);

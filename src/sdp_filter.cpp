@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include "SDPFilter.h"
-#include "CallCtx.h"
 #include "CodecsGroup.h"
 #include "CodesTranslator.h"
 #include "CallLeg.h"

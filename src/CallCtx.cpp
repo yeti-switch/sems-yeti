@@ -97,27 +97,25 @@ ResourceList &CallCtx::getCurrentResourceList(){
 	return (*current_profile)->rl;
 }
 
-template <>
-//safe cdr getter for write (clear reference to Cdr in CallCtx)
-Cdr *CallCtx::getCdrSafe<true>(){
+Cdr *CallCtx::getCdrSafeWrite()
+{
 	Cdr *ret;
 	lock();
 	if(!cdr){
 		unlock();
-		return NULL;
+		return nullptr;
 	}
 	ret = cdr;
-	cdr = NULL;
+	cdr = nullptr;
 	unlock();
 	return ret;
 }
 
-template <>
-//safe cdr getter for read
-Cdr *CallCtx::getCdrSafe<false>(){
+Cdr *CallCtx::getCdrSafeRead()
+{
 	Cdr *ret;
 	lock();
-    ret = cdr;
+	ret = cdr;
 	unlock();
 	return ret;
 }

@@ -1,5 +1,4 @@
-#ifndef __SBCCALL_LEG_H
-#define __SBCCALL_LEG_H
+#pragma once
 
 #include "SBC.h"
 #include "CallCtx.h"
@@ -15,254 +14,258 @@ class PayloadIdMapping
 {
   private:
     std::map<int, int> mapping;
-      
+
   public:
     void map(int stream_index, int payload_index, int payload_id);
     int get(int stream_index, int payload_index);
     void reset();
 };
 
-class SBCCallLeg : public CallLeg, public CredentialHolder
+class SBCCallLeg final
+  : public CallLeg,
+    public CredentialHolder
 {
-  enum {
-    BB_Init = 0,
-    BB_Dialing,
-    BB_Connected,
-    BB_Teardown
-  } CallerState;
+    enum {
+        BB_Init = 0,
+        BB_Dialing,
+        BB_Connected,
+        BB_Teardown
+    } CallerState;
 
-  int m_state;
+    int m_state;
 
-  map<int, double> call_timers;
+    map<int, double> call_timers;
 
-  Yeti &yeti;
+    Yeti &yeti;
 
-  AmSipRequest aleg_modified_req;
-  AmSipRequest modified_req;
-  AmSipRequest uac_req;
-  AmUriParser uac_ruri;
-  string ruri, to, from;
-  ParamReplacerCtx ctx;
-  string last_refer_cseq;
+    AmSipRequest aleg_modified_req;
+    AmSipRequest modified_req;
+    AmSipRequest uac_req;
+    AmUriParser uac_ruri;
+    string ruri, to, from;
+    ParamReplacerCtx ctx;
+    string last_refer_cseq;
 
-  string global_tag;
-  CallCtx *call_ctx;
-  std::queue< unique_ptr<B2BSipReplyEvent> > postponed_replies;
+    string global_tag;
+    CallCtx *call_ctx;
+    std::queue< unique_ptr<B2BSipReplyEvent> > postponed_replies;
 
-  // auth
-  AmSessionEventHandler* auth;
+    // auth
+    AmSessionEventHandler* auth;
 
-  /** Storage for remembered payload IDs from SDP offer to be put correctly into
-   * SDP answer (we avoid with this parsing SDP offer again when processing the
-   * answer). We can not use call_profile.transcoder.audio_codecs for storing
-   * the payload IDs because they need to be remembered per media stream. */
-  PayloadIdMapping transcoder_payload_mapping;
+    /** Storage for remembered payload IDs from SDP offer to be put correctly into
+    * SDP answer (we avoid with this parsing SDP offer again when processing the
+    * answer). We can not use call_profile.transcoder.audio_codecs for storing
+    * the payload IDs because they need to be remembered per media stream. */
+    PayloadIdMapping transcoder_payload_mapping;
 
-  SBCCallProfile call_profile;
-  PlaceholdersHash placeholders_hash;
+    SBCCallProfile call_profile;
+    PlaceholdersHash placeholders_hash;
 
-  // Rate limiting
-  auto_ptr<RateLimit> rtp_relay_rate_limit;
-  
-  // Measurements
-  list<::atomic_int*> rtp_pegs;
+    // Rate limiting
+    auto_ptr<RateLimit> rtp_relay_rate_limit;
 
-  /** common logger for RTP/RTCP and SIP packets */
-  msg_logger *logger;
-  msg_sensor *sensor;
+    // Measurements
+    list<::atomic_int*> rtp_pegs;
 
-  void setLogger(msg_logger *_logger);
+    /** common logger for RTP/RTCP and SIP packets */
+    msg_logger *logger;
+    msg_sensor *sensor;
 
-  /** handler called when call is stopped (see AmSession) */
-  virtual void onStop();
+    void setLogger(msg_logger *_logger);
 
-  /** apply A leg configuration from call profile */
-  //void applyAProfile();
+    /** handler called when call is stopped (see AmSession) */
+    virtual void onStop() override;
 
-  /** apply B leg configuration from call profile */
-  void applyBProfile();
+    /** apply A leg configuration from call profile */
+    //void applyAProfile();
 
-  virtual void onCallStatusChange(const StatusChangeCause &cause);
-  virtual void onBLegRefused(AmSipReply& reply);
+    /** apply B leg configuration from call profile */
+    void applyBProfile();
 
-  /** handler called when the call is refused with a non-ok reply or canceled */
-  virtual void onCallFailed(CallFailureReason reason, const AmSipReply *reply);
+    virtual void onCallStatusChange(const StatusChangeCause &cause) override;
+    virtual void onBLegRefused(AmSipReply& reply) override;
 
-  /** handler called when the second leg is connected */
-  virtual void onCallConnected(const AmSipReply& reply);
+    /** handler called when the call is refused with a non-ok reply or canceled */
+    virtual void onCallFailed(CallFailureReason reason, const AmSipReply *reply) override;
 
-  /** Call-backs used by RTP stream(s)
-   *  Note: these methods will be called from the RTP receiver thread.
-   */
-  virtual bool onBeforeRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr);
-  virtual void onAfterRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr);
-  virtual void onRTPStreamDestroy(AmRtpStream *stream);
+    /** handler called when the second leg is connected */
+    virtual void onCallConnected(const AmSipReply& reply) override;
 
-  void alterHoldRequestImpl(AmSdp &sdp); // do the SDP update (called by alterHoldRequest)
+    /** Call-backs used by RTP stream(s)
+    *  Note: these methods will be called from the RTP receiver thread.
+    */
+    virtual bool onBeforeRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr) override;
+    virtual void onAfterRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr) override;
+    virtual void onRTPStreamDestroy(AmRtpStream *stream) override;
 
-  void init();
+    void alterHoldRequestImpl(AmSdp &sdp); // do the SDP update (called by alterHoldRequest)
 
-  void terminateLegOnReplyException(const AmSipReply& reply,const InternalException &e);
-  
-  void processAorResolving();
-  void processResourcesAndSdp();
+    void init();
 
-  /*! create new B leg (serial fork)*/
-  /*! choose next profile, create cdr and check resources */
-  bool chooseNextProfile();
-  bool connectCallee(const AmSipRequest &orig_req);
+    void terminateLegOnReplyException(const AmSipReply& reply,const InternalException &e);
 
-  void onRadiusReply(const RadiusReplyEvent &ev);
-  void onRedisReply(const RedisReplyEvent &e);
-  void onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event);
-  bool onTimerEvent(int timer_id);
-  void onInterimRadiusTimer();
-  void onFakeRingingTimer();
-  void onControlEvent(SBCControlEvent *event);
-  void onTearDown();
-  void onSystemEventOverride(AmSystemEvent* event);
-  void onServerShutdown();
+    void processAorResolving();
+    void processResourcesAndSdp();
 
-  void onOtherRefer(const B2BReferEvent &refer);
-  void sendReferNotify(int code, string &reason);
+    /*! create new B leg (serial fork)*/
+    /*! choose next profile, create cdr and check resources */
+    bool chooseNextProfile();
+    bool connectCallee(const AmSipRequest &orig_req);
+
+    void onRadiusReply(const RadiusReplyEvent &ev);
+    void onRedisReply(const RedisReplyEvent &e);
+    void onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event);
+    bool onTimerEvent(int timer_id);
+    void onInterimRadiusTimer();
+    void onFakeRingingTimer();
+    void onControlEvent(SBCControlEvent *event);
+    void onTearDown();
+    void onSystemEventOverride(AmSystemEvent* event);
+    void onServerShutdown();
+
+    void onOtherRefer(const B2BReferEvent &refer);
+    void sendReferNotify(int code, string &reason);
 
  public:
 
-  SqlRouter &router;
-  CdrList &cdr_list;
-  ResourceControl &rctl;
+    SqlRouter &router;
+    CdrList &cdr_list;
+    ResourceControl &rctl;
 
-  SBCCallLeg(CallCtx *call_ctx,
-        AmSipDialog* dlg=NULL,
-        AmSipSubscription* p_subs=NULL);
-  SBCCallLeg(SBCCallLeg* caller,
-        AmSipDialog* dlg=NULL,
-        AmSipSubscription* p_subs=NULL);
-  SBCCallLeg(AmSipDialog* dlg=NULL, AmSipSubscription* p_subs=NULL);
-  ~SBCCallLeg();
+    SBCCallLeg(CallCtx *call_ctx,
+        AmSipDialog* dlg = nullptr,
+        AmSipSubscription* p_subs = nullptr);
+    SBCCallLeg(SBCCallLeg* caller,
+        AmSipDialog* dlg = nullptr,
+        AmSipSubscription* p_subs = nullptr);
+    SBCCallLeg(AmSipDialog* dlg = nullptr,
+             AmSipSubscription* p_subs = nullptr);
+    ~SBCCallLeg() override;
 
-  void process(AmEvent* ev);
-  void onInvite(const AmSipRequest& req);
-  void onRoutingReady();
-  void onInviteException(int code,string reason,bool no_reply);
-  bool onException(int code,const string &reason) noexcept;
-  void onOtherException(int code,const string &reason) noexcept;
-  void onEarlyEventException(unsigned int code,const string &reason);
+    void process(AmEvent* ev) override;
+    void onInvite(const AmSipRequest& req) override;
+    void onRoutingReady();
+    void onInviteException(int code,string reason,bool no_reply) override;
+    bool onException(int code,const string &reason) noexcept override;
+    void onOtherException(int code,const string &reason) noexcept;
+    void onEarlyEventException(unsigned int code,const string &reason);
 
-  void onDtmf(AmDtmfEvent* e);
+    void onDtmf(AmDtmfEvent* e) override;
 
-  virtual void onStart();
-  virtual void onBeforeDestroy();
+    virtual void onStart() override;
+    virtual void onBeforeDestroy() override;
 
-  //int filterSdp(AmMimeBody &body, const string &method);
-  void connectCallee(const string& remote_party, const string& remote_uri,
-			 const string &from, const AmSipRequest &original_invite,
-			 const AmSipRequest &invite_req);
-  void applyAProfile();
-  int applySSTCfg(AmConfigReader& sst_cfg, const AmSipRequest* p_req);
+    //int filterSdp(AmMimeBody &body, const string &method);
+    void connectCallee(const string& remote_party, const string& remote_uri,
+             const string &from, const AmSipRequest &original_invite,
+             const AmSipRequest &invite_req);
+    void applyAProfile();
+    int applySSTCfg(AmConfigReader& sst_cfg, const AmSipRequest* p_req);
 
-  UACAuthCred* getCredentials();
+    UACAuthCred* getCredentials() override;
 
-  void setAuthHandler(AmSessionEventHandler* h) { auth = h; }
+    void setAuthHandler(AmSessionEventHandler* h) { auth = h; }
 
-  /** save call timer; only effective before call is connected */
-  void saveCallTimer(int timer, double timeout);
-  /** clear saved call timer, only effective before call is connected */
-  void clearCallTimer(int timer);
-  /** clear all saved call timer, only effective before call is connected */
-  void clearCallTimers();
+    /** save call timer; only effective before call is connected */
+    void saveCallTimer(int timer, double timeout);
+    /** clear saved call timer, only effective before call is connected */
+    void clearCallTimer(int timer);
+    /** clear all saved call timer, only effective before call is connected */
+    void clearCallTimers();
 
-  // SBC interface usable from CC modules
+    // SBC interface usable from CC modules
 
-  void setLocalParty(const string &party, const string &uri) { 
+    void setLocalParty(const string &party, const string &uri) {
     dlg->setLocalParty(party); dlg->setLocalUri(uri);
-  }
+    }
 
-  void setRemoteParty(const string &party, const string &uri) { 
+    void setRemoteParty(const string &party, const string &uri) {
     dlg->setRemoteParty(party); dlg->setRemoteUri(uri);
-  }
+    }
 
-  SBCCallProfile &getCallProfile() { return call_profile; }
-  void updateCallProfile(const SBCCallProfile &new_profile);
-  PlaceholdersHash &getPlaceholders() { return placeholders_hash; }
-  CallStatus getCallStatus() { return CallLeg::getCallStatus(); }
+    SBCCallProfile &getCallProfile() { return call_profile; }
+    void updateCallProfile(const SBCCallProfile &new_profile);
+    PlaceholdersHash &getPlaceholders() { return placeholders_hash; }
+    CallStatus getCallStatus() { return CallLeg::getCallStatus(); }
 
-  AmSipRequest &getAlegModifiedReq() { return aleg_modified_req; }
-  AmSipRequest &getModifiedReq() { return modified_req; }
+    AmSipRequest &getAlegModifiedReq() { return aleg_modified_req; }
+    AmSipRequest &getModifiedReq() { return modified_req; }
 
-  PayloadIdMapping &getTranscoderMapping() { return  transcoder_payload_mapping; }
+    PayloadIdMapping &getTranscoderMapping() { return  transcoder_payload_mapping; }
 
-  const string &getGlobalTag() const { return global_tag; }
+    const string &getGlobalTag() const { return global_tag; }
 
-  CallCtx *getCallCtx() { return call_ctx; }
-  void setCallCtx(CallCtx *p) { call_ctx = p; }
+    CallCtx *getCallCtx() { return call_ctx; }
+    void setCallCtx(CallCtx *p) { call_ctx = p; }
 
-  void setRTPMeasurements(const list<::atomic_int*>& rtp_meas) { rtp_pegs = rtp_meas; }
-  const RateLimit* getRTPRateLimit() { return rtp_relay_rate_limit.get(); }
-  void setRTPRateLimit(RateLimit* rl) { rtp_relay_rate_limit.reset(rl); }
+    void setRTPMeasurements(const list<::atomic_int*>& rtp_meas) { rtp_pegs = rtp_meas; }
+    const RateLimit* getRTPRateLimit() { return rtp_relay_rate_limit.get(); }
+    void setRTPRateLimit(RateLimit* rl) { rtp_relay_rate_limit.reset(rl); }
 
-  // media interface must be accessible from CC modules
-  AmB2BMedia *getMediaSession() { return AmB2BSession::getMediaSession(); }
-  virtual void updateLocalSdp(AmSdp &sdp);
-  void changeRtpMode(RTPRelayMode new_mode) { CallLeg::changeRtpMode(new_mode); }
+    // media interface must be accessible from CC modules
+    AmB2BMedia *getMediaSession() { return AmB2BSession::getMediaSession(); }
+    virtual void updateLocalSdp(AmSdp &sdp) override;
+    void changeRtpMode(RTPRelayMode new_mode) { CallLeg::changeRtpMode(new_mode); }
 
-  bool reinvite(const AmSdp &sdp, unsigned &request_cseq);
+    bool reinvite(const AmSdp &sdp, unsigned &request_cseq);
 
-  int relayEvent(AmEvent* ev);
-  void onSipRequest(const AmSipRequest& req);
-  bool isALeg() { return a_leg; }
+    int relayEvent(AmEvent* ev) override;
+    void onSipRequest(const AmSipRequest& req) override;
+    bool isALeg() { return a_leg; }
 
-  virtual void setMediaSession(AmB2BMedia *new_session);
-  virtual void computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &mask, PayloadRelayMap& map) override;
-  virtual void processLocalRequest(AmSipRequest &req);
+    virtual void setMediaSession(AmB2BMedia *new_session) override;
+    virtual void computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &mask, PayloadRelayMap& map) override;
+    virtual void processLocalRequest(AmSipRequest &req);
 
-  void setSensor(msg_sensor *_sensor);
+    void setSensor(msg_sensor *_sensor);
 
-  msg_logger *getLogger() { return logger; }
-  msg_sensor *getSensor() { return sensor; }
+    msg_logger *getLogger() { return logger; }
+    msg_sensor *getSensor() { return sensor; }
 
-  void b2bInitial1xx(AmSipReply& reply, bool forward);
-  void b2bConnectedErr(AmSipReply& reply);
+    void b2bInitial1xx(AmSipReply& reply, bool forward) override;
+    void b2bConnectedErr(AmSipReply& reply) override;
 
  protected:
 
-  void setOtherId(const AmSipReply& reply);
-  void setOtherId(const string& n_other_id) { CallLeg::setOtherId(n_other_id); }
+    void setOtherId(const AmSipReply& reply);
+    void setOtherId(const string& n_other_id) override
+    {
+        CallLeg::setOtherId(n_other_id);
+    }
 
-  void onSipReply(const AmSipRequest& req, const AmSipReply& reply, AmSipDialog::Status old_dlg_status);
-  void onSendRequest(AmSipRequest& req, int &flags);
+    void onSipReply(const AmSipRequest& req, const AmSipReply& reply, AmSipDialog::Status old_dlg_status) override;
+    void onSendRequest(AmSipRequest& req, int &flags) override;
 
-  virtual void onInitialReply(B2BSipReplyEvent *e);
+    virtual void onInitialReply(B2BSipReplyEvent *e) override;
 
-  void onRemoteDisappeared(const AmSipReply& reply);
-  void onBye(const AmSipRequest& req);
-  void onOtherBye(const AmSipRequest& req);
+    void onRemoteDisappeared(const AmSipReply& reply) override;
+    void onBye(const AmSipRequest& req) override;
+    void onOtherBye(const AmSipRequest& req) override;
 
-  void onControlCmd(string& cmd, AmArg& params);
+    void onControlCmd(string& cmd, AmArg& params);
 
-  /* set call timer (if enabled) */
-  virtual bool startCallTimers();
-  /* clear call timer */
-  virtual void stopCallTimers();
+    /* set call timer (if enabled) */
+    virtual bool startCallTimers();
+    /* clear call timer */
+    virtual void stopCallTimers();
 
-  const map<int, double> getCallTimers() { return call_timers; }
+    const map<int, double> getCallTimers() { return call_timers; }
 
-  void createCalleeSession();
+    void createCalleeSession();
 
-  virtual void createHoldRequest(AmSdp &sdp);
-  virtual void alterHoldRequest(AmSdp &sdp);
-  virtual void holdRequested();
-  virtual void holdAccepted();
-  virtual void holdRejected();
-  virtual void resumeRequested();
-  virtual void resumeAccepted();
-  virtual void resumeRejected();
+    virtual void createHoldRequest(AmSdp &sdp) override;
+    virtual void alterHoldRequest(AmSdp &sdp) override;
+    virtual void holdRequested() override;
+    virtual void holdAccepted() override;
+    virtual void holdRejected() override;
+    virtual void resumeRequested() override;
+    virtual void resumeAccepted() override;
+    virtual void resumeRejected() override;
 
-  virtual int onSdpCompleted(const AmSdp& local, const AmSdp& remote);
-  virtual bool getSdpOffer(AmSdp& offer);
-  //int applySSTCfg(AmConfigReader& sst_cfg, const AmSipRequest* p_req);
+    virtual int onSdpCompleted(const AmSdp& local, const AmSdp& remote) override;
+    virtual bool getSdpOffer(AmSdp& offer) override;
 
-  bool openLogger(const std::string &path);
+    bool openLogger(const std::string &path);
 };
 
-#endif

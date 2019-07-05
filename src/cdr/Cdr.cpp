@@ -413,7 +413,7 @@ void Cdr::update_aleg_reason(string reason, int code)
     aleg_reason_writed = true;
 }
 
-void Cdr::update_internal_reason(DisconnectInitiator initiator,string reason, int code)
+void Cdr::update_internal_reason(DisconnectInitiator initiator,string reason, unsigned int code)
 {
     DBG("Cdr[%p]::%s(initiator = %d,reason = '%s',code = %d) cdr.disconnect_initiator_writed = %d",
         this,FUNC_NAME,initiator,reason.c_str(),code,disconnect_initiator_writed);

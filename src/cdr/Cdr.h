@@ -141,7 +141,7 @@ struct Cdr
     void set_start_time(const timeval &t);
     void update_bleg_reason(string reason, int code);
     void update_aleg_reason(string reason, int code);
-    void update_internal_reason(DisconnectInitiator initiator,string reason, int code);
+    void update_internal_reason(DisconnectInitiator initiator,string reason, unsigned int code);
     void setSuppress(bool s);
     void replace(ParamReplacerCtx &ctx,const AmSipRequest &req);
     void replace(string& s, const string& from, const string& to);

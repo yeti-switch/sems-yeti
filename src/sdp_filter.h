@@ -8,7 +8,6 @@ using std::vector;
 
 #include <AmSdp.h>
 #include "SBCCallLeg.h"
-#include "CallCtx.h"
 
 #define DTMF_ENCODING_NAME "TELEPHONE-EVENT"
 

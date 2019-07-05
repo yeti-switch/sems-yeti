@@ -1,5 +1,4 @@
-#ifndef CALLCTX_H
-#define CALLCTX_H
+#pragma once
 
 #include <list>
 
@@ -60,7 +59,6 @@ struct CallCtx: public
 	ResourceList &getCurrentResourceList();
 	int getOverrideId(bool aleg = true);
 
-	template <bool for_write> Cdr *getCdrSafe();
+	Cdr *getCdrSafeRead();
+	Cdr *getCdrSafeWrite();
 };
-
-#endif // CALLCTX_H

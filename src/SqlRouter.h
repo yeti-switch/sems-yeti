@@ -15,7 +15,6 @@
 #include "UsedHeaderField.h"
 #include "Auth.h"
 #include "CallCtx.h"
-struct CallCtx;
 
 #include "RedisConnection.h"
 
