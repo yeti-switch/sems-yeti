@@ -993,8 +993,11 @@ void SBCCallLeg::applyBProfile()
     dlg->setPatchRURINextHop(call_profile.patch_ruri_next_hop);
 
     // was read from caller but reading directly from profile now
-    if (call_profile.outbound_interface_value >= 0)
+    if (call_profile.outbound_interface_value >= 0) {
         dlg->setOutboundInterface(call_profile.outbound_interface_value);
+        dlg->setOutboundAddrType(AT_V4);
+        dlg->setOutboundProtoId(0);
+    }
 
     // was read from caller but reading directly from profile now
     if (call_profile.rtprelay_enabled || call_profile.transcoder.isActive()) {
@@ -2975,7 +2978,7 @@ bool SBCCallLeg::getSdpOffer(AmSdp& offer){
     } else {
         DBG("provide saved initial offer for legB");
         offer = call_ctx->bleg_initial_offer;
-        int addr_type = dlg->getOutboundAddrType();
+        auto addr_type = dlg->getOutboundAddrType();
         m->replaceConnectionAddress(offer,a_leg,
                                     localMediaIP(addr_type),
                                     advertisedIP(addr_type),
