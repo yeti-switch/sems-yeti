@@ -1,4 +1,6 @@
 #include "CallCtx.h"
+#include "CodesTranslator.h"
+#include "SqlRouter.h"
 #include "AmSession.h"
 #include "sip/defs.h"
 
@@ -49,29 +51,65 @@ SqlCallProfile *CallCtx::getFirstProfile(){
 /*
  *we should not change the cdr or increase the number of attempts in early_state
  */
-SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover){
-	list<SqlCallProfile *>::iterator next_profile;
+SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover)
+{
 	DBG("%s()",FUNC_NAME);
 
-	next_profile = current_profile;
-	++next_profile;
-	if(next_profile == profiles.end()){
-		return NULL;
+	auto next_profile = current_profile;
+	int attempts_counter = cdr->attempt_num;
+
+	if((*next_profile)->skip_code_id != 0) {
+		//skip profiles with skip_code_id writing CDRs
+		do {
+			unsigned int internal_code,response_code;
+			string internal_reason,response_reason;
+			SqlCallProfile &p = *(*next_profile);
+
+			DBG("process profile with skip_code_id: %d",p.skip_code_id);
+
+			bool write_cdr = CodesTranslator::instance()->translate_db_code(
+						p.skip_code_id,
+						internal_code,internal_reason,
+						response_code,response_reason,
+						p.aleg_override_id);
+
+			if(write_cdr) {
+				Cdr *skip_cdr = new Cdr(*cdr,p);
+				attempts_counter = skip_cdr->attempt_num;
+				skip_cdr->update_internal_reason(DisconnectByTS,internal_reason,internal_code);
+				router.write_cdr(skip_cdr, false);
+			}
+
+			++next_profile;
+
+			if(next_profile == profiles.end())
+				return nullptr;
+
+		} while((*next_profile)->skip_code_id != 0);
+	} else {
+		++next_profile;
+		if(next_profile == profiles.end()) {
+			return nullptr;
+		}
 	}
+
 	if(!early_state){
 		if((*next_profile)->disconnect_code_id!=0){
 			//ignore refuse profiles for non early state
 			return NULL;
 		}
-		if(!resource_failover){
+		if(!resource_failover) {
 			attempt_num++;
 			cdr = new Cdr(*cdr,**next_profile);
+			attempts_counter++;
 		} else {
 			cdr->update_sql(**next_profile);
 		}
 	} else {
+		attempts_counter++;
 		cdr->update_sql(**next_profile);
 	}
+	cdr->attempt_num = attempts_counter;
 	current_profile = next_profile;
 	return *current_profile;
 }
@@ -130,7 +168,7 @@ vector<SdpMedia> &CallCtx::get_other_negotiated_media(bool a_leg){
 	else return aleg_negotiated_media;
 }
 
-CallCtx::CallCtx():
+CallCtx::CallCtx(SqlRouter &router):
 	initial_invite(NULL),
 	cdr(NULL),
 	SQLexception(false),
@@ -139,7 +177,8 @@ CallCtx::CallCtx():
 	bleg_early_media_muted(false),
 	on_hold(false),
 	transfer_intermediate_state(false),
-	early_trying_logger(new fake_logger())
+	early_trying_logger(new fake_logger()),
+	router(router)
 {
 	inc_ref(early_trying_logger);
 	//DBG("%s() this = %p",FUNC_NAME,this);

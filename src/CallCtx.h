@@ -9,6 +9,8 @@
 #include "SqlCallProfile.h"
 #include "resources/Resource.h"
 
+class SqlRouter;
+
 class fake_logger: public msg_logger {
     sip_msg msg;
     int code;
@@ -43,7 +45,9 @@ struct CallCtx: public
 
 	AmSdp bleg_initial_offer;
 
-	CallCtx();
+	SqlRouter &router;
+
+	CallCtx(SqlRouter &router);
 	~CallCtx();
 
 	SqlCallProfile *getFirstProfile();

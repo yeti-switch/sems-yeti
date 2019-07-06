@@ -183,7 +183,7 @@ AmSession* SBCFactory::onInvite(
 
     gettimeofday(&t,nullptr);
 
-    call_ctx = new CallCtx();
+    call_ctx = new CallCtx(router);
     if(yeti->config.early_100_trying)
         answer_100_trying(req,call_ctx);
 

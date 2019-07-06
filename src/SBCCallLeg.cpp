@@ -871,7 +871,7 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
 
         auto a = r.aors.find(p.registered_aor_id);
         if(a == r.aors.end()) {
-            p.disconnect_code_id = FC_NOT_REGISTERED;
+            p.skip_code_id = SC_NOT_REGISTERED;
             ++it;
             continue;
         }
@@ -903,9 +903,32 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
         ++it;
     }
 
-    DBG("profiles after processing: %lu", profiles.size());
+    DBG("profiles count after processing: %lu", profiles.size());
 
-    //throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    auto profile = call_ctx->getCurrentProfile();
+    if(profile->skip_code_id != 0) {
+        call_ctx->cdr->attempt_num = 0;
+        profile = call_ctx->getNextProfile(true);
+    }
+
+    if(nullptr == profile) {
+        ERROR("%s database returned profiles set without rejecting profile at the end",
+              getLocalTag().c_str());
+        with_cdr_for_read {
+            cdr->update_internal_reason(DisconnectByTS,"no more profiles",500);
+        }
+        throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+
+    DBG("check for resfusing profile after the not registered skipping");
+    with_cdr_for_read {
+        ParamReplacerCtx rctx(profile);
+        if(router.check_and_refuse(profile,cdr,aleg_modified_req,rctx))
+        {
+            throw AmSession::Exception(cdr->disconnect_rewrited_code,
+                                       cdr->disconnect_rewrited_reason);
+        }
+    }
 
     processResourcesAndSdp();
 }

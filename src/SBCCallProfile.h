@@ -297,6 +297,7 @@ struct SBCCallProfile
   bool auth_required;
 
   int registered_aor_id;
+  int skip_code_id;
 
   struct TranscoderSettings {
     // non-replaced parameters
@@ -425,6 +426,7 @@ struct SBCCallProfile
 	bleg_max_transfers(0),
 	auth_required(false),
 	registered_aor_id(0),
+	skip_code_id(0),
 	force_transcoding(false)
   { }
 
