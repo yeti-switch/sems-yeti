@@ -224,9 +224,6 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	log_rtp = dump_level_id&LOG_RTP_MASK;
 	log_sip = dump_level_id&LOG_SIP_MASK;
 
-	assign_bool(reg_caching,"enable_reg_caching",false);
-	assign_int(min_reg_expires,"min_reg_expires",0);
-	assign_int(max_ua_expires,"max_ua_expires",0);
 	assign_int(time_limit,"time_limit",0);
 	assign_str(resources,"resources");
 
@@ -494,7 +491,6 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 			DBG("reply translation for  %s\n", reply_trans_codes.c_str());
 		}
 
-		codec_prefs.infoPrint();
 		transcoder.infoPrint();
 
 		DBG("time_limit: %i\n", time_limit);
@@ -514,10 +510,6 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 
 		DBG("aleg_override_id: %i\n", aleg_override_id);
 		DBG("bleg_override_id: %i\n", bleg_override_id);
-
-		DBG("reg-caching: '%s'\n", reg_caching ? "yes" : "no");
-		DBG("min_reg_expires: %i\n", min_reg_expires);
-		DBG("max_ua_expires: %i\n", max_ua_expires);
 
 		DBG("static_codecs_aleg_id: %i\n", static_codecs_aleg_id);
 		DBG("static_codecs_bleg_id: %i\n", static_codecs_bleg_id);

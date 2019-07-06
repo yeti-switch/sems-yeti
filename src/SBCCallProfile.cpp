@@ -35,7 +35,6 @@
 #include "SBCCallControlAPI.h"
 #include "RTPParameters.h"
 #include "SDPFilter.h"
-#include "RegisterCache.h"
 
 #include "sip/pcap_logger.h"
 
@@ -208,7 +207,6 @@ bool SBCCallProfile::operator==(const SBCCallProfile& rhs) const {
       auth_aleg_credentials.user == rhs.auth_aleg_credentials.user &&
       auth_aleg_credentials.pwd == rhs.auth_aleg_credentials.pwd;
   }
-  res = res && (codec_prefs == rhs.codec_prefs);
   res = res && (transcoder == rhs.transcoder);
   return res;
 }
@@ -258,7 +256,6 @@ string SBCCallProfile::print() const {
   res += "force_symmetric_rtp:  " + force_symmetric_rtp;
   res += "msgflags_symmetric_rtp: " + string(msgflags_symmetric_rtp?"true":"false") + "\n";
   
-  res += codec_prefs.print();
   res += transcoder.print();
 
   if (reply_translations.size()) {
@@ -408,7 +405,6 @@ bool SBCCallProfile::evaluate(ParamReplacerCtx& ctx,
 
   REPLACE_IFACE_SIP(outbound_interface, outbound_interface_value);
 
-  if (!codec_prefs.evaluate(ctx,req)) return false;
   if (!hold_settings.evaluate(ctx,req)) return false;
 
   // TODO: activate filter if transcoder or codec_prefs is set?
@@ -695,44 +691,6 @@ void SBCCallProfile::fix_reg_contact(ParamReplacerCtx& ctx,
   }
 }
 
-string SBCCallProfile::retarget(const string& alias, AmBasicSipDialog& dlg) const
-{
-    // REG-Cache lookup
-    AliasEntry alias_entry;
-    if(!RegisterCache::instance()->findAliasEntry(alias, alias_entry)) {
-      throw AmSession::Exception(404,"User not found");
-    }
-    string new_r_uri = alias_entry.contact_uri;
-    DBG("setting from registration cache: r_uri='%s'\n",new_r_uri.c_str());
-
-    // fix NAT
-    string nh = alias_entry.source_ip;
-    if(alias_entry.source_port != 5060)
-      nh += ":" + int2str(alias_entry.source_port);
-
-    DBG("setting from registration cache: next_hop='%s'\n", nh.c_str());
-    dlg.setNextHop(nh);
-
-    // sticky interface
-    DBG("setting from registration cache: outbound_interface='%s'\n",
-        AmConfig.sip_ifs[alias_entry.local_if].name.c_str());
-    dlg.setOutboundInterface(alias_entry.local_if);
-
-    return new_r_uri;
-}
-
-/*static bool readPayloadList(std::vector<PayloadDesc> &dst, const std::string &src)
-{
-  dst.clear();
-  vector<string> elems = explode(src, ",");
-  for (vector<string>::iterator it=elems.begin(); it != elems.end(); ++it) {
-    PayloadDesc payload;
-    if (!payload.read(*it)) return false;
-    dst.push_back(payload);
-  }
-  return true;
-}*/
-
 static bool readPayload(SdpPayload &p, const string &src)
 {
   vector<string> elems = explode(src, "/");
@@ -761,14 +719,6 @@ static bool readPayload(SdpPayload &p, const string &src)
   return true;
 }
 
-/*static string payload2str(const SdpPayload &p)
-{
-  string s(p.encoding_name);
-  s += "/";
-  s += int2str(p.clock_rate);
-  return s;
-}*/
-
 static bool read(const std::string &src, vector<SdpPayload> &codecs)
 {
   vector<string> elems = explode(src, ",");
@@ -793,129 +743,6 @@ static bool read(const std::string &src, vector<SdpPayload> &codecs)
       codecs.push_back(p);
     }
   }
-  return true;
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-#if 0
-void SBCCallProfile::CodecPreferences::orderSDP(AmSdp& sdp, bool a_leg)
-{
-  // get order of payloads for the other leg!
-  std::vector<PayloadDesc> &payload_order = a_leg ? bleg_payload_order: aleg_payload_order;
-
-  if (payload_order.size() < 1) return; // nothing to do - no predefined order
-
-  DBG("ordering SDP\n");
-  for (vector<SdpMedia>::iterator m_it =
-	 sdp.media.begin(); m_it != sdp.media.end(); ++m_it) {
-    SdpMedia& media = *m_it;
-
-    unsigned pos = 0;
-    unsigned idx;
-    unsigned cnt = media.payloads.size();
-
-    // TODO: optimize
-    // for each predefined payloads in their order
-    for (vector<PayloadDesc>::iterator i = payload_order.begin(); i != payload_order.end(); ++i) {
-      // try to find this payload in SDP 
-      // (not needed to go through already sorted members)
-      for (idx = pos; idx < cnt; idx++) {
-        if (i->match(media.payloads[idx])) {
-          // found, insert found element at pos and delete the occurence on idx
-          // (can not swap these elements to avoid changing order of codecs
-          // which are not in the payload_order list)
-          if (idx != pos) {
-            media.payloads.insert(media.payloads.begin() + pos, media.payloads[idx]);
-            media.payloads.erase(media.payloads.begin() + idx + 1);
-          }
-	
-	  ++pos; // next payload index
-          // do not terminate the inner loop because one PayloadDesc can match
-          // more payloads!
-	}
-      }
-    }
-  }
-}
-
-bool SBCCallProfile::CodecPreferences::shouldOrderPayloads(bool a_leg)
-{
-  // returns true if order of payloads for the other leg is set! (i.e. if we
-  // have to order payloads)
-  if (a_leg) return !bleg_payload_order.empty();
-  else return !aleg_payload_order.empty();
-}
-#endif
-bool SBCCallProfile::CodecPreferences::readConfig(AmConfigReader &cfg)
-{
-  // store string values for later evaluation
-  /*bleg_payload_order_str = cfg.getParameter("codec_preference");
-  bleg_prefer_existing_payloads_str = cfg.getParameter("prefer_existing_codecs");
-  
-  aleg_payload_order_str = cfg.getParameter("codec_preference_aleg");
-  aleg_prefer_existing_payloads_str = cfg.getParameter("prefer_existing_codecs_aleg");*/
-
-  return true;
-}
-
-void SBCCallProfile::CodecPreferences::infoPrint() const
-{
-  /*DBG("A leg codec preference: %s\n", aleg_payload_order_str.c_str());
-  DBG("A leg prefer existing codecs: %s\n", aleg_prefer_existing_payloads_str.c_str());
-  DBG("B leg codec preference: %s\n", bleg_payload_order_str.c_str());
-  DBG("B leg prefer existing codecs: %s\n", bleg_prefer_existing_payloads_str.c_str());*/
-}
-
-bool SBCCallProfile::CodecPreferences::operator==(const CodecPreferences& rhs) const
-{
-  /*if (!payloadDescsEqual(aleg_payload_order, rhs.aleg_payload_order)) return false;
-  if (!payloadDescsEqual(bleg_payload_order, rhs.bleg_payload_order)) return false;
-  if (aleg_prefer_existing_payloads != rhs.aleg_prefer_existing_payloads) return false;
-  if (bleg_prefer_existing_payloads != rhs.bleg_prefer_existing_payloads) return false;*/
-  return true;
-}
-
-string SBCCallProfile::CodecPreferences::print() const
-{
-  string res;
-
-  /*res += "codec_preference: ";
-  for (vector<PayloadDesc>::const_iterator i = bleg_payload_order.begin(); i != bleg_payload_order.end(); ++i) {
-    if (i != bleg_payload_order.begin()) res += ",";
-    res += i->print();
-  }
-  res += "\n";
-  
-  res += "prefer_existing_codecs: ";
-  if (bleg_prefer_existing_payloads) res += "yes\n"; 
-  else res += "no\n";
-
-  res += "codec_preference_aleg:    ";
-  for (vector<PayloadDesc>::const_iterator i = aleg_payload_order.begin(); i != aleg_payload_order.end(); ++i) {
-    if (i != aleg_payload_order.begin()) res += ",";
-    res += i->print();
-  }
-  res += "\n";
-  
-  res += "prefer_existing_codecs_aleg: ";
-  if (aleg_prefer_existing_payloads) res += "yes\n"; 
-  else res += "no\n";*/
-
-  return res;
-}
-
-bool SBCCallProfile::CodecPreferences::evaluate(ParamReplacerCtx& ctx,
-						const AmSipRequest& req)
-{
-  /*REPLACE_BOOL(aleg_prefer_existing_payloads_str, aleg_prefer_existing_payloads);
-  REPLACE_BOOL(bleg_prefer_existing_payloads_str, bleg_prefer_existing_payloads);
-  
-  REPLACE_NONEMPTY_STR(aleg_payload_order_str);
-  REPLACE_NONEMPTY_STR(bleg_payload_order_str);
-
-  if (!readPayloadList(bleg_payload_order, bleg_payload_order_str)) return false;
-  if (!readPayloadList(aleg_payload_order, aleg_payload_order_str)) return false;*/
-
   return true;
 }
 

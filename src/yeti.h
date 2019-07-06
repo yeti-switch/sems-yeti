@@ -27,7 +27,6 @@ class Yeti
     AmCondition<bool> intial_config_received;
     bool cfg_error;
 
-    bool registrations_enabled;
     bool core_options_handling;
 
     RedisConnection auth_redis;
@@ -48,7 +47,6 @@ class Yeti
     void process(AmEvent *ev);
 
     void processRedisRegisterReply(RedisReplyEvent &e);
-    bool getRegistrationsEnabled() { return registrations_enabled; }
     bool getCoreOptionsHandling() { return core_options_handling; }
 };
 

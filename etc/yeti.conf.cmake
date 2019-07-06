@@ -12,7 +12,4 @@ module "yeti" {
 
     # process OPTIONS requests
     #core_options_handling = yes
-
-    # enable registrations client
-    #registrations_enabled = yes
 }

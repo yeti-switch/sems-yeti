@@ -43,9 +43,6 @@ SBC - feature-wishlist
 #include "AmConfigReader.h"
 #include "AmSessionContainer.h"
 #include "AmSipHeaders.h"
-#include "SBCSimpleRelay.h"
-#include "RegisterDialog.h"
-#include "SubscriptionDialog.h"
 #include "sip/pcap_logger.h"
 #include "sip/sip_parser.h"
 #include "sip/sip_trans.h"
@@ -57,10 +54,6 @@ SBC - feature-wishlist
 #include "SBCCallLeg.h"
 
 #include "AmEventQueueProcessor.h"
-
-#include "SubscriptionDialog.h"
-#include "RegisterDialog.h"
-#include "RegisterCache.h"
 
 #include <algorithm>
 #include <set>
@@ -106,44 +99,15 @@ SBCCallLeg* CallLegCreator::create(SBCCallLeg* caller)
     return new SBCCallLeg(caller);
 }
 
-SimpleRelayCreator::Relay 
-SimpleRelayCreator::createRegisterRelay(SBCCallProfile& call_profile,
-                                        vector<AmDynInvoke*> &cc_modules)
-{
-    return SimpleRelayCreator::Relay(
-        new RegisterDialog(call_profile, cc_modules),
-        new RegisterDialog(call_profile, cc_modules));
-}
-
-SimpleRelayCreator::Relay
-SimpleRelayCreator::createSubscriptionRelay(SBCCallProfile& call_profile,
-                                            vector<AmDynInvoke*> &cc_modules)
-{
-    return SimpleRelayCreator::Relay(
-        new SubscriptionDialog(call_profile, cc_modules),
-        new SubscriptionDialog(call_profile, cc_modules));
-}
-
-SimpleRelayCreator::Relay
-SimpleRelayCreator::createGenericRelay(SBCCallProfile& call_profile,
-                                       vector<AmDynInvoke*> &cc_modules)
-{
-    return SimpleRelayCreator::Relay(
-        new SimpleRelayDialog(call_profile, cc_modules),
-        new SimpleRelayDialog(call_profile, cc_modules));
-}
-
 SBCFactory::SBCFactory(const string& _app_name)
   : AmSessionFactory(_app_name), 
     AmConfigFactory(_app_name),
     AmDynInvokeFactory(_app_name),
     core_options_handling(false),
-    callLegCreator(new CallLegCreator()),
-    simpleRelayCreator(new SimpleRelayCreator())
+    callLegCreator(new CallLegCreator())
 { }
 
 SBCFactory::~SBCFactory() {
-    RegisterCache::dispose();
     yeti.reset();
 }
 
@@ -156,7 +120,6 @@ int SBCFactory::onLoad()
     }
     yeti_invoke = dynamic_cast<AmDynInvoke *>(yeti.get());
 
-    registrations_enabled = yeti->getRegistrationsEnabled();
     registrar_enabled = yeti->config.registrar_enabled;
 
     session_timer_fact = AmPlugIn::instance()->getFactory4Seh("session_timer");
@@ -175,9 +138,6 @@ int SBCFactory::onLoad()
 
     // TODO: add config param for the number of threads
     subnot_processor.addThreads(1);
-
-    if(registrations_enabled)
-        RegisterCache::instance()->start();
 
     return 0;
 }
@@ -341,18 +301,16 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
 
     if(registrar_enabled && req.method == SIP_METH_REGISTER) {
         AmArg ret;
-        DBG("process REGISTER");
         Auth::auth_id_type auth_id = router.check_request_auth(req,ret);
         if(auth_id > 0) {
-            DBG("successfully authorized with id %d",auth_id);
+            DBG("REGISTER successfully authorized with id %d",auth_id);
             router.log_auth(req,true,ret,auth_id);
-            //process register here
             processAuthorizedRegister(req, auth_id);
             return;
         } else if(auth_id < 0) {
-            DBG("auth error. reply with 401");
             switch(-auth_id) {
             case Auth::UAC_AUTH_ERROR:
+                DBG("REGISTER auth error. reply with 401");
                 AmSipDialog::reply_error(
                     req,
                     static_cast<unsigned int>(ret[0].asInt()),
@@ -361,6 +319,7 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
                 router.log_auth(req,false,ret);
                 break;
             default:
+                DBG("REGISTER no auth. reply 401 with challenge");
                 router.send_and_log_auth_challenge(req,ret.asCStr());
                 break;
             }
@@ -371,41 +330,6 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
 
     AmSipDialog::reply_error(req, 405, "Method Not Allowed");
     return;
-#if 0
-    if(req.max_forwards == 0) {
-        AmSipDialog::reply_error(req, 483, SIP_REPLY_TOO_MANY_HOPS);
-        return;
-    }
-  
-    SimpleRelayCreator::Relay relay(NULL,NULL);
-    if(req.method == SIP_METH_REGISTER) {
-        if(registrations_enabled) {
-            relay = simpleRelayCreator->createRegisterRelay(call_profile, cc_modules);
-        } else {
-            AmSipDialog::reply_error(req,405,"Method Not Allowed");
-            return;
-        }
-    }
-    else if((req.method == SIP_METH_SUBSCRIBE) ||
-            (req.method == SIP_METH_REFER))
-    {
-        relay = simpleRelayCreator->createSubscriptionRelay(call_profile, cc_modules);
-    } else {
-        relay = simpleRelayCreator->createGenericRelay(call_profile, cc_modules);
-    }
-
-    if (call_profile.log_sip) {
-        relay.first->setMsgLogger(call_profile.get_logger(req));
-        relay.second->setMsgLogger(call_profile.get_logger(req));
-    }
-
-    if(SBCSimpleRelay::start(relay,req,call_profile)) {
-        AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR,
-                                 "", call_profile.log_sip ? call_profile.get_logger(req): NULL);
-        delete relay.first;
-        delete relay.second;
-    }
-#endif
 }
 
 void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_id_type auth_id)
@@ -530,7 +454,7 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
 
         //!TODO: check min/max expires
 
-        //find Path header
+        //find Path/User-Agent headers
         string path;
         string user_agent;
         size_t start_pos = 0;
@@ -545,8 +469,6 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
             if(0==strncasecmp(req.hdrs.c_str() + start_pos,
                               path_header_name.c_str(), name_end-start_pos))
             {
-                DBG("matched Path header: %.*s",
-                    static_cast<int>(hdr_end-start_pos), req.hdrs.c_str()+start_pos);
                 path = req.hdrs.substr(val_begin, val_end-val_begin);
                 if(!user_agent.empty())
                     break;
@@ -559,9 +481,6 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
             }
             start_pos = hdr_end;
         }
-
-        /*DBG("User-Agent: %s",user_agent.c_str());
-        DBG("Path: %s",path.c_str());*/
 
         if(false==postRedisRequestFmt(
             YETI_QUEUE_NAME,

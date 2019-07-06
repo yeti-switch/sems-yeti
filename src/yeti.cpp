@@ -15,7 +15,6 @@
 #include "AmMediaProcessor.h"
 #include "SDPFilter.h"
 #include "CallLeg.h"
-#include "RegisterDialog.h"
 #include "Registration.h"
 #include "cdr/TrustedHeaders.h"
 #include "CodecsGroup.h"
@@ -45,7 +44,6 @@ static char opt_name_timeout[] = "timeout";
 static char section_name_mgmt[] = "management";
 
 static char opt_name_core_options_handling[] = "core_options_handling";
-static char opt_name_registrations_enabled[] = "registrations_enabled";
 
 static cfg_opt_t mgmt_opts[] = {
     CFG_STR(opt_name_host,YETI_SCTP_DEFAULT_HOST,CFGF_NONE),
@@ -57,7 +55,6 @@ static cfg_opt_t mgmt_opts[] = {
 static cfg_opt_t yeti_opts[] = {
     CFG_SEC(section_name_mgmt,mgmt_opts, CFGF_NONE),
     CFG_BOOL(opt_name_core_options_handling, cfg_true, CFGF_NONE),
-    CFG_BOOL(opt_name_registrations_enabled, cfg_true, CFGF_NONE),
     CFG_END()
 };
 
@@ -220,9 +217,6 @@ int Yeti::configure(const std::string& config)
     am_set_port(&cfg_remote_address, static_cast<short>(cfg_getint(mgmt_cfg, opt_name_port)));
 
     cfg_remote_timeout = static_cast<unsigned long>(cfg_getint(mgmt_cfg, opt_name_timeout));
-
-    registrations_enabled = cfg_getbool(cfg, opt_name_registrations_enabled);
-    core_options_handling = cfg_getbool(cfg, opt_name_core_options_handling);
 
     return 0;
 }

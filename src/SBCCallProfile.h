@@ -327,53 +327,6 @@ struct SBCCallProfile
 	TranscoderSettings(): enabled(true) { }
   } transcoder;
 
-  struct CodecPreferences {
-    // non-replaced parameters
-	/*string aleg_prefer_existing_payloads_str, aleg_payload_order_str;
-	string bleg_prefer_existing_payloads_str, bleg_payload_order_str;*/
-
-    /** when reordering payloads in relayed SDP from B leg to A leg prefer already
-     * present payloads to the added ones by transcoder; i.e. transcoder codecs
-     * are not ordered but added after ordering is done */
-	//bool aleg_prefer_existing_payloads;
-	//std::vector<PayloadDesc> aleg_payload_order;
-    
-    /** when reordering payloads in relayed SDP from A leg to B leg prefer already
-     * present payloads to the added ones by transcoder; i.e. transcoder codecs
-     * are not ordered but added after ordering is done */
-	//bool bleg_prefer_existing_payloads;
-	//std::vector<PayloadDesc> bleg_payload_order;
-
-	bool readConfig(AmConfigReader &cfg);
-    void infoPrint() const;
-    bool operator==(const CodecPreferences& rhs) const;
-    string print() const;
-  
-	//void orderSDP(AmSdp& sdp, bool a_leg); // do the SDP changes
-    bool shouldOrderPayloads(bool a_leg); // returns if call to orderSDP is needed
-
-    // return true if ordering should be done before adding transcoder codecs
-	/*bool preferExistingCodecs(bool a_leg) {
-      return a_leg ? bleg_prefer_existing_payloads : aleg_prefer_existing_payloads;
-	}*/
-
-    bool evaluate(ParamReplacerCtx& ctx, const AmSipRequest& req);
-
-    // default settings
-	//CodecPreferences(): aleg_prefer_existing_payloads(false) ,bleg_prefer_existing_payloads(false) { }
-	CodecPreferences() { }
-  } codec_prefs;
-
-  bool contact_hiding;
-  string contact_hiding_prefix;
-  string contact_hiding_vars;
-
-  bool reg_caching;
-  unsigned int min_reg_expires;
-  unsigned int max_ua_expires;
-
-  // todo: RTP transcoding mode
-
   // hold settings
   class HoldSettings {
     public:
@@ -437,8 +390,6 @@ struct SBCCallProfile
     rtprelay_bw_limit_rate(-1),
     rtprelay_bw_limit_peak(-1),
     outbound_interface_value(-1),
-    contact_hiding(false), 
-    reg_caching(false),
     log_rtp(false),
     log_sip(false),
     patch_ruri_next_hop(false),
@@ -509,14 +460,6 @@ struct SBCCallProfile
 
   void fix_reg_contact(ParamReplacerCtx& ctx, const AmSipRequest& req,
 		       AmUriParser& contact) const;
-
-  /**
-   * Reg-cache lookup:
-   * - searches for alias in the reg-cache.
-   * - sets next-hop & outbound_interface
-   * @return retargeted R-URI
-   */
-  string retarget(const string& alias, AmBasicSipDialog& dlg) const;
 };
 
 #endif // _SBCCallProfile_h

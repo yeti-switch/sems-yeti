@@ -10,9 +10,6 @@
 #include "AmConfigReader.h"
 #include "AmSessionContainer.h"
 #include "AmSipHeaders.h"
-#include "SBCSimpleRelay.h"
-#include "RegisterDialog.h"
-#include "SubscriptionDialog.h"
 #include "Am100rel.h"
 
 #include "sip/pcap_logger.h"
@@ -651,15 +648,6 @@ bool SBCCallLeg::connectCallee(const AmSipRequest &orig_req)
     }
     if(!call_profile.append_headers.empty()){
         replace(call_profile.append_headers,"%global_tag",getGlobalTag());
-    }
-
-    if(call_profile.contact_hiding) {
-        if(RegisterDialog::decodeUsername(orig_req.user,uac_ruri)) {
-            uac_req.r_uri = uac_ruri.uri_str();
-        }
-    } else if(call_profile.reg_caching) {
-        // REG-Cache lookup
-        uac_req.r_uri = call_profile.retarget(orig_req.user,*dlg);
     }
 
     string ruri, to, from;
@@ -2372,15 +2360,6 @@ void SBCCallLeg::onRoutingReady()
     if(!uac_ruri.parse_uri()) {
         DBG("Error parsing R-URI '%s'\n",uac_ruri.uri.c_str());
         throw AmSession::Exception(400,"Failed to parse R-URI");
-    }
-
-    if(call_profile.contact_hiding) {
-        if(RegisterDialog::decodeUsername(aleg_modified_req.user,uac_ruri)) {
-            uac_req.r_uri = uac_ruri.uri_str();
-        }
-    } else if(call_profile.reg_caching) {
-        // REG-Cache lookup
-        uac_req.r_uri = call_profile.retarget(aleg_modified_req.user,*dlg);
     }
 
     ruri = call_profile.ruri.empty() ? uac_req.r_uri : call_profile.ruri;

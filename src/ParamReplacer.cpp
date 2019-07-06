@@ -24,7 +24,6 @@
  */
 
 #include "ParamReplacer.h"
-#include "RegisterCache.h"
 #include "sip/parse_next_hop.h"
 #include "sip/parse_common.h"
 
@@ -438,105 +437,6 @@ string replaceParameters(const string& s,
 		}
 		WARN("unknown replacement $O%c\n", s[p+1]);
 	}; break;
-
-	case 'u': {// Reg-cached destination user
-	  if (s.length() < p+1) {
-	    WARN("unknown replacement $u\n");
-	    break;
-	  }
-
-	  // REG-Cache lookup
-	  AliasEntry alias_entry;
-	  const string& alias = req.user;
-
-	  if(!RegisterCache::instance()->findAliasEntry(alias, alias_entry)) {
-	    WARN("reg-cache: User '%s' not found",alias.c_str());
-	    break;
-	  }
-	  
-	  if(s[p+1] == 'c') {
-	    res += alias_entry.contact_uri;
-	    break;
-	  }
-	  else if(s[p+1] == 's') {
-	    res += alias_entry.source_ip;
-	    if(alias_entry.source_port != 5060)
-	      res += ":" + int2str(alias_entry.source_port);
-	    break;
-	  }
-	  else if(s[p+1] == 'i') {
-        res += AmConfig.sip_ifs[alias_entry.local_if].name;
-	    break;
-	  }
-	  
-	  WARN("unknown replacement $u%c\n", s[p+1]);
-	} break;
-
-	case 'U': { // Reg-cached originating user
-	  if (s.length() < p+1) {
-	    WARN("unknown replacement $U\n");
-	    break;
-	  }
-	  if (s[p+1] == 'a') { // $Ua originating AoR
-	    AliasEntry ae;
-	    RegisterCache* reg_cache = RegisterCache::instance();
-	    if(reg_cache->findAEByContact(req.from_uri,req.remote_ip,
-					   req.remote_port,ae)) {
-	      res += ae.aor;
-	    }
-	    break;
-	  }
-	  else if(s[p+1] == 'A') { // $UA originating alias
-	    AliasEntry ae;
-	    RegisterCache* reg_cache = RegisterCache::instance();
-
-	    string aor;
-	    if (from_parser.uri.empty())
-	      aor = req.from;
-	    else if(!rebuild_from)
-	      aor = from_parser.uri;
-	    else
-	      aor = from_parser.uri_str();
-
-	    aor = RegisterCache::canonicalize_aor(from_parser.uri_str());
-
-	    map<string,string> alias_map;
-	    if(reg_cache->getAorAliasMap(aor, alias_map) && !alias_map.empty()) {
-
-	      bool is_registered = false;  
-	      for(map<string,string>::iterator it = alias_map.begin();
-		  it != alias_map.end(); it++) {
-
-		AliasEntry alias_entry;
-		if(reg_cache->findAliasEntry(it->first,alias_entry)) {
-		  if((alias_entry.source_ip == req.remote_ip) &&
-		     (alias_entry.source_port == req.remote_port)) {
-		    DBG("matching entry for alias '%s' found (src=%s:%i)",
-			it->first.c_str(), 
-			alias_entry.source_ip.c_str(),
-			alias_entry.source_port);
-		    is_registered = true;
-		    res += it->first;
-		    break;
-		  }
-		  // else {
-		  //   DBG("alias '%s': source IP/port mismatch: %s:%i != %s:%i",
-		  // 	it->first.c_str(),
-		  // 	alias_entry.source_ip.c_str(),
-		  // 	alias_entry.source_port,
-		  // 	context.invite_req->remote_ip.c_str(),
-		  // 	context.invite_req->remote_port);
-		  // }
-		}
-	      }
-	      if(is_registered)
-		break;
-	    }
-	    DBG("AoR '%s' is not registered",aor.c_str());
-	    break;
-	  }
-	  WARN("unknown replacement $U%c\n", s[p+1]);
-	} break;
 
 #define case_HDR(pv_char, pv_name, hdr_name)				\
 	  case pv_char: {						\
