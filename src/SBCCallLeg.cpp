@@ -787,7 +787,9 @@ struct aor_lookup_reply {
     bool parse(const RedisReplyEvent &e)
     {
         if(RedisReplyEvent::SuccessReply!=e.result) {
-            ERROR("error reply from redis: %s",AmArg::print(e.data).c_str());
+            ERROR("error reply from redis %d %s",
+                e.result,
+                AmArg::print(e.data).c_str());
             return false;
         }
         if(!isArgArray(e.data) || e.data.size()%2!=0) {
