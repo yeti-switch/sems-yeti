@@ -104,3 +104,5 @@ include_directories(${HIREDIS_INCLUDE_DIR} ${PQXX_INCLUDE_DIRECTORIES} ${SEMS_IN
 set(sems_module_libs ${HIREDIS_LIBRARIES} ${PQXX_LIBRARIES} ${SEMS_LIBRARIES} ${PROTOBUF_LIBRARIES})
 
 include(${SEMS_CMAKE_DIR}/module.rules.txt)
+
+add_subdirectory(etc)
