@@ -305,7 +305,6 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	assign_bool_safe_silent(auth_required, "aleg_auth_required",false,false);
 
 	assign_int_safe_silent(registered_aor_id, "registered_aor_id",0,0);
-	registered_aor_id = 16;
 
 	DBG("Yeti: loaded SQL profile\n");
 
