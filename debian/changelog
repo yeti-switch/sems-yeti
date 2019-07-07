@@ -1,3 +1,9 @@
+sems-yeti (1.9.0-1) stable; urgency=low
+
+  * registrar/location server
+
+ -- dev <dev@yeti-switch.org>  Sun, 07 Jul 2019 23:41:01 +0300
+
 sems-yeti (1.8.1-4) stable; urgency=low
 
   * skip SST processing for Aleg on rerouting. ignore Bleg SST enable setings on applying for Aleg
