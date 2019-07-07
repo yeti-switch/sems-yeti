@@ -31,6 +31,8 @@ const static_field cdr_static_fields[] = {
 	{ "legB_local_port", "integer" },
 	{ "legB_remote_ip", "inet" },
 	{ "legB_remote_port", "integer" },
+	{ "legb_ruri", "varchar" },
+	{ "legb_outbound_proxy", "varchar" },
 	{ "time_data", "varchar" }, //timers values serialized to json
 	{ "early_media_present", "boolean" },
 	{ "disconnect_code", "integer" },

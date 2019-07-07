@@ -943,6 +943,8 @@ void Cdr::invoc(
     invoc(legB_local_port);
     invoc(legB_remote_ip);
     invoc(legB_remote_port);
+    invoc(ruri);
+    invoc(outbound_proxy);
 
     invoc_json(serialize_timers_data());
 
