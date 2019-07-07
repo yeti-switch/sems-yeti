@@ -832,8 +832,8 @@ struct aor_lookup_reply {
 
 void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
 {
-    DBG("onRedisReply");
-    DBG("data: %s",AmArg::print(e.data).data());
+    DBG("%s onRedisReply",getLocalTag().c_str());
+    //DBG("data: %s",AmArg::print(e.data).data());
 
     //preprocess redis reply data
     aor_lookup_reply r;
@@ -889,35 +889,52 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
 
     DBG("profiles count after processing: %lu", profiles.size());
 
-    auto profile = call_ctx->getCurrentProfile();
-    if(profile->skip_code_id != 0) {
-        call_ctx->cdr->attempt_num = 0;
-        profile = call_ctx->getNextProfile(true);
-    }
+    //at this stage rejecting profile can not be the first one
 
-    if(nullptr == profile) {
-        ERROR("%s database returned profiles set without rejecting profile at the end",
-              getLocalTag().c_str());
-        with_cdr_for_read {
-            cdr->update_internal_reason(DisconnectByTS,"no more profiles",500);
-        }
-        throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
-    }
+    auto next_profile = call_ctx->current_profile;
+    int attempt_counter = call_ctx->cdr->attempt_num;
+    if((*next_profile)->skip_code_id != 0) {
+        unsigned int internal_code,response_code;
+        string internal_reason,response_reason;
 
-    with_cdr_for_read {
+        //skip profiles with skip_code_id writing CDRs
+        do {
+            SqlCallProfile &p = *(*next_profile);
+            //skip_cdr = nullptr;
+            DBG("process profile with skip_code_id: %d",p.skip_code_id);
 
-        if(profile->registered_aor_id) {
-            cdr->ruri = profile->ruri;
-            cdr->outbound_proxy = profile->outbound_proxy;
-        }
+            bool write_cdr = CodesTranslator::instance()->translate_db_code(
+                        p.skip_code_id,
+                        internal_code,internal_reason,
+                        response_code,response_reason,
+                        p.aleg_override_id);
 
-        DBG("check for resfusing profile after the not registered skipping");
-        ParamReplacerCtx rctx(profile);
-        if(router.check_and_refuse(profile,cdr,aleg_modified_req,rctx))
-        {
-            throw AmSession::Exception(cdr->disconnect_rewrited_code,
-                                       cdr->disconnect_rewrited_reason);
-        }
+            if(write_cdr) {
+                with_cdr_for_read {
+                    cdr->update_internal_reason(DisconnectByTS,internal_reason,internal_code);
+                    cdr->update_aleg_reason(response_reason,response_code);
+                }
+            }
+
+            ++next_profile;
+
+            if(next_profile == profiles.end() ||
+               (*next_profile)->disconnect_code_id != 0)
+            {
+                DBG("no more profiles or reject profile after the skipped profile. terminate leg");
+                router.write_cdr(call_ctx->cdr, true);
+                AmSipDialog::reply_error(aleg_modified_req, response_code, response_reason);
+                terminateLeg();
+                return;
+            }
+
+            call_ctx->current_profile = next_profile;
+            with_cdr_for_write {
+                call_ctx->cdr = new Cdr(*cdr,**next_profile);
+                router.write_cdr(cdr, false);
+            }
+
+        } while((*next_profile)->skip_code_id != 0);
     }
 
     processResourcesAndSdp();

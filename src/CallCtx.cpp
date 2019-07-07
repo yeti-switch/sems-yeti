@@ -93,20 +93,20 @@ SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover
 		}
 	}
 
+	attempts_counter++;
+
 	if(!early_state){
 		if((*next_profile)->disconnect_code_id!=0){
 			//ignore refuse profiles for non early state
-			return NULL;
+			return nullptr;
 		}
 		if(!resource_failover) {
 			attempt_num++;
 			cdr = new Cdr(*cdr,**next_profile);
-			attempts_counter++;
 		} else {
 			cdr->update_sql(**next_profile);
 		}
 	} else {
-		attempts_counter++;
 		cdr->update_sql(**next_profile);
 	}
 	cdr->attempt_num = attempts_counter;
