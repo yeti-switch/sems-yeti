@@ -119,25 +119,11 @@ struct SBCCallProfile
 
   PlaceholdersHash placeholders_hash;
 
-  struct Contact {
-    string displayname;
-    string user;
-    string host;
-    string port;
-
-    bool   hiding;
-    string hiding_prefix;
-    string hiding_vars;
-  };
-  
-  Contact contact;
-
   string callid;
 
   string dlg_contact_params;
   string bleg_dlg_contact_params;
 
-  bool transparent_dlg_id;
   bool dlg_nat_handling;
   bool keep_vias;
   bool bleg_keep_vias;
@@ -187,9 +173,7 @@ struct SBCCallProfile
 
   vector<FilterEntry> headerfilter_a2b;
   vector<FilterEntry> headerfilter_b2a;
-  vector<FilterEntry> messagefilter;
 
-  bool anonymize_sdp;
   vector<FilterEntry> sdpfilter;
   vector<FilterEntry> sdpalinesfilter;
   vector<FilterEntry> bleg_sdpalinesfilter;
@@ -249,9 +233,6 @@ struct SBCCallProfile
   bool aleg_symmetric_rtp_nonstop;
   bool bleg_symmetric_rtp_nonstop;
 
-  bool msgflags_symmetric_rtp;
-  bool rtprelay_transparent_seqno;
-  bool rtprelay_transparent_ssrc;
   bool rtprelay_dtmf_filtering;
   bool rtprelay_dtmf_detection;
   bool rtprelay_force_dtmf_relay;
@@ -300,22 +281,8 @@ struct SBCCallProfile
   int skip_code_id;
 
   struct TranscoderSettings {
-    // non-replaced parameters
-	string /*callee_codec_capabilities_str, audio_codecs_str,
-	  transcoder_mode_str, */lowfi_codecs_str, dtmf_mode_str/*,
-	  audio_codecs_norelay_str, audio_codecs_norelay_aleg_str*/;
+    enum { DTMFAlways, DTMFNever } dtmf_mode;
 
-	//std::vector<PayloadDesc> callee_codec_capabilities;
-	//std::vector<SdpPayload> audio_codecs;
-	//std::vector<SdpPayload> audio_codecs_norelay;
-	//std::vector<SdpPayload> audio_codecs_norelay_aleg;
-    std::vector<SdpPayload> lowfi_codecs;
-
-	//enum { Always, OnMissingCompatible, Never } transcoder_mode;
-    enum { DTMFAlways, DTMFLowFiCodecs, DTMFNever } dtmf_mode;
-	//bool readTranscoderMode(const std::string &src);
-    bool readDTMFMode(const std::string &src);
-  
     bool enabled;
     bool evaluate(ParamReplacerCtx& ctx, const AmSipRequest& req);
 
@@ -377,15 +344,12 @@ struct SBCCallProfile
     bleg_protocol_priority_id(dns_priority::IPv4_only),
     outbound_proxy_transport_id(0),
     aleg_outbound_proxy_transport_id(0),
-    transparent_dlg_id(false),
     dlg_nat_handling(false),
     keep_vias(false),bleg_keep_vias(false),
     sst_enabled_value(false),
     rtprelay_enabled(false),
     force_symmetric_rtp_value(false),
     aleg_force_symmetric_rtp_value(false),
-    rtprelay_transparent_seqno(true),
-    rtprelay_transparent_ssrc(true),
     rtprelay_interface_value(-1),
     aleg_rtprelay_interface_value(-1),
     rtprelay_bw_limit_rate(-1),
@@ -460,8 +424,6 @@ struct SBCCallProfile
 
   void fix_append_hdrs(ParamReplacerCtx& ctx, const AmSipRequest& req);
 
-  void fix_reg_contact(ParamReplacerCtx& ctx, const AmSipRequest& req,
-		       AmUriParser& contact) const;
 };
 
 #endif // _SBCCallProfile_h

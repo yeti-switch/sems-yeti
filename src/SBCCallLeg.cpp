@@ -186,15 +186,6 @@ SBCCallLeg::SBCCallLeg(
       dlg->setRel100State(Am100rel::REL100_IGNORED);
     }
 
-    // we need to apply it here instead of in applyBProfile because we have caller
-    // here (FIXME: do it on better place and better way than accessing internals
-    // of caller->dlg directly)
-    if (call_profile.transparent_dlg_id && caller) {
-        dlg->setCallid(caller->dlg->getCallid());
-        dlg->setExtLocalTag(caller->dlg->getRemoteTag());
-        dlg->cseq = caller->dlg->r_cseq;
-    }
-
     // copy RTP rate limit from caller leg
     if(caller->rtp_relay_rate_limit.get()) {
         rtp_relay_rate_limit.reset(new RateLimit(*caller->rtp_relay_rate_limit.get()));
@@ -1088,8 +1079,8 @@ void SBCCallLeg::applyAProfile()
             DBG("using RTP interface %i for A leg\n", rtp_interface);
         }
 
-        setRtpRelayTransparentSeqno(call_profile.rtprelay_transparent_seqno);
-        setRtpRelayTransparentSSRC(call_profile.rtprelay_transparent_ssrc);
+        setRtpRelayTransparentSeqno(false);
+        setRtpRelayTransparentSSRC(false);
         setRtpRelayTimestampAligning(call_profile.relay_timestamp_aligning);
         setEnableDtmfRtpFiltering(call_profile.rtprelay_dtmf_filtering);
         setEnableDtmfRtpDetection(call_profile.rtprelay_dtmf_detection);
@@ -1107,10 +1098,6 @@ void SBCCallLeg::applyAProfile()
                 enable_dtmf_transcoding = true; break;
             case SBCCallProfile::TranscoderSettings::DTMFNever:
                 enable_dtmf_transcoding = false; break;
-            case SBCCallProfile::TranscoderSettings::DTMFLowFiCodecs:
-                enable_dtmf_transcoding = false;
-                lowfi_payloads = call_profile.transcoder.lowfi_codecs;
-                break;
             };
         } else {
             setRtpRelayMode(RTP_Relay);
@@ -1227,8 +1214,8 @@ void SBCCallLeg::applyBProfile()
         setRtpEndlessSymmetricRtp(call_profile.bleg_symmetric_rtp_nonstop);
         setRtpSymmetricRtpIgnoreRTCP(call_profile.bleg_symmetric_rtp_ignore_rtcp);
 
-        setRtpRelayTransparentSeqno(call_profile.rtprelay_transparent_seqno);
-        setRtpRelayTransparentSSRC(call_profile.rtprelay_transparent_ssrc);
+        setRtpRelayTransparentSeqno(false);
+        setRtpRelayTransparentSSRC(false);
         setRtpRelayTimestampAligning(call_profile.relay_timestamp_aligning);
         setEnableDtmfRtpFiltering(call_profile.rtprelay_dtmf_filtering);
         setEnableDtmfRtpDetection(call_profile.rtprelay_dtmf_detection);
@@ -1473,11 +1460,6 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
             }
         } while(0);
 
-        //yeti_part
-        if(call_profile.transparent_dlg_id &&
-           (reply_ev->reply.from_tag == dlg->getExtLocalTag()))
-           reply_ev->reply.from_tag = dlg->getLocalTag();
-
     } break;
     } //switch (ev->event_id)
     return CallLeg::relayEvent(ev);
@@ -1538,22 +1520,6 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
     bool fwd = sip_relay_only && (req.method != SIP_METH_CANCEL);
     if (fwd) {
         CALL_EVENT_H(onSipRequest,req);
-    }
-
-    if (fwd && call_profile.messagefilter.size()) {
-        for (vector<FilterEntry>::iterator it=call_profile.messagefilter.begin();
-             it != call_profile.messagefilter.end(); it++)
-        {
-            if (isActiveFilter(it->filter_type)) {
-                bool is_filtered = (it->filter_type == Whitelist) ^
-                     (it->filter_list.find(req.method) != it->filter_list.end());
-                if (is_filtered) {
-                    DBG("replying 405 to filtered message '%s'\n", req.method.c_str());
-                    dlg->reply(req, 405, "Method Not Allowed", nullptr, "", SIP_FLAGS_VERBATIM);
-                    return;
-                }
-            }
-        }
     }
 
     do {
@@ -1765,18 +1731,10 @@ void SBCCallLeg::setOtherId(const AmSipReply& reply)
 {
     DBG("setting other_id to '%s'",reply.from_tag.c_str());
     setOtherId(reply.from_tag);
-    if(call_profile.transparent_dlg_id && !reply.to_tag.empty()) {
-        dlg->setExtLocalTag(reply.to_tag);
-    }
 }
 
 void SBCCallLeg::onInitialReply(B2BSipReplyEvent *e)
 {
-    if (call_profile.transparent_dlg_id && !e->reply.to_tag.empty()
-        && dlg->getStatus() != AmBasicSipDialog::Connected)
-    {
-        dlg->setExtLocalTag(e->reply.to_tag);
-    }
     CallLeg::onInitialReply(e);
 }
 
@@ -2046,7 +2004,7 @@ void SBCCallLeg::updateLocalSdp(AmSdp &sdp)
 {
     // anonymize SDP if configured to do so (we need to have our local media IP,
     // not the media IP of our peer leg there)
-    if (call_profile.anonymize_sdp) normalizeSDP(sdp, call_profile.anonymize_sdp, advertisedIP());
+    normalizeSDP(sdp, true, advertisedIP());
 
     // remember transcodable payload IDs
     //if (call_profile.transcoder.isActive()) savePayloadIDs(sdp);

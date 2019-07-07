@@ -11,10 +11,7 @@
 SqlCallProfile::SqlCallProfile():
 	aleg_override_id(0),
 	bleg_override_id(0)
-{
-	rtprelay_transparent_seqno = true;
-	rtprelay_transparent_ssrc = true;
-}
+{}
 
 SqlCallProfile::~SqlCallProfile(){ }
 
@@ -47,7 +44,6 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 
 	assign_str(callid,"call_id");
 
-	assign_bool(transparent_dlg_id,"transparent_dlg_id",false);
 	assign_bool(dlg_nat_handling,"dlg_nat_handling",false);
 
 	assign_bool(force_outbound_proxy,"force_outbound_proxy",false);
@@ -68,14 +64,8 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	if(!readFilterSet(t,"transit_headers_b2a",headerfilter_b2a))
 		return false;
 
-	if (!readFilter(t, "message_filter", messagefilter, false))
-		return false;
-
 	if (!readFilter(t, "sdp_filter", sdpfilter, true))
 		return false;
-
-	assign_bool(anonymize_sdp,"anonymize_sdp",true);
-	//DBG("db: %s, anonymize_sdp = %d",t["anonymize_sdp"].c_str(),anonymize_sdp);
 
 	// SDP alines filter
 	if (!readFilter(t, "sdp_alines_filter", sdpalinesfilter, false))
@@ -195,28 +185,14 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	assign_bool(rtprelay_enabled,"enable_rtprelay",false);
 	assign_bool_str_safe(force_symmetric_rtp,"bleg_force_symmetric_rtp",false,false);
 	assign_bool_str_safe(aleg_force_symmetric_rtp,"aleg_force_symmetric_rtp",false,false);
-	assign_bool(msgflags_symmetric_rtp,"rtprelay_msgflags_symmetric_rtp",false);
 
 	assign_str(rtprelay_interface,"rtprelay_interface");
 	assign_str(aleg_rtprelay_interface,"aleg_rtprelay_interface");
 
-	assign_bool(rtprelay_transparent_seqno,"rtprelay_transparent_seqno",false);
-	assign_bool(rtprelay_transparent_ssrc,"rtprelay_transparent_ssrc",false);
-
 	assign_str(outbound_interface,"outbound_interface");
 	assign_str(aleg_outbound_interface,"aleg_outbound_interface");
 
-	assign_str(contact.displayname,"contact_displayname");
-	assign_str(contact.user,"contact_user");
-	assign_str(contact.host,"contact_host");
-	assign_str(contact.port,"contact_port");
-
-	assign_bool(contact.hiding,"enable_contact_hiding",false);
-	assign_str(contact.hiding_prefix,"contact_hiding_prefix");
-	assign_str(contact.hiding_vars,"contact_hiding_vars");
-
 	if (!readCodecPrefs(t)) return false;
-	if (!readTranscoder(t)) return false;
 	if(!readDynFields(t,df)) return false;
 
 	assign_int(dump_level_id,"dump_level_id",0);
@@ -297,8 +273,10 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	   (aleg_dtmf_recv_modes & DTMF_RX_MODE_INBAND) ||
 	   (aleg_dtmf_recv_modes & DTMF_RX_MODE_INBAND))
 	{
-		transcoder.dtmf_mode_str = "always";
+		transcoder.dtmf_mode = TranscoderSettings::DTMFAlways;
 		force_transcoding = true;
+	} else {
+		transcoder.dtmf_mode = TranscoderSettings::DTMFNever;
 	}
 
 	assign_bool_safe(suppress_early_media,"suppress_early_media",false,false);
@@ -394,14 +372,11 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 		printFilterList("transit_headers_b2a", headerfilter_b2a);
 
 		string filter_type; size_t filter_elems;
-		filter_type = messagefilter.size() ? FilterType2String(messagefilter.back().filter_type) : "disabled";
-		filter_elems = messagefilter.size() ? messagefilter.back().filter_list.size() : 0;
-		DBG("message filter is %s, %zd items in list\n", filter_type.c_str(), filter_elems);
 
 		filter_type = sdpfilter.size() ? FilterType2String(sdpfilter.back().filter_type) : "disabled";
 		filter_elems = sdpfilter.size() ? sdpfilter.back().filter_list.size() : 0;
-		DBG("SDP filter is %sabled, %s, %zd items in list, %sanonymizing SDP\n",
-		sdpfilter.size()?"en":"dis", filter_type.c_str(), filter_elems, anonymize_sdp?"":"not ");
+		DBG("SDP filter is %sabled, %s, %zd items in list\n",
+		sdpfilter.size()?"en":"dis", filter_type.c_str(), filter_elems);
 
 		filter_type = sdpalinesfilter.size() ? FilterType2String(sdpalinesfilter.back().filter_type) : "disabled";
 		filter_elems = sdpalinesfilter.size() ? sdpalinesfilter.back().filter_list.size() : 0;
@@ -416,9 +391,6 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 			if (!force_symmetric_rtp.empty()) {
 				DBG("RTP force symmetric RTP: %s\n",
 				force_symmetric_rtp.c_str());
-			}
-			if (msgflags_symmetric_rtp) {
-				DBG("P-MsgFlags symmetric RTP detection enabled\n");
 			}
 			if (!aleg_rtprelay_interface.empty()) {
 				DBG("RTP Relay interface A leg '%s'\n", aleg_rtprelay_interface.c_str());
@@ -441,10 +413,6 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 				aleg_symmetric_rtp_nonstop?"en":"dis");
 			DBG("RTP Relay Bleg nonstop symmetric RTP %sabled\n",
 				bleg_symmetric_rtp_nonstop?"en":"dis");
-			DBG("RTP Relay %s seqno\n",
-			rtprelay_transparent_seqno?"transparent":"opaque");
-			DBG("RTP Relay %s SSRC\n",
-			rtprelay_transparent_ssrc?"transparent":"opaque");
 			DBG("RTP Relay timestamp aligning %sabled\n",
 			relay_timestamp_aligning?"en":"dis");
 		}
@@ -691,19 +659,6 @@ bool SqlCallProfile::readCodecPrefs(const pqxx::result::tuple &t){
 	assign_bool_safe(aleg_single_codec,"aleg_single_codec_in_200ok",false,false);
 	assign_bool_safe(bleg_single_codec,"bleg_single_codec_in_200ok",false,false);
 	assign_bool_safe(avoid_transcoding,"try_avoid_transcoding",false,false);
-
-	return true;
-}
-
-bool SqlCallProfile::readTranscoder(const pqxx::result::tuple &t){
-	// store string values for later evaluation
-	//assign_str(transcoder.audio_codecs_str,"transcoder_codecs");
-	//assign_str(transcoder.callee_codec_capabilities_str,"callee_codeccaps");
-	//assign_str(transcoder.transcoder_mode_str,"enable_transcoder");
-	assign_str(transcoder.dtmf_mode_str,"dtmf_transcoding");
-	assign_str(transcoder.lowfi_codecs_str,"lowfi_codecs");
-	//assign_str(transcoder.audio_codecs_norelay_str,"prefer_transcoding_for_codecs");
-	//assign_str(transcoder.audio_codecs_norelay_aleg_str,"prefer_transcoding_for_codecs_aleg");
 
 	return true;
 }

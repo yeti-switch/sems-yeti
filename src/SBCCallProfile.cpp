@@ -180,10 +180,6 @@ bool SBCCallProfile::operator==(const SBCCallProfile& rhs) const {
     aleg_next_hop == rhs.aleg_next_hop &&
     headerfilter_a2b == rhs.headerfilter_a2b &&
     headerfilter_b2a == rhs.headerfilter_b2a &&
-    //headerfilter_list == rhs.headerfilter_list &&
-    messagefilter == rhs.messagefilter &&
-    //messagefilter_list == rhs.messagefilter_list &&
-    //sdpfilter_enabled == rhs.sdpfilter_enabled &&
     sdpfilter == rhs.sdpfilter &&
     mediafilter == rhs.mediafilter &&
     sst_enabled == rhs.sst_enabled &&
@@ -194,8 +190,7 @@ bool SBCCallProfile::operator==(const SBCCallProfile& rhs) const {
     append_headers == rhs.append_headers &&
     refuse_with == rhs.refuse_with &&
     rtprelay_enabled == rhs.rtprelay_enabled &&
-    force_symmetric_rtp == rhs.force_symmetric_rtp &&
-    msgflags_symmetric_rtp == rhs.msgflags_symmetric_rtp;
+    force_symmetric_rtp == rhs.force_symmetric_rtp;
 
   if (auth_enabled) {
     res = res &&
@@ -254,8 +249,7 @@ string SBCCallProfile::print() const {
   res += "auth_aleg_pwd:        " + auth_aleg_credentials.pwd+"\n";
   res += "rtprelay_enabled:     " + string(rtprelay_enabled?"true":"false") + "\n";
   res += "force_symmetric_rtp:  " + force_symmetric_rtp;
-  res += "msgflags_symmetric_rtp: " + string(msgflags_symmetric_rtp?"true":"false") + "\n";
-  
+
   res += transcoder.print();
 
   if (reply_translations.size()) {
@@ -360,22 +354,6 @@ bool SBCCallProfile::evaluate(ParamReplacerCtx& ctx,
     // FIXME: really not evaluate rtprelay_enabled itself?
     REPLACE_BOOL(force_symmetric_rtp, force_symmetric_rtp_value);
     REPLACE_BOOL(aleg_force_symmetric_rtp, aleg_force_symmetric_rtp_value);
-
-    // enable symmetric RTP by P-MsgFlags?
-    // SBC need not to know if it is from P-MsgFlags or from profile parameter
-    if (msgflags_symmetric_rtp) {
-      string str_msg_flags = getHeader(req.hdrs,"P-MsgFlags", true);
-      unsigned int msg_flags = 0;
-      if(reverse_hex2int(str_msg_flags,msg_flags)){
-        ERROR("while parsing 'P-MsgFlags' header\n");
-        msg_flags = 0;
-      }
-      if (msg_flags & FL_FORCE_ACTIVE) {
-        DBG("P-MsgFlags indicates forced symmetric RTP (passive mode)");
-        force_symmetric_rtp_value = true;
-	aleg_force_symmetric_rtp_value = true;
-      }
-    }
 
     REPLACE_IFACE_RTP(rtprelay_interface, rtprelay_interface_value);
     REPLACE_IFACE_RTP(aleg_rtprelay_interface, aleg_rtprelay_interface_value);
@@ -664,33 +642,6 @@ void SBCCallProfile::fix_append_hdrs(ParamReplacerCtx& ctx,
   fix_append_hdr_list(req, ctx, aleg_append_headers_reply, "aleg_append_headers_reply");
 }
 
-
-void SBCCallProfile::fix_reg_contact(ParamReplacerCtx& ctx,
-				     const AmSipRequest& req,
-				     AmUriParser& contact) const
-{
-  string user = contact.uri_user;
-  string host = contact.uri_host;
-  string port = contact.uri_port;
-
-  if (!this->contact.displayname.empty()) {
-    contact.display_name = 
-      ctx.replaceParameters(this->contact.displayname, "Contact DN", req);
-  }
-  if (!this->contact.user.empty()) {
-    contact.uri_user = 
-      ctx.replaceParameters(this->contact.user, "Contact User", req);
-  }
-  if (!this->contact.host.empty()) {
-    contact.uri_host = 
-      ctx.replaceParameters(this->contact.host, "Contact host", req);
-  }
-  if (!this->contact.port.empty()) {
-    contact.uri_port =
-      ctx.replaceParameters(this->contact.port, "Contact port", req);
-  }
-}
-
 static bool readPayload(SdpPayload &p, const string &src)
 {
   vector<string> elems = explode(src, "/");
@@ -763,21 +714,6 @@ static bool read(const std::string &src, vector<SdpPayload> &codecs)
   return false;
 }*/
 
-bool SBCCallProfile::TranscoderSettings::readDTMFMode(const std::string &src)
-{
-  static const string always("always");
-  static const string never("never");
-  static const string lowfi_codec("lowfi_codec");
-
-  if (src == always) { dtmf_mode = DTMFAlways; return true; }
-  if (src == never) { dtmf_mode = DTMFNever; return true; }
-  if (src == lowfi_codec) { dtmf_mode = DTMFLowFiCodecs; return true; }
-  if (src.empty()) { dtmf_mode = DTMFNever; return true; } // like default value
-  ERROR("unknown value of dtmf_transcoding_mode option: %s\n", src.c_str());
-
-  return false;
-}
-
 void SBCCallProfile::TranscoderSettings::infoPrint() const
 {
   //DBG("transcoder audio codecs: %s\n", audio_codecs_str.c_str());
@@ -789,15 +725,6 @@ void SBCCallProfile::TranscoderSettings::infoPrint() const
 
 bool SBCCallProfile::TranscoderSettings::readConfig(AmConfigReader &cfg)
 {
-  // store string values for later evaluation
-  //audio_codecs_str = cfg.getParameter("transcoder_codecs");
-  //callee_codec_capabilities_str = cfg.getParameter("callee_codeccaps");
-  //transcoder_mode_str = cfg.getParameter("enable_transcoder");
-  dtmf_mode_str = cfg.getParameter("dtmf_transcoding");
-  lowfi_codecs_str = cfg.getParameter("lowfi_codecs");
-  //audio_codecs_norelay_str = cfg.getParameter("prefer_transcoding_for_codecs");
-  //audio_codecs_norelay_aleg_str = cfg.getParameter("prefer_transcoding_for_codecs_aleg");
-
   return true;
 }
 
@@ -845,45 +772,7 @@ string SBCCallProfile::TranscoderSettings::print() const
 bool SBCCallProfile::TranscoderSettings::evaluate(ParamReplacerCtx& ctx,
 						  const AmSipRequest& req)
 {
-  //REPLACE_NONEMPTY_STR(transcoder_mode_str);
-  //REPLACE_NONEMPTY_STR(audio_codecs_str);
-  //REPLACE_NONEMPTY_STR(audio_codecs_norelay_str);
-  //REPLACE_NONEMPTY_STR(audio_codecs_norelay_aleg_str);
-  //REPLACE_NONEMPTY_STR(callee_codec_capabilities_str);
-  REPLACE_NONEMPTY_STR(lowfi_codecs_str);  
-
-  //if (!read(audio_codecs_str, audio_codecs)) return false;
-  //if (!read(audio_codecs_norelay_str, audio_codecs_norelay)) return false;
-  //if (!read(audio_codecs_norelay_aleg_str, audio_codecs_norelay_aleg)) return false;
-
-  /*if (!readPayloadList(callee_codec_capabilities, callee_codec_capabilities_str))
-	return false;*/
-  
-  //if (!readTranscoderMode(transcoder_mode_str)) return false;
-
-  if (!readDTMFMode(dtmf_mode_str)) return false;
-
-  if (!read(lowfi_codecs_str, lowfi_codecs)) return false;
-
-  // enable transcoder according to transcoder mode and optionally request's SDP
-#if 0
-  switch (transcoder_mode) {
-    case Always: enabled = true; break;
-    case Never: enabled = false; break;
-    case OnMissingCompatible: 
-      enabled = isTranscoderNeeded(req, callee_codec_capabilities, 
-                                 true /* if SDP can't be analyzed, enable transcoder */); 
-      break;
-  }
-#endif
-
   DBG("transcoder is %s\n", enabled ? "enabled": "disabled");
-
-  /*if (enabled && audio_codecs.empty()) {
-    ERROR("transcoder is enabled but no transcoder codecs selected ... disabling it\n");
-	enabled = false;
-  }*/
-
   return true;
 }
 

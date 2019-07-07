@@ -47,7 +47,6 @@ struct SqlCallProfile
 	bool readFilterSet(const pqxx::result::tuple &t, const char* cfg_key_filter,
 			vector<FilterEntry>& filter_list);
 	bool readCodecPrefs(const pqxx::result::tuple &t);
-	bool readTranscoder(const pqxx::result::tuple &t);
 	bool readDynFields(const pqxx::result::tuple &t,const DynFieldsT &df);
 	bool column_exist(const pqxx::result::tuple &t,string column_name);
 	bool eval_resources();
