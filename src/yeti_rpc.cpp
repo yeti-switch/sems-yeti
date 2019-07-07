@@ -18,10 +18,12 @@
 #include "ampi/HttpClientAPI.h"
 
 #include "SBCCallLeg.h"
-
+#include "RedisConnection.h"
 #include "CodecsGroup.h"
 #include "Sensors.h"
 #include "yeti_version.h"
+
+#include <cstdio>
 
 static const bool RPC_CMD_SUCC = true;
 
@@ -179,6 +181,7 @@ void YetiRpc::init_rpc_tree()
 		leaf(show,show_cdrwriter,"cdrwriter","cdrwriter");
 			method(show_cdrwriter,"retry_queues","show cdrwriter threads retry_queue content",showCdrWriterRetryQueues,"");
 
+		method(show,"aors","show registered AoRs",showAors,"");
 	/* request */
 	leaf(root,request,"request","modify commands");
 
@@ -1099,6 +1102,7 @@ void YetiRpc::showCdrWriterRetryQueues(const AmArg&, AmArg& ret)
 	router.showRetryQueues(ret);
 }
 
+
 DEFINE_CORE_PROXY_METHOD(showMediaStreams);
 DEFINE_CORE_PROXY_METHOD(showSessionsCount);
 DEFINE_CORE_PROXY_METHOD(showRecorderStats);
@@ -1130,3 +1134,88 @@ DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdownImmediate,requestShutdownImm
 DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdownGraceful,requestShutdownGraceful);
 DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdownCancel,requestShutdownCancel);
 
+bool YetiRpc::aor_lookup_reply::parse(const RedisReplyEvent &e)
+{
+	return false;
+}
+
+void YetiRpc::showAors(const AmArg& arg, AmArg& ret)
+{
+	std::unique_ptr<char> cmd;
+	char *s,*start;
+	size_t n;
+	int i,j,id;
+
+	if(yeti_rpc_aor_lookup.hash.empty())
+		throw AmSession::Exception(500,"registrar is not enabled");
+
+	arg.assertArray();
+
+	cmd.reset(static_cast<char *>(malloc(128)));
+	s = start = cmd.get();
+	n = arg.size();
+
+	s += std::sprintf(s, "*%lu\r\n$7\r\nEVALSHA\r\n$40\r\n%s\r\n$%u\r\n%lu\r\n",
+		n+3,
+		yeti_rpc_aor_lookup.hash.data(),
+		len_in_chars(n), n);
+
+	for(i = 0; i < n; i++) {
+		id = arg2int(arg[i]);
+		s += sprintf(s, "$%u\r\n%d\r\n",
+			len_in_chars(id), id);
+	}
+
+	RpcAorLookupCtx ctx;
+
+	if(false==postRedisRequest(
+		YETI_QUEUE_NAME,
+		cmd.release(),static_cast<size_t>(s-cmd.get()),
+		&ctx, YETI_REDIS_RPC_AOR_LOOKUP_TYPE_ID))
+	{
+		//delete ctx;
+		throw AmSession::Exception(500, "failed to post yeti_rpc_aor_lookup request");
+	}
+
+	//block because of no async support in RPC implementation yet
+	ctx.cond.wait_for();
+
+	if(RedisReplyEvent::SuccessReply!=ctx.result) {
+		throw AmSession::Exception(500, AmArg::print(ctx.data));
+	}
+
+	if(!isArgArray(ctx.data) || ctx.data.size()%2!=0)
+		throw AmSession::Exception(500, "unexpected redis reply");
+
+	ret.assertArray();
+
+	for(i = 0; i < ctx.data.size(); i+=2) {
+		AmArg &id_arg = ctx.data[i];
+		if(!isArgLongLong(id_arg)) {
+			ERROR("unexpected auth_id type. skip entry");
+			continue;
+		}
+
+		AmArg &aor_data_arg = ctx.data[i+1];
+		if(!isArgArray(aor_data_arg)) {
+				ERROR("unexpected aor_data_arg layout. skip entry");
+				continue;
+		}
+
+		for(j = 0; j < aor_data_arg.size(); j++) {
+			AmArg &aor_entry_arg = aor_data_arg[j];
+			if(!isArgArray(aor_entry_arg) || aor_entry_arg.size() != 4) {
+				ERROR("unexpected aor_entry_arg layout. skip entry");
+				continue;
+			}
+
+			ret.push(AmArg());
+			AmArg &r = ret.back();
+			r["auth_id"] = id_arg;
+			r["contact"]  = aor_entry_arg[0];
+			r["expires"]  = aor_entry_arg[1];
+			r["agent"]  = aor_entry_arg[2];
+			r["path"]  = aor_entry_arg[3];
+		}
+	}
+}

@@ -26,6 +26,46 @@ class YetiRpc
   protected:
     int calls_show_limit;
     void init_rpc_tree();
+
+    struct aor_lookup_reply {
+        /*struct aor_data {
+            string contact;
+            int expires;
+            string path;
+            string user_agent;
+            aor_data(
+                const char *contact,
+                int expires,
+                const char *path,
+                const char *user_agent)
+              : contact(contact),
+                expires(expires),
+                path(path),
+                user_agent(user_agent)
+            {}
+        }*/
+        //std::map<int, std::list<aor_data> > aors;
+        //return false on errors
+        bool parse(const RedisReplyEvent &e);
+    };
+
+    struct RpcAorLookupCtx
+      : public AmObject
+    {
+        AmCondition<bool> cond;
+        RedisReplyEvent::result_type result;
+        AmArg data;
+        RpcAorLookupCtx()
+        {
+            DBG("RpcAorLookupCtx() %p",this);
+        }
+        ~RpcAorLookupCtx()
+        {
+            DBG("~RpcAorLookupCtx() %p",this);
+        }
+    };
+
+
   private:
     AmArg rpc_cmds;
 
@@ -123,4 +163,6 @@ class YetiRpc
     rpc_handler requestCdrWriterResume;
     rpc_handler setCdrWriterRetryInterval;
     rpc_handler showCdrWriterRetryQueues;
+
+    rpc_handler showAors;
 };

@@ -5,6 +5,7 @@
 #include "yeti_radius.h"
 
 #define YETI_REDIS_REGISTER_TYPE_ID 0
+#define YETI_REDIS_RPC_AOR_LOOKUP_TYPE_ID 1
 
 static const string YETI_QUEUE_NAME(MOD_NAME);
 
@@ -47,6 +48,7 @@ class Yeti
     void process(AmEvent *ev);
 
     void processRedisRegisterReply(RedisReplyEvent &e);
+    void processRedisRpcAorLookupReply(RedisReplyEvent &e);
     bool getCoreOptionsHandling() { return core_options_handling; }
 };
 

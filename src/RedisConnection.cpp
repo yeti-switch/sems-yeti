@@ -13,6 +13,7 @@
 
 RedisScript yeti_register("yeti_register");
 RedisScript yeti_aor_lookup("yeti_aor_lookup");
+RedisScript yeti_rpc_aor_lookup("yeti_rpc_aor_lookup");
 
 int RedisScript::load(const string &script_path)
 {
@@ -133,9 +134,10 @@ void RedisConnection::connectCallback(const struct redisAsyncContext* c, int sta
     if(status == REDIS_OK) {
         connected = true;
         INFO("redis %s %s:%d connected", name, host.c_str(), port);
-        scripts_to_load+=2;
+        scripts_to_load+=3;
         yeti_register.load("/etc/yeti/scripts/register.lua");
         yeti_aor_lookup.load("/etc/yeti/scripts/aor_lookup.lua");
+        yeti_rpc_aor_lookup.load("/etc/yeti/scripts/rpc_aor_lookup.lua");
     } else {
         ERROR("redis %s %s:%d: %s",name, host.c_str(), port, c->errstr);
     }

@@ -32,8 +32,6 @@
 #include "ampi/RadiusClientAPI.h"
 #include "dtmf_sip_info.h"
 
-#include <cmath>
-
 using namespace std;
 
 #define TRACE DBG
@@ -293,12 +291,6 @@ void SBCCallLeg::terminateLegOnReplyException(const AmSipReply& reply,const Inte
     }
 }
 
-template <typename T>
-inline unsigned int len_in_chars(T s)
-{
-    return static_cast<unsigned int>(log10(s) + 1);
-}
-
 void SBCCallLeg::processAorResolving()
 {
     DBG("%s(%p,leg%s)",FUNC_NAME,static_cast<void *>(this),a_leg?"A":"B");
@@ -340,7 +332,6 @@ void SBCCallLeg::processAorResolving()
         len_in_chars(aors_count), aors_count);
 
     for(const auto &id : aor_ids) {
-        string id_str = int2str(id);
         s += sprintf(s, "$%u\r\n%d\r\n",
             len_in_chars(id), id);
     }
@@ -861,7 +852,9 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
 
     //resolve ruri in profiles
     auto &profiles = call_ctx->profiles;
+
     DBG("profiles before processing: %lu", profiles.size());
+
     for(auto it = profiles.begin(); it != profiles.end();) {
         SqlCallProfile &p = *(*it);
         if(p.disconnect_code_id != 0 || p.registered_aor_id==0) {

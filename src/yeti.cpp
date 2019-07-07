@@ -376,6 +376,9 @@ void Yeti::process(AmEvent *ev)
         case YETI_REDIS_REGISTER_TYPE_ID:
             processRedisRegisterReply(*e);
             break;
+        case YETI_REDIS_RPC_AOR_LOOKUP_TYPE_ID:
+            processRedisRpcAorLookupReply(*e);
+            break;
         }
     } else
     ON_EVENT_TYPE(SctpBusConnectionStatus) {
@@ -525,4 +528,14 @@ void Yeti::processRedisRegisterReply(RedisReplyEvent &e)
     }
 
     AmSipDialog::reply_error(req, 200, "OK", hdrs);
+}
+
+void Yeti::processRedisRpcAorLookupReply(RedisReplyEvent &e)
+{
+    DBG("processRedisRpcAorLookupReply");
+    auto &ctx = *dynamic_cast<RpcAorLookupCtx *>(e.user_data.release());
+    ctx.data = e.data;
+    ctx.result = e.result;
+    DBG("ctx.cond: %p",&ctx.cond);
+    ctx.cond.set(true);
 }

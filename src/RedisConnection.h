@@ -9,6 +9,7 @@
 #include <hiredis/async.h>
 
 #include <memory>
+#include <cmath>
 
 #define REDIS_REQUEST_EVENT_ID 0
 #define REDIS_REPLY_EVENT_ID 1
@@ -30,6 +31,14 @@ struct RedisScript
 
 extern RedisScript yeti_register;
 extern RedisScript yeti_aor_lookup;
+extern RedisScript yeti_rpc_aor_lookup;
+
+template <typename T>
+inline unsigned int len_in_chars(T s)
+{
+    if(s == 0) return 1;
+    return static_cast<unsigned int>(log10(s) + 1);
+}
 
 struct RedisRequestEvent
   : public AmEvent
