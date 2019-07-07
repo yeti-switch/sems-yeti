@@ -913,8 +913,14 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
         throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
-    DBG("check for resfusing profile after the not registered skipping");
     with_cdr_for_read {
+
+        if(profile->registered_aor_id) {
+            cdr->ruri = profile->ruri;
+            cdr->outbound_proxy = profile->outbound_proxy;
+        }
+
+        DBG("check for resfusing profile after the not registered skipping");
         ParamReplacerCtx rctx(profile);
         if(router.check_and_refuse(profile,cdr,aleg_modified_req,rctx))
         {

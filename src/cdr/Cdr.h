@@ -85,6 +85,7 @@ struct Cdr
 
     AmArg dyn_fields;
     string outbound_proxy;
+    string ruri;
 
     vector<AmArg> trusted_hdrs;
 

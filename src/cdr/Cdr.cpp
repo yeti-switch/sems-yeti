@@ -174,6 +174,7 @@ void Cdr::update_sql(const SqlCallProfile &profile)
 
     trusted_hdrs_gw = profile.trusted_hdrs_gw;
     outbound_proxy = profile.outbound_proxy;
+    ruri = profile.ruri;
     dyn_fields = profile.dyn_fields;
     time_limit = profile.time_limit;
     dump_level_id = profile.dump_level_id;
