@@ -218,6 +218,8 @@ int Yeti::configure(const std::string& config)
 
     cfg_remote_timeout = static_cast<unsigned long>(cfg_getint(mgmt_cfg, opt_name_timeout));
 
+    core_options_handling = cfg_getbool(cfg, opt_name_core_options_handling);
+
     return 0;
 }
 
