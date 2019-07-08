@@ -69,7 +69,7 @@ end
 
 -- add binding
 redis.call('SADD', auth_id, contact)
-redis.call('HSET', contact_key, 'agent',user_agent, 'path',path)
+redis.call('HMSET', contact_key, 'agent',user_agent, 'path',path)
 
 -- set TTL
 redis.call('EXPIRE', contact_key, expires)
