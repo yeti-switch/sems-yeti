@@ -1,3 +1,10 @@
+sems-yeti (1.9.0-2) stable; urgency=low
+
+  * fix registrar.lua script
+  * fix core_options_handling option read 
+
+ -- dev <dev@yeti-switch.org>  Mon, 08 Jul 2019 17:06:21 +0300
+
 sems-yeti (1.9.0-1) stable; urgency=low
 
   * registrar/location server
