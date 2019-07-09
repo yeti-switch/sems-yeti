@@ -1,3 +1,10 @@
+sems-yeti (1.9.0-3) stable; urgency=low
+
+  * use route set instead of outbound_proxy to apply Path header from registration
+  * Cdr: serialize media stats for completely initialized streams only. fix json object memory leak
+
+ -- dev <dev@yeti-switch.org>  Tue, 09 Jul 2019 19:18:44 +0300
+
 sems-yeti (1.9.0-2) stable; urgency=low
 
   * fix registrar.lua script
