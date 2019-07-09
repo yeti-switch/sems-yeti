@@ -96,7 +96,9 @@ Cdr::Cdr()
     isup_propagation_delay(0),
     audio_record_enabled(false),
     is_redirected(false),
-    writed(false)
+    writed(false),
+    aleg_sdp_completed(false),
+    bleg_sdp_completed(false)
 {
     DBG("Cdr[%p]()",this);
 
@@ -478,6 +480,12 @@ void Cdr::refuse(int code, string reason)
     disconnect_reason = reason;
 }
 
+void Cdr::setSdpCompleted(bool a_leg)
+{
+    if(a_leg) aleg_sdp_completed = true;
+    else bleg_sdp_completed = true;
+}
+
 void Cdr::replace(ParamReplacerCtx &ctx,const AmSipRequest &req)
 {
     //msg_logger_path = ctx.replaceParameters(msg_logger_path,"msg_logger_path",req);
@@ -659,16 +667,16 @@ char *Cdr::serialize_media_stats()
     cJSON *j = nullptr, *i;
     char *s;
 
-    j = cJSON_CreateArray();
-
-    if(timerisset(&aleg_media_stats.time_start)) {
-        j = cJSON_CreateArray();
+    if(aleg_sdp_completed && timerisset(&aleg_media_stats.time_start))
+    {
+        if(!j) j = cJSON_CreateArray();
         i = cJSON_CreateObject();
         cJSON_AddItemToArray(j,i);
         serialize_media_stats(i,local_tag,aleg_media_stats);
     }
 
-    if(timerisset(&bleg_media_stats.time_start)) {
+    if(bleg_sdp_completed && timerisset(&bleg_media_stats.time_start))
+    {
         if(!j) j = cJSON_CreateArray();
         i = cJSON_CreateObject();
         cJSON_AddItemToArray(j,i);

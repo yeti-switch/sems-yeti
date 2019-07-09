@@ -91,6 +91,8 @@ struct Cdr
 
     AmRtpStream::MediaStats aleg_media_stats;
     AmRtpStream::MediaStats bleg_media_stats;
+    bool aleg_sdp_completed;
+    bool bleg_sdp_completed;
 
     string resources;
     string active_resources;
@@ -148,6 +150,8 @@ struct Cdr
     void replace(string& s, const string& from, const string& to);
     void refuse(const SBCCallProfile &profile);
     void refuse(int code, string reason);
+
+    void setSdpCompleted(bool a_leg);
 
     pqxx::prepare::invocation get_invocation(cdr_transaction &tnx) override;
     void invoc(pqxx::prepare::invocation &invoc,

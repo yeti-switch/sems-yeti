@@ -3140,6 +3140,12 @@ int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote){
 
     int ret = CallLeg::onSdpCompleted(offer, answer);
 
+    if(0==ret) {
+        with_cdr_for_read {
+            cdr->setSdpCompleted(a_leg);
+        }
+    }
+
     if(!a_leg) return ret;
 
     AmB2BMedia *m = getMediaSession();
