@@ -132,6 +132,8 @@ struct SBCCallProfile
   bool force_outbound_proxy;
   unsigned int outbound_proxy_transport_id;
 
+  string route;
+
   string aleg_outbound_proxy;
   bool aleg_force_outbound_proxy;
   unsigned int aleg_outbound_proxy_transport_id;

@@ -868,7 +868,8 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
         //replace ruri in profile
         p.ruri = aor_it->contact;
         if(!aor_it->path.empty()) {
-            p.outbound_proxy = aor_it->path;
+            p.route = aor_it->path;
+            //p.outbound_proxy = aor_it->path;
         }
 
         ++aor_it;
@@ -880,7 +881,8 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
 
             cloned_p->ruri = aor_it->contact;
             if(!aor_it->path.empty()) {
-                cloned_p->outbound_proxy = aor_it->path;
+                cloned_p->route = aor_it->path;
+                //cloned_p->outbound_proxy = aor_it->path;
             }
 
             ++aor_it;
@@ -1199,6 +1201,11 @@ void SBCCallLeg::applyBProfile()
     if (!call_profile.outbound_proxy.empty()) {
         dlg->outbound_proxy = call_profile.outbound_proxy;
         dlg->force_outbound_proxy = call_profile.force_outbound_proxy;
+    }
+
+    if(!call_profile.route.empty()) {
+        DBG("set route to: %s",call_profile.route.c_str());
+        dlg->setRouteSet(call_profile.route);
     }
 
     if (!call_profile.next_hop.empty()) {
