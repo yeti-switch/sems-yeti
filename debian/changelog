@@ -1,3 +1,9 @@
+sems-yeti (1.8.1-7) stable; urgency=low
+
+  * fix build after core proto mapping refactoring
+
+ -- dev <dev@yeti-switch.org>  Thu, 11 Jul 2019 22:40:39 +0300
+
 sems-yeti (1.8.1-6) stable; urgency=low
 
   * Cdr: serialize media stats for completely initialized streams only. fix json object memory leak
