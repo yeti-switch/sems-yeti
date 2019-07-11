@@ -1,3 +1,9 @@
+sems-yeti (1.8.1-6) stable; urgency=low
+
+  * Cdr: serialize media stats for completely initialized streams only. fix json object memory leak
+
+ -- dev <dev@yeti-switch.org>  Thu, 11 Jul 2019 22:18:09 +0300
+
 sems-yeti (1.8.1-5) stable; urgency=low
 
   * libsems 1.8.31
