@@ -1,3 +1,10 @@
+sems-yeti (1.9.0-5) stable; urgency=low
+
+  * SBCFactory::processAuthorizedRegister: join multiple Path headers
+  * YetiRpc::showAors: rename field: 'agent' -> 'user_agent
+
+ -- dev <dev@yeti-switch.org>  Sat, 20 Jul 2019 23:40:44 +0300
+
 sems-yeti (1.9.0-4) stable; urgency=low
 
   * libsems 1.8.31
