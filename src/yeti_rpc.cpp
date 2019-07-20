@@ -1214,7 +1214,7 @@ void YetiRpc::showAors(const AmArg& arg, AmArg& ret)
 			r["auth_id"] = id_arg;
 			r["contact"]  = aor_entry_arg[0];
 			r["expires"]  = aor_entry_arg[1];
-			r["agent"]  = aor_entry_arg[2];
+			r["user_agent"]  = aor_entry_arg[2];
 			r["path"]  = aor_entry_arg[3];
 		}
 	}
