@@ -469,15 +469,12 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
             if(0==strncasecmp(req.hdrs.c_str() + start_pos,
                               path_header_name.c_str(), name_end-start_pos))
             {
-                path = req.hdrs.substr(val_begin, val_end-val_begin);
-                if(!user_agent.empty())
-                    break;
+                if(!path.empty()) path += ",";
+                path += req.hdrs.substr(val_begin, val_end-val_begin);
             } else if(0==strncasecmp(req.hdrs.c_str() + start_pos,
                                   user_agent_header_name.c_str(), name_end-start_pos))
             {
                 user_agent = req.hdrs.substr(val_begin, val_end-val_begin);
-                if(!path.empty())
-                    break;
             }
             start_pos = hdr_end;
         }
