@@ -61,7 +61,6 @@ struct YetiBase {
     ResourceControl &rctl;
 
     struct global_config {
-        int node_id;
         int pop_id;
         bool use_radius;
         bool early_100_trying;

@@ -449,7 +449,7 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(
 	//req.tt.get_trans()
 
 	pqxx::prepare::invocation invoc = tnx.prepared("getprofile");
-	invoc_field(gc.node_id);				//"node_id", "integer"
+	invoc_field(AmConfig.node_id);			//"node_id", "integer"
 	invoc_field(gc.pop_id);					//"pop_id", "integer"
 	invoc_field((int)req.transport_id);		//"proto_id", "smallint"
 	invoc_field(req.remote_ip);				//"remote_ip", "inet"

@@ -98,7 +98,7 @@ long int CdrList::getCallsCount()
 int CdrList::getCall(const string &local_tag,AmArg &call,const SqlRouter *router)
 {
     Yeti::global_config &gc = Yeti::instance().config;
-    const get_calls_ctx ctx(gc.node_id,gc.pop_id,router);
+    const get_calls_ctx ctx(AmConfig.node_id,gc.pop_id,router);
 
     AmLock l(*this);
 
@@ -114,7 +114,7 @@ void CdrList::getCalls(AmArg &calls,int limit,const SqlRouter *router)
     int i = limit;
     Yeti::global_config &gc = Yeti::instance().config;
 
-    const get_calls_ctx ctx(gc.node_id,gc.pop_id,router);
+    const get_calls_ctx ctx(AmConfig.node_id,gc.pop_id,router);
 
     calls.assertArray();
 
@@ -151,7 +151,7 @@ void CdrList::getCallsFields(
 
     validate_fields(fields,router);
 
-    const get_calls_ctx ctx(gc.node_id,gc.pop_id,router,&fields);
+    const get_calls_ctx ctx(AmConfig.node_id,gc.pop_id,router,&fields);
 
     PROF_START(calls_serialization);
 
@@ -387,7 +387,7 @@ void CdrList::onTimer()
 
         call["snapshot_timestamp"] = snapshot_timestamp_str;
         call["snapshot_date"] = snapshot_date_str;
-        call["node_id"] = gc.node_id;
+        call["node_id"] = AmConfig.node_id;
         call["pop_id"] = gc.pop_id;
 
         if(snapshots_buffering)
@@ -414,7 +414,7 @@ void CdrList::onTimer()
 
             call["snapshot_timestamp"] = snapshot_timestamp_str;
             call["snapshot_date"] = snapshot_date_str;
-            call["node_id"] = gc.node_id;
+            call["node_id"] = AmConfig.node_id;
             call["pop_id"] = gc.pop_id;
             call["buffered"] = true;
 

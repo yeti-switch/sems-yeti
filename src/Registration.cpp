@@ -50,7 +50,7 @@ int Registration::load_registrations(){
 			("integer")("integer")
 #endif
 		;
-		r = t.prepared("load_reg")(gc.pop_id)(gc.node_id).exec();
+		r = t.prepared("load_reg")(gc.pop_id)(AmConfig.node_id).exec();
 		for(pqxx::result::size_type i = 0; i < r.size();++i){
 			const pqxx::result::tuple &row = r[i];
 			//for(const auto &f: row) DBG("reg[%d] %s: %s",i,f.name(),f.c_str());
@@ -149,7 +149,7 @@ void Registration::list_registrations(AmArg &ret)
 	const Yeti::global_config &c = Yeti::instance().config;
 	for(int i = 0;i < ret.size(); i++) {
 		AmArg &a = ret[i];
-		a["node_id"] = c.node_id;
+		a["node_id"] = AmConfig.node_id;
 		a["pop_id"] = c.pop_id;
 	}
 }
@@ -220,7 +220,7 @@ int Registration::reload_registration(AmConfigReader &cfg, const AmArg &args)
 			("integer")("integer")("integer")
 #endif
 		;
-		r = t.prepared("load_reg")(gc.pop_id)(gc.node_id)(reg_id).exec();
+		r = t.prepared("load_reg")(gc.pop_id)(AmConfig.node_id)(reg_id).exec();
 
 		t.commit();
 		c.disconnect();

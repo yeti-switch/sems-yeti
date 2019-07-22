@@ -462,7 +462,7 @@ void PgConnectionPool::connection_init(PgConnection *c){
 
 		pqxx::nontransaction tnx(*c);
 		pqxx::prepare::invocation invoc = tnx.prepared("routing_init");
-		invoc(gc.node_id);
+		invoc(AmConfig.node_id);
 		invoc(gc.pop_id);
 		invoc.exec();
 

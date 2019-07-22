@@ -145,7 +145,7 @@ void ResourceCache::run(){
 					string key = get_key(r);
 					redisAppendCommand(write_ctx,"HINCRBY %b %d %d",
 						key.c_str(),key.size(),
-						gc.node_id,
+						AmConfig.node_id,
 						r.takes);
 					desired_response.push_back(REDIS_REPLY_STATUS);
 				}
@@ -184,7 +184,7 @@ void ResourceCache::run(){
 								throw ReplyDataException("HINCRBY integer expected");
 							}
 							Resource &res = *it;
-							DBG("get_resource %d:%d %d %lld",res.type,res.id,gc.node_id,r->integer);
+							DBG("get_resource %d:%d %d %lld",res.type,res.id,AmConfig.node_id,r->integer);
 						}
 					}
 					freeReplyObject(reply);
@@ -203,7 +203,7 @@ void ResourceCache::run(){
 					string key = get_key(r);
 					redisAppendCommand(write_ctx,"HINCRBY %b %d %d",
 						key.c_str(),key.size(),
-						gc.node_id,
+						AmConfig.node_id,
 						-r.takes/*pass negative to increment*/);
 					desired_response.push_back(REDIS_REPLY_STATUS);
 				}
@@ -241,7 +241,7 @@ void ResourceCache::run(){
 								throw ReplyDataException("HDECRBY integer expected");
 							}
 							Resource &res = *it;
-							DBG("put_resource %d:%d %d %lld",res.type,res.id,gc.node_id,r->integer);
+							DBG("put_resource %d:%d %d %lld",res.type,res.id,AmConfig.node_id,r->integer);
 						}
 					}
 					freeReplyObject(reply);
@@ -294,7 +294,7 @@ bool ResourceCache::init_resources(bool initial){
 	redisContext *write_ctx = NULL;
 	redisReply *reply = NULL;
 	list <int> desired_response;
-	int node_id = Yeti::instance().config.node_id;
+	int node_id = AmConfig.node_id;
 
 	try {
 		write_ctx = write_pool.getConnection();

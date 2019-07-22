@@ -753,7 +753,7 @@ int CdrThread::writecdr(cdr_queue_t &cdr_queue, cdr_writer_connection* conn, siz
             pqxx::prepare::invocation invoc = cdr.get_invocation(tnx);
 
             invoc(conn->isMaster());
-            invoc(gc.node_id);
+            invoc(AmConfig.node_id);
             invoc(gc.pop_id);
             cdr.invoc(invoc,config.dyn_fields,config.serialize_dynamic_fields);
 
@@ -856,7 +856,7 @@ int CdrThread::writecdrtofile(cdr_queue_t &cdr_queue) {
 	Yeti::global_config &gc = Yeti::instance().config;
 
 	s << std::dec <<
-	quote(gc.node_id) <<
+	quote(AmConfig.node_id) <<
 	quote(gc.pop_id);
 
 	cdr->to_csv_stream(s,config.dyn_fields);

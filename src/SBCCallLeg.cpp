@@ -221,7 +221,7 @@ void SBCCallLeg::init()
         ostringstream ss;
         ss << yeti.config.msg_logger_dir << '/' <<
               getLocalTag() << "_" <<
-              int2str(yeti.config.node_id) << ".pcap";
+              int2str(AmConfig.node_id) << ".pcap";
         call_profile.set_logger_path(ss.str());
 
         cdr->update_sbc(call_profile);
@@ -244,7 +244,7 @@ void SBCCallLeg::init()
         ostringstream ss;
         ss  << yeti.config.audio_recorder_dir << '/'
             << global_tag << "_"
-            << int2str(yeti.config.node_id) <<  "_leg"
+            << int2str(AmConfig.node_id) <<  "_leg"
             << (a_leg ? "a" : "b")
             << (yeti.config.audio_recorder_compress ?
                 FILE_RECORDER_COMPRESSED_EXT :

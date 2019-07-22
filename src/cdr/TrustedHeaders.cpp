@@ -28,7 +28,7 @@ int _TrustedHeaders::load_config(){
 			pqxx::prepare::invocation invoc = t.prepared("load_trusted_headers");
 
 			//invoc("Call-ID");
-			invoc(Yeti::instance().config.node_id);
+			invoc(AmConfig.node_id);
 
 			r = invoc.exec();
 			for(pqxx::result::size_type i = 0; i < r.size();++i){

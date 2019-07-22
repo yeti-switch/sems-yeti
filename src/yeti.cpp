@@ -227,8 +227,6 @@ int Yeti::onLoad() {
 
     start_time = time(nullptr);
 
-    config.node_id = AmConfig.node_id;
-
     start();
 
     if(!wait_and_apply_config())

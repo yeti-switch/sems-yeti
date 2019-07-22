@@ -660,7 +660,7 @@ void YetiRpc::GetConfig(const AmArg& args, AmArg& ret) {
 	handler_log();
 
 	ret["calls_show_limit"] = calls_show_limit;
-	ret["node_id"] = config.node_id;
+	ret["node_id"] = AmConfig.node_id;
 	ret["pop_id"] = config.pop_id;
 
 	router.getConfig(ret["router"]);
