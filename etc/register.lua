@@ -1,6 +1,7 @@
 -- auth_id contact expires user_agent [path]
 
-local auth_id = 'a:'..KEYS[1]
+local id = KEYS[1]
+local auth_id = 'a:'..id
 local contact = ARGV[1]
 
 -- a:auth_id: (SET)
@@ -14,7 +15,7 @@ local function get_bindings()
 
     for i,c in ipairs(redis.call('SMEMBERS',auth_id)) do
         local d = { c }
-        local contact_key = 'c:'..auth_id..':'..c
+        local contact_key = 'c:'..id..':'..c
         local expires = redis.call('TTL', contact_key)
 
         if expires > 0 then
@@ -40,12 +41,12 @@ if not expires then
     return 'Wrong expires value'
 end
 
-local contact_key = 'c:'..auth_id..':'..contact
+local contact_key = 'c:'..id..':'..contact
 
 if expires==0 then
     -- remove all bindings
     for i,c in ipairs(redis.call('SMEMBERS',auth_id)) do
-        redis.call('DEL', 'c:'..auth_id..':'..c)
+        redis.call('DEL', 'c:'..id..':'..c)
     end
     redis.call('DEL', auth_id)
     return nil

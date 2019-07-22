@@ -19,7 +19,7 @@ for id in pairs(keys) do
     local cset = { }
     local auth_id = 'a:'..id
     for j,c in ipairs(redis.call('SMEMBERS',auth_id)) do
-        local contact_key = 'c:'..auth_id..':'..c
+        local contact_key = 'c:'..id..':'..c
         local expires = redis.call('TTL', contact_key)
         if expires > 0 then
             local agent_path = redis.call('HMGET',contact_key,'agent','path')
