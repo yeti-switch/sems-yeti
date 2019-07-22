@@ -1204,7 +1204,7 @@ void YetiRpc::showAors(const AmArg& arg, AmArg& ret)
 
 		for(j = 0; j < aor_data_arg.size(); j++) {
 			AmArg &aor_entry_arg = aor_data_arg[j];
-			if(!isArgArray(aor_entry_arg) || aor_entry_arg.size() != 4) {
+			if(!isArgArray(aor_entry_arg) || aor_entry_arg.size() != 5) {
 				ERROR("unexpected aor_entry_arg layout. skip entry");
 				continue;
 			}
@@ -1214,8 +1214,9 @@ void YetiRpc::showAors(const AmArg& arg, AmArg& ret)
 			r["auth_id"] = id_arg;
 			r["contact"]  = aor_entry_arg[0];
 			r["expires"]  = aor_entry_arg[1];
-			r["user_agent"]  = aor_entry_arg[2];
-			r["path"]  = aor_entry_arg[3];
+			r["node_id"]  = aor_entry_arg[2];
+			r["user_agent"]  = aor_entry_arg[3];
+			r["path"]  = aor_entry_arg[4];
 		}
 	}
 }
