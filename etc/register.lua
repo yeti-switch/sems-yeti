@@ -53,8 +53,9 @@ if expires==0 then
 end
 
 local node_id = ARGV[3]
-local user_agent = ARGV[4]
-local path = ARGV[5]
+local local_interface_id = ARGV[4]
+local user_agent = ARGV[5]
+local path = ARGV[6]
 
 if not user_agent then
     user_agent = ''
@@ -71,7 +72,11 @@ end
 
 -- add binding
 redis.call('SADD', auth_id, contact)
-redis.call('HMSET', contact_key, 'node_id',node_id, 'agent',user_agent, 'path',path)
+redis.call('HMSET', contact_key,
+    'node_id',node_id,
+    'interface_id',local_interface_id,
+    'agent',user_agent,
+    'path',path)
 
 -- set TTL
 redis.call('EXPIRE', contact_key, expires)
