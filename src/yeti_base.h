@@ -3,7 +3,7 @@
 #include "SqlRouter.h"
 #include "hash/CdrList.h"
 #include "resources/ResourceControl.h"
-#include "RedisConnection.h"
+#include "RegistrarRedisConnection.h"
 
 #include "AmConfigReader.h"
 

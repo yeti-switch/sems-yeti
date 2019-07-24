@@ -30,9 +30,10 @@ class Yeti
 
     bool core_options_handling;
 
-    RedisConnection auth_redis;
-
   public:
+
+    RegistrarRedisConnection registrar_redis;
+
     Yeti(YetiBaseParams &params);
     ~Yeti();
 

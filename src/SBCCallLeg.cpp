@@ -305,36 +305,7 @@ void SBCCallLeg::processAorResolving()
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
-    size_t aors_count = aor_ids.size();
-    string str_size = long2str(static_cast<long>(aor_ids.size()));
-    DBG("got %s AoR ids to resolve", str_size.c_str());
-
-    if(yeti_aor_lookup.hash.empty()) {
-        ERROR("empty yeti_aor_lookup.hash. lua scripting error");
-        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-    }
-
-    char *cmd = static_cast<char *>(malloc(128));
-    char *s = cmd;
-
-    s += sprintf(cmd, "*%lu\r\n$7\r\nEVALSHA\r\n$40\r\n%s\r\n$%u\r\n%lu\r\n",
-        aors_count+3,
-        yeti_aor_lookup.hash.data(),
-        len_in_chars(aors_count), aors_count);
-
-    for(const auto &id : aor_ids) {
-        s += sprintf(s, "$%u\r\n%d\r\n",
-            len_in_chars(id), id);
-    }
-
-    //send request to redis
-    if(false==postRedisRequest(
-        getLocalTag(),
-        cmd,static_cast<size_t>(s-cmd)))
-    {
-        ERROR("failed to post auti_id resolve request");
-        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-    }
+    yeti.registrar_redis.resolve_aors(aor_ids, getLocalTag());
 }
 
 void SBCCallLeg::processResourcesAndSdp()

@@ -97,8 +97,7 @@ Yeti::Yeti(YetiBaseParams &params)
     YetiRpc(*this),
     AmEventQueue(this),
     intial_config_received(false),
-    cfg_error(false),
-    auth_redis("auth")
+    cfg_error(false)
 {}
 
 
@@ -296,7 +295,7 @@ int Yeti::onLoad() {
     }
 
     if(config.registrar_enabled)
-        auth_redis.start();
+        registrar_redis.start();
 
     if(cdr_list.getSnapshotsEnabled())
         cdr_list.start();
@@ -320,7 +319,7 @@ int Yeti::configure_registrar()
     config.registrar_redis_port = cfg.getParameterInt("registrar_redis_port");
     if(!config.registrar_redis_port) config.registrar_redis_port = 6379;
 
-    if(0!=auth_redis.init(config.registrar_redis_host, config.registrar_redis_port)) {
+    if(0!=registrar_redis.init(config.registrar_redis_host, config.registrar_redis_port)) {
         return -1;
     }
 
@@ -356,7 +355,7 @@ void Yeti::on_stop()
     cdr_list.stop();
     rctl.stop();
     router.stop();
-    auth_redis.stop();
+    registrar_redis.stop();
 
     stopped = true;
     ev_pending.set(true);
@@ -533,7 +532,7 @@ void Yeti::processRedisRegisterReply(RedisReplyEvent &e)
 void Yeti::processRedisRpcAorLookupReply(RedisReplyEvent &e)
 {
     DBG("processRedisRpcAorLookupReply");
-    auto &ctx = *dynamic_cast<RpcAorLookupCtx *>(e.user_data.release());
+    auto &ctx = *dynamic_cast<RegistrarRedisConnection::RpcAorLookupCtx *>(e.user_data.release());
     ctx.data = e.data;
     ctx.result = e.result;
     DBG("ctx.cond: %p",&ctx.cond);

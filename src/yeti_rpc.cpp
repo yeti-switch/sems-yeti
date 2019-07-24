@@ -1141,44 +1141,11 @@ bool YetiRpc::aor_lookup_reply::parse(const RedisReplyEvent &e)
 
 void YetiRpc::showAors(const AmArg& arg, AmArg& ret)
 {
-	std::unique_ptr<char> cmd;
-	char *s,*start;
-	size_t n;
-	int i,j,id;
+	size_t i,j;
 
-	if(yeti_rpc_aor_lookup.hash.empty())
-		throw AmSession::Exception(500,"registrar is not enabled");
+	RegistrarRedisConnection::RpcAorLookupCtx ctx;
 
-	arg.assertArray();
-
-	cmd.reset(static_cast<char *>(malloc(128)));
-	s = start = cmd.get();
-	n = arg.size();
-
-	s += std::sprintf(s, "*%lu\r\n$7\r\nEVALSHA\r\n$40\r\n%s\r\n$%u\r\n%lu\r\n",
-		n+3,
-		yeti_rpc_aor_lookup.hash.data(),
-		len_in_chars(n), n);
-
-	for(i = 0; i < n; i++) {
-		id = arg2int(arg[i]);
-		s += sprintf(s, "$%u\r\n%d\r\n",
-			len_in_chars(id), id);
-	}
-
-	RpcAorLookupCtx ctx;
-
-	if(false==postRedisRequest(
-		YETI_QUEUE_NAME,
-		cmd.release(),static_cast<size_t>(s-cmd.get()),
-		&ctx, YETI_REDIS_RPC_AOR_LOOKUP_TYPE_ID))
-	{
-		//delete ctx;
-		throw AmSession::Exception(500, "failed to post yeti_rpc_aor_lookup request");
-	}
-
-	//block because of no async support in RPC implementation yet
-	ctx.cond.wait_for();
+	Yeti::instance().registrar_redis.rpc_resolve_aors_blocking(arg, ctx);
 
 	if(RedisReplyEvent::SuccessReply!=ctx.result) {
 		throw AmSession::Exception(500, AmArg::print(ctx.data));

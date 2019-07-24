@@ -2,7 +2,6 @@
 
 #include "AmEventDispatcher.h"
 #include "AmSessionContainer.h"
-#include "yeti.h"
 
 #include <fstream>
 #include <string>
@@ -10,10 +9,6 @@
 #define EPOLL_MAX_EVENTS 2048
 
 #define REDIS_REPLY_SCRIPT_LOAD 0
-
-RedisScript yeti_register("yeti_register");
-RedisScript yeti_aor_lookup("yeti_aor_lookup");
-RedisScript yeti_rpc_aor_lookup("yeti_rpc_aor_lookup");
 
 int RedisScript::load(const string &script_path)
 {
@@ -28,7 +23,7 @@ int RedisScript::load(const string &script_path)
                          (std::istreambuf_iterator<char>()));
 
         postRedisRequestFmt(
-            ASYNC_REDIS_QUEUE, this, REDIS_REPLY_SCRIPT_LOAD,
+            queue_name, queue_name, this, REDIS_REPLY_SCRIPT_LOAD,
             "SCRIPT LOAD %s",data.c_str());
 
         return 0;
@@ -106,10 +101,11 @@ RedisReplyEvent::RedisReplyEvent(result_type result, RedisRequestEvent &request)
 RedisReplyEvent::~RedisReplyEvent()
 {}
 
-RedisConnection::RedisConnection(const char *name)
+RedisConnection::RedisConnection(const char *name, const string &queue_name)
   : AmEventFdQueue(this),
     epoll_fd(-1),
     name(name),
+    queue_name(queue_name),
     async_context(nullptr),
     stopped(false),
     connected(false),
@@ -135,9 +131,7 @@ void RedisConnection::connectCallback(const struct redisAsyncContext* c, int sta
         connected = true;
         INFO("redis %s %s:%d connected", name, host.c_str(), port);
         scripts_to_load+=3;
-        yeti_register.load("/etc/yeti/scripts/register.lua");
-        yeti_aor_lookup.load("/etc/yeti/scripts/aor_lookup.lua");
-        yeti_rpc_aor_lookup.load("/etc/yeti/scripts/rpc_aor_lookup.lua");
+        on_connect();
     } else {
         ERROR("redis %s %s:%d: %s",name, host.c_str(), port, c->errstr);
     }
@@ -258,7 +252,7 @@ void RedisConnection::run()
     bool running;
     struct epoll_event events[EPOLL_MAX_EVENTS];
 
-    AmEventDispatcher::instance()->addEventQueue(ASYNC_REDIS_QUEUE, this);
+    AmEventDispatcher::instance()->addEventQueue(queue_name, this);
 
     setThreadName("async_redis");
 
@@ -299,7 +293,7 @@ void RedisConnection::run()
         }
     } while(running);
 
-    AmEventDispatcher::instance()->delEventQueue(ASYNC_REDIS_QUEUE);
+    AmEventDispatcher::instance()->delEventQueue(queue_name);
 
     epoll_unlink(epoll_fd);
     close(epoll_fd);

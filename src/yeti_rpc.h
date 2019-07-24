@@ -49,23 +49,6 @@ class YetiRpc
         bool parse(const RedisReplyEvent &e);
     };
 
-    struct RpcAorLookupCtx
-      : public AmObject
-    {
-        AmCondition<bool> cond;
-        RedisReplyEvent::result_type result;
-        AmArg data;
-        RpcAorLookupCtx()
-        {
-            DBG("RpcAorLookupCtx() %p",this);
-        }
-        ~RpcAorLookupCtx()
-        {
-            DBG("~RpcAorLookupCtx() %p",this);
-        }
-    };
-
-
   private:
     AmArg rpc_cmds;
 

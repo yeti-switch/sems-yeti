@@ -379,15 +379,8 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
 
     if(contacts.empty() && !asterisk_contact) {
         //request bindings list
-        if(false==postRedisRequestFmt(
-            YETI_QUEUE_NAME,
-            new AmSipRequest(req), YETI_REDIS_REGISTER_TYPE_ID,
-            "EVALSHA %s 1 %d",
-            yeti_register.hash.c_str(),
-            auth_id))
-        {
+        if(!yeti->registrar_redis.unbind_all(req, auth_id))
             AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-        }
     } else {
         //renew/replace/update binding
         string contact;
@@ -479,15 +472,10 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
             start_pos = hdr_end;
         }
 
-        if(false==postRedisRequestFmt(
-            YETI_QUEUE_NAME,
-            new AmSipRequest(req), YETI_REDIS_REGISTER_TYPE_ID,
-            "EVALSHA %s 1 %d %s %d %d %d %s %s",
-            yeti_register.hash.c_str(),
-            auth_id, contact.c_str(),
-            expires_int,
-            AmConfig.node_id, req.local_if,
-            user_agent.c_str(), path.c_str()))
+        if(!yeti->registrar_redis.bind(
+            req, auth_id,
+            contact, expires_int,
+            user_agent, path))
         {
             AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
