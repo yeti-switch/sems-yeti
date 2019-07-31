@@ -7,6 +7,8 @@
 #define REDIS_REPLY_SUBSCRIPTION 1
 #define REDIS_REPLY_CONTACTS_DATA 2
 
+static const string REGISTAR_QUEUE_NAME("registrar");
+
 RegistrarRedisConnection::ContactsSubscriptionConnection::ContactsSubscriptionConnection(
     KeepAliveContexts &keepalive_contexts)
   : RedisConnection("reg_subscription", "reg_async_redis_sub"),
@@ -166,7 +168,7 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_expired_k
 }
 
 RegistrarRedisConnection::RegistrarRedisConnection()
-  : RedisConnection("reg", "reg_async_redis"),
+  : RedisConnection("reg", REGISTAR_QUEUE_NAME),
      contacts_subscription(keepalive_contexts),
      yeti_register("yeti_register", queue_name),
      yeti_aor_lookup("yeti_aor_lookup", queue_name),
@@ -205,6 +207,23 @@ void RegistrarRedisConnection::on_connect()
     yeti_rpc_aor_lookup.load("/etc/yeti/scripts/rpc_aor_lookup.lua", REDIS_REPLY_SCRIPT_LOAD);
 }
 
+void RegistrarRedisConnection::process(AmEvent* ev)
+{
+    AmSipReplyEvent *reply_ev;
+    if(-1 == ev->event_id && (reply_ev = dynamic_cast<AmSipReplyEvent *>(ev)))
+    {
+        //DBG("got redis reply. check in local hash");
+        AmLock l(uac_dlgs_mutex);
+        auto it = uac_dlgs.find(reply_ev->reply.callid);
+        if(it != uac_dlgs.end()) {
+            //DBG("found ctx. remove dlg");
+            delete it->second;
+            uac_dlgs.erase(it);
+        }
+        return;
+    }
+    RedisConnection::process(ev);
+}
 void RegistrarRedisConnection::process_reply_event(RedisReplyEvent &event)
 {
     //DBG("got event. data: %s",AmArg::print(event.data).c_str());
@@ -371,6 +390,36 @@ void RegistrarRedisConnection::updateKeepAliveContext(
 void RegistrarRedisConnection::on_keepalive_timer()
 {
     //DBG("on keepalive timer");
-    //keepalive_contexts.dump();
+
+    AmLock l(keepalive_contexts.mutex);
+
+    for(const auto &ctx_it : keepalive_contexts) {
+        auto &ctx = ctx_it.second;
+        //send OPTIONS query for each ctx
+
+        std::unique_ptr<AmSipDialog> dlg(new AmSipDialog());
+
+        dlg->setRemoteUri(ctx.aor);
+        dlg->setLocalParty(ctx.aor); //TODO: configurable From
+        dlg->setRemoteParty(ctx.aor);
+
+        if(!ctx.path.empty())
+            dlg->setRouteSet(ctx.path);
+        //dlg->setOutboundInterface(ctx.interface_id);
+
+        dlg->setLocalTag(REGISTAR_QUEUE_NAME); //From-tag and queue to handle replies
+        dlg->setCallid(AmSession::getNewId());
+
+        if(0==dlg->sendRequest(SIP_METH_OPTIONS))
+        {
+            //add dlg to local hash
+            AmLock uac_l(uac_dlgs_mutex);
+            auto dlg_ptr = dlg.release();
+            uac_dlgs.emplace(dlg_ptr->getCallid(), dlg_ptr);
+        } else {
+            ERROR("failed to send keep alive OPTIONS request for %s",
+                ctx.aor.data());
+        }
+    }
 }
 

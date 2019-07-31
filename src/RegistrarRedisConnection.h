@@ -50,6 +50,9 @@ class RegistrarRedisConnection final
         void dump(AmArg &ret);
     } keepalive_contexts;
 
+    std::unordered_map<std::string, AmSipDialog* > uac_dlgs;
+    AmMutex uac_dlgs_mutex;
+
     class ContactsSubscriptionConnection
       : public RedisConnection
     {
@@ -82,6 +85,7 @@ class RegistrarRedisConnection final
     void stop();
     int init(const string &host, int port, bool subscription_enabled);
 
+    void process(AmEvent* ev) override;
     void process_reply_event(RedisReplyEvent &event) override;
 
     bool fetch_all(

@@ -136,7 +136,7 @@ class RedisConnection
     void run();
     void on_stop();
 
-    void process(AmEvent* ev);
+    virtual void process(AmEvent* ev);
     void process_request_event(RedisRequestEvent &event);
     virtual void process_reply_event(RedisReplyEvent &event) = 0;
 
