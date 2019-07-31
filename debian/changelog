@@ -1,3 +1,9 @@
+sems-yeti (1.9.1-1) stable; urgency=low
+
+  * registrar keepalive OPTIONS requests
+
+ -- dev <dev@yeti-switch.org>  Sun, 21 Jul 2019 00:27:56 +0300
+
 sems-yeti (1.9.0-6) stable; urgency=low
 
   * libsems 1.8.32-2
