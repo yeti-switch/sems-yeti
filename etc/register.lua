@@ -1,8 +1,7 @@
--- auth_id contact expires user_agent [path]
+-- auth_id [ expires [ contact node_id interace_id user_agent path ] ]
 
 local id = KEYS[1]
 local auth_id = 'a:'..id
-local contact = ARGV[1]
 
 -- a:auth_id: (SET)
 --   * contact_uri1
@@ -14,13 +13,12 @@ local function get_bindings()
     local ret = {}
 
     for i,c in ipairs(redis.call('SMEMBERS',auth_id)) do
-        local d = { c }
         local contact_key = 'c:'..id..':'..c
         local expires = redis.call('TTL', contact_key)
 
         if expires > 0 then
-            d[#d + 1] = expires
-            -- d[#d + 1] = redis.call('HGET',auth_id,'path')
+            local hash_data = redis.call('HMGET',contact_key, 'path', 'interface_id')
+            local d = { c, expires, contact_key, hash_data[1], hash_data[2] }
             ret[#ret+1] = d
         else
             -- cleanup obsolete SET members
@@ -31,27 +29,37 @@ local function get_bindings()
     return ret
 end
 
-if not contact then
+if not ARGV[1] then
+    -- no expires. fetch all bindings
     return get_bindings()
 end
 
-local expires = tonumber(ARGV[2])
+local expires = tonumber(ARGV[1])
 
 if not expires then
     return 'Wrong expires value'
 end
 
-local contact_key = 'c:'..id..':'..contact
+local contact = ARGV[2]
 
 if expires==0 then
-    -- remove all bindings
-    for i,c in ipairs(redis.call('SMEMBERS',auth_id)) do
-        redis.call('DEL', 'c:'..id..':'..c)
+    if not contact then
+        -- remove all bindings
+        for i,c in ipairs(redis.call('SMEMBERS',auth_id)) do
+            redis.call('DEL', 'c:'..id..':'..c)
+        end
+        redis.call('DEL', auth_id)
+        return nil
+    else
+        local contact_key = 'c:'..id..':'..contact
+        -- remove specific binding
+        redis.call('SREM', auth_id, contact)
+        redis.call('DEL', contact_key)
+        return get_bindings()
     end
-    redis.call('DEL', auth_id)
-    return nil
 end
 
+local contact_key = 'c:'..id..':'..contact
 local node_id = ARGV[3]
 local local_interface_id = ARGV[4]
 local user_agent = ARGV[5]

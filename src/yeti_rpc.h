@@ -148,4 +148,5 @@ class YetiRpc
     rpc_handler showCdrWriterRetryQueues;
 
     rpc_handler showAors;
+    rpc_handler showKeepaliveContexts;
 };

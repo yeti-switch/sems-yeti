@@ -26,7 +26,7 @@ struct RedisScript
         queue_name(queue_name)
     {}
 
-    int load(const string &script_path);
+    int load(const string &script_path,  int reply_type_id);
 };
 
 template <typename T>
@@ -42,6 +42,8 @@ struct RedisRequestEvent
     std::unique_ptr<char> cmd;
     size_t cmd_size;
 
+    bool persistent_ctx;
+
     string src_id;
 
     //onwership will be transferred to RedisReplyEvent via redisReplyCtx
@@ -49,9 +51,11 @@ struct RedisRequestEvent
     int user_type_id;
 
     RedisRequestEvent(const string &src_id, char *cmd, size_t cmd_size,
+                      bool persistent_ctx = false,
                       AmObject *user_data = nullptr, int user_type_id = 0)
       : AmEvent(REDIS_REQUEST_EVENT_ID),
         cmd(cmd), cmd_size(cmd_size),
+        persistent_ctx(persistent_ctx),
         src_id(src_id),
         user_data(user_data),
         user_type_id(user_type_id)
@@ -105,14 +109,12 @@ class RedisConnection
 
     AmTimerFd reconnect_timer;
     bool connected;
-    bool ready;
 
     int init_async_context();
 
     void on_reconnect();
 
   protected:
-    int scripts_to_load;
     string queue_name;
 
     virtual void on_connect() {}
@@ -125,6 +127,7 @@ class RedisConnection
         redisReplyCtx(RedisConnection *c, RedisRequestEvent &&r)
           :  r(std::move(r)), c(c)
         {}
+        //~redisReplyCtx() { CLASS_DBG("~redisReplyCtx"); }
     };
 
     RedisConnection(const char *name, const string &queue_name);
@@ -135,7 +138,7 @@ class RedisConnection
 
     void process(AmEvent* ev);
     void process_request_event(RedisRequestEvent &event);
-    void process_reply_event(RedisReplyEvent &event);
+    virtual void process_reply_event(RedisReplyEvent &event) = 0;
 
     redisAsyncContext *getRedisCtx() { return async_context; }
 
@@ -150,15 +153,17 @@ class RedisConnection
 
 static inline bool postRedisRequest(const string &queue_name, const string &src_tag,
                                     char *cmd, size_t cmd_size,
+                                    bool persistent_ctx = false,
                                     AmObject *user_data = nullptr, int user_type_id = 0)
 {
     return AmSessionContainer::instance()->postEvent(
         queue_name,
-        new RedisRequestEvent(src_tag,cmd,cmd_size,user_data,user_type_id));
+        new RedisRequestEvent(src_tag,cmd,cmd_size,persistent_ctx,user_data,user_type_id));
 }
 
 static inline bool postRedisRequestFmt(const string &queue_name,
                                        const string &src_tag,
+                                       bool persistent_ctx,
                                        const char *fmt...)
 {
     char *cmd;
@@ -170,11 +175,12 @@ static inline bool postRedisRequestFmt(const string &queue_name,
     va_end(args);
     if(ret <= 0)
         return false;
-    return postRedisRequest(queue_name, src_tag, cmd, static_cast<size_t>(ret));
+    return postRedisRequest(queue_name, src_tag, cmd, static_cast<size_t>(ret), persistent_ctx);
 }
 
 static inline bool postRedisRequestFmt(const string &queue_name,
                                        const string &src_tag,
+                                       bool persistent_ctx,
                                        AmObject *user_data, int user_type_id,
                                        const char *fmt...)
 {
@@ -190,6 +196,7 @@ static inline bool postRedisRequestFmt(const string &queue_name,
         return false;
 
     return postRedisRequest(queue_name, src_tag, cmd, static_cast<size_t>(ret),
+                            persistent_ctx,
                             user_data,user_type_id);
 }
 

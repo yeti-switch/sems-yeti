@@ -8,9 +8,7 @@
 
 #define EPOLL_MAX_EVENTS 2048
 
-#define REDIS_REPLY_SCRIPT_LOAD 0
-
-int RedisScript::load(const string &script_path)
+int RedisScript::load(const string &script_path, int reply_type_id)
 {
     try {
         std::ifstream f(script_path);
@@ -23,7 +21,7 @@ int RedisScript::load(const string &script_path)
                          (std::istreambuf_iterator<char>()));
 
         postRedisRequestFmt(
-            queue_name, queue_name, this, REDIS_REPLY_SCRIPT_LOAD,
+            queue_name, queue_name, false, this, reply_type_id,
             "SCRIPT LOAD %s",data.c_str());
 
         return 0;
@@ -63,7 +61,7 @@ static void redisReply2Amarg(AmArg &a, redisReply *r)
 }
 
 RedisRequestEvent::~RedisRequestEvent()
-{}
+{ }
 
 RedisReplyEvent::RedisReplyEvent(redisReply *reply, RedisRequestEvent &request)
   : AmEvent(REDIS_REPLY_EVENT_ID),
@@ -105,12 +103,10 @@ RedisConnection::RedisConnection(const char *name, const string &queue_name)
   : AmEventFdQueue(this),
     epoll_fd(-1),
     name(name),
-    queue_name(queue_name),
     async_context(nullptr),
     stopped(false),
     connected(false),
-    ready(false),
-    scripts_to_load(0)
+    queue_name(queue_name)
 {
     RedisConnection::host = "127.0.0.1";
     RedisConnection::port = 6379;
@@ -118,7 +114,7 @@ RedisConnection::RedisConnection(const char *name, const string &queue_name)
 
 RedisConnection::~RedisConnection()
 {
-    DBG("RedisConnection::~RedisConnection()");
+    CLASS_DBG("RedisConnection::~RedisConnection()");
 }
 
 static void connectCallback_static(const redisAsyncContext *c, int status)
@@ -130,7 +126,6 @@ void RedisConnection::connectCallback(const struct redisAsyncContext* c, int sta
     if(status == REDIS_OK) {
         connected = true;
         INFO("redis %s %s:%d connected", name, host.c_str(), port);
-        scripts_to_load+=3;
         on_connect();
     } else {
         ERROR("redis %s %s:%d: %s",name, host.c_str(), port, c->errstr);
@@ -144,7 +139,6 @@ static void disconnectCallback_static(const redisAsyncContext *c, int status)
 void RedisConnection::disconnectCallback(const struct redisAsyncContext* c, int status)
 {
     connected = false;
-    ready = false;
     if(status == REDIS_OK) {
         INFO("redis %s %s:%d disconnected", name, host.c_str(), port);
     } else {
@@ -274,10 +268,12 @@ void RedisConnection::run()
             p = e.data.ptr;
 
             if(p==this) {
-                if(e.events & EPOLLIN)
+                if(e.events & EPOLLIN) {
                     redisAsyncHandleRead(async_context);
-                if(e.events & EPOLLOUT)
+                }
+                if(e.events & EPOLLOUT) {
                     redisAsyncHandleWrite(async_context);
+                }
             } else if(p==&reconnect_timer) {
                 reconnect_timer.read();
                 on_reconnect();
@@ -288,6 +284,7 @@ void RedisConnection::run()
                 running = false;
                 break;
             } else {
+                DBG("processEvents");
                 processEvents();
             }
         }
@@ -317,7 +314,8 @@ void RedisConnection::process(AmEvent* ev)
         if(sys_ev && sys_ev->sys_event == AmSystemEvent::ServerShutdown){
             stop_event.fire();
         }
-    } break;
+        return;
+    }
     case REDIS_REQUEST_EVENT_ID:
         if(RedisRequestEvent *e = dynamic_cast<RedisRequestEvent*>(ev)) {
             process_request_event(*e);
@@ -338,9 +336,9 @@ static void redis_request_cb_static(redisAsyncContext *, void *r, void *privdata
 {
     RedisConnection::redisReplyCtx *ctx = static_cast<RedisConnection::redisReplyCtx *>(privdata);
     ctx->c->on_redis_reply(ctx->r, static_cast<redisReply *>(r));
-    //freeReplyObject(r);
-    delete ctx;
+    if(!ctx->r.persistent_ctx) delete ctx;
 }
+
 void RedisConnection::on_redis_reply(RedisRequestEvent &request, redisReply *reply)
 {
     //DBG("got reply from redis for cmd: %s",request.cmd.c_str());
@@ -392,26 +390,5 @@ void RedisConnection::process_request_event(RedisRequestEvent &event)
             AmSessionContainer::instance()->postEvent(
                 event.src_id,
                 new RedisReplyEvent(RedisReplyEvent::NotConnected,event));
-    }
-}
-
-void RedisConnection::process_reply_event(RedisReplyEvent &event)
-{
-    //DBG("got event. data: %s",AmArg::print(event.data).c_str());
-    RedisScript *script;
-    switch(event.user_type_id) {
-    case REDIS_REPLY_SCRIPT_LOAD:
-        script = dynamic_cast<RedisScript *>(event.user_data.release());
-        if(event.result==RedisReplyEvent::SuccessReply) {
-            script->hash = event.data.asCStr();
-            if(--scripts_to_load==0)
-                ready = true;
-            DBG("script '%s' loaded with hash '%s'",
-                script->name.c_str(),script->hash.c_str());
-        }
-        break;
-    default:
-        ERROR("unexpected reply event with type: %d",event.user_type_id);
-        break;
     }
 }

@@ -182,6 +182,7 @@ void YetiRpc::init_rpc_tree()
 			method(show_cdrwriter,"retry_queues","show cdrwriter threads retry_queue content",showCdrWriterRetryQueues,"");
 
 		method(show,"aors","show registered AoRs",showAors,"");
+		method(show,"keepalive_contexts","show keepalive contexts",showKeepaliveContexts,"");
 	/* request */
 	leaf(root,request,"request","modify commands");
 
@@ -1187,4 +1188,9 @@ void YetiRpc::showAors(const AmArg& arg, AmArg& ret)
 			r["path"]  = aor_entry_arg[5];
 		}
 	}
+}
+
+void YetiRpc::showKeepaliveContexts(const AmArg& arg, AmArg& ret)
+{
+	registrar_redis.dumpKeepAliveContexts(ret);
 }

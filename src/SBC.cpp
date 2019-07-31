@@ -379,7 +379,7 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
 
     if(contacts.empty() && !asterisk_contact) {
         //request bindings list
-        if(!yeti->registrar_redis.unbind_all(req, auth_id))
+        if(!yeti->registrar_redis.fetch_all(req, auth_id))
             AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     } else {
         //renew/replace/update binding
@@ -391,9 +391,9 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
             AmUriParser &first_contact = contacts.front();
             contact = first_contact.uri_str();
             for(auto p: first_contact.params) {
-                DBG("param: %s -> %s",p.first.c_str(),p.second.c_str());
+                //DBG("param: %s -> %s",p.first.c_str(),p.second.c_str());
                 if(p.first==expires_param_header_name) {
-                    DBG("found expires param");
+                    //DBG("found expires param");
                     expires_found = true;
                     expires = p.second;
                     break;
@@ -415,8 +415,8 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
                 if(0==strncasecmp(req.hdrs.c_str() + start_pos,
                                   expires_param_header_name.c_str(), name_end-start_pos))
                 {
-                    DBG("matched Expires header: %.*s",
-                        static_cast<int>(hdr_end-start_pos), req.hdrs.c_str()+start_pos);
+                    /*DBG("matched Expires header: %.*s",
+                        static_cast<int>(hdr_end-start_pos), req.hdrs.c_str()+start_pos);*/
                     expires = req.hdrs.substr(val_begin, val_end-val_begin);
                     expires_found = true;
                     break;
@@ -439,9 +439,14 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
             return;
         }
 
-        if(asterisk_contact && expires_int!=0) {
-            DBG("non zero expires with Contact: *");
-            AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        if(asterisk_contact) {
+            if(expires_int!=0) {
+                DBG("non zero expires with Contact: *");
+                AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+                return;
+            }
+            if(!yeti->registrar_redis.unbind_all(req, auth_id))
+                AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
             return;
         }
 

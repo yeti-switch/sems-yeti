@@ -26,6 +26,12 @@
 #include "YetiEvent.pb.h"
 #include "RedisConnection.h"
 
+#define EPOLL_MAX_EVENTS 2048
+
+#define DEFAULT_REDIS_HOST "127.0.0.1"
+#define DEFAULT_REDIS_PORT 6379
+#define DEFAULT_REGISTRAR_KEEPALIVE_INTERVAL 0
+
 #define YETI_CFG_PART "signalling"
 #define YETI_CFG_DEFAULT_TIMEOUT 5000
 
@@ -95,7 +101,7 @@ Yeti::Yeti(YetiBaseParams &params)
   : YetiBase(params),
     YetiRadius(*this),
     YetiRpc(*this),
-    AmEventQueue(this),
+    AmEventFdQueue(this),
     intial_config_received(false),
     cfg_error(false)
 {}
@@ -226,6 +232,13 @@ int Yeti::onLoad() {
 
     start_time = time(nullptr);
 
+    if((epoll_fd = epoll_create(10)) == -1) {
+        ERROR("epoll_create call failed");
+        return -1;
+    }
+
+    epoll_link(epoll_fd);
+
     start();
 
     if(!wait_and_apply_config())
@@ -294,8 +307,13 @@ int Yeti::onLoad() {
         return -1;
     }
 
-    if(config.registrar_enabled)
+    if(config.registrar_enabled) {
         registrar_redis.start();
+        if(config.registrar_keepalive_interval) {
+            keepalive_timer.link(epoll_fd);
+            keepalive_timer.set(2e6,true);
+        }
+    }
 
     if(cdr_list.getSnapshotsEnabled())
         cdr_list.start();
@@ -314,12 +332,21 @@ int Yeti::configure_registrar()
         return 0;
 
     config.registrar_redis_host = cfg.getParameter("registrar_redis_host");
-    if(config.registrar_redis_host.empty()) config.registrar_redis_host = "127.0.0.1";
+    if(config.registrar_redis_host.empty()) config.registrar_redis_host = DEFAULT_REDIS_HOST;
 
     config.registrar_redis_port = cfg.getParameterInt("registrar_redis_port");
-    if(!config.registrar_redis_port) config.registrar_redis_port = 6379;
+    if(!config.registrar_redis_port) config.registrar_redis_port = DEFAULT_REDIS_PORT;
 
-    if(0!=registrar_redis.init(config.registrar_redis_host, config.registrar_redis_port)) {
+    config.registrar_keepalive_interval =
+        cfg.getParameterInt("registrar_keepalive_interval", DEFAULT_REGISTRAR_KEEPALIVE_INTERVAL);
+    if(config.registrar_keepalive_interval) config.registrar_keepalive_interval =
+        config.registrar_keepalive_interval * 1000000;
+
+    if(0!=registrar_redis.init(
+        config.registrar_redis_host,
+        config.registrar_redis_port,
+        0!=config.registrar_keepalive_interval))
+    {
         return -1;
     }
 
@@ -328,6 +355,10 @@ int Yeti::configure_registrar()
 
 void Yeti::run()
 {
+    int ret, f;
+    bool running;
+    struct epoll_event events[EPOLL_MAX_EVENTS];
+
     setThreadName("yeti-worker");
     DBG("start yeti-worker");
 
@@ -339,10 +370,30 @@ void Yeti::run()
     }
 
     stopped = false;
-    while(!stopped) {
-        waitForEvent();
-        processEvents();
-    }
+    do {
+        ret = epoll_wait(epoll_fd, events, EPOLL_MAX_EVENTS, -1);
+
+        if(ret == -1 && errno != EINTR){
+            ERROR("epoll_wait: %s\n",strerror(errno));
+        }
+
+        if(ret < 1)
+            continue;
+
+        for (int n = 0; n < ret; ++n) {
+            struct epoll_event &e = events[n];
+            f = e.data.fd;
+
+            if(f==keepalive_timer){
+                registrar_redis.on_keepalive_timer();
+                keepalive_timer.read();
+            } else if(f == -queue_fd()) {
+                clear_pending();
+                processEvents();
+            }
+        }
+    } while(!stopped);
+
     AmEventDispatcher::instance()->delEventQueue(YETI_QUEUE_NAME);
 
     INFO("yeti-worker finished");
@@ -350,6 +401,8 @@ void Yeti::run()
 
 void Yeti::on_stop()
 {
+    uint64_t u = 1;
+
     DBG("Yeti::on_stop");
 
     cdr_list.stop();
@@ -358,7 +411,7 @@ void Yeti::on_stop()
     registrar_redis.stop();
 
     stopped = true;
-    ev_pending.set(true);
+    ::write(queue_fd(), &u, sizeof(uint64_t)); //trigger events processing
 
     join();
 }
@@ -478,8 +531,9 @@ void Yeti::processRedisRegisterReply(RedisReplyEvent &e)
 
     /* response layout:
      * [
-     *   [ contact1 , expires1 ]
-     *   [ contact2 , expires2 ]
+     *   [ contact1 , expires1, contact_key1, path1, interface_id1 ]
+     *   [ contact2 , expires2, contact_key2, path2, interface_id2 ]
+     *   ...
      * ]
      */
 
@@ -493,7 +547,7 @@ void Yeti::processRedisRegisterReply(RedisReplyEvent &e)
     int n = static_cast<int>(e.data.size());
     for(int i = 0; i < n; i++) {
         AmArg &d = e.data[i];
-        if(!isArgArray(d) || d.size()!=2) {
+        if(!isArgArray(d) || d.size()!=5) {
             ERROR("unexpected AoR layout in reply from redis: %s. skip it",AmArg::print(d).c_str());
             continue;
         }
@@ -524,6 +578,16 @@ void Yeti::processRedisRegisterReply(RedisReplyEvent &e)
         hdrs+=contact_hdr + c.print();
         hdrs+=expires_param_prefix+longlong2str(expires_arg.asLongLong());
         hdrs+=CRLF;
+
+        //update KeepAliveContexts
+        if(config.registrar_keepalive_interval!=0) {
+            registrar_redis.updateKeepAliveContext(
+                d[2].asCStr(),  //key
+                contact,        //aor
+                d[3].asCStr(),  //path
+                arg2int(d[4])   //interface_id
+            );
+        }
     }
 
     AmSipDialog::reply_error(req, 200, "OK", hdrs);

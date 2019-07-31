@@ -4,6 +4,8 @@
 #include "yeti_base.h"
 #include "yeti_radius.h"
 
+#include <AmEventFdQueue.h>
+
 #define YETI_REDIS_REGISTER_TYPE_ID 0
 #define YETI_REDIS_RPC_AOR_LOOKUP_TYPE_ID 1
 
@@ -12,7 +14,7 @@ static const string YETI_QUEUE_NAME(MOD_NAME);
 class Yeti
   : public YetiRpc,
     public AmThread,
-    public AmEventQueue,
+    public AmEventFdQueue,
     public AmEventHandler,
     virtual public YetiBase,
     virtual public YetiRadius,
@@ -22,6 +24,8 @@ class Yeti
     bool request_config();
     bool wait_and_apply_config();
     bool stopped;
+    int epoll_fd;
+    AmTimerFd keepalive_timer;
 
     sockaddr_storage cfg_remote_address;
     unsigned long cfg_remote_timeout;
@@ -31,8 +35,6 @@ class Yeti
     bool core_options_handling;
 
   public:
-
-    RegistrarRedisConnection registrar_redis;
 
     Yeti(YetiBaseParams &params);
     ~Yeti();

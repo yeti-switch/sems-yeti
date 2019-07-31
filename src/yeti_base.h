@@ -73,8 +73,11 @@ struct YetiBase {
         bool registrar_enabled;
         string registrar_redis_host;
         int registrar_redis_port;
+        int registrar_keepalive_interval;
     } config;
 
     AmConfigReader cfg;
     time_t start_time;
+
+    RegistrarRedisConnection registrar_redis;
 };
