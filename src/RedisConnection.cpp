@@ -284,7 +284,6 @@ void RedisConnection::run()
                 running = false;
                 break;
             } else {
-                DBG("processEvents");
                 processEvents();
             }
         }

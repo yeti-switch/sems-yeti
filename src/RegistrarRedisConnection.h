@@ -115,11 +115,11 @@ class RegistrarRedisConnection final
         AmArg data;
         RpcAorLookupCtx()
         {
-            DBG("RpcAorLookupCtx() %p",this);
+            //DBG("RpcAorLookupCtx() %p",this);
         }
         ~RpcAorLookupCtx()
         {
-            DBG("~RpcAorLookupCtx() %p",this);
+            //DBG("~RpcAorLookupCtx() %p",this);
         }
     };
     void rpc_resolve_aors_blocking(
