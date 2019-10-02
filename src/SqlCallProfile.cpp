@@ -216,8 +216,6 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 	assign_bool_safe(rtprelay_dtmf_detection,"rtprelay_dtmf_detection",false,false);
 	assign_bool_safe(rtprelay_force_dtmf_relay,"rtprelay_force_dtmf_relay",true,true);
 
-	assign_bool_safe(aleg_symmetric_rtp_ignore_rtcp,"aleg_symmetric_rtp_ignore_rtcp",false,false);
-	assign_bool_safe(bleg_symmetric_rtp_ignore_rtcp,"bleg_symmetric_rtp_ignore_rtcp",false,false);
 	assign_bool_safe(aleg_symmetric_rtp_nonstop,"aleg_symmetric_rtp_nonstop",false,false);
 	assign_bool_safe(bleg_symmetric_rtp_nonstop,"bleg_symmetric_rtp_nonstop",false,false);
 
@@ -404,10 +402,6 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 				rtprelay_dtmf_detection?"en":"dis");
 			DBG("RTP Relay RTP DTMF force relay %sabled\n",
 				rtprelay_force_dtmf_relay?"en":"dis");
-			DBG("RTP Relay Aleg symmetric RTP ignore RTCP %sabled\n",
-				aleg_symmetric_rtp_ignore_rtcp?"en":"dis");
-			DBG("RTP Relay Bleg symmetric RTP ignore RTCP %sabled\n",
-				bleg_symmetric_rtp_ignore_rtcp?"en":"dis");
 			DBG("RTP Relay Aleg nonstop symmetric RTP %sabled\n",
 				aleg_symmetric_rtp_nonstop?"en":"dis");
 			DBG("RTP Relay Bleg nonstop symmetric RTP %sabled\n",

@@ -230,8 +230,6 @@ struct SBCCallProfile
   bool force_symmetric_rtp_value;
   bool aleg_force_symmetric_rtp_value;
 
-  bool aleg_symmetric_rtp_ignore_rtcp;
-  bool bleg_symmetric_rtp_ignore_rtcp;
   bool aleg_symmetric_rtp_nonstop;
   bool bleg_symmetric_rtp_nonstop;
 
