@@ -547,7 +547,7 @@ void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::
     //common
     serialize_math_stat("rtcp_rtt",m.rtt);
     cJSON_AddStringToObject(j, "time_start",timeval2str_usec(m.time_start).c_str());
-    cJSON_AddStringToObject(j, "time_end",timeval2str_usec(m.time_start).c_str());
+    cJSON_AddStringToObject(j, "time_end",timeval2str_usec(m.time_end).c_str());
 
     //RX common
     cJSON_AddNumberToObject(j, "rx_ssrc",m.rx.ssrc);
