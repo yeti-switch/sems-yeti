@@ -632,6 +632,12 @@ bool SBCCallLeg::connectCallee(const AmSipRequest &orig_req)
         throw AmSession::Exception(400,"Failed to parse To-URI");
     }
 
+    if(to_uri.uri_host.empty()) {
+        to_uri.uri_host = ctx.ruri_parser.uri_host;
+        WARN("connectCallee: empty To domain. set to RURI domain: '%s'",
+            to_uri.uri_host.data());
+    }
+
     from = from_uri.nameaddr_str();
     to = to_uri.nameaddr_str();
 
@@ -2397,6 +2403,12 @@ void SBCCallLeg::onRoutingReady()
     if(!to_uri.parse_nameaddr(to)) {
         DBG("Error parsing To-URI '%s'\n",to.c_str());
         throw AmSession::Exception(400,"Failed to parse To-URI");
+    }
+
+    if(to_uri.uri_host.empty()) {
+        to_uri.uri_host = ctx.ruri_parser.uri_host;
+        WARN("onRoutingReady: empty To domain. set to RURI domain: '%s'",
+            to_uri.uri_host.data());
     }
 
     from = from_uri.nameaddr_str();
