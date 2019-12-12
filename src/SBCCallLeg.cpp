@@ -806,7 +806,8 @@ struct aor_lookup_reply {
 void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
 {
     DBG("%s onRedisReply",getLocalTag().c_str());
-    //DBG("data: %s",AmArg::print(e.data).data());
+    DBG("%s raw redis reply data: '%s'",
+        getLocalTag().data(), AmArg::print(e.data).data());
 
     //preprocess redis reply data
     aor_lookup_reply r;
@@ -814,15 +815,31 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
+    DBG("%s parsed AoRs:", getLocalTag().data());
+    for(const auto &aor_entry: r.aors) {
+        for(const auto &d: aor_entry.second) {
+            DBG("aor_id: %d, contact: '%s', path: '%s'",
+                aor_entry.first, d.contact.data(), d.path.data());
+        }
+    }
+
     //resolve ruri in profiles
     auto &profiles = call_ctx->profiles;
 
-    DBG("profiles before processing: %lu", profiles.size());
+    DBG("profiles count before the processing: %lu", profiles.size());
 
-    for(auto it = profiles.begin(); it != profiles.end();) {
+    unsigned int profile_idx = 0, sub_profile_idx;
+    for(auto it = profiles.begin(); it != profiles.end(); profile_idx++) {
         SqlCallProfile &p = *(*it);
+
+        DBG("> process profile idx:%u, disconnect_code_id: %d, registered_aor_id:%d",
+            profile_idx, p.disconnect_code_id, p.registered_aor_id);
+
         if(p.disconnect_code_id != 0 || p.registered_aor_id==0) {
             ++it;
+            DBG("< skip profile %u processing. "
+                "disconnect code is not set or aor resolving is not needed",
+                profile_idx);
             continue;
         }
 
@@ -830,30 +847,42 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
         if(a == r.aors.end()) {
             p.skip_code_id = SC_NOT_REGISTERED;
             ++it;
+            DBG("< mark profile %u as not registered using disconnect code %d",
+                profile_idx, SC_NOT_REGISTERED);
             continue;
         }
 
         auto &aors_list  = a->second;
 
+        sub_profile_idx = 0;
         auto aor_it = aors_list.begin();
         //replace ruri in profile
         p.ruri = aor_it->contact;
+        DBG("< set profile %d.%d ruri to: %s",
+            profile_idx, sub_profile_idx, p.ruri.data());
         if(!aor_it->path.empty()) {
             p.route = aor_it->path;
-            //p.outbound_proxy = aor_it->path;
+            DBG("< set profile %d.%d route to: %s",
+                profile_idx, sub_profile_idx, p.route.data());
         }
 
         ++aor_it;
         while(aor_it != aors_list.end()) {
             SqlCallProfile *cloned_p = p.copy();
-
+            sub_profile_idx++;
             ++it;
             it = profiles.insert(it, cloned_p);
+            DBG("< clone profile %d.0 to %d.%d because user resolved to the multiple AoRs",
+                profile_idx, profile_idx, sub_profile_idx);
 
             cloned_p->ruri = aor_it->contact;
+            DBG("< set profile %d.%d ruri to: %s",
+                profile_idx, sub_profile_idx, cloned_p->ruri.data());
+
             if(!aor_it->path.empty()) {
                 cloned_p->route = aor_it->path;
-                //cloned_p->outbound_proxy = aor_it->path;
+                DBG("< set profile %d.%d route to: %s",
+                    profile_idx, sub_profile_idx, cloned_p->route.data());
             }
 
             ++aor_it;
@@ -862,7 +891,15 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
         ++it;
     }
 
-    DBG("profiles count after processing: %lu", profiles.size());
+    DBG("%lu profiles after the processing:", profiles.size());
+    profile_idx = 0;
+    for(const auto &p: profiles) {
+        DBG("profile idx:%u, disconnect_code_id:%d, registered_aor_id:%d, skip_code_id:%d, ruri:'%s', to:'%s', route:'%s'",
+            profile_idx, p->disconnect_code_id,
+            p->registered_aor_id, p->skip_code_id,
+            p->ruri.data(), p->to.data(), p->route.data());
+        profile_idx++;
+    }
 
     //at this stage rejecting profile can not be the first one
 
@@ -875,7 +912,6 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
         //skip profiles with skip_code_id writing CDRs
         do {
             SqlCallProfile &p = *(*next_profile);
-            //skip_cdr = nullptr;
             DBG("process profile with skip_code_id: %d",p.skip_code_id);
 
             bool write_cdr = CodesTranslator::instance()->translate_db_code(
