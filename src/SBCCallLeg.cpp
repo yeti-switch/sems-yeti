@@ -591,7 +591,7 @@ bool SBCCallLeg::connectCallee(const AmSipRequest &orig_req)
 
     uac_ruri.uri = uac_req.r_uri;
     if(!uac_ruri.parse_uri()) {
-        DBG("Error parsing R-URI '%s'\n",uac_ruri.uri.c_str());
+        DBG("Error parsing request R-URI '%s'\n",uac_ruri.uri.c_str());
         throw AmSession::Exception(400,"Failed to parse R-URI");
     }
 
@@ -603,18 +603,20 @@ bool SBCCallLeg::connectCallee(const AmSipRequest &orig_req)
         replace(call_profile.append_headers,"%global_tag",getGlobalTag());
     }
 
-    string ruri, to, from;
+    string to, from;
 
-    ruri = call_profile.ruri.empty() ? uac_req.r_uri : call_profile.ruri;
-    if(!call_profile.ruri_host.empty()){
-        ctx.ruri_parser.uri = ruri;
-        if(!ctx.ruri_parser.parse_uri()) {
-            WARN("Error parsing R-URI '%s'\n", ruri.c_str());
-        } else {
-            ctx.ruri_parser.uri_port.clear();
-            ctx.ruri_parser.uri_host = call_profile.ruri_host;
-            ruri = ctx.ruri_parser.uri_str();
-        }
+    string ruri = call_profile.ruri.empty() ? uac_req.r_uri : call_profile.ruri;
+
+    ctx.ruri_parser.uri = ruri;
+    if(!ctx.ruri_parser.parse_uri()) {
+        ERROR("Error parsing  R-URI '%s'\n", ruri.data());
+        throw AmSession::Exception(400,"Failed to parse R-URI");
+    }
+
+    if(!call_profile.ruri_host.empty()) {
+        ctx.ruri_parser.uri_port.clear();
+        ctx.ruri_parser.uri_host = call_profile.ruri_host;
+        ruri = ctx.ruri_parser.uri_str();
     }
 
     AmUriParser from_uri, to_uri;
@@ -635,7 +637,7 @@ bool SBCCallLeg::connectCallee(const AmSipRequest &orig_req)
     if(to_uri.uri_host.empty()) {
         to_uri.uri_host = ctx.ruri_parser.uri_host;
         WARN("connectCallee: empty To domain. set to RURI domain: '%s'",
-            to_uri.uri_host.data());
+            ctx.ruri_parser.uri_host.data());
     }
 
     from = from_uri.nameaddr_str();
@@ -2375,20 +2377,21 @@ void SBCCallLeg::onRoutingReady()
     AmUriParser uac_ruri;
     uac_ruri.uri = uac_req.r_uri;
     if(!uac_ruri.parse_uri()) {
-        DBG("Error parsing R-URI '%s'\n",uac_ruri.uri.c_str());
+        DBG("Error parsing request R-URI '%s'\n",uac_ruri.uri.c_str());
         throw AmSession::Exception(400,"Failed to parse R-URI");
     }
 
     ruri = call_profile.ruri.empty() ? uac_req.r_uri : call_profile.ruri;
+    ctx.ruri_parser.uri = ruri;
+    if(!ctx.ruri_parser.parse_uri()) {
+        ERROR("Error parsing R-URI '%s'\n", ruri.data());
+        throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+
     if(!call_profile.ruri_host.empty()) {
-        ctx.ruri_parser.uri = ruri;
-        if(!ctx.ruri_parser.parse_uri()) {
-            WARN("Error parsing R-URI '%s'\n", ruri.c_str());
-        } else {
-            ctx.ruri_parser.uri_port.clear();
-            ctx.ruri_parser.uri_host = call_profile.ruri_host;
-            ruri = ctx.ruri_parser.uri_str();
-        }
+        ctx.ruri_parser.uri_port.clear();
+        ctx.ruri_parser.uri_host = call_profile.ruri_host;
+        ruri = ctx.ruri_parser.uri_str();
     }
 
     from = call_profile.from.empty() ? aleg_modified_req.from : call_profile.from;
@@ -2408,7 +2411,7 @@ void SBCCallLeg::onRoutingReady()
     if(to_uri.uri_host.empty()) {
         to_uri.uri_host = ctx.ruri_parser.uri_host;
         WARN("onRoutingReady: empty To domain. set to RURI domain: '%s'",
-            to_uri.uri_host.data());
+            ctx.ruri_parser.uri_host.data());
     }
 
     from = from_uri.nameaddr_str();
