@@ -152,6 +152,12 @@ int SBCFactory::configure(const std::string& config)
     return 0;
 }
 
+int SBCFactory::reconfigure(const std::string& config)
+{
+    WARN("runtime reconfiguration has not implemented yet");
+    return 0;
+}
+
 inline void answer_100_trying(const AmSipRequest &req, CallCtx *ctx)
 {
     AmSipReply reply;

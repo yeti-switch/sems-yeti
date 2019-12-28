@@ -87,6 +87,7 @@ class SBCFactory: public AmSessionFactory,
 
   int onLoad();
   int configure(const std::string& config) override;
+  int reconfigure(const std::string& config) override;
 
   void setCallLegCreator(CallLegCreator* clc) { callLegCreator.reset(clc); }
   CallLegCreator* getCallLegCreator() { return callLegCreator.get(); }
