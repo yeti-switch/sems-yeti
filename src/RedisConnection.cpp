@@ -120,6 +120,8 @@ RedisConnection::RedisConnection(const char *name, const string &queue_name)
 RedisConnection::~RedisConnection()
 {
     CLASS_DBG("RedisConnection::~RedisConnection()");
+    for(auto &ctx: persistent_reply_contexts)
+        delete ctx;
 }
 
 static void connectCallback_static(const redisAsyncContext *c, int status)
@@ -375,6 +377,11 @@ void RedisConnection::process_request_event(RedisRequestEvent &event)
                     ctx->r.src_id,
                     new RedisReplyEvent(RedisReplyEvent::FailedToSend,ctx->r));
                 delete ctx;
+                return;
+            }
+            //set reply ctx for persistent contexts
+            if(ctx->r.persistent_ctx) {
+                persistent_reply_contexts.push_back(ctx);
             }
         } else {
             if(REDIS_OK!=redisAsyncFormattedCommand(

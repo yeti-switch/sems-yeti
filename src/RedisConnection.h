@@ -98,6 +98,18 @@ class RedisConnection
     public AmEventFdQueue,
     public AmEventHandler
 {
+  public:
+
+  struct redisReplyCtx {
+      RedisRequestEvent r;
+      RedisConnection *c;
+      redisReplyCtx(RedisConnection *c, RedisRequestEvent &&r)
+        :  r(std::move(r)), c(c)
+      {}
+      //~redisReplyCtx() { CLASS_DBG("~redisReplyCtx"); }
+  };
+
+  private:
     int epoll_fd;
     int redis_fd;
 
@@ -114,6 +126,8 @@ class RedisConnection
     AmTimerFd reconnect_timer;
     bool connected;
 
+    std::list<redisReplyCtx *> persistent_reply_contexts;
+
     int init_async_context();
 
     void on_reconnect();
@@ -124,15 +138,6 @@ class RedisConnection
     virtual void on_connect() {}
 
   public:
-
-    struct redisReplyCtx {
-        RedisRequestEvent r;
-        RedisConnection *c;
-        redisReplyCtx(RedisConnection *c, RedisRequestEvent &&r)
-          :  r(std::move(r)), c(c)
-        {}
-        //~redisReplyCtx() { CLASS_DBG("~redisReplyCtx"); }
-    };
 
     RedisConnection(const char *name, const string &queue_name);
     virtual ~RedisConnection();
