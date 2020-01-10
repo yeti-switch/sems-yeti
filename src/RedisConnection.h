@@ -42,6 +42,7 @@ struct RedisRequestEvent
     std::unique_ptr<char> cmd;
     size_t cmd_size;
 
+    bool cmd_allocated_by_redis;
     bool persistent_ctx;
 
     string src_id;
@@ -50,11 +51,14 @@ struct RedisRequestEvent
     std::unique_ptr<AmObject> user_data;
     int user_type_id;
 
-    RedisRequestEvent(const string &src_id, char *cmd, size_t cmd_size,
+    RedisRequestEvent(const string &src_id,
+                      char *cmd, size_t cmd_size,
+                      bool cmd_allocated_by_redis,
                       bool persistent_ctx = false,
                       AmObject *user_data = nullptr, int user_type_id = 0)
       : AmEvent(REDIS_REQUEST_EVENT_ID),
         cmd(cmd), cmd_size(cmd_size),
+        cmd_allocated_by_redis(cmd_allocated_by_redis),
         persistent_ctx(persistent_ctx),
         src_id(src_id),
         user_data(user_data),
@@ -153,12 +157,17 @@ class RedisConnection
 
 static inline bool postRedisRequest(const string &queue_name, const string &src_tag,
                                     char *cmd, size_t cmd_size,
+                                    bool cmd_allocated_by_redis,
                                     bool persistent_ctx = false,
                                     AmObject *user_data = nullptr, int user_type_id = 0)
 {
     return AmSessionContainer::instance()->postEvent(
         queue_name,
-        new RedisRequestEvent(src_tag,cmd,cmd_size,persistent_ctx,user_data,user_type_id));
+        new RedisRequestEvent(src_tag,
+                              cmd,cmd_size,
+                              cmd_allocated_by_redis,
+                              persistent_ctx,
+                              user_data,user_type_id));
 }
 
 static inline bool postRedisRequestFmt(const string &queue_name,
@@ -175,7 +184,9 @@ static inline bool postRedisRequestFmt(const string &queue_name,
     va_end(args);
     if(ret <= 0)
         return false;
-    return postRedisRequest(queue_name, src_tag, cmd, static_cast<size_t>(ret), persistent_ctx);
+    return postRedisRequest(queue_name, src_tag,
+                            cmd, static_cast<size_t>(ret),
+                            true, persistent_ctx);
 }
 
 static inline bool postRedisRequestFmt(const string &queue_name,
@@ -195,8 +206,9 @@ static inline bool postRedisRequestFmt(const string &queue_name,
     if(ret <= 0)
         return false;
 
-    return postRedisRequest(queue_name, src_tag, cmd, static_cast<size_t>(ret),
-                            persistent_ctx,
+    return postRedisRequest(queue_name, src_tag,
+                            cmd, static_cast<size_t>(ret),
+                            true, persistent_ctx,
                             user_data,user_type_id);
 }
 

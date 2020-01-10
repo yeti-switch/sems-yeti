@@ -300,7 +300,7 @@ void RegistrarRedisConnection::resolve_aors(
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
-    char *cmd = static_cast<char *>(malloc(128));
+    char *cmd = new char[128];
     char *s = cmd;
 
     s += sprintf(cmd, "*%lu\r\n$7\r\nEVALSHA\r\n$40\r\n%s\r\n$%u\r\n%lu\r\n",
@@ -317,7 +317,7 @@ void RegistrarRedisConnection::resolve_aors(
     if(false==postRedisRequest(
         queue_name,
         local_tag,
-        cmd,static_cast<size_t>(s-cmd)))
+        cmd,static_cast<size_t>(s-cmd), false))
     {
         ERROR("failed to post auth_id resolve request");
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
@@ -338,7 +338,7 @@ void RegistrarRedisConnection::rpc_resolve_aors_blocking(
 
     arg.assertArray();
 
-    cmd.reset(static_cast<char *>(malloc(128)));
+    cmd.reset(new char[128]);
     s = start = cmd.get();
     n = arg.size();
 
@@ -353,10 +353,11 @@ void RegistrarRedisConnection::rpc_resolve_aors_blocking(
             len_in_chars(id), id);
     }
 
+    auto cmd_size = static_cast<size_t>(s-cmd.get());
     if(false==postRedisRequest(
         queue_name,
         YETI_QUEUE_NAME,
-        cmd.release(),static_cast<size_t>(s-cmd.get()),
+        cmd.release(),cmd_size, false,
         false,
         &ctx, YETI_REDIS_RPC_AOR_LOOKUP_TYPE_ID))
     {

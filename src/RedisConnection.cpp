@@ -61,7 +61,12 @@ static void redisReply2Amarg(AmArg &a, redisReply *r)
 }
 
 RedisRequestEvent::~RedisRequestEvent()
-{ }
+{
+    //use redisFreeCommand() for cmd buffer allocated by redisvFormatCommand()
+    if(cmd_allocated_by_redis && cmd.get()) {
+        redisFreeCommand(cmd.release());
+    }
+}
 
 RedisReplyEvent::RedisReplyEvent(redisReply *reply, RedisRequestEvent &request)
   : AmEvent(REDIS_REPLY_EVENT_ID),
@@ -359,30 +364,24 @@ void RedisConnection::process_request_event(RedisRequestEvent &event)
 {
     //DBG("process_request_event: %s",event.cmd.c_str());
     if(connected) {
-        auto ctx = new redisReplyCtx(this,std::move(event));
-        if(!ctx->r.src_id.empty()) {
+        if(!event.src_id.empty()) {
+            auto ctx = new redisReplyCtx(this,std::move(event));
             if(REDIS_OK!=redisAsyncFormattedCommand(
                 async_context,
-                &redis_request_cb_static,
-                ctx,
+                &redis_request_cb_static, ctx,
                 ctx->r.cmd.get(),ctx->r.cmd_size))
             {
-                if(!event.src_id.empty())
-                    AmSessionContainer::instance()->postEvent(
-                        event.src_id,
-                        new RedisReplyEvent(RedisReplyEvent::FailedToSend,event));
+                AmSessionContainer::instance()->postEvent(
+                    ctx->r.src_id,
+                    new RedisReplyEvent(RedisReplyEvent::FailedToSend,ctx->r));
+                delete ctx;
             }
         } else {
             if(REDIS_OK!=redisAsyncFormattedCommand(
                 async_context,
                 nullptr, nullptr,
-                ctx->r.cmd.get(),ctx->r.cmd_size))
-            {
-                if(!event.src_id.empty())
-                    AmSessionContainer::instance()->postEvent(
-                        event.src_id,
-                        new RedisReplyEvent(RedisReplyEvent::FailedToSend,event));
-            }
+                event.cmd.get(),event.cmd_size))
+            { }
         }
     } else {
         if(!event.src_id.empty())
