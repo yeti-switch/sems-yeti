@@ -1,3 +1,11 @@
+sems-yeti (1.9.1-6) stable; urgency=medium
+
+  * fix build failed because of new AmConfigFactory::reconfigure() method
+  * RedisConnection: clean persistent contexts at exit
+  * RedisConnection: fix cmd allocate/free. fix ctx leak in process_request_event()
+
+ -- dev <dev@yeti-switch.org>  Sat, 11 Jan 2020 00:10:39 +0200
+
 sems-yeti (1.9.1-5) stable; urgency=medium
 
   *SBCCallLeg: fix domain src for non-empty To header ensuring
