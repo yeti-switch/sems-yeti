@@ -1,3 +1,9 @@
+sems-yeti (1.9.1-7) stable; urgency=medium
+
+  * fix double 401 reply for REGISTER
+
+ -- dev <dev@yeti-switch.org>  Thu, 23 Jan 2020 23:18:56 +0200
+
 sems-yeti (1.9.1-6) stable; urgency=medium
 
   * fix build failed because of new AmConfigFactory::reconfigure() method
