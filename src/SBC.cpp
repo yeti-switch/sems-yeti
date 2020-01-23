@@ -308,12 +308,13 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
     if(registrar_enabled && req.method == SIP_METH_REGISTER) {
         AmArg ret;
         Auth::auth_id_type auth_id = router.check_request_auth(req,ret);
-        if(auth_id > 0) {
-            DBG("REGISTER successfully authorized with id %d",auth_id);
-            router.log_auth(req,true,ret,auth_id);
-            processAuthorizedRegister(req, auth_id);
+
+        if(auth_id == Auth::NO_AUTH) {
+            router.send_and_log_auth_challenge(req,"no Authorization header");
             return;
-        } else if(auth_id < 0) {
+        }
+
+        if(auth_id < 0) {
             switch(-auth_id) {
             case Auth::UAC_AUTH_ERROR:
                 DBG("REGISTER auth error. reply with 401");
@@ -329,8 +330,12 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
                 router.send_and_log_auth_challenge(req,ret.asCStr());
                 break;
             }
+            return;
         }
-        router.send_and_log_auth_challenge(req,"no Authorization header");
+
+        DBG("REGISTER successfully authorized with id %d",auth_id);
+        router.log_auth(req,true,ret,auth_id);
+        processAuthorizedRegister(req, auth_id);
         return;
     }
 
