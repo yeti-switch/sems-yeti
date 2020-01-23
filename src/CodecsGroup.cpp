@@ -160,8 +160,8 @@ int CodecsGroups::load_codecs_groups(){
 		t.commit();
 		c.disconnect();
 
-		for(pqxx::result::size_type i = 0; i < r.size();++i){
-			const pqxx::result::tuple &row = r[i];
+		for(pqxx::row_size_type i = 0; i < r.size();++i){
+			const pqxx::row &row = r[i];
 			unsigned int group_id = row["o_codec_group_id"].as<unsigned int>();
 			int dyn_payload_id = row["o_dynamic_payload_id"].as<int>(-1);
 			string sdp_format_params = row["o_format_params"].c_str();

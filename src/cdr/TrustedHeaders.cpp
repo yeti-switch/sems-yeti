@@ -24,15 +24,9 @@ int _TrustedHeaders::load_config(){
 #endif
 
 			pqxx::nontransaction t(c);
-
-			pqxx::prepare::invocation invoc = t.prepared("load_trusted_headers");
-
-			//invoc("Call-ID");
-			invoc(AmConfig.node_id);
-
-			r = invoc.exec();
-			for(pqxx::result::size_type i = 0; i < r.size();++i){
-				const pqxx::result::tuple &row = r[i];
+			r = t.exec_prepared("load_trusted_headers", AmConfig.node_id);
+			for(pqxx::row_size_type i = 0; i < r.size();++i){
+				const pqxx::row &row = r[i];
 
 				string hdr = row["o_name"].c_str();
 				if(hdr.empty()) continue;

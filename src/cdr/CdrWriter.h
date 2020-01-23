@@ -28,7 +28,7 @@ class cdr_writer_connection
     bool master;
 
   public:
-    cdr_writer_connection(const PGSTD::string &opt,bool is_master):
+    cdr_writer_connection(const string &opt,bool is_master):
         master(is_master),
         pqxx::connection(opt)
     {}

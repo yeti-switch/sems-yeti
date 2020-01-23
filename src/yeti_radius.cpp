@@ -61,9 +61,9 @@ int YetiRadius::init_radius_auth_connections(AmDynInvoke* radius_client)
 
 		DBG("got %ld radius auth profiles from db",r.size());
 
-		for(pqxx::result::size_type i = 0; i < r.size();++i){
+		for(pqxx::row_size_type i = 0; i < r.size();++i){
 			AmArg args,ret;
-			const pqxx::result::tuple &t = r[i];
+			const pqxx::row &t = r[i];
 
 			args.push(t["id"].as<int>());
 			args.push(t["name"].c_str());
@@ -117,9 +117,9 @@ int YetiRadius::init_radius_acc_connections(AmDynInvoke* radius_client)
 
 		DBG("got %ld radius accounting profiles from db",r.size());
 
-		for(pqxx::result::size_type i = 0; i < r.size();++i){
+		for(pqxx::row_size_type i = 0; i < r.size();++i){
 			AmArg args,ret;
-			const pqxx::result::tuple &t = r[i];
+			const pqxx::row &t = r[i];
 
 			args.push(t["id"].as<int>());
 			args.push(t["name"].c_str());

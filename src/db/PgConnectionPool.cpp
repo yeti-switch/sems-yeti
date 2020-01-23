@@ -7,7 +7,7 @@
 
 #include <sstream>
 
-PgConnection::PgConnection(const PGSTD::string &opts):
+PgConnection::PgConnection(const string &opts):
 	pqxx::connection(opts),
 	exceptions(0)
 {
@@ -459,13 +459,8 @@ void PgConnectionPool::connection_init(PgConnection *c){
 		d("integer",pqxx::prepare::treat_direct);
 #endif
 		c->prepare_now("routing_init");
-
 		pqxx::nontransaction tnx(*c);
-		pqxx::prepare::invocation invoc = tnx.prepared("routing_init");
-		invoc(AmConfig.node_id);
-		invoc(gc.pop_id);
-		invoc.exec();
-
+		tnx.exec_prepared("routing_init",AmConfig.node_id,gc.pop_id);
 		c->unprepare("routing_init");
 	}
 }

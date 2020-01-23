@@ -24,7 +24,7 @@ class PgConnection:
 	public pqxx::connection
 {
   public:
-	PgConnection(const PGSTD::string &opts);
+	PgConnection(const string &opts);
 	~PgConnection();
 	unsigned int exceptions;
 	struct timeval access_time;

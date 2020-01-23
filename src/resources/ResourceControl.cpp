@@ -160,8 +160,8 @@ int ResourceControl::load_resources_config(){
 			r = t.exec("SELECT * FROM load_resource_types()");
 			t.commit();
 		c.disconnect();
-		for(pqxx::result::size_type i = 0; i < r.size();++i) {
-			const pqxx::result::tuple &row = r[i];
+		for(pqxx::row_size_type i = 0; i < r.size();++i) {
+			const pqxx::row &row = r[i];
 			int id = row["id"].as<int>();
 			ResourceConfig rc(
 				id,

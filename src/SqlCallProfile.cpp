@@ -15,7 +15,7 @@ SqlCallProfile::SqlCallProfile():
 
 SqlCallProfile::~SqlCallProfile(){ }
 
-bool SqlCallProfile::skip(const pqxx::result::tuple &t){
+bool SqlCallProfile::skip(const pqxx::row &t){
 	try {
 		if(t["ruri"].is_null()){
 			DBG("callprofile skip condition matched: row 'ruri' field is NULL");
@@ -28,13 +28,10 @@ bool SqlCallProfile::skip(const pqxx::result::tuple &t){
 	return false;
 }
 
-bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT &df){
+bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 	profile_file = "SQL";
 
-	for(pqxx::result::tuple::const_iterator it = t.begin();
-		it!=t.end();++it)
-	{
-		const pqxx::result::field &f = *it;
+	for(const auto &f: t) {
 		placeholders_hash[f.name()] = f.c_str();
 	}
 
@@ -567,7 +564,7 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 	}
 }
 
-bool SqlCallProfile::readFilter(const pqxx::result::tuple &t, const char* cfg_key_filter,
+bool SqlCallProfile::readFilter(const pqxx::row &t, const char* cfg_key_filter,
 		vector<FilterEntry>& filter_list, bool keep_transparent_entry,
 		int failover_type_id){
 	FilterEntry hf;
@@ -612,7 +609,7 @@ bool SqlCallProfile::readFilter(const pqxx::result::tuple &t, const char* cfg_ke
 	return true;
 }
 
-bool SqlCallProfile::readFilterSet(const pqxx::result::tuple &t, const char* cfg_key_filter,
+bool SqlCallProfile::readFilterSet(const pqxx::row &t, const char* cfg_key_filter,
 		vector<FilterEntry>& filter_list)
 {
 	string s;
@@ -650,7 +647,7 @@ bool SqlCallProfile::readFilterSet(const pqxx::result::tuple &t, const char* cfg
 	return true;
 }
 
-bool SqlCallProfile::readCodecPrefs(const pqxx::result::tuple &t){
+bool SqlCallProfile::readCodecPrefs(const pqxx::row &t){
 	/*assign_str(codec_prefs.bleg_payload_order_str,"codec_preference");
 	assign_bool_str(codec_prefs.bleg_prefer_existing_payloads_str,"prefer_existing_codecs",false);
 
@@ -666,7 +663,7 @@ bool SqlCallProfile::readCodecPrefs(const pqxx::result::tuple &t){
 	return true;
 }
 
-bool SqlCallProfile::readDynFields(const pqxx::result::tuple &t,const DynFieldsT &df){
+bool SqlCallProfile::readDynFields(const pqxx::row &t,const DynFieldsT &df){
 	dyn_fields.assertStruct();
 	for(DynFieldsT::const_iterator it = df.begin();it!=df.end();++it){
 		it->tuple2AmArg(t,dyn_fields[it->name]);
@@ -674,7 +671,7 @@ bool SqlCallProfile::readDynFields(const pqxx::result::tuple &t,const DynFieldsT
 	return true;
 }
 
-bool SqlCallProfile::column_exist(const pqxx::result::tuple &t,string column_name){
+bool SqlCallProfile::column_exist(const pqxx::row &t,string column_name){
 	try {
 		t.column_number(column_name);
 		return true;

@@ -50,9 +50,9 @@ int Registration::load_registrations(){
 			("integer")("integer")
 #endif
 		;
-		r = t.prepared("load_reg")(gc.pop_id)(AmConfig.node_id).exec();
-		for(pqxx::result::size_type i = 0; i < r.size();++i){
-			const pqxx::result::tuple &row = r[i];
+		r = t.exec_prepared("load_reg", gc.pop_id, AmConfig.node_id);
+		for(pqxx::row_size_type i = 0; i < r.size();++i){
+			const pqxx::row &row = r[i];
 			//for(const auto &f: row) DBG("reg[%d] %s: %s",i,f.name(),f.c_str());
 			if(!create_registration(row,registrar_client_i)) {
 				ERROR("registration create error");
@@ -91,7 +91,7 @@ int Registration::reload(AmConfigReader &cfg){
 	return configure(cfg);
 }
 
-bool Registration::create_registration(const pqxx::result::tuple &r, AmDynInvoke* registrar_client_i)
+bool Registration::create_registration(const pqxx::row &r, AmDynInvoke* registrar_client_i)
 {
 #define push_str(key) \
 	di_args.push(r[#key].c_str());
@@ -220,7 +220,7 @@ int Registration::reload_registration(AmConfigReader &cfg, const AmArg &args)
 			("integer")("integer")("integer")
 #endif
 		;
-		r = t.prepared("load_reg")(gc.pop_id)(AmConfig.node_id)(reg_id).exec();
+		r = t.exec_prepared("load_reg", gc.pop_id, AmConfig.node_id, reg_id);
 
 		t.commit();
 		c.disconnect();
@@ -231,7 +231,7 @@ int Registration::reload_registration(AmConfigReader &cfg, const AmArg &args)
 			return 0;
 		}
 
-		const pqxx::result::tuple &row = *r.begin();
+		const pqxx::row &row = *r.begin();
 
 		DBG("got response from DB for registration with id %s. add it to registrar_client",
 			reg_id.c_str());

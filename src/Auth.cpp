@@ -89,8 +89,8 @@ int Auth::reload_credentials(pqxx::nontransaction &t, size_t &credentials_count)
     CredentialsContainer c;
 
     pqxx::result r = t.exec("SELECT * from load_incoming_auth()");
-    for(pqxx::result::size_type i = 0; i < r.size();++i){
-        const pqxx::result::tuple &t = r[i];
+    for(pqxx::row_size_type i = 0; i < r.size();++i){
+        const pqxx::row &t = r[i];
         c.add(t["id"].as<int>(),
               t["username"].c_str(),
               t["password"].c_str());

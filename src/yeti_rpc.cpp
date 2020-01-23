@@ -480,7 +480,7 @@ bool YetiRpc::check_event_id(int event_id,AmArg &ret){
 			d("integer",pqxx::prepare::treat_direct);
 #endif
 		pqxx::nontransaction t(c);
-			pqxx::result r = t.prepared("check_event")(event_id).exec();
+		pqxx::result r = t.exec_prepared("check_event",event_id);
 		if(r[0][0].as<bool>(false)){
 			DBG("event_id checking succ");
 			succ = true;

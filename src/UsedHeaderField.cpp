@@ -32,12 +32,12 @@ UsedHeaderField::UsedHeaderField(const string &hdr_name)
     type = Raw;
 }
 
-UsedHeaderField::UsedHeaderField(const pqxx::result::tuple &t)
+UsedHeaderField::UsedHeaderField(const pqxx::row &t)
 {
     readFromTuple(t);
 }
 
-void UsedHeaderField::readFromTuple(const pqxx::result::tuple &t)
+void UsedHeaderField::readFromTuple(const pqxx::row &t)
 {
     string format;
 

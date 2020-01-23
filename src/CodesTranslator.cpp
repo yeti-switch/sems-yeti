@@ -71,8 +71,8 @@ int CodesTranslator::load_translations_config(){
 			pqxx::work t(c);
 			//code2pref
 			r = t.exec("SELECT * from load_disconnect_code_rerouting()");
-			for(pqxx::result::size_type i = 0; i < r.size();++i){
-				const pqxx::result::tuple &row = r[i];
+			for(pqxx::row_size_type i = 0; i < r.size();++i){
+				const pqxx::row &row = r[i];
 				int code = row["received_code"].as<int>(0);
 				pref p(row["stop_rerouting"].as<bool>(true));
 
@@ -83,8 +83,8 @@ int CodesTranslator::load_translations_config(){
 
 			//code2trans
 			r = t.exec("SELECT * from load_disconnect_code_rewrite()");
-			for(pqxx::result::size_type i = 0; i < r.size();++i){
-				const pqxx::result::tuple &row = r[i];
+			for(pqxx::row_size_type i = 0; i < r.size();++i){
+				const pqxx::row &row = r[i];
 				int code =	row["o_code"].as<int>(0);
 				string rewrited_reason = row["o_rewrited_reason"].c_str();
 				if(rewrited_reason.empty()){
@@ -101,8 +101,8 @@ int CodesTranslator::load_translations_config(){
 
 			//icode2resp
 			r = t.exec("SELECT * from load_disconnect_code_refuse()");
-			for(pqxx::result::size_type i = 0; i < r.size();++i) {
-				const pqxx::result::tuple &row = r[i];
+			for(pqxx::row_size_type i = 0; i < r.size();++i) {
+				const pqxx::row &row = r[i];
 				unsigned int code =	row["o_id"].as<int>(0);
 
 				int internal_code = row["o_code"].as<int>(0);
@@ -126,8 +126,8 @@ int CodesTranslator::load_translations_config(){
 
 			//icode2resp overrides
 			r = t.exec("SELECT * from load_disconnect_code_refuse_overrides()");
-			for(pqxx::result::size_type i = 0; i < r.size();++i) {
-				const pqxx::result::tuple &row = r[i];
+			for(pqxx::row_size_type i = 0; i < r.size();++i) {
+				const pqxx::row &row = r[i];
 
 				int override_id = row["policy_id"].as<int>();
 
@@ -151,9 +151,9 @@ int CodesTranslator::load_translations_config(){
 
 			//code2pref overrides
 			r = t.exec("SELECT * from load_disconnect_code_rerouting_overrides()");
-			for(pqxx::result::size_type i = 0; i < r.size();++i){
+			for(pqxx::row_size_type i = 0; i < r.size();++i){
 				map<unsigned int,override>::iterator it;
-				const pqxx::result::tuple &row = r[i];
+				const pqxx::row &row = r[i];
 				int override_id = row["policy_id"].as<int>();
 
 				int code = row["received_code"].as<int>(0);
@@ -169,9 +169,9 @@ int CodesTranslator::load_translations_config(){
 
 			//code2trans overrides
 			r = t.exec("SELECT * from load_disconnect_code_rewrite_overrides()");
-			for(pqxx::result::size_type i = 0; i < r.size();++i){
+			for(pqxx::row_size_type i = 0; i < r.size();++i){
 				map<unsigned int,override>::iterator it;
-				const pqxx::result::tuple &row = r[i];
+				const pqxx::row &row = r[i];
 				int override_id = row["o_policy_id"].as<int>();
 
 				int code =	row["o_code"].as<int>(0);

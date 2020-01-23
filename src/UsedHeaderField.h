@@ -30,9 +30,9 @@ class UsedHeaderField {
 
   public:
     UsedHeaderField(const string &hdr_name);
-    UsedHeaderField(const pqxx::result::tuple &t);
+    UsedHeaderField(const pqxx::row &t);
 
-    void readFromTuple(const pqxx::result::tuple &t);
+    void readFromTuple(const pqxx::row &t);
     bool getValue(const AmSipRequest &req,string &val) const;
     void getInfo(AmArg &arg) const;
     const char*type2str() const;

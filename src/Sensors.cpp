@@ -71,8 +71,8 @@ int _Sensors::load_sensors_config(){
 		t.commit();
 		c.disconnect();
 
-		for(pqxx::result::size_type i = 0; i < r.size();++i){
-			const pqxx::result::tuple &row = r[i];
+		for(pqxx::row_size_type i = 0; i < r.size();++i){
+			const pqxx::row &row = r[i];
 
 			int id = row["o_id"].as<int>(0);
 			int mode = row["o_mode_id"].as<int>(0);

@@ -12,7 +12,7 @@ class Registration {
 	DbConfig dbc;
 	string db_schema;
 
-	bool create_registration(const pqxx::result::tuple &r, AmDynInvoke* registrar_client_i);
+	bool create_registration(const pqxx::row &r, AmDynInvoke* registrar_client_i);
 	void clean_registrations();
 
 public:

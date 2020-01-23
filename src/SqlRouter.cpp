@@ -125,11 +125,11 @@ try {
 	{
 		pqxx::nontransaction t(c);
 		pqxx::result r = t.exec("SELECT * from load_interface_out()");
-		for(pqxx::result::size_type i = 0; i < r.size();++i){
-			const pqxx::result::tuple &t = r[i];
+		for(pqxx::row_size_type i = 0; i < r.size();++i){
+			const pqxx::row &t = r[i];
 			const char *vartype = t["vartype"].c_str();
 			const char *varname = t["varname"].c_str();
-			DBG("load_interface_out:     %ld: %s : %s, %s",i,
+			DBG("load_interface_out:     %u: %s : %s, %s",i,
 				varname,vartype,t["forcdr"].c_str());
 			if(true==t["forcdr"].as<bool>()){
 				dyn_fields.push_back(DynField(varname,vartype));
@@ -146,10 +146,10 @@ try {
 	{
 		pqxx::nontransaction t(c);
 		pqxx::result r = t.exec("SELECT * from load_interface_in()");
-		for(pqxx::result::size_type i = 0; i < r.size();++i){
-			const pqxx::result::tuple &t = r[i];
+		for(pqxx::row_size_type i = 0; i < r.size();++i){
+			const pqxx::row &t = r[i];
 			const char *vartype = t["vartype"].c_str();
-			DBG("load_interface_in:     %ld: %s : %s",i,
+			DBG("load_interface_in:     %u: %s : %s",i,
 				t["varname"].c_str(),vartype);
 			used_header_fields.push_back(UsedHeaderField(t));
 			profile_types.push_back(vartype);
@@ -442,13 +442,14 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(
 	if(fixup_utf8_inplace(from_name))
 		WARN("From display name contained at least one invalid utf8 sequence. wrong bytes erased");
 
-	if(!tnx.prepared("getprofile").exists())
+	pqxx::prepare::invocation invoc = tnx.prepared("getprofile");
+
+	if(!invoc.exists())
 		throw GetProfileException(FC_NOT_PREPARED,true);
 
 	//DBG("trsp: %s",trsp.c_str());
 	//req.tt.get_trans()
 
-	pqxx::prepare::invocation invoc = tnx.prepared("getprofile");
 	invoc_field(AmConfig.node_id);			//"node_id", "integer"
 	invoc_field(gc.pop_id);					//"pop_id", "integer"
 	invoc_field((int)req.transport_id);		//"proto_id", "smallint"
@@ -523,7 +524,7 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(
 
 	pqxx::result::const_iterator rit = r.begin();
 	for(;rit != r.end();++rit){
-		const pqxx::result::tuple &t = (*rit);
+		const pqxx::row &t = (*rit);
 		if(SqlCallProfile::skip(t)){
 			continue;
 		}

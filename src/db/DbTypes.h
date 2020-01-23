@@ -128,7 +128,7 @@ struct DynField {
 		}
 	}
 
-	void tuple2AmArg(const pqxx::result::tuple &t, AmArg &ret) const {
+	void tuple2AmArg(const pqxx::row &t, AmArg &ret) const {
 		if(t[name].is_null()){
 			ret = AmArg();
 			return;

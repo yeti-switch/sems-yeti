@@ -39,16 +39,16 @@ struct SqlCallProfile
 	SqlCallProfile();
 	~SqlCallProfile();
 
-	static bool skip(const pqxx::result::tuple &t);
-	bool readFromTuple(const pqxx::result::tuple &t,const DynFieldsT &df);
-	bool readFilter(const pqxx::result::tuple &t, const char* cfg_key_filter,
+	static bool skip(const pqxx::row &t);
+	bool readFromTuple(const pqxx::row &t,const DynFieldsT &df);
+	bool readFilter(const pqxx::row &t, const char* cfg_key_filter,
 			vector<FilterEntry>& filter_list, bool keep_transparent_entry,
 			int failover_type_id = FILTER_TYPE_TRANSPARENT);
-	bool readFilterSet(const pqxx::result::tuple &t, const char* cfg_key_filter,
+	bool readFilterSet(const pqxx::row &t, const char* cfg_key_filter,
 			vector<FilterEntry>& filter_list);
-	bool readCodecPrefs(const pqxx::result::tuple &t);
-	bool readDynFields(const pqxx::result::tuple &t,const DynFieldsT &df);
-	bool column_exist(const pqxx::result::tuple &t,string column_name);
+	bool readCodecPrefs(const pqxx::row &t);
+	bool readDynFields(const pqxx::row &t,const DynFieldsT &df);
+	bool column_exist(const pqxx::row &t,string column_name);
 	bool eval_media_encryption();
 	bool eval_resources();
 	bool eval_radius();
