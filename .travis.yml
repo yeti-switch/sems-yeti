@@ -5,6 +5,7 @@ services:
   - docker
 env:
   - TRAVIS_DEBIAN_DISTRIBUTION=stretch
+  - TRAVIS_DEBIAN_BACKPORTS=true 
 
 script:
   - sh script.sh
