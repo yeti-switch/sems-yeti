@@ -127,6 +127,7 @@ SBCCallLeg::SBCCallLeg(
     logger(NULL),
     sensor(NULL),
     yeti(Yeti::instance()),
+    sdp_session_version(0),
     call_ctx(call_ctx),
     router(yeti.router),
     cdr_list(yeti.cdr_list),
@@ -174,6 +175,7 @@ SBCCallLeg::SBCCallLeg(
     sensor(NULL),
     call_ctx(caller->getCallCtx()),
     yeti(Yeti::instance()),
+    sdp_session_version(0),
     router(yeti.router),
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
@@ -212,6 +214,7 @@ SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
     logger(NULL),
     sensor(NULL),
     yeti(Yeti::instance()),
+    sdp_session_version(0),
     router(yeti.router),
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
@@ -2346,6 +2349,21 @@ void SBCCallLeg::onEarlyEventException(unsigned int code,const string &reason)
         code = 500;
     }
     dlg->reply(uac_req,code,reason);
+}
+
+void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in)
+{
+    if(sdp_session_version) {
+        sdp_session_version++;
+    } else {
+        sdp_session_version = sdp_session_version_in;
+    }
+
+    DBG("%s(%p,leg%s) %u -> %u",
+        FUNC_NAME,to_void(this),a_leg?"A":"B",
+        sdp_session_version_in, sdp_session_version);
+
+    sdp_session_version_in = sdp_session_version;
 }
 
 void SBCCallLeg::connectCallee(

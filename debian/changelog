@@ -1,3 +1,9 @@
+sems-yeti (1.7.35-6p1) stable; urgency=low
+
+  * sdp_filter: normalize sess-version in Origin field
+
+ -- dev <dev@yeti-switch.org>  Tue, 28 Jan 2020 13:13:48 +0200
+
 sems-yeti (1.7.35-6) stable; urgency=low
 
   * skip SST processing for Aleg on rerouting
