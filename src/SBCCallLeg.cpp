@@ -122,6 +122,7 @@ SBCCallLeg::SBCCallLeg(
   : CallLeg(p_dlg,p_subs),
     m_state(BB_Init),
     yeti(Yeti::instance()),
+    sdp_session_version(0),
     call_ctx(call_ctx),
     auth(nullptr),
     call_profile(*call_ctx->getCurrentProfile()),
@@ -166,6 +167,7 @@ SBCCallLeg::SBCCallLeg(
     AmSipSubscription* p_subs)
   : CallLeg(caller,p_dlg,p_subs),
     yeti(Yeti::instance()),
+    sdp_session_version(0),
     global_tag(caller->getGlobalTag()),
     call_ctx(caller->getCallCtx()),
     auth(nullptr),
@@ -200,6 +202,7 @@ SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
   : CallLeg(p_dlg,p_subs),
     m_state(BB_Init),
     yeti(Yeti::instance()),
+    sdp_session_version(0),
     auth(nullptr),
     logger(nullptr),
     sensor(nullptr),
@@ -2584,6 +2587,21 @@ void SBCCallLeg::onEarlyEventException(unsigned int code,const string &reason)
         code = 500;
     }
     dlg->reply(uac_req,code,reason);
+}
+
+void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in)
+{
+    if(sdp_session_version) {
+        sdp_session_version++;
+    } else {
+        sdp_session_version = sdp_session_version_in;
+    }
+
+    DBG("%s(%p,leg%s) %u -> %u",
+        FUNC_NAME,to_void(this),a_leg?"A":"B",
+        sdp_session_version_in, sdp_session_version);
+
+    sdp_session_version_in = sdp_session_version;
 }
 
 void SBCCallLeg::connectCallee(
