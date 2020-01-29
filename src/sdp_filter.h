@@ -45,6 +45,7 @@ int processSdpOffer(
 
 int filterSdpOffer(
 		SBCCallLeg *call,
+		_AmSipMsgInDlg &sip_msg,
 		SBCCallProfile &call_profile,
 		AmMimeBody &body,
 		string &method,
@@ -53,6 +54,7 @@ int filterSdpOffer(
 
 int processSdpAnswer(
 		SBCCallLeg *call,
+		_AmSipMsgInDlg &sip_msg,
 		AmMimeBody &body,
 		const string &method,
 		vector<SdpMedia> &negotiated_media,

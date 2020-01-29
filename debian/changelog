@@ -1,3 +1,9 @@
+sems-yeti (1.7.35-6p2) stable; urgency=low
+
+  * sdp_filter: avoid changing sess-version within same transaction
+
+ -- dev <dev@yeti-switch.org>  Wed, 29 Jan 2020 12:31:54 +0200
+
 sems-yeti (1.7.35-6p1) stable; urgency=low
 
   * sdp_filter: normalize sess-version in Origin field
