@@ -123,6 +123,7 @@ SBCCallLeg::SBCCallLeg(
     m_state(BB_Init),
     yeti(Yeti::instance()),
     sdp_session_version(0),
+    sdp_session_last_cseq(0),
     call_ctx(call_ctx),
     auth(nullptr),
     call_profile(*call_ctx->getCurrentProfile()),
@@ -168,6 +169,7 @@ SBCCallLeg::SBCCallLeg(
   : CallLeg(caller,p_dlg,p_subs),
     yeti(Yeti::instance()),
     sdp_session_version(0),
+    sdp_session_last_cseq(0),
     global_tag(caller->getGlobalTag()),
     call_ctx(caller->getCallCtx()),
     auth(nullptr),
@@ -203,6 +205,7 @@ SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
     m_state(BB_Init),
     yeti(Yeti::instance()),
     sdp_session_version(0),
+    sdp_session_last_cseq(0),
     auth(nullptr),
     logger(nullptr),
     sensor(nullptr),
@@ -437,6 +440,7 @@ void SBCCallLeg::processResourcesAndSdp()
 
     //next we should filter request for legB
     res = filterSdpOffer(this,
+                         modified_req,
                          call_profile,
                          modified_req.body,modified_req.method,
                          call_profile.static_codecs_bleg_id,
@@ -685,6 +689,7 @@ bool SBCCallLeg::connectCallee(const AmSipRequest &orig_req)
     }
 
     int res = filterSdpOffer(this,
+                             invite_req,
                              call_profile,
                              invite_req.body,invite_req.method,
                              call_profile.static_codecs_bleg_id,
@@ -1325,6 +1330,7 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
 
                 res = processSdpAnswer(
                     this,
+                    req,
                     req.body, req.method,
                     call_ctx->get_other_negotiated_media(a_leg),
                     a_leg ? call_profile.bleg_single_codec : call_profile.aleg_single_codec,
@@ -1346,6 +1352,7 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                 if(res>=0){
                     res = filterSdpOffer(
                         this,
+                        req,
                         call_profile,
                         req.body, req.method,
                         a_leg ? call_profile.static_codecs_bleg_id : call_profile.static_codecs_aleg_id
@@ -1467,6 +1474,7 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                     if(res>=0){
                         res = filterSdpOffer(
                             this,
+                            reply,
                             call_profile,
                             reply.body, reply.cseq_method,
                             a_leg ? call_profile.static_codecs_bleg_id : call_profile.static_codecs_aleg_id
@@ -1476,6 +1484,7 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                     DBG("relayEvent(): process asnwer in reply");
                     res = processSdpAnswer(
                         this,
+                        reply,
                         reply.body, reply.cseq_method,
                         call_ctx->get_other_negotiated_media(a_leg),
                         a_leg ? call_profile.bleg_single_codec : call_profile.aleg_single_codec,
@@ -2589,17 +2598,23 @@ void SBCCallLeg::onEarlyEventException(unsigned int code,const string &reason)
     dlg->reply(uac_req,code,reason);
 }
 
-void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in)
+void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in, unsigned int cseq)
 {
     if(sdp_session_version) {
-        sdp_session_version++;
+        if(sdp_session_last_cseq != cseq) {
+            sdp_session_last_cseq = cseq;
+            sdp_session_version++;
+        }
     } else {
+        sdp_session_last_cseq = cseq;
         sdp_session_version = sdp_session_version_in;
     }
 
-    DBG("%s(%p,leg%s) %u -> %u",
-        FUNC_NAME,to_void(this),a_leg?"A":"B",
-        sdp_session_version_in, sdp_session_version);
+    DBG("%s[%p]leg%s(%u, %u) -> %u",
+        FUNC_NAME,this,a_leg?"A":"B",
+        sdp_session_version_in,
+        cseq,
+        sdp_session_version);
 
     sdp_session_version_in = sdp_session_version;
 }
