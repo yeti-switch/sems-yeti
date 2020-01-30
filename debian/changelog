@@ -1,3 +1,9 @@
+sems-yeti (1.9.1-8) stable; urgency=medium
+
+  * sdp_filter: normalize sess-version in Origin field
+ 
+ -- dev <dev@yeti-switch.org>  Thu, 30 Jan 2020 11:12:55 +0200
+
 sems-yeti (1.9.1-7) stable; urgency=medium
 
   * fix double 401 reply for REGISTER
