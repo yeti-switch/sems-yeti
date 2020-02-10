@@ -103,6 +103,7 @@ SBCFactory::SBCFactory(const string& _app_name)
   : AmSessionFactory(_app_name), 
     AmConfigFactory(_app_name),
     AmDynInvokeFactory(_app_name),
+    yeti_invoke(nullptr),
     core_options_handling(false),
     callLegCreator(new CallLegCreator())
 { }
