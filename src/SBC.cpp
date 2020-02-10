@@ -123,6 +123,7 @@ SimpleRelayCreator::createGenericRelay(SBCCallProfile& call_profile,
 SBCFactory::SBCFactory(const string& _app_name)
   : AmSessionFactory(_app_name), 
     AmDynInvokeFactory(_app_name),
+    yeti_invoke(nullptr),
     core_options_handling(false),
     callLegCreator(new CallLegCreator()),
     simpleRelayCreator(new SimpleRelayCreator())
