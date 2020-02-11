@@ -1,6 +1,7 @@
 src/yeti_version.h
 CMakeLists.txt.user
 build
+etc/yeti.conf
 debian/files
 debian/*.debhelper.log
 debian/*.substvars

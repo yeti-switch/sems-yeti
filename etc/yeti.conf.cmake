@@ -1,10 +1,10 @@
 module "yeti" {
-    mgmt {
-        # config server host
-        #host = localhost
-
-        # config server port
-        #port = 4444
+    management {
+        #each node sections describes management node, specify multiple nodes for failover
+        #node {
+        #    address = localhost
+        #    port = 4444
+        #}
 
         # maximum time for waiting remote config (ms)
         #timeout = 5000
