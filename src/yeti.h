@@ -21,13 +21,14 @@ class Yeti
     AmObject
 {
     static Yeti* _instance;
+    bool add_mgmt_node(cfg_t *node_cfg);
     bool request_config();
     bool wait_and_apply_config();
     bool stopped;
     int epoll_fd;
     AmTimerFd keepalive_timer;
 
-    sockaddr_storage cfg_remote_address;
+    std::list<sockaddr_storage> management_nodes;
     unsigned long cfg_remote_timeout;
     AmCondition<bool> intial_config_received;
     bool cfg_error;

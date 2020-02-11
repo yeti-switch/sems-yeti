@@ -38,7 +38,7 @@
 #define YETI_DEFAULT_AUDIO_RECORDER_DIR "/var/spool/sems/record"
 #define YETI_DEFAULT_LOG_DIR "/var/spool/sems/logdump"
 
-#define YETI_SCTP_CONNECTION_ID 0
+#define YETI_SCTP_CONNECTION_ID_START 0
 #define YETI_SCTP_DST_SESSION_NAME "mgmt"
 #define YETI_SCTP_RECONNECT_INTERVAL 120
 #define YETI_SCTP_DEFAULT_HOST "127.0.0.1"
@@ -48,13 +48,21 @@ static char opt_name_host[] = "address";
 static char opt_name_port[] = "port";
 static char opt_name_timeout[] = "timeout";
 static char section_name_mgmt[] = "management";
+static char section_name_mgmt_node[] = "node";
 
 static char opt_name_core_options_handling[] = "core_options_handling";
+
+static cfg_opt_t mgmt_node_opts[] = {
+    CFG_STR(opt_name_host,YETI_SCTP_DEFAULT_HOST,CFGF_NONE),
+    CFG_INT(opt_name_port,YETI_SCTP_DEFAULT_PORT,CFGF_NONE),
+    CFG_END()
+};
 
 static cfg_opt_t mgmt_opts[] = {
     CFG_STR(opt_name_host,YETI_SCTP_DEFAULT_HOST,CFGF_NONE),
     CFG_INT(opt_name_port,YETI_SCTP_DEFAULT_PORT,CFGF_NONE),
     CFG_INT(opt_name_timeout,YETI_CFG_DEFAULT_TIMEOUT,CFGF_NONE),
+    CFG_SEC(section_name_mgmt_node, mgmt_node_opts, CFGF_MULTI),
     CFG_END()
 };
 
@@ -124,17 +132,44 @@ static int check_dir_write_permissions(const string &dir)
     return 0;
 }
 
+bool Yeti::add_mgmt_node(cfg_t *node_cfg)
+{
+    dns_handle dh;
+
+    management_nodes.emplace_back();
+    auto &node_adddress = management_nodes.back();
+
+    char *address = cfg_getstr(node_cfg, opt_name_host);
+    if(-1==resolver::instance()->resolve_name(address,&dh,&node_adddress,IPv4_only)) {
+        ERROR("configuration error. "
+              "management node host contains invalid address or unresolvable FQDN: %s",
+              address);
+        return true;
+    }
+    am_set_port(&node_adddress, static_cast<short>(cfg_getint(node_cfg, opt_name_port)));
+
+    DBG("add management node %s (%s:%hu)",
+        address,
+        am_inet_ntop(&node_adddress).data(),
+        am_get_port(&node_adddress));
+
+    return false;
+}
+
 bool Yeti::request_config()
 {
-    SctpBusAddConnection *new_connection = new SctpBusAddConnection();
-    new_connection->reconnect_interval = YETI_SCTP_RECONNECT_INTERVAL;
-    new_connection->remote_address = cfg_remote_address;
-    new_connection->connection_id = YETI_SCTP_CONNECTION_ID;
-    new_connection->event_sink = YETI_QUEUE_NAME;
+    int i = 0;
+    for(auto const &mgmt_node_address: management_nodes) {
+        SctpBusAddConnection *new_connection = new SctpBusAddConnection();
+        new_connection->reconnect_interval = YETI_SCTP_RECONNECT_INTERVAL;
+        new_connection->remote_address = mgmt_node_address;
+        new_connection->connection_id = YETI_SCTP_CONNECTION_ID_START + (i++);
+        new_connection->event_sink = YETI_QUEUE_NAME;
 
-    if(!AmEventDispatcher::instance()->post(SCTP_BUS_EVENT_QUEUE,new_connection)) {
-        ERROR("failed to add client SCTP connection via sctp_bus queue. ensure sctp_bus module is loaded");
-        return false;
+        if(!AmEventDispatcher::instance()->post(SCTP_BUS_EVENT_QUEUE,new_connection)) {
+            ERROR("failed to add client SCTP connection via sctp_bus queue. ensure sctp_bus module is loaded");
+            return false;
+        }
     }
 
     return true;
@@ -213,13 +248,17 @@ int Yeti::configure(const std::string& config)
         return -1;
     }
 
-    char *address = cfg_getstr(mgmt_cfg, opt_name_host);
-    if(-1==resolver::instance()->resolve_name(address,&dh,&cfg_remote_address,IPv4_only)) {
-        ERROR("configuration error. 'mgmt.host' contains invalid address or unresolvable FQDN: %s",
-            address);
-        return false;
+    auto mgmt_nodes_count = cfg_size(mgmt_cfg, section_name_mgmt_node);
+    if(mgmt_nodes_count) {
+        for(decltype(mgmt_nodes_count) i = 0; i < mgmt_nodes_count; i++) {
+            auto node_cfg = cfg_getnsec(mgmt_cfg, section_name_mgmt_node, i);
+            if(add_mgmt_node(node_cfg))
+                return -1;
+        }
+    } else {
+        if(add_mgmt_node(mgmt_cfg))
+            return -1;
     }
-    am_set_port(&cfg_remote_address, static_cast<short>(cfg_getint(mgmt_cfg, opt_name_port)));
 
     cfg_remote_timeout = static_cast<unsigned long>(cfg_getint(mgmt_cfg, opt_name_timeout));
 
@@ -434,23 +473,27 @@ void Yeti::process(AmEvent *ev)
         }
     } else
     ON_EVENT_TYPE(SctpBusConnectionStatus) {
-        DBG("on SctpBusConnectionStatus. status: %d",e->status);
-        if(e->status == SctpBusConnectionStatus::Connected) {
+        DBG("on SctpBusConnectionStatus. id:%u, status: %d",
+            e->id, e->status);
+        if(e->status == SctpBusConnectionStatus::Connected &&
+           !intial_config_received.get())
+        {
             //send cfg request
-            YetiEvent e;
-            CfgRequest &c = *e.mutable_cfg_request();
+            YetiEvent yeti_event;
+            CfgRequest &c = *yeti_event.mutable_cfg_request();
             c.set_node_id(AmConfig.node_id);
             c.set_cfg_part(YETI_CFG_PART);
             if(!AmEventDispatcher::instance()->post(
                 SCTP_BUS_EVENT_QUEUE,
                 new SctpBusRawRequest(
                     YETI_QUEUE_NAME,
-                    YETI_SCTP_CONNECTION_ID,
+                    e->id,
                     YETI_SCTP_DST_SESSION_NAME,
-                    e.SerializeAsString()
+                    yeti_event.SerializeAsString()
                 )))
             {
-                ERROR("failed to post config request to the sctp bus queue");
+                ERROR("failed to post config request for connection %u",
+                      e->id);
             }
         }
         return;
