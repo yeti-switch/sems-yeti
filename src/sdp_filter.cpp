@@ -599,7 +599,7 @@ int filterSdpOffer(SBCCallLeg *call,
 	DBG_SDP(sdp,"filterSdpOffer_in");
 
 	normalizeSDP(sdp, false, "");
-	call->normalizeSdpVersion(sdp.origin.sessV, sip_msg.cseq);
+	call->normalizeSdpVersion(sdp.origin.sessV, sip_msg.cseq, true);
 
 	CodecsGroupEntry codecs_group;
 	CodecsGroups::instance()->get(static_codecs_id,codecs_group);
@@ -688,7 +688,7 @@ int processSdpAnswer(SBCCallLeg *call,
 	res = -488;
 
 	normalizeSDP(sdp, false, ""); // anonymization is done in the other leg to use correct IP address
-	call->normalizeSdpVersion(sdp.origin.sessV, sip_msg.cseq);
+	call->normalizeSdpVersion(sdp.origin.sessV, sip_msg.cseq, false);
 
 	DBG_SDP_MEDIA(negotiated_media,"processSdpAnswer_negotiated_media");
 	DBG_SDP_MEDIA(sdp.media,"processSdpAnswer_in");

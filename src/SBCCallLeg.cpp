@@ -123,7 +123,8 @@ SBCCallLeg::SBCCallLeg(
     m_state(BB_Init),
     yeti(Yeti::instance()),
     sdp_session_version(0),
-    sdp_session_last_cseq(0),
+    sdp_session_offer_last_cseq(0),
+    sdp_session_answer_last_cseq(0),
     call_ctx(call_ctx),
     auth(nullptr),
     call_profile(*call_ctx->getCurrentProfile()),
@@ -169,7 +170,8 @@ SBCCallLeg::SBCCallLeg(
   : CallLeg(caller,p_dlg,p_subs),
     yeti(Yeti::instance()),
     sdp_session_version(0),
-    sdp_session_last_cseq(0),
+    sdp_session_offer_last_cseq(0),
+    sdp_session_answer_last_cseq(0),
     global_tag(caller->getGlobalTag()),
     call_ctx(caller->getCallCtx()),
     auth(nullptr),
@@ -205,7 +207,8 @@ SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
     m_state(BB_Init),
     yeti(Yeti::instance()),
     sdp_session_version(0),
-    sdp_session_last_cseq(0),
+    sdp_session_offer_last_cseq(0),
+    sdp_session_answer_last_cseq(0),
     auth(nullptr),
     logger(nullptr),
     sensor(nullptr),
@@ -2598,8 +2601,9 @@ void SBCCallLeg::onEarlyEventException(unsigned int code,const string &reason)
     dlg->reply(uac_req,code,reason);
 }
 
-void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in, unsigned int cseq)
+void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in, unsigned int cseq, bool offer)
 {
+    auto &sdp_session_last_cseq = offer ? sdp_session_offer_last_cseq : sdp_session_answer_last_cseq;
     if(sdp_session_version) {
         if(sdp_session_last_cseq != cseq) {
             sdp_session_last_cseq = cseq;
@@ -2610,10 +2614,10 @@ void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in, unsig
         sdp_session_version = sdp_session_version_in;
     }
 
-    DBG("%s[%p]leg%s(%u, %u) -> %u",
+    DBG("%s[%p]leg%s(%u, %u,%d) -> %u",
         FUNC_NAME,this,a_leg?"A":"B",
         sdp_session_version_in,
-        cseq,
+        cseq, offer,
         sdp_session_version);
 
     sdp_session_version_in = sdp_session_version;
