@@ -138,6 +138,8 @@ SBCCallLeg::SBCCallLeg(
     DBG("SBCCallLeg[%p](ctx %p,%p,%p)",
         to_void(this),to_void(call_ctx),to_void(p_dlg),to_void(p_subs));
 
+    setLocalTag();
+
     set_sip_relay_only(false);
     if(call_profile.aleg_rel100_mode_id!=-1) {
         dlg->setRel100State(static_cast<Am100rel::State>(call_profile.aleg_rel100_mode_id));
