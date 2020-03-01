@@ -598,30 +598,39 @@ int filterSdpOffer(SBCCallLeg *call,
 
 	DBG_SDP(sdp,"filterSdpOffer_in");
 
-	normalizeSDP(sdp, false, "");
-	call->normalizeSdpVersion(sdp.origin.sessV, sip_msg.cseq, true);
+	if(call_profile.rtprelay_enabled) {
+		normalizeSDP(sdp, false, "");
+		call->normalizeSdpVersion(sdp.origin.sessV, sip_msg.cseq, true);
+	}
 
 	CodecsGroupEntry codecs_group;
 	CodecsGroups::instance()->get(static_codecs_id,codecs_group);
 
 	std::vector<SdpPayload> &static_codecs = codecs_group.get_payloads();
 
-	filter_arrange_SDP(sdp,static_codecs, true);
-	fix_dynamic_payloads(sdp,call->getTranscoderMapping());
-	filterSDPalines(sdp, a_leg ?
-						call_profile.sdpalinesfilter :
-						call_profile.bleg_sdpalinesfilter);
-	clear_ice_params(sdp);
-
-	res = cutNoAudioStreams(sdp,call_profile.filter_noaudio_streams);
-	if(0 != res){
-		ERROR("filterSdpOffer() no streams after no audio streams filtering");
+	res = filter_arrange_SDP(
+		sdp,static_codecs,
+		call_profile.rtprelay_enabled /*  do not add new codecs if media proxifying is disabled */);
+	if(0 != res)
 		return res;
-	}
 
-	normalize_conn_location(sdp, a_leg ?
-								call_profile.bleg_conn_location_id :
-								call_profile.aleg_conn_location_id);
+	if(call_profile.rtprelay_enabled) {
+		fix_dynamic_payloads(sdp,call->getTranscoderMapping());
+		filterSDPalines(sdp, a_leg ?
+							call_profile.sdpalinesfilter :
+							call_profile.bleg_sdpalinesfilter);
+		clear_ice_params(sdp);
+
+		res = cutNoAudioStreams(sdp,call_profile.filter_noaudio_streams);
+		if(0 != res){
+			ERROR("filterSdpOffer() no streams after no audio streams filtering");
+			return res;
+		}
+
+		normalize_conn_location(sdp, a_leg ?
+									call_profile.bleg_conn_location_id :
+									call_profile.aleg_conn_location_id);
+	}
 
 	DBG_SDP(sdp,"filterSdpOffer_out");
 
@@ -633,6 +642,139 @@ int filterSdpOffer(SBCCallLeg *call,
 	sdp_body->normalizeContentType();
 
 	return res;
+}
+
+static void filterSdpAnswerMedia(
+	SBCCallLeg *call,
+	vector<SdpMedia> &negotiated_media, std::vector<SdpMedia> &media,
+	bool noaudio_streams_filtered,
+	bool avoid_transcoding,
+	bool single_codec)
+{
+	if(negotiated_media.size()){
+		vector<SdpMedia> filtered_sdp_media;
+
+		if(!media.size()){
+			ERROR("processSdpAnswer() [%s] empty answer sdp",
+				  call->getLocalTag().c_str());
+			throw InternalException(DC_REPLY_SDP_EMPTY_ANSWER,
+									call->getCallCtx()->getOverrideId());
+		}
+
+		//check for streams count
+		if(negotiated_media.size()!=media.size()){
+			if(noaudio_streams_filtered){
+				//count audio streams
+				unsigned int audio_streams = 0;
+				for(vector<SdpMedia>::const_iterator it = negotiated_media.begin();
+						it!=negotiated_media.end();++it)
+				{
+					if(it->type==MT_AUDIO)
+						audio_streams++;
+				}
+				if(media.size()!=audio_streams){
+					ERROR("processSdpAnswer()[%s] audio streams count not equal reply: %lu, saved: %u)",
+						  call->getLocalTag().c_str(),media.size(),audio_streams);
+					throw InternalException(DC_REPLY_SDP_STREAMS_COUNT,
+											call->getCallCtx()->getOverrideId());
+				}
+			} else {
+				ERROR("processSdpAnswer()[%s] streams count not equal reply: %lu, saved: %lu)",
+					call->getLocalTag().c_str(),media.size(),negotiated_media.size());
+				throw InternalException(DC_REPLY_SDP_STREAMS_COUNT,
+										call->getCallCtx()->getOverrideId());
+			}
+		}
+
+		int stream_idx = 0;
+		vector<SdpMedia>::const_iterator other_media_it = negotiated_media.begin();
+		vector<SdpMedia>::iterator m_it = media.begin();
+		//while(m_it !=sdp.media.end())
+		while(other_media_it != negotiated_media.end())
+		{
+
+			if(noaudio_streams_filtered && other_media_it->type!=MT_AUDIO){
+				/* skip non_audio streams in negotiated media (which were filtered in FilteRequestSdp)
+				 * and add them to reply */
+				DBG("add non-audio stream '%s' from netogitated media",SdpMedia::type2str(other_media_it->type).c_str());
+				filtered_sdp_media.push_back(*other_media_it);
+				++other_media_it;
+				continue;
+			}
+
+			if(m_it==media.end()) {
+				ERROR("unexpected reply sdp");
+				break;
+			}
+
+			const SdpMedia &other_m = *other_media_it;
+			SdpMedia& m = *m_it;
+
+			/* check for streams types */
+			if(m.type!=other_m.type){
+				ERROR("processSdpAnswer() [%s] streams types not matched idx = %d",
+					  call->getLocalTag().c_str(),stream_idx);
+				DBG_SDP_PAYLOAD(other_m.payloads,"other_m payload "+int2str(stream_idx));
+				throw InternalException(DC_REPLY_SDP_STREAMS_TYPES,
+										call->getCallCtx()->getOverrideId());
+			}
+
+			if(m.type!=MT_AUDIO){
+				DBG("add non-audio stream '%s' from reply",SdpMedia::type2str(other_m.type).c_str());
+				filtered_sdp_media.push_back(m); //add non-skipped noaudio streams as is
+				++m_it;
+				++other_media_it;
+				continue;
+			}
+
+			DBG_SDP_PAYLOAD(m.payloads,"m.payloads");
+			DBG_SDP_PAYLOAD(other_m.payloads,"other_m.payloads");
+
+			std::vector<SdpPayload> new_pl;
+			if(!avoid_transcoding){
+				//clear all except of first codec and dtmf
+				std::vector<SdpPayload>::const_iterator p_it = other_m.payloads.begin();
+				for (;p_it != other_m.payloads.end(); p_it++){
+					add_codec(new_pl,*p_it,single_codec);
+				}
+			} else {
+				//arrange previously negotiated codecs according to received sdp
+
+				/* fill with codecs from received sdp
+				 * which exists in negotiated payload */
+				std::vector<SdpPayload>::const_iterator f_it = m.payloads.begin();
+				for(;f_it!=m.payloads.end();f_it++){
+					const SdpPayload *p = findPayload(other_m.payloads,*f_it,m.transport);
+					if(p!=NULL){
+						add_codec(new_pl,*p,single_codec);
+					}
+				}
+				/* add codecs from negotiated payload
+				 * which doesn't exists in recevied sdp
+				 * to the tail */
+				std::vector<SdpPayload>::const_iterator p_it = other_m.payloads.begin();
+				for (;p_it != other_m.payloads.end(); p_it++){
+					if(!containsPayload(m.payloads,*p_it,m.transport)){
+						add_codec(new_pl,*p_it,single_codec);
+					}
+				}
+			}
+			DBG_SDP_PAYLOAD(new_pl,"new_pl");
+			m.payloads = new_pl;
+
+			DBG("add filtered audio stream %d from reply",stream_idx);
+			filtered_sdp_media.push_back(m);
+
+			++m_it;
+			++other_media_it;
+			stream_idx++;
+		}
+
+		media = filtered_sdp_media;
+
+	} else {
+		DBG("%s: no negotiated media. leave it as is", call->getLocalTag().data());
+	}
 }
 
 int processSdpAnswer(SBCCallLeg *call,
@@ -687,145 +829,29 @@ int processSdpAnswer(SBCCallLeg *call,
 
 	res = -488;
 
-	normalizeSDP(sdp, false, ""); // anonymization is done in the other leg to use correct IP address
-	call->normalizeSdpVersion(sdp.origin.sessV, sip_msg.cseq, false);
-
 	DBG_SDP_MEDIA(negotiated_media,"processSdpAnswer_negotiated_media");
 	DBG_SDP_MEDIA(sdp.media,"processSdpAnswer_in");
 
-	if(negotiated_media.size()){
-		vector<SdpMedia> filtered_sdp_media;
+	if(call_profile.rtprelay_enabled) {
+		normalizeSDP(sdp, false, ""); // anonymization is done in the other leg to use correct IP address
+		call->normalizeSdpVersion(sdp.origin.sessV, sip_msg.cseq, false);
 
-		if(!sdp.media.size()){
-			ERROR("processSdpAnswer() [%s] empty answer sdp",
-				  call->getLocalTag().c_str());
-			throw InternalException(DC_REPLY_SDP_EMPTY_ANSWER,
-									call->getCallCtx()->getOverrideId());
-		}
+		filterSdpAnswerMedia(
+			call,
+			negotiated_media, sdp.media,
+			noaudio_streams_filtered,
+			call_profile.avoid_transcoding,
+			single_codec);
 
-		//check for streams count
-		if(negotiated_media.size()!=sdp.media.size()){
-			if(noaudio_streams_filtered){
-				//count audio streams
-				unsigned int audio_streams = 0;
-				for(vector<SdpMedia>::const_iterator it = negotiated_media.begin();
-						it!=negotiated_media.end();++it)
-				{
-					if(it->type==MT_AUDIO)
-						audio_streams++;
-				}
-				if(sdp.media.size()!=audio_streams){
-					ERROR("processSdpAnswer()[%s] audio streams count not equal reply: %lu, saved: %u)",
-						  call->getLocalTag().c_str(),sdp.media.size(),audio_streams);
-					throw InternalException(DC_REPLY_SDP_STREAMS_COUNT,
-											call->getCallCtx()->getOverrideId());
-				}
-			} else {
-				ERROR("processSdpAnswer()[%s] streams count not equal reply: %lu, saved: %lu)",
-					call->getLocalTag().c_str(),sdp.media.size(),negotiated_media.size());
-				throw InternalException(DC_REPLY_SDP_STREAMS_COUNT,
-										call->getCallCtx()->getOverrideId());
-			}
-		}
-
-		int stream_idx = 0;
-		vector<SdpMedia>::const_iterator other_media_it = negotiated_media.begin();
-		vector<SdpMedia>::iterator m_it = sdp.media.begin();
-		//while(m_it !=sdp.media.end())
-		while(other_media_it != negotiated_media.end())
-		{
-
-			if(noaudio_streams_filtered && other_media_it->type!=MT_AUDIO){
-				/* skip non_audio streams in negotiated media (which were filtered in FilteRequestSdp)
-				 * and add them to reply */
-				DBG("add non-audio stream '%s' from netogitated media",SdpMedia::type2str(other_media_it->type).c_str());
-				filtered_sdp_media.push_back(*other_media_it);
-				++other_media_it;
-				continue;
-			}
-
-			if(m_it==sdp.media.end()) {
-				ERROR("unexpected reply sdp");
-				break;
-			}
-
-			const SdpMedia &other_m = *other_media_it;
-			SdpMedia& m = *m_it;
-
-			/* check for streams types */
-			if(m.type!=other_m.type){
-				ERROR("processSdpAnswer() [%s] streams types not matched idx = %d",
-					  call->getLocalTag().c_str(),stream_idx);
-				DBG_SDP_PAYLOAD(other_m.payloads,"other_m payload "+int2str(stream_idx));
-				throw InternalException(DC_REPLY_SDP_STREAMS_TYPES,
-										call->getCallCtx()->getOverrideId());
-			}
-
-			if(m.type!=MT_AUDIO){
-				DBG("add non-audio stream '%s' from reply",SdpMedia::type2str(other_m.type).c_str());
-				filtered_sdp_media.push_back(m); //add non-skipped noaudio streams as is
-				++m_it;
-				++other_media_it;
-				continue;
-			}
-
-			DBG_SDP_PAYLOAD(m.payloads,"m.payloads");
-			DBG_SDP_PAYLOAD(other_m.payloads,"other_m.payloads");
-
-			std::vector<SdpPayload> new_pl;
-			if(!call_profile.avoid_transcoding){
-				//clear all except of first codec and dtmf
-				std::vector<SdpPayload>::const_iterator p_it = other_m.payloads.begin();
-				for (;p_it != other_m.payloads.end(); p_it++){
-					add_codec(new_pl,*p_it,single_codec);
-				}
-			} else {
-				//arrange previously negotiated codecs according to received sdp
-
-				/* fill with codecs from received sdp
-				 * which exists in negotiated payload */
-				std::vector<SdpPayload>::const_iterator f_it = m.payloads.begin();
-				for(;f_it!=m.payloads.end();f_it++){
-					const SdpPayload *p = findPayload(other_m.payloads,*f_it,m.transport);
-					if(p!=NULL){
-						add_codec(new_pl,*p,single_codec);
-					}
-				}
-				/* add codecs from negotiated payload
-				 * which doesn't exists in recevied sdp
-				 * to the tail */
-				std::vector<SdpPayload>::const_iterator p_it = other_m.payloads.begin();
-				for (;p_it != other_m.payloads.end(); p_it++){
-					if(!containsPayload(m.payloads,*p_it,m.transport)){
-						add_codec(new_pl,*p_it,single_codec);
-					}
-				}
-			}
-			DBG_SDP_PAYLOAD(new_pl,"new_pl");
-			m.payloads = new_pl;
-
-			DBG("add filtered audio stream %d from reply",stream_idx);
-			filtered_sdp_media.push_back(m);
-
-			++m_it;
-			++other_media_it;
-			stream_idx++;
-		}
-
-		sdp.media = filtered_sdp_media;
-
-	} else {
-		DBG("%s: no negotiated media for leg%s. leave it as is",
-			 call->getLocalTag().c_str(),a_leg ? "A" : "B");
+		fix_dynamic_payloads(sdp,call->getTranscoderMapping());
+		filterSDPalines(sdp, a_leg ?
+							call_profile.sdpalinesfilter :
+							call_profile.bleg_sdpalinesfilter);
+		normalize_conn_location(sdp, a_leg ?
+									call_profile.bleg_conn_location_id :
+									call_profile.aleg_conn_location_id);
+		clear_ice_params(sdp);
 	}
-	fix_dynamic_payloads(sdp,call->getTranscoderMapping());
-	filterSDPalines(sdp, a_leg ?
-						call_profile.sdpalinesfilter :
-						call_profile.bleg_sdpalinesfilter);
-	normalize_conn_location(sdp, a_leg ?
-								call_profile.bleg_conn_location_id :
-								call_profile.aleg_conn_location_id);
-	clear_ice_params(sdp);
 
 	DBG_SDP_MEDIA(sdp.media,"processSdpAnswer_out");
 

@@ -1113,7 +1113,7 @@ void SBCCallLeg::applyAProfile()
 
     setAllow1xxWithoutToTag(call_profile.allow_1xx_without_to_tag);
 
-    if (call_profile.rtprelay_enabled || call_profile.transcoder.isActive()) {
+    if (call_profile.rtprelay_enabled) {
         DBG("Enabling RTP relay mode for SBC call\n");
 
         setRtpRelayForceSymmetricRtp(call_profile.aleg_force_symmetric_rtp_value);
@@ -1255,7 +1255,7 @@ void SBCCallLeg::applyBProfile()
     }
 
     // was read from caller but reading directly from profile now
-    if (call_profile.rtprelay_enabled || call_profile.transcoder.isActive()) {
+    if (call_profile.rtprelay_enabled) {
 
         if (call_profile.rtprelay_interface_value >= 0)
             setRtpInterface(call_profile.rtprelay_interface_value);
@@ -3192,6 +3192,9 @@ void SBCCallLeg::computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &
 
 int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote){
     DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
+
+    DBG("rtp_relay_mode = %d", rtp_relay_mode);
+    if(rtp_relay_mode == RTP_Direct) return 0;
 
     AmSdp offer(local),answer(remote);
 
