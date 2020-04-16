@@ -12,4 +12,7 @@ module "yeti" {
 
     # process OPTIONS requests
     #core_options_handling = yes
+
+    # enable in-memory signalling packets logger
+    #pcap_memory_logger = yes
 }
