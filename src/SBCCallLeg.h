@@ -12,8 +12,7 @@
 #include "SBCCallControlAPI.h"
 
 class in_memory_msg_logger: public msg_logger {
-    sip_msg msg;
-    int code;
+
     struct log_entry {
         char*   buf;
         int     len;
@@ -29,7 +28,9 @@ class in_memory_msg_logger: public msg_logger {
                   sockaddr_storage* dst_ip_arg,
                   cstring method_arg, int reply_code_arg);
     };
+
     std::list<log_entry> packets;
+    AmMutex mutex;
 
   public:
     int log(const char* buf, int len,

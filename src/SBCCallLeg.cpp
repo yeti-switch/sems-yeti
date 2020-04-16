@@ -112,6 +112,7 @@ int in_memory_msg_logger::log(const char* buf, int len,
         sockaddr_storage* dst_ip,
         cstring method, int reply_code)
 {
+    AmLock l(mutex);
     if(packets.size() >= MEMORY_LOGGER_MAX_ENTRIES)
         return 0;
     //TODO: save entry creation time
@@ -121,6 +122,7 @@ int in_memory_msg_logger::log(const char* buf, int len,
 
 void in_memory_msg_logger::feed_to_logger(msg_logger *logger)
 {
+    AmLock l(mutex);
     for(auto &p: packets) {
         logger->log(p.buf, p.len, &p.local_ip, &p.remote_ip, p.method, p.reply_code);
     }

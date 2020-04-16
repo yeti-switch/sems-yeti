@@ -1,3 +1,9 @@
+sems-yeti (1.9.1-12) stable; urgency=medium
+
+  * add mutex for in-memory logger
+ 
+ -- dev <dev@yeti-switch.org>  Fri, 17 Apr 2020 01:46:43 +0300
+
 sems-yeti (1.9.1-11) stable; urgency=medium
 
   * add in-memory signalling packets logger
