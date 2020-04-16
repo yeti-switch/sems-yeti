@@ -51,6 +51,7 @@ static char section_name_mgmt[] = "management";
 static char section_name_mgmt_node[] = "node";
 
 static char opt_name_core_options_handling[] = "core_options_handling";
+static char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
 
 static cfg_opt_t mgmt_node_opts[] = {
     CFG_STR(opt_name_host,YETI_SCTP_DEFAULT_HOST,CFGF_NONE),
@@ -69,6 +70,7 @@ static cfg_opt_t mgmt_opts[] = {
 static cfg_opt_t yeti_opts[] = {
     CFG_SEC(section_name_mgmt,mgmt_opts, CFGF_NONE),
     CFG_BOOL(opt_name_core_options_handling, cfg_true, CFGF_NONE),
+    CFG_BOOL(opt_name_pcap_memory_logger, cfg_false, CFGF_NONE),
     CFG_END()
 };
 
@@ -218,7 +220,7 @@ bool Yeti::wait_and_apply_config() {
     return true;
 }
 
-int Yeti::configure(const std::string& config)
+int Yeti::configure(const std::string& config_buf)
 {
     dns_handle dh;
     cfg_t *cfg = nullptr;
@@ -231,7 +233,7 @@ int Yeti::configure(const std::string& config)
 
     cfg_set_error_function(cfg,cfg_reader_error);
 
-    switch(cfg_parse_buf(cfg, config.c_str())) {
+    switch(cfg_parse_buf(cfg, config_buf.c_str())) {
     case CFG_SUCCESS:
         break;
     case CFG_PARSE_ERROR:
@@ -263,6 +265,7 @@ int Yeti::configure(const std::string& config)
     cfg_remote_timeout = static_cast<unsigned long>(cfg_getint(mgmt_cfg, opt_name_timeout));
 
     core_options_handling = cfg_getbool(cfg, opt_name_core_options_handling);
+    config.pcap_memory_logger = cfg_getbool(cfg, opt_name_pcap_memory_logger);
 
     return 0;
 }

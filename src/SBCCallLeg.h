@@ -11,6 +11,34 @@
 
 #include "SBCCallControlAPI.h"
 
+class in_memory_msg_logger: public msg_logger {
+    sip_msg msg;
+    int code;
+    struct log_entry {
+        char*   buf;
+        int     len;
+        sockaddr_storage   local_ip;
+        sockaddr_storage   remote_ip;
+        cstring method;
+        int reply_code;
+
+        // timeval log_timestamp;
+
+        log_entry(const char* buf_arg, int len_arg,
+                  sockaddr_storage* src_ip_arg,
+                  sockaddr_storage* dst_ip_arg,
+                  cstring method_arg, int reply_code_arg);
+    };
+    std::list<log_entry> packets;
+
+  public:
+    int log(const char* buf, int len,
+            sockaddr_storage* src_ip,
+            sockaddr_storage* dst_ip,
+            cstring method, int reply_code=0);
+    void feed_to_logger(msg_logger *logger);
+};
+
 class PayloadIdMapping
 {
   private:
@@ -73,6 +101,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   /** common logger for RTP/RTCP and SIP packets */
   msg_logger *logger;
   msg_sensor *sensor;
+  bool memory_logger_enabled;
 
   void setLogger(msg_logger *_logger);
 
@@ -224,6 +253,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   msg_logger *getLogger() { return logger; }
   msg_sensor *getSensor() { return sensor; }
+  bool getMemoryLoggerEnabled() { return memory_logger_enabled; }
 
   void b2bInitial1xx(AmSipReply& reply, bool forward);
   void b2bConnectedErr(AmSipReply& reply);

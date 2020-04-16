@@ -39,6 +39,8 @@ using namespace std;
 #define FILE_RECORDER_COMPRESSED_EXT ".mp3"
 #define FILE_RECORDER_RAW_EXT        ".wav"
 
+#define MEMORY_LOGGER_MAX_ENTRIES 100
+
 inline void replace(string& s, const string& from, const string& to)
 {
     size_t pos = 0;
@@ -85,6 +87,44 @@ static const char *callStatus2str(const CallLeg::CallStatus state)
 #define with_cdr_for_write \
     Cdr *cdr = call_ctx->getCdrSafeWrite();\
     if(cdr)
+
+
+in_memory_msg_logger::log_entry::log_entry(const char* buf_arg, int len_arg,
+          sockaddr_storage* src_ip_arg,
+          sockaddr_storage* dst_ip_arg,
+          cstring method_arg, int reply_code_arg)
+  : len(len_arg)
+{
+    buf = new char[len_arg];
+    memcpy(buf, buf_arg, len_arg);
+
+    memcpy(&local_ip, src_ip_arg, SA_len(src_ip_arg));
+    memcpy(&remote_ip, dst_ip_arg, SA_len(dst_ip_arg));
+
+    if(method_arg.s && method_arg.len) {
+        method.s = strndup(method_arg.s, method_arg.len);
+        method.len = method_arg.len;
+    }
+}
+
+int in_memory_msg_logger::log(const char* buf, int len,
+        sockaddr_storage* src_ip,
+        sockaddr_storage* dst_ip,
+        cstring method, int reply_code)
+{
+    if(packets.size() >= MEMORY_LOGGER_MAX_ENTRIES)
+        return 0;
+    //TODO: save entry creation time
+    packets.emplace_back(buf, len, src_ip, dst_ip, method, reply_code);
+    return 0;
+}
+
+void in_memory_msg_logger::feed_to_logger(msg_logger *logger)
+{
+    for(auto &p: packets) {
+        logger->log(p.buf, p.len, &p.local_ip, &p.remote_ip, p.method, p.reply_code);
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -181,6 +221,7 @@ SBCCallLeg::SBCCallLeg(
     placeholders_hash(caller->getPlaceholders()),
     logger(nullptr),
     sensor(nullptr),
+    memory_logger_enabled(caller->getMemoryLoggerEnabled()),
     router(yeti.router),
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
@@ -2321,19 +2362,27 @@ void SBCCallLeg::onInvite(const AmSipRequest& req)
     aleg_modified_req = req;
     uac_req = req;
 
-    if (!logger &&
-        !call_profile.get_logger_path().empty() &&
-        (call_profile.log_sip || call_profile.log_rtp))
-    {
-        // open the logger if not already opened
-        ParamReplacerCtx ctx(&call_profile);
-        string log_path = ctx.replaceParameters(call_profile.get_logger_path(), "msg_logger_path",req);
-        if(!openLogger(log_path)){
-            WARN("can't open msg_logger_path: '%s'",log_path.c_str());
+    if (!logger) {
+        if(!call_profile.get_logger_path().empty() &&
+           (call_profile.log_sip || call_profile.log_rtp))
+        {
+            DBG("pcap logging requested by call_profile");
+            // open the logger if not already opened
+            ParamReplacerCtx ctx(&call_profile);
+            string log_path = ctx.replaceParameters(call_profile.get_logger_path(), "msg_logger_path",req);
+            if(!openLogger(log_path)){
+                WARN("can't open msg_logger_path: '%s'",log_path.c_str());
+            }
+        } else if(yeti.config.pcap_memory_logger) {
+            DBG("no pcap logging by call_profile, but pcap_memory_logger enabled. set in-memory logger");
+            setLogger(new in_memory_msg_logger());
+            memory_logger_enabled = true;
+        } else {
+            DBG("continue without pcap logger");
         }
     }
 
-    req.log(call_profile.log_sip?getLogger():nullptr,
+    req.log((call_profile.log_sip || memory_logger_enabled) ? getLogger(): nullptr,
             call_profile.aleg_sensor_level_id&LOG_SIP_MASK?getSensor():nullptr);
 
     uac_ruri.uri = uac_req.r_uri;
@@ -3094,17 +3143,24 @@ void SBCCallLeg::createHoldRequest(AmSdp &sdp)
 void SBCCallLeg::setMediaSession(AmB2BMedia *new_session)
 {
     if (new_session) {
-        if (call_profile.log_rtp) new_session->setRtpLogger(logger);
-        else new_session->setRtpLogger(nullptr);
+        if (call_profile.log_rtp && !memory_logger_enabled) {
+            new_session->setRtpLogger(logger);
+        } else {
+            new_session->setRtpLogger(nullptr);
+        }
 
         if(a_leg) {
-            if(call_profile.aleg_sensor_level_id&LOG_RTP_MASK)
-            new_session->setRtpASensor(sensor);
-            else new_session->setRtpASensor(nullptr);
+            if(call_profile.aleg_sensor_level_id&LOG_RTP_MASK) {
+                new_session->setRtpASensor(sensor);
+            } else {
+                new_session->setRtpASensor(nullptr);
+            }
         } else {
-            if(call_profile.bleg_sensor_level_id&LOG_RTP_MASK)
-            new_session->setRtpBSensor(sensor);
-            else new_session->setRtpBSensor(nullptr);
+            if(call_profile.bleg_sensor_level_id&LOG_RTP_MASK) {
+                new_session->setRtpBSensor(sensor);
+            } else {
+                new_session->setRtpBSensor(nullptr);
+            }
         }
     }
     CallLeg::setMediaSession(new_session);
@@ -3132,12 +3188,12 @@ void SBCCallLeg::setLogger(msg_logger *_logger)
     logger = _logger;
     if (logger) inc_ref(logger);
 
-    if (call_profile.log_sip) dlg->setMsgLogger(logger);
+    if (call_profile.log_sip || memory_logger_enabled) dlg->setMsgLogger(logger);
     else dlg->setMsgLogger(nullptr);
 
     AmB2BMedia *m = getMediaSession();
     if (m) {
-        if (call_profile.log_rtp) m->setRtpLogger(logger);
+        if (call_profile.log_rtp && !memory_logger_enabled) m->setRtpLogger(logger);
         else m->setRtpLogger(nullptr);
     }
 }

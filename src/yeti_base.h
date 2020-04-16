@@ -69,6 +69,7 @@ struct YetiBase {
         string audio_recorder_dir;
         bool audio_recorder_compress;
         string log_dir;
+        bool pcap_memory_logger;
 
         bool registrar_enabled;
         string registrar_redis_host;

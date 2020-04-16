@@ -6,6 +6,7 @@
 
 #include "sip/resolver.h"
 #include "sip/transport.h"
+#include "sip/pcap_logger.h"
 #include "AmPlugIn.h"
 #include "AmSession.h"
 
@@ -221,6 +222,9 @@ void YetiRpc::init_rpc_tree()
 			method_arg(request_call,"remove","remove call from container",RemoveCall,
 					   "","<LOCAL-TAG>","remove call by local_tag");
 
+		leaf(request,request_session,"session","sessions operations");
+			method_arg(request_session,"dump","dump pcap to file",requestSessionDump,
+						"","<LOCAL-TAG>","dump in-memory logger to file for session");
 
 		leaf(request,request_media,"media","media processor instance");
 			method_arg(request_media,"payloads","loaded codecs",showPayloads,"show supported codecs",
@@ -806,6 +810,7 @@ static void SBCCallLeg2AmArg(SBCCallLeg *leg, AmArg &s)
 	s["call_status"] = leg->getCallStatusStr();
 	s["session_status"] = leg->getProcessingStatusStr();
 	s["other_id"] = leg->getOtherId();
+	s["memory_logger_enabled"] = leg->getMemoryLoggerEnabled();
 
 	AmSipDialog *dlg = leg->dlg;
 	if(dlg){
@@ -869,6 +874,57 @@ void YetiRpc::showSessionsInfo(const AmArg& args, AmArg& ret){
 				&other_session_info);
 
 		}
+	}
+}
+
+static void request_session_in_memory_logger_dump(
+	const AmEventDispatcher::QueueEntry &entry,
+	void *arg)
+{
+	SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q);
+	if(!leg) return; //skip not SBCCallLeg entries
+	AmArg &ret = *(AmArg *)arg;
+	if(!leg->getMemoryLoggerEnabled()) {
+		ret = "in-memory logger is not enabled for session";
+		return;
+	}
+
+	auto logger = dynamic_cast<in_memory_msg_logger *>(leg->getLogger());
+	if(!logger) {
+		ret = "logger is not set or has invalid type";
+		return;
+	}
+
+	string file_path = "/tmp/" + AmSession::getNewId() + ".pcap";
+
+	auto tmp_logger = new pcap_logger();
+	inc_ref(tmp_logger);
+
+	if(tmp_logger->open(file_path.data()) != 0) {
+		ret = "failed to open: " + file_path;
+		dec_ref(tmp_logger);
+		return;
+	}
+
+	logger->feed_to_logger(tmp_logger);
+
+	dec_ref(tmp_logger);
+
+	ret = "trace saved to: " + file_path;
+}
+
+void YetiRpc::requestSessionDump(const AmArg& args, AmArg& ret)
+{
+	handler_log();
+	args.assertArrayFmt("s");
+
+	const string local_tag = args[0].asCStr();
+	if(!AmEventDispatcher::instance()->apply(
+		local_tag,
+		&request_session_in_memory_logger_dump,
+		&ret))
+	{
+		ret = "session not found";
 	}
 }
 

@@ -94,6 +94,7 @@ class YetiRpc
     rpc_handler setSystemDumpLevelFull;
 
     rpc_handler showSessions;
+    rpc_handler requestSessionDump;
     rpc_handler setSessionsLimit;
 
     rpc_handler requestSystemShutdown;
