@@ -1,3 +1,10 @@
+sems-yeti (1.9.1-10) stable; urgency=medium
+
+  * SBCCallLeg, sdp_filter: fix rtprelay_enabled=0 processing
+  * SBCCallLeg: set local_tag in A leg constructor
+ 
+ -- dev <dev@yeti-switch.org>  Thu, 16 Apr 2020 18:14:35 +0300
+
 sems-yeti (1.9.1-9) stable; urgency=medium
 
   * failover for management nodes
