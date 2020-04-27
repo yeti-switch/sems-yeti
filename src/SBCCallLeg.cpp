@@ -128,7 +128,8 @@ SBCCallLeg::SBCCallLeg(
     sensor(NULL),
     yeti(Yeti::instance()),
     sdp_session_version(0),
-    sdp_session_last_cseq(0),
+    sdp_session_offer_last_cseq(0),
+    sdp_session_answer_last_cseq(0),
     call_ctx(call_ctx),
     router(yeti.router),
     cdr_list(yeti.cdr_list),
@@ -177,7 +178,8 @@ SBCCallLeg::SBCCallLeg(
     call_ctx(caller->getCallCtx()),
     yeti(Yeti::instance()),
     sdp_session_version(0),
-    sdp_session_last_cseq(0),
+    sdp_session_offer_last_cseq(0),
+    sdp_session_answer_last_cseq(0),
     router(yeti.router),
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
@@ -217,7 +219,8 @@ SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
     sensor(NULL),
     yeti(Yeti::instance()),
     sdp_session_version(0),
-    sdp_session_last_cseq(0),
+    sdp_session_offer_last_cseq(0),
+    sdp_session_answer_last_cseq(0),
     router(yeti.router),
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
@@ -2360,8 +2363,10 @@ void SBCCallLeg::onEarlyEventException(unsigned int code,const string &reason)
     dlg->reply(uac_req,code,reason);
 }
 
-void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in, unsigned int cseq)
+void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in, unsigned int cseq, bool offer)
 {
+    auto &sdp_session_last_cseq = offer ? sdp_session_offer_last_cseq : sdp_session_answer_last_cseq;
+
     if(sdp_session_version) {
         if(sdp_session_last_cseq != cseq) {
             sdp_session_last_cseq = cseq;
@@ -2372,10 +2377,10 @@ void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in, unsig
         sdp_session_version = sdp_session_version_in;
     }
 
-    DBG("%s[%p]leg%s(%u, %u) -> %u",
+    DBG("%s[%p]leg%s(%u, %u,%d) -> %u",
         FUNC_NAME,this,a_leg?"A":"B",
         sdp_session_version_in,
-        cseq,
+        cseq, offer,
         sdp_session_version);
 
     sdp_session_version_in = sdp_session_version;
