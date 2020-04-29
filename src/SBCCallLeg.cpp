@@ -486,6 +486,11 @@ void SBCCallLeg::processResourcesAndSdp()
         throw InternalException(FC_CODECS_NOT_MATCHED, call_ctx->getOverrideId());
     }
 
+    //TODO: check for allowed media transport here
+    if(!call_ctx->aleg_negotiated_media.empty()) {
+        setMediaTransport(call_ctx->aleg_negotiated_media.begin()->transport);
+    }
+
     //next we should filter request for legB
     res = filterSdpOffer(this,
                          modified_req,
@@ -2107,6 +2112,8 @@ void SBCCallLeg::updateLocalSdp(AmSdp &sdp)
 
     // remember transcodable payload IDs
     //if (call_profile.transcoder.isActive()) savePayloadIDs(sdp);
+    DBG("updateLocalSdp: transport: %s",
+        transport_p_2_str(sdp.media.begin()->transport).data());
     CallLeg::updateLocalSdp(sdp);
 }
 

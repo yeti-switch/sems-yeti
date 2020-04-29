@@ -73,7 +73,9 @@ void dump_SdpMedia(const vector<SdpMedia> &m,const string &prefix){
 	unsigned stream_idx = 0;
 	for (vector<SdpMedia>::const_iterator j = m.begin(); j != m.end(); ++j) {
 		const SdpMedia &media = *j;
-		DBG("    media[%p] conn = %s",&media,media.conn.debugPrint().c_str());
+		DBG("    media[%p] conn = %s, transport = %s",
+			&media,media.conn.debugPrint().c_str(),
+			transport_p_2_str(media.transport).data());
 		if (media.type == MT_AUDIO) {
 			DBG("    sdpmedia '%s' audio stream %d, port %d:",prefix.c_str(),
 				stream_idx,media.port);
@@ -106,7 +108,8 @@ static const SdpPayload *findPayload(const std::vector<SdpPayload>& payloads, co
 		payload.clock_rate,payload.encoding_param);
 
 	bool static_payload =
-		((transport == TP_RTPAVP || transport == TP_RTPSAVP)
+		((transport == TP_RTPAVP || transport == TP_RTPSAVP ||
+		  transport == TP_RTPAVPF || transport == TP_RTPSAVPF)
 		 && payload.payload_type >= 0
 		 && payload.payload_type < DYNAMIC_PAYLOAD_TYPE_START);
 
@@ -725,6 +728,13 @@ static void filterSdpAnswerMedia(
 				++m_it;
 				++other_media_it;
 				continue;
+			}
+
+			if(m.transport != other_m.transport) {
+				DBG("patch answer media transport: %s -> %s",
+					transport_p_2_str(m.transport).data(),
+					transport_p_2_str(other_m.transport).data());
+				m.transport = other_m.transport;
 			}
 
 			DBG_SDP_PAYLOAD(m.payloads,"m.payloads");
