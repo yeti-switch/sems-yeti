@@ -108,8 +108,9 @@ static const SdpPayload *findPayload(const std::vector<SdpPayload>& payloads, co
 		payload.clock_rate,payload.encoding_param);
 
 	bool static_payload =
-		((transport == TP_RTPAVP || transport == TP_RTPSAVP ||
-		  transport == TP_RTPAVPF || transport == TP_RTPSAVPF)
+		((transport == TP_RTPAVP || transport == TP_RTPAVPF ||
+		  transport == TP_RTPSAVP || transport == TP_RTPSAVPF ||
+		  transport == TP_UDPTLSRTPSAVP || transport == TP_UDPTLSRTPSAVPF)
 		 && payload.payload_type >= 0
 		 && payload.payload_type < DYNAMIC_PAYLOAD_TYPE_START);
 
