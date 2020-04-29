@@ -3128,8 +3128,8 @@ void SBCCallLeg::createHoldRequest(AmSdp &sdp)
     if (sdp.media.empty()) {
         // established SDP is not valid! generate complete fake
         sdp.version = 0;
-        sdp.origin.user = "sems";
-        sdp.sessionName = "sems";
+        sdp.origin.user = AmConfig.sdp_origin;
+        sdp.sessionName = AmConfig.sdp_session_name;
         sdp.conn.network = NT_IN;
         sdp.conn.addrType = AT_V4;
         sdp.conn.address = "0.0.0.0";

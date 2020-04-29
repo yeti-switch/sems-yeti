@@ -44,6 +44,9 @@
 #define YETI_SCTP_DEFAULT_HOST "127.0.0.1"
 #define YETI_SCTP_DEFAULT_PORT 4444
 
+#define YETI_SIGNATURE "yeti-switch"
+#define YETI_AGENT_SIGNATURE YETI_SIGNATURE " " YETI_VERSION
+
 static char opt_name_host[] = "address";
 static char opt_name_port[] = "port";
 static char opt_name_timeout[] = "timeout";
@@ -270,9 +273,23 @@ int Yeti::configure(const std::string& config_buf)
     return 0;
 }
 
+static void apply_yeti_signatures()
+{
+    if(AmConfig.sdp_origin==DEFAULT_SDP_ORIGIN)
+        AmConfig.sdp_origin = YETI_SIGNATURE;
+
+    if(AmConfig.sdp_session_name==DEFAULT_SDP_SESSION_NAME)
+        AmConfig.sdp_session_name = YETI_SIGNATURE;
+
+    if(AmConfig.signature==DEFAULT_SIGNATURE)
+        AmConfig.signature = YETI_AGENT_SIGNATURE;
+}
+
 int Yeti::onLoad() {
 
     start_time = time(nullptr);
+
+    apply_yeti_signatures();
 
     if((epoll_fd = epoll_create(10)) == -1) {
         ERROR("epoll_create call failed");

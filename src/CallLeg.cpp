@@ -1404,8 +1404,8 @@ void CallLeg::acceptPendingInvite(AmSipRequest *invite)
     // no offer in the INVITE (or can't be parsed), we have to append fake offer
     // into the reply
     s.version = 0;
-    s.origin.user = "sems";
-    s.sessionName = "sems";
+    s.origin.user = AmConfig.sdp_origin;
+    s.sessionName = AmConfig.sdp_session_name;
     s.conn.network = NT_IN;
     s.conn.addrType = AT_V4;
     s.conn.address = "0.0.0.0";

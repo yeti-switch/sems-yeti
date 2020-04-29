@@ -28,6 +28,7 @@
 #include "log.h"
 #include "AmUtils.h"
 #include "RTPParameters.h"
+#include "AmLcConfig.h"
 
 int filterSDP(AmSdp& sdp, const vector<FilterEntry>& filter_list) {
   
@@ -228,11 +229,11 @@ int normalizeSDP(AmSdp& sdp, bool anonymize_sdp, const string &advertised_ip) {
 
   if (anonymize_sdp) {
     // Clear s-Line in SDP:
-    sdp.sessionName = "-";
+    sdp.sessionName = AmConfig.sdp_session_name;
     // Clear u-Line in SDP:
     sdp.uri.clear();
     // Clear origin user
-    sdp.origin.user = "-";
+    sdp.origin.user = AmConfig.sdp_origin;
     if (!advertised_ip.empty()) {
       sdp.origin.conn.address = advertised_ip;
       // SdpConnection::ipv4/ipv6 seems not to be used so we won't replace it there
