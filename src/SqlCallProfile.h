@@ -49,6 +49,7 @@ struct SqlCallProfile
 	bool readCodecPrefs(const pqxx::result::tuple &t);
 	bool readDynFields(const pqxx::result::tuple &t,const DynFieldsT &df);
 	bool column_exist(const pqxx::result::tuple &t,string column_name);
+	bool eval_media_encryption();
 	bool eval_resources();
 	bool eval_radius();
 	bool eval_transport_ids();

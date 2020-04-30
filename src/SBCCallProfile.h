@@ -34,6 +34,7 @@
 #include "sip/msg_logger.h"
 #include "ampi/RadiusClientAPI.h"
 #include "sip/resolver.h"
+#include "sip/types.h"
 
 #include <set>
 #include <string>
@@ -280,6 +281,12 @@ struct SBCCallProfile
   int registered_aor_id;
   int skip_code_id;
 
+  int aleg_media_encryption_mode_id;
+  int bleg_media_encryption_mode_id;
+
+  TransProt aleg_media_transport;
+  TransProt bleg_media_transport;
+
   struct TranscoderSettings {
     enum { DTMFAlways, DTMFNever } dtmf_mode;
 
@@ -391,7 +398,9 @@ struct SBCCallProfile
 	auth_required(false),
 	registered_aor_id(0),
 	skip_code_id(0),
-	force_transcoding(false)
+	force_transcoding(false),
+    aleg_media_encryption_mode_id(0),
+    bleg_media_encryption_mode_id(0)
   { }
 
   bool operator==(const SBCCallProfile& rhs) const;

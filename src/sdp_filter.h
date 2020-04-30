@@ -36,6 +36,7 @@ int filter_arrange_SDP(
 		bool add_codecs);
 
 int processSdpOffer(
+		SBCCallLeg *call,
 		SBCCallProfile &call_profile,
 		AmMimeBody &body, string &method,
 		vector<SdpMedia> &negotiated_media,

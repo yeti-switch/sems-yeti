@@ -477,18 +477,13 @@ void SBCCallLeg::processResourcesAndSdp()
     PROF_START(sdp_processing);
 
     //filterSDP
-    int res = processSdpOffer(call_profile,
+    int res = processSdpOffer(this, call_profile,
                               aleg_modified_req.body, aleg_modified_req.method,
                               call_ctx->aleg_negotiated_media,
                               call_profile.static_codecs_aleg_id);
-    if(res < 0){
-        INFO("%s() Not acceptable codecs",FUNC_NAME);
-        throw InternalException(FC_CODECS_NOT_MATCHED, call_ctx->getOverrideId());
-    }
-
-    //TODO: check for allowed media transport here
-    if(!call_ctx->aleg_negotiated_media.empty()) {
-        setMediaTransport(call_ctx->aleg_negotiated_media.begin()->transport);
+    if(res != 0) {
+        DBG("%s() processSdpOffer: %d",FUNC_NAME, res);
+        throw InternalException(res, call_ctx->getOverrideId());
     }
 
     //next we should filter request for legB
@@ -498,8 +493,8 @@ void SBCCallLeg::processResourcesAndSdp()
                          modified_req.body,modified_req.method,
                          call_profile.static_codecs_bleg_id,
                          &call_ctx->bleg_initial_offer);
-    if(res < 0){
-        INFO("%s() Not acceptable codecs for legB",FUNC_NAME);
+    if(res != 0) {
+        DBG("%s() filterSdpOffer: %d",FUNC_NAME, res);
         throw AmSession::Exception(488, SIP_REPLY_NOT_ACCEPTABLE_HERE);
     }
     PROF_END(sdp_processing);
@@ -747,7 +742,7 @@ bool SBCCallLeg::connectCallee(const AmSipRequest &orig_req)
                              invite_req.body,invite_req.method,
                              call_profile.static_codecs_bleg_id,
                              &call_ctx->bleg_initial_offer);
-    if(res < 0){
+    if(res != 0){
         INFO("onInitialInvite() Not acceptable codecs for legB");
         throw AmSession::Exception(488, SIP_REPLY_NOT_ACCEPTABLE_HERE);
     }
@@ -1186,6 +1181,7 @@ void SBCCallLeg::applyAProfile()
         setRtpTimeout(call_profile.dead_rtp_time);
         setIgnoreRelayStreams(call_profile.filter_noaudio_streams);
         setEnableInboundDtmfFiltering(call_profile.bleg_rtp_filter_inband_dtmf);
+        setMediaTransport(call_profile.aleg_media_transport);
 
         if(call_profile.transcoder.isActive()) {
             setRtpRelayMode(RTP_Transcoding);
@@ -1325,6 +1321,7 @@ void SBCCallLeg::applyBProfile()
         setRtpTimeout(call_profile.dead_rtp_time);
         setIgnoreRelayStreams(call_profile.filter_noaudio_streams);
         setEnableInboundDtmfFiltering(call_profile.aleg_rtp_filter_inband_dtmf);
+        setMediaTransport(call_profile.bleg_media_transport);
 
         // copy stats counters
         rtp_pegs = call_profile.bleg_rtp_counters;
@@ -1397,12 +1394,12 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
 
             } else {
                 res = processSdpOffer(
-                    call_profile,
+                    this, call_profile,
                     req.body, req.method,
                     call_ctx->get_self_negotiated_media(a_leg),
                     a_leg ? call_profile.static_codecs_aleg_id : call_profile.static_codecs_bleg_id
                 );
-                if(res>=0){
+                if(res==0) {
                     res = filterSdpOffer(
                         this,
                         req,
@@ -1412,9 +1409,9 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                     );
                 }
             }
-            if (res < 0) {
+            if (res != 0) {
                 delete ev;
-                return res;
+                return -488;
             }
         } catch(InternalException &exception){
             DBG("got internal exception %d on request processing",exception.icode);
@@ -1517,14 +1514,14 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                 if(dlg_oa_state==AmOfferAnswer::OA_OfferRecved){
                     DBG("relayEvent(): process offer in reply");
                     res = processSdpOffer(
-                        call_profile,
+                        this, call_profile,
                         reply.body, reply.cseq_method,
                         call_ctx->get_self_negotiated_media(a_leg),
                         a_leg ? call_profile.static_codecs_aleg_id : call_profile.static_codecs_bleg_id,
                         false,
                         a_leg ? call_profile.aleg_single_codec : call_profile.bleg_single_codec
                     );
-                    if(res>=0){
+                    if(res==0){
                         res = filterSdpOffer(
                             this,
                             reply,
@@ -1548,11 +1545,10 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                     );
                 }
 
-                if(res<0){
+                if(res != 0){
                     terminateLegOnReplyException(
                         reply,
-                        InternalException(DC_REPLY_SDP_GENERIC_EXCEPTION,
-                                          call_ctx->getOverrideId(a_leg)));
+                        InternalException(res, call_ctx->getOverrideId(a_leg)));
                     delete ev;
                     return -488;
                 }
@@ -1663,14 +1659,14 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
             AmSipRequest upd_req(req);
             try {
                 int res = processSdpOffer(
-                    call_profile,
+                    this, call_profile,
                     upd_req.body, upd_req.method,
                     call_ctx->get_self_negotiated_media(a_leg),
                     a_leg ? call_profile.static_codecs_aleg_id : call_profile.static_codecs_bleg_id,
                     true,
                     a_leg ? call_profile.aleg_single_codec : call_profile.bleg_single_codec
                 );
-                if (res < 0) {
+                if (res != 0) {
                     dlg->reply(req,488,"Not Acceptable Here");
                     return;
                 }
@@ -1743,14 +1739,14 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
             AmSipRequest inv_req(req);
             try {
                 int res = processSdpOffer(
-                    call_profile,
+                    this, call_profile,
                     inv_req.body, inv_req.method,
                     call_ctx->get_self_negotiated_media(a_leg),
                     a_leg ? call_profile.static_codecs_aleg_id : call_profile.static_codecs_bleg_id,
                     true,
                     a_leg ? call_profile.aleg_single_codec : call_profile.bleg_single_codec
                 );
-                if (res < 0) {
+                if (res != 0) {
                     dlg->reply(req,488,"Not Acceptable Here");
                     return;
                 }

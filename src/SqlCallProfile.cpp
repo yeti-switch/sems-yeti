@@ -304,6 +304,9 @@ bool SqlCallProfile::readFromTuple(const pqxx::result::tuple &t,const DynFieldsT
 
 	assign_int_safe_silent(registered_aor_id, "registered_aor_id",0,0);
 
+	assign_int_safe_silent(aleg_media_encryption_mode_id, "aleg_media_encryption_mode_id",0,0);
+	assign_int_safe_silent(bleg_media_encryption_mode_id, "bleg_media_encryption_mode_id",0,0);
+
 	DBG("Yeti: loaded SQL profile\n");
 
 	return true;
@@ -478,6 +481,9 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 		DBG("bleg_single_codec: '%s'\n", bleg_single_codec?"yes":"no");
 		DBG("try_avoid_transcoding: '%s'\n", avoid_transcoding?"yes":"no");
 
+		DBG("aleg_media_encryption_mode_id: %d",aleg_media_encryption_mode_id);
+		DBG("bleg_media_encryption_mode_id: %d",bleg_media_encryption_mode_id);
+
 		DBG("filter_noaudio_streams: '%s'\n",filter_noaudio_streams?"yes":"no");
 
 		DBG("aleg_conn_location: '%s'\n",conn_location2str(aleg_conn_location_id));
@@ -543,7 +549,6 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 				bleg_radius_acc_rules.interim_accounting_interval,
 				bleg_radius_acc_rules.enable_stop_accounting);
 		}
-
 
 		for(AmArg::ValueStruct::const_iterator it = dyn_fields.begin();
 			it!=dyn_fields.end();++it)
@@ -718,6 +723,33 @@ bool SqlCallProfile::eval_radius(){
 	return true;
 }
 
+static TransProt encryption_mode2transport(int mode)
+{
+	switch(mode) {
+		case 0: return TP_RTPAVP;
+		case 1: return TP_RTPSAVP;
+		case 2: return TP_UDPTLSRTPSAVP;
+		default: return TP_NONE;
+	}
+}
+
+bool SqlCallProfile::eval_media_encryption()
+{
+	aleg_media_transport = encryption_mode2transport(aleg_media_encryption_mode_id);
+	if(TP_NONE == aleg_media_transport) {
+		ERROR("unexpected aleg_media_encryption_mode_id value %d", aleg_media_encryption_mode_id);
+		return false;
+	}
+
+	bleg_media_transport = encryption_mode2transport(bleg_media_encryption_mode_id);
+	if(TP_NONE == bleg_media_transport) {
+		ERROR("unexpected bleg_media_encryption_mode_id value %d", bleg_media_encryption_mode_id);
+		return false;
+	}
+
+	return true;
+}
+
 static void _patch_uri_transport(
 	string &uri,
 	unsigned int transport_id,
@@ -803,7 +835,8 @@ bool SqlCallProfile::eval(){
 	return eval_transport_ids() &&
 		   eval_protocol_priority() &&
 		   eval_resources() &&
-		   eval_radius();
+		   eval_radius() &&
+		   eval_media_encryption();
 }
 
 SqlCallProfile *SqlCallProfile::copy(){

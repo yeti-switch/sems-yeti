@@ -408,7 +408,7 @@ int filter_arrange_SDP(AmSdp& sdp,
 
 	if ((!media_line_left) && media_line_filtered_out) {
 		DBG("all streams were marked as inactive\n");
-		return -488;
+		return FC_CODECS_NOT_MATCHED;
 	}
 	return 0;
 }
@@ -428,7 +428,7 @@ int filterNoAudioStreams(AmSdp &sdp, bool filter){
 	}
 	if(!have_audio_stream) {
 		DBG("no audio streams after non-audio streams filtering");
-		return -488;
+		return FC_NO_SUITABLE_MEDIA;
 	}
 	return 0;
 }
@@ -446,7 +446,7 @@ int cutNoAudioStreams(AmSdp &sdp, bool cut){
 		}
 	}
 	if(!new_media.size()){
-		return -488;
+		return FC_NO_SUITABLE_MEDIA;
 	}
 	sdp.media = new_media;
 	return 0;
@@ -485,7 +485,8 @@ inline void reduce_codecs_to_single(std::vector<SdpMedia> &media){
 	}
 }
 
-int processSdpOffer(SBCCallProfile &call_profile,
+int processSdpOffer(SBCCallLeg *call,
+					SBCCallProfile &call_profile,
 					AmMimeBody &body, string &method,
 					vector<SdpMedia> &negotiated_media,
 					int static_codecs_id,
@@ -493,6 +494,7 @@ int processSdpOffer(SBCCallProfile &call_profile,
 					bool single_codec)
 {
 	DBG("processSdpOffer() method = %s",method.c_str());
+
 	AmMimeBody* sdp_body = body.hasContentType(SIP_APPLICATION_SDP);
 	if (!sdp_body) return 0;
 
@@ -507,7 +509,7 @@ int processSdpOffer(SBCCallProfile &call_profile,
 	int res = sdp.parse((const char *)sdp_body->getPayload());
 	if (0 != res) {
 		DBG("SDP parsing failed during body filtering!\n");
-		return res;
+		return DC_REPLY_SDP_PARSING_FAILED;
 	}
 
 	if(local) {
@@ -517,13 +519,13 @@ int processSdpOffer(SBCCallProfile &call_profile,
 			if(m_it == sdp.media.end()) {
 				DBG("in-dialog offer contains less streams(%zd) than in negotiated_media(%zd). not acceptable",
 					sdp.media.size(), negotiated_media.size());
-				return -488;
+				return DC_REPLY_SDP_STREAMS_COUNT;
 			}
 			if(m.type != m_it->type) {
 				DBG("in-dialog offer changes media type for stream %zd from %d to %d. not acceptable",
 					std::distance(sdp.media.begin(),m_it),
 					m.type, m_it->type);
-				return -488;
+				return DC_REPLY_SDP_STREAMS_TYPES;
 			}
 			++m_it;
 		}
@@ -555,6 +557,21 @@ int processSdpOffer(SBCCallProfile &call_profile,
 
 	if(single_codec)
 		reduce_codecs_to_single(sdp.media);
+
+	if(call_profile.rtprelay_enabled) {
+		auto &first_media = *sdp.media.begin();
+		if(first_media.type == MT_AUDIO) {
+			auto &media_transport = call->isALeg() ?
+						call_profile.aleg_media_transport : call_profile.bleg_media_transport;
+			if(first_media.transport != media_transport) {
+				DBG("got offer transport type %s while expected %s",
+					transport_p_2_str(first_media.transport).data(),
+					transport_p_2_str(media_transport).data());
+				return FC_INVALID_MEDIA_TRANSPORT;
+			}
+			//call->setMediaTransport(media_transport);
+		}
+	}
 
 	//save negotiated result for the future usage
 	negotiated_media = sdp.media;
@@ -597,7 +614,7 @@ int filterSdpOffer(SBCCallLeg *call,
 	int res = sdp.parse((const char *)sdp_body->getPayload());
 	if (0 != res) {
 		ERROR("filterSdpOffer() SDP parsing failed during body filtering!\n");
-		return res;
+		return DC_REPLY_SDP_PARSING_FAILED;
 	}
 
 	DBG_SDP(sdp,"filterSdpOffer_in");
@@ -837,8 +854,6 @@ int processSdpAnswer(SBCCallLeg *call,
 		throw InternalException(DC_REPLY_SDP_PARSING_FAILED,
 								call->getCallCtx()->getOverrideId());
 	}
-
-	res = -488;
 
 	DBG_SDP_MEDIA(negotiated_media,"processSdpAnswer_negotiated_media");
 	DBG_SDP_MEDIA(sdp.media,"processSdpAnswer_in");
