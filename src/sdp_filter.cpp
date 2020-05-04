@@ -332,6 +332,16 @@ void clear_ice_params(AmSdp &sdp)
 	}
 }
 
+inline void clear_zrtp_params(AmSdp &sdp)
+{
+	if(sdp.media.empty())
+		return;
+	for(auto &m : sdp.media) {
+		m.zrtp_hash.is_use = false;
+		m.zrtp_hash.hash.clear();
+	}
+}
+
 inline bool is_telephone_event(const SdpPayload &p){
 	string c = p.encoding_name;
 	std::transform(c.begin(), c.end(), c.begin(), ::toupper);
@@ -569,7 +579,20 @@ int processSdpOffer(SBCCallLeg *call,
 					transport_p_2_str(media_transport).data());
 				return FC_INVALID_MEDIA_TRANSPORT;
 			}
-			//call->setMediaTransport(media_transport);
+
+			if(TP_RTPAVP == media_transport || TP_RTPAVPF == media_transport) {
+				auto &zrtp_enabled = call->isALeg() ?
+					call_profile.aleg_media_allow_zrtp : call_profile.bleg_media_allow_zrtp;
+				if(first_media.zrtp_hash.is_use) {
+					if(!zrtp_enabled) {
+						DBG("got SDP offer with zrtp_hash while ZRTP is disabled for leg");
+						return FC_INVALID_MEDIA_TRANSPORT;
+					}
+				} else if(zrtp_enabled) {
+					DBG("got SDP offer without zrtp_hash while ZRTP is enabled for leg");
+					return FC_INVALID_MEDIA_TRANSPORT;
+				}
+			}
 		}
 	}
 
@@ -641,6 +664,7 @@ int filterSdpOffer(SBCCallLeg *call,
 							call_profile.sdpalinesfilter :
 							call_profile.bleg_sdpalinesfilter);
 		clear_ice_params(sdp);
+		clear_zrtp_params(sdp);
 
 		res = cutNoAudioStreams(sdp,call_profile.filter_noaudio_streams);
 		if(0 != res){
@@ -877,6 +901,7 @@ int processSdpAnswer(SBCCallLeg *call,
 									call_profile.bleg_conn_location_id :
 									call_profile.aleg_conn_location_id);
 		clear_ice_params(sdp);
+		clear_zrtp_params(sdp);
 	}
 
 	DBG_SDP_MEDIA(sdp.media,"processSdpAnswer_out");

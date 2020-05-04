@@ -285,7 +285,10 @@ struct SBCCallProfile
   int bleg_media_encryption_mode_id;
 
   TransProt aleg_media_transport;
+  bool  aleg_media_allow_zrtp;
+
   TransProt bleg_media_transport;
+  bool  bleg_media_allow_zrtp;
 
   struct TranscoderSettings {
     enum { DTMFAlways, DTMFNever } dtmf_mode;
@@ -400,7 +403,9 @@ struct SBCCallProfile
 	skip_code_id(0),
 	force_transcoding(false),
     aleg_media_encryption_mode_id(0),
-    bleg_media_encryption_mode_id(0)
+    aleg_media_allow_zrtp(false),
+    bleg_media_encryption_mode_id(0),
+    bleg_media_allow_zrtp(false)
   { }
 
   bool operator==(const SBCCallProfile& rhs) const;

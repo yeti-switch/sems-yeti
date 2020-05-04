@@ -482,7 +482,12 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 		DBG("try_avoid_transcoding: '%s'\n", avoid_transcoding?"yes":"no");
 
 		DBG("aleg_media_encryption_mode_id: %d",aleg_media_encryption_mode_id);
+		DBG("aleg_media_transport: %s, aleg_media_allow_zrtp: %d",
+			transport_p_2_str(aleg_media_transport).data(), aleg_media_allow_zrtp);
+
 		DBG("bleg_media_encryption_mode_id: %d",bleg_media_encryption_mode_id);
+		DBG("bleg_media_transport: %s, bleg_media_allow_zrtp: %d",
+			transport_p_2_str(bleg_media_transport).data(), bleg_media_allow_zrtp);
 
 		DBG("filter_noaudio_streams: '%s'\n",filter_noaudio_streams?"yes":"no");
 
@@ -723,25 +728,35 @@ bool SqlCallProfile::eval_radius(){
 	return true;
 }
 
-static TransProt encryption_mode2transport(int mode)
+static TransProt encryption_mode2transport(int mode, bool &allow_zrtp)
 {
+	/*
+	 * 0 - RTP_AVP
+	 * 1 - UDP/TLS/RTP/SAVP
+	 * 2 - UDP/TLS/RTP/SAVPF
+	 * 3 - ZRTP
+	 */
+	allow_zrtp = false;
 	switch(mode) {
 		case 0: return TP_RTPAVP;
 		case 1: return TP_RTPSAVP;
 		case 2: return TP_UDPTLSRTPSAVP;
+		case 3:
+			allow_zrtp = true;
+			return TP_RTPAVP;
 		default: return TP_NONE;
 	}
 }
 
 bool SqlCallProfile::eval_media_encryption()
 {
-	aleg_media_transport = encryption_mode2transport(aleg_media_encryption_mode_id);
+	aleg_media_transport = encryption_mode2transport(aleg_media_encryption_mode_id, aleg_media_allow_zrtp);
 	if(TP_NONE == aleg_media_transport) {
 		ERROR("unexpected aleg_media_encryption_mode_id value %d", aleg_media_encryption_mode_id);
 		return false;
 	}
 
-	bleg_media_transport = encryption_mode2transport(bleg_media_encryption_mode_id);
+	bleg_media_transport = encryption_mode2transport(bleg_media_encryption_mode_id, bleg_media_allow_zrtp);
 	if(TP_NONE == bleg_media_transport) {
 		ERROR("unexpected bleg_media_encryption_mode_id value %d", bleg_media_encryption_mode_id);
 		return false;
