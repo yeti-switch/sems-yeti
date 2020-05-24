@@ -1,8 +1,11 @@
-sems-yeti (1.9.1-12) stable; urgency=medium
+sems-yeti (1.9.2) stable; urgency=medium
 
-  * add mutex for in-memory logger
+  * process aleg/bleg_media_encryption_mode_id profile variables
+  * fix static payloads processing for UDP/TLS/RTP/SAVP[F] 
+  * apply sdp/signalling signatures on module load
+  * fix non RTP/AVP media transport processing 
  
- -- dev <dev@yeti-switch.org>  Fri, 17 Apr 2020 01:46:43 +0300
+ -- dev <dev@yeti-switch.org>  Sun, 24 May 2020 21:18:29 +0300
 
 sems-yeti (1.9.1-11) stable; urgency=medium
 
