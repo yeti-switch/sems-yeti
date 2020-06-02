@@ -581,7 +581,9 @@ void Yeti::processRedisRegisterReply(RedisReplyEvent &e)
     //DBG("e.data: %s",AmArg::print(e.data).c_str());
 
     if(RedisReplyEvent::SuccessReply!=e.result) {
-        ERROR("error reply from redis %s",AmArg::print(e.data).c_str());
+        ERROR("error reply from redis %s. for request from %s:%hu",
+              AmArg::print(e.data).c_str(),
+              req.remote_ip.data(), req.remote_port);
         AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         return;
     }
@@ -601,7 +603,9 @@ void Yeti::processRedisRegisterReply(RedisReplyEvent &e)
      */
 
     if(!isArgArray(e.data)) {
-        ERROR("error/unexpected reply from redis: %s",AmArg::print(e.data).c_str());
+        ERROR("error/unexpected reply from redis: %s for request from %s:%hu",
+              AmArg::print(e.data).c_str(),
+              req.remote_ip.data(), req.remote_port);
         AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         return;
     }

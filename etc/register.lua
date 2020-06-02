@@ -36,11 +36,11 @@ end
 
 local expires = tonumber(ARGV[1])
 
-if not expires then
-    return 'Wrong expires value'
-end
-
 local contact = ARGV[2]
+
+if not expires then
+    return 'Wrong expires value '..ARGV[1]..'. id:'..id..', contact:'..contact
+end
 
 if expires==0 then
     if not contact then
@@ -75,7 +75,7 @@ end
 
 -- check for max allowed bindings
 if redis.call('SCARD', auth_id) >= 10 then
-    return 'Too many registrations'
+    return 'Too many registrations. id:'..id..', contact:'..contact
 end
 
 -- add binding
