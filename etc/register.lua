@@ -73,6 +73,14 @@ if not path then
     path = ''
 end
 
+-- cleanup obsolete set members
+for i,c in ipairs(redis.call('SMEMBERS',auth_id)) do
+    local ckey = 'c:'..id..':'..c
+    if 0==redis.call('EXISTS', ckey) then
+        redis.call('SREM', auth_id, ckey)
+    end
+end
+
 -- check for max allowed bindings
 if redis.call('SCARD', auth_id) >= 10 then
     return 'Too many registrations. id:'..id..', contact:'..contact
