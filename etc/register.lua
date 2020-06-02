@@ -75,9 +75,8 @@ end
 
 -- cleanup obsolete set members
 for i,c in ipairs(redis.call('SMEMBERS',auth_id)) do
-    local ckey = 'c:'..id..':'..c
-    if 0==redis.call('EXISTS', ckey) then
-        redis.call('SREM', auth_id, ckey)
+    if 0==redis.call('EXISTS', 'c:'..id..':'..c) then
+        redis.call('SREM', auth_id, c)
     end
 end
 
