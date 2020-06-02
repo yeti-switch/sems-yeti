@@ -1,3 +1,9 @@
+sems-yeti (1.9.3) stable; urgency=medium
+
+  * add details for redis error messages on registration
+
+ -- dev <dev@yeti-switch.org>  Tue, 02 Jun 2020 18:33:23 +0300
+
 sems-yeti (1.9.2) stable; urgency=medium
 
   * process aleg/bleg_media_encryption_mode_id profile variables
