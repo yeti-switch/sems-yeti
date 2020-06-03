@@ -401,6 +401,12 @@ int Yeti::configure_registrar()
     if(config.registrar_keepalive_interval) config.registrar_keepalive_interval =
         config.registrar_keepalive_interval * 1000000;
 
+    config.registrar_expires_min = cfg.getParameterInt("registrar_expires_min");
+    DBG("registrar_expires_min: %d", config.registrar_expires_min);
+
+    config.registrar_expires_max = cfg.getParameterInt("registrar_expires_max");
+    DBG("registrar_expires_max: %d", config.registrar_expires_max);
+
     if(0!=registrar_redis.init(
         config.registrar_redis_host,
         config.registrar_redis_port,

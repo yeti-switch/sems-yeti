@@ -439,7 +439,7 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
 
         if(!expires_found) {
             DBG("no either Contact param expire or header Expire");
-            AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+            AmSipDialog::reply_error(req, 400, "Invalid Request");
             return;
         }
         DBG("expires: %s",expires.c_str());
@@ -447,14 +447,14 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
         int expires_int;
         if(!str2int(expires, expires_int)) {
             DBG("failed to cast expires value '%s'",expires.c_str());
-            AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+            AmSipDialog::reply_error(req, 400, "Invalid Request");
             return;
         }
 
         if(asterisk_contact) {
             if(expires_int!=0) {
                 DBG("non zero expires with Contact: *");
-                AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+                AmSipDialog::reply_error(req, 400, "Invalid Request");
                 return;
             }
             if(!yeti->registrar_redis.unbind_all(req, auth_id))
@@ -462,7 +462,25 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
             return;
         }
 
-        //!TODO: check min/max expires
+        //check min/max expires
+        if(yeti->config.registrar_expires_min &&
+           expires_int < 3600 &&
+           expires_int < yeti->config.registrar_expires_min)
+        {
+            DBG("expires %d is lower than allowed min: %d. reply with 423",
+                expires_int, yeti->config.registrar_expires_min);
+            static string min_expires_header =
+                SIP_HDR_COL("Min-Expires") + int2str(yeti->config.registrar_expires_min) + CRLF;
+            AmSipDialog::reply_error(req, 423, "Interval Too Brief", min_expires_header);
+            return;
+        }
+        if(yeti->config.registrar_expires_max &&
+           expires_int > yeti->config.registrar_expires_max)
+        {
+            DBG("expires %d is greater than allowed max: %d. set it to max",
+                expires_int, yeti->config.registrar_expires_max);
+            expires_int = yeti->config.registrar_expires_max;
+        }
 
         //find Path/User-Agent headers
         string path;

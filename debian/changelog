@@ -1,3 +1,9 @@
+sems-yeti (1.9.6) stable; urgency=medium
+
+  * registrar: process min/max expires
+
+ -- dev <dev@yeti-switch.org>  Wed, 03 Jun 2020 18:37:45 +0300
+
 sems-yeti (1.9.5) stable; urgency=medium
 
   * register.lua: fix expired contact keys cleanup

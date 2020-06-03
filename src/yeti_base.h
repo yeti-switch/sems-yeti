@@ -75,6 +75,8 @@ struct YetiBase {
         string registrar_redis_host;
         int registrar_redis_port;
         int registrar_keepalive_interval;
+        int registrar_expires_min;
+        int registrar_expires_max;
     } config;
 
     AmConfigReader cfg;
