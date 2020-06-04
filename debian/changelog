@@ -1,3 +1,9 @@
+sems-yeti (1.9.7) stable; urgency=medium
+
+  * ignore zrtp-hash in incoming INVITE if encryption is disabled
+
+ -- dev <dev@yeti-switch.org>  Thu, 04 Jun 2020 22:33:45 +0300
+
 sems-yeti (1.9.6) stable; urgency=medium
 
   * registrar: process min/max expires

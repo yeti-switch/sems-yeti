@@ -583,12 +583,7 @@ int processSdpOffer(SBCCallLeg *call,
 			if(TP_RTPAVP == media_transport || TP_RTPAVPF == media_transport) {
 				auto &zrtp_enabled = call->isALeg() ?
 					call_profile.aleg_media_allow_zrtp : call_profile.bleg_media_allow_zrtp;
-				if(first_media.zrtp_hash.is_use) {
-					if(!zrtp_enabled) {
-						DBG("got SDP offer with zrtp_hash while ZRTP is disabled for leg");
-						return FC_INVALID_MEDIA_TRANSPORT;
-					}
-				} else if(zrtp_enabled) {
+				if(zrtp_enabled && !first_media.zrtp_hash.is_use) {
 					DBG("got SDP offer without zrtp_hash while ZRTP is enabled for leg");
 					return FC_INVALID_MEDIA_TRANSPORT;
 				}
