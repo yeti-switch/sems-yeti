@@ -336,10 +336,12 @@ inline void clear_zrtp_params(AmSdp &sdp)
 {
 	if(sdp.media.empty())
 		return;
+#ifdef WITH_ZRTP
 	for(auto &m : sdp.media) {
 		m.zrtp_hash.is_use = false;
 		m.zrtp_hash.hash.clear();
 	}
+#endif
 }
 
 inline bool is_telephone_event(const SdpPayload &p){
@@ -579,7 +581,7 @@ int processSdpOffer(SBCCallLeg *call,
 					transport_p_2_str(media_transport).data());
 				return FC_INVALID_MEDIA_TRANSPORT;
 			}
-
+#ifdef WITH_ZRTP
 			if(TP_RTPAVP == media_transport || TP_RTPAVPF == media_transport) {
 				auto &zrtp_enabled = call->isALeg() ?
 					call_profile.aleg_media_allow_zrtp : call_profile.bleg_media_allow_zrtp;
@@ -588,6 +590,7 @@ int processSdpOffer(SBCCallLeg *call,
 					return FC_INVALID_MEDIA_TRANSPORT;
 				}
 			}
+#endif
 		}
 	}
 
