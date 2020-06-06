@@ -1,3 +1,10 @@
+sems-yeti (1.9.8) stable; urgency=medium
+
+  * fix build with libpqxx6
+  * fix build without ZRTP support
+
+ -- dev <dev@yeti-switch.org>  Sat, 06 Jun 2020 15:25:27 +0300
+
 sems-yeti (1.9.7) stable; urgency=medium
 
   * ignore zrtp-hash in incoming INVITE if encryption is disabled
