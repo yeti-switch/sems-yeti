@@ -2919,6 +2919,9 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     cdr->update(reply);
     cdr->update_bleg_reason(reply.reason,static_cast<int>(reply.code));
 
+    //save original destination reply code for stop_hunting lookup
+    auto destination_reply_code = reply.code;
+
     ct->rewrite_response(reply.code,reply.reason,
         intermediate_code,intermediate_reason,
         call_ctx->getOverrideId(false)); //bleg_override_id
@@ -2930,7 +2933,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
         intermediate_reason,intermediate_code);
     cdr->update_aleg_reason(reply.reason,static_cast<int>(reply.code));
 
-    if(ct->stop_hunting(reply.code,call_ctx->getOverrideId(false))){
+    if(ct->stop_hunting(destination_reply_code,call_ctx->getOverrideId(false))){
         DBG("stop hunting");
         return;
     }

@@ -1,3 +1,9 @@
+sems-yeti (1.9.10) stable; urgency=medium
+
+  * fix stop hunting lookup. use original reply code instead of rewrited one
+
+ -- dev <dev@yeti-switch.org>  Mon, 15 Jun 2020 16:54:25 +0300
+
 sems-yeti (1.9.9) stable; urgency=medium
 
   * fix pcap writing UB. init memory_logger_enabled
