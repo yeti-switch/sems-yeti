@@ -173,6 +173,7 @@ SBCCallLeg::SBCCallLeg(
     placeholders_hash(call_profile.placeholders_hash),
     logger(nullptr),
     sensor(nullptr),
+    memory_logger_enabled(false),
     router(yeti.router),
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
@@ -257,6 +258,7 @@ SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
     auth(nullptr),
     logger(nullptr),
     sensor(nullptr),
+    memory_logger_enabled(false),
     router(yeti.router),
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
