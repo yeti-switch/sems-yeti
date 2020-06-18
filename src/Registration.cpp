@@ -120,6 +120,10 @@ bool Registration::create_registration(const pqxx::row &r, AmDynInvoke* registra
 	push_type_as_int_safe(o_max_attempts,int,REGISTER_ATTEMPTS_UNLIMITED);
 	push_type_as_int_safe(o_transport_protocol_id,int,sip_transport::UDP);
 	push_type_as_int_safe(o_proxy_transport_protocol_id,int,sip_transport::UDP);
+	di_args.push(AmArg()); //transaction_timeout
+	di_args.push(AmArg()); //srv_failover_timeout
+	di_args.push(AmArg()); //handle
+	push_type_as_int_safe(o_scheme_id,int,sip_uri::SIP); //scheme_id
 
 	registrar_client_i->invoke("createRegistration", di_args, ret);
 	DBG("created registration with handle %s",ret[0].asCStr());
