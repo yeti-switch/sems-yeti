@@ -1592,7 +1592,7 @@ void SBCCallLeg::onBeforeDestroy()
 
     call_ctx->lock();
 
-    if(call_ctx->dec_and_test()) {
+    if(call_ctx->get()==0 || call_ctx->dec_and_test()) {
         DBG("last leg destroy");
         SqlCallProfile *p = call_ctx->getCurrentProfile();
         if(nullptr!=p) rctl.put(p->resource_handler);
@@ -2553,6 +2553,26 @@ void SBCCallLeg::onRoutingReady()
         // no CC module connected a callee yet
         connectCallee(to, ruri, from, aleg_modified_req, modified_req); // connect to the B leg(s) using modified request
     }
+}
+
+void SBCCallLeg::onFailure()
+{
+    DBG("%s(%p,leg%s)",FUNC_NAME,this,a_leg?"A":"B");
+
+    static int code = 503;
+    static string reason = "Generic Failure";
+
+    if(a_leg && call_ctx) {
+        with_cdr_for_read {
+            cdr->update_internal_reason(DisconnectByTS, reason, code);
+            if(cdr->local_tag.empty()) {
+                cdr->update_init_aleg(getLocalTag(), global_tag, getCallID());
+            }
+        }
+    }
+
+    relayEvent(new SBCOtherLegExceptionEvent(code,reason));
+    terminateLeg();
 }
 
 void SBCCallLeg::onInviteException(int code,string reason,bool no_reply)
