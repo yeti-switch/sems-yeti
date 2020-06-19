@@ -1,3 +1,9 @@
+sems-yeti (1.7.35-6p4) stable; urgency=low
+
+  * fix sessions leak on generic failure [hdl->onFailure()]
+
+ -- dev <dev@yeti-switch.org>  Fri, 19 Jun 2020 12:17:42 +0300
+
 sems-yeti (1.7.35-6p3) stable; urgency=low
 
   * fix SBCCallLeg::normalizeSdpVersion. use separate last cseq for offers/answers
