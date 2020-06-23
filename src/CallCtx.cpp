@@ -43,7 +43,6 @@ SqlCallProfile *CallCtx::getFirstProfile(){
 	if(profiles.empty())
 		return NULL;
 	current_profile = profiles.begin();
-	attempt_num = 0;
 	cdr = new Cdr(**current_profile);
 	return *current_profile;
 }
@@ -75,9 +74,10 @@ SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover
 
 			if(write_cdr) {
 				Cdr *skip_cdr = new Cdr(*cdr,p);
-				attempts_counter = skip_cdr->attempt_num;
+				skip_cdr->attempt_num = attempts_counter;
 				skip_cdr->update_internal_reason(DisconnectByTS,internal_reason,internal_code);
 				router.write_cdr(skip_cdr, false);
+				attempts_counter++;
 			}
 
 			++next_profile;
@@ -93,22 +93,21 @@ SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover
 		}
 	}
 
-	attempts_counter++;
-
 	if(!early_state){
 		if((*next_profile)->disconnect_code_id!=0){
 			//ignore refuse profiles for non early state
 			return nullptr;
 		}
 		if(!resource_failover) {
-			attempt_num++;
 			cdr = new Cdr(*cdr,**next_profile);
+			attempts_counter++;
 		} else {
 			cdr->update_sql(**next_profile);
 		}
 	} else {
 		cdr->update_sql(**next_profile);
 	}
+
 	cdr->attempt_num = attempts_counter;
 	current_profile = next_profile;
 	return *current_profile;

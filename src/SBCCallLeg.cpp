@@ -2424,7 +2424,7 @@ void SBCCallLeg::onRoutingReady()
     if(0!=cdr_list.insert(cdr)){
         ERROR("onInitialInvite(): double insert into active calls list. integrity threat");
         ERROR("ctx: attempt = %d, cdr.logger_path = %s",
-            call_ctx->attempt_num,cdr->msg_logger_path.c_str());
+            cdr->attempt_num,cdr->msg_logger_path.c_str());
         log_stacktrace(L_ERR);
         throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
@@ -2977,7 +2977,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     if(0!=cdr_list.insert(cdr)){
         ERROR("onBLegRefused(): double insert into active calls list. integrity threat");
         ERROR("ctx: attempt = %d, cdr.logger_path = %s",
-            call_ctx->attempt_num,cdr->msg_logger_path.c_str());
+            cdr->attempt_num,cdr->msg_logger_path.c_str());
         return;
     }
 

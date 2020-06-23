@@ -28,7 +28,6 @@ struct CallCtx: public
 	Cdr *cdr;
 	list<SqlCallProfile *> profiles;
 	list<SqlCallProfile *>::iterator current_profile;
-	int attempt_num;
 	AmSipRequest *initial_invite;
 	vector<SdpMedia> aleg_negotiated_media;
 	vector<SdpMedia> bleg_negotiated_media;

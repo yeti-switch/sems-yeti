@@ -821,7 +821,6 @@ static void SBCCallLeg2AmArg(SBCCallLeg *leg, AmArg &s)
 
 	CallCtx *ctx = leg->getCallCtx();
 	if(ctx){
-		s["attempt_num"] = ctx->attempt_num;
 		ctx->lock();
 		if(Cdr *cdr = ctx->cdr) cdr->info(s);
 		if(SqlCallProfile *profile = ctx->getCurrentProfile()) profile->info(s);
