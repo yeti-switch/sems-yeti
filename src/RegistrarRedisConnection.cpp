@@ -291,33 +291,34 @@ void RegistrarRedisConnection::resolve_aors(
     std::set<int> aor_ids,
     const string &local_tag)
 {
+    std::unique_ptr<char> cmd;
     size_t aors_count = aor_ids.size();
-    string str_size = long2str(static_cast<long>(aor_ids.size()));
-    DBG("got %s AoR ids to resolve", str_size.c_str());
+
+    DBG("got %ld AoR ids to resolve", aor_ids.size());
 
     if(yeti_aor_lookup.hash.empty()) {
         ERROR("empty yeti_aor_lookup.hash. lua scripting error");
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
-    char *cmd = new char[128];
-    char *s = cmd;
-
-    s += sprintf(cmd, "*%lu\r\n$7\r\nEVALSHA\r\n$40\r\n%s\r\n$%u\r\n%lu\r\n",
-        aors_count+3,
-        yeti_aor_lookup.hash.data(),
-        len_in_chars(aors_count), aors_count);
-
+    std::ostringstream ss;
+    ss << '*' << aors_count+3 << CRLF "$7" CRLF "EVALSHA" CRLF "$40" CRLF << yeti_aor_lookup.hash << CRLF;
+    //args count
+    ss << '$' << len_in_chars(aors_count) << CRLF << aors_count << CRLF;
+    //args
     for(const auto &id : aor_ids) {
-        s += sprintf(s, "$%u\r\n%d\r\n",
-            len_in_chars(id), id);
+        ss << '$' << len_in_chars(id) << CRLF << id << CRLF;
     }
+
+    auto cmd_size = ss.str().size();
+    cmd.reset(new char [cmd_size]);
+    ss.str().copy(cmd.get(), cmd_size);
 
     //send request to redis
     if(false==postRedisRequest(
         queue_name,
         local_tag,
-        cmd,static_cast<size_t>(s-cmd), false))
+        cmd.release(),cmd_size, false))
     {
         ERROR("failed to post auth_id resolve request");
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
@@ -329,7 +330,6 @@ void RegistrarRedisConnection::rpc_resolve_aors_blocking(
     RpcAorLookupCtx &ctx)
 {
     std::unique_ptr<char> cmd;
-    char *s,*start;
     size_t n, i;
     int id;
 
@@ -338,22 +338,22 @@ void RegistrarRedisConnection::rpc_resolve_aors_blocking(
 
     arg.assertArray();
 
-    cmd.reset(new char[128]);
-    s = start = cmd.get();
     n = arg.size();
 
-    s += std::sprintf(s, "*%lu\r\n$7\r\nEVALSHA\r\n$40\r\n%s\r\n$%u\r\n%lu\r\n",
-        n+3,
-        yeti_rpc_aor_lookup.hash.data(),
-        len_in_chars(n), n);
-
+    std::ostringstream ss;
+    ss << '*' << n+3 << CRLF "$7" CRLF "EVALSHA" CRLF "$40" CRLF << yeti_rpc_aor_lookup.hash << CRLF;
+    //args count
+    ss << '$' << len_in_chars(n) << CRLF << n << CRLF;
+    //args
     for(i = 0; i < n; i++) {
         id = arg2int(arg[i]);
-        s += sprintf(s, "$%u\r\n%d\r\n",
-            len_in_chars(id), id);
+        ss << '$' << len_in_chars(id) << CRLF << id << CRLF;
     }
 
-    auto cmd_size = static_cast<size_t>(s-cmd.get());
+    auto cmd_size = ss.str().size();
+    cmd.reset(new char [cmd_size]);
+    ss.str().copy(cmd.get(), cmd_size);
+
     if(false==postRedisRequest(
         queue_name,
         YETI_QUEUE_NAME,
