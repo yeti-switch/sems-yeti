@@ -1,3 +1,11 @@
+sems-yeti (1.9.12) stable; urgency=medium
+
+  * RegistrarRedisConnection: fix buffer overflow on many aors resolving
+  * fix attempt_num increment on resources failover
+  * fix sessions leak on generic failure [hdl->onFailure()]
+
+ -- dev <dev@yeti-switch.org>  Wed, 24 Jun 2020 15:00:00 +0300
+
 sems-yeti (1.9.11) stable; urgency=medium
 
   * registrations client: support for o_scheme_id parameter to specify sips scheme
