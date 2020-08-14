@@ -929,8 +929,7 @@ pqxx::prepare::invocation Cdr::get_invocation(cdr_transaction &tnx)
 
 void Cdr::invoc(
     pqxx::prepare::invocation &invoc,
-    const DynFieldsT &df,
-    bool serialize_dynamic_fields)
+    const DynFieldsT &df)
 {
 #define invoc_cond(field_value,condition)\
     if(condition) { invoc(field_value); }\
@@ -1004,12 +1003,7 @@ void Cdr::invoc(
     invoc(is_redirected);
 
     /* invocate dynamic fields  */
-    if(serialize_dynamic_fields){
-        invoc_json(serialize_dynamic(df));
-    } else {
-        for(const auto &f : df)
-            invoc_AmArg(invoc, dyn_fields[f.name]);
-    }
+    invoc_json(serialize_dynamic(df));
 
     invoc(aleg_headers_json);
 

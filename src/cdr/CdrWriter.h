@@ -40,7 +40,6 @@ struct CdrThreadCfg
     bool failover_to_slave;
     bool failover_to_file;
     bool failover_requeue;
-    bool serialize_dynamic_fields;
     string failover_file_dir;
     int check_interval;
     int retry_interval;

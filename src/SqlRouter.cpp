@@ -107,13 +107,12 @@ try {
 	string sql_query,prefix("master");
 	dbc.cfg2dbcfg(cfg,prefix);
 
-	bool serialize_dynamic_fields = cfg.getParameterInt("serialize_dynamic_fields",0);
-
 	//fill arg types for static fields
 	for(int k = 0;k<GETPROFILE_STATIC_FIELDS_COUNT;k++)
 		profile_types.push_back(profile_static_fields[k].type);
 	for(int k = 0;k<WRITECDR_STATIC_FIELDS_COUNT;k++)
 		cdr_types.push_back(cdr_static_fields[k].type);
+
 	for(const auto &f : auth_log_static_fields)
 		auth_log_types.push_back(f.type);
 
@@ -131,20 +130,11 @@ try {
 			const char *varname = t["varname"].c_str();
 			DBG("load_interface_out:     %u: %s : %s, %s",i,
 				varname,vartype,t["forcdr"].c_str());
-			if(true==t["forcdr"].as<bool>()){
+			if(true==t["forcdr"].as<bool>()) {
 				dyn_fields.push_back(DynField(varname,vartype));
-				if(!serialize_dynamic_fields){
-					cdr_types.push_back(vartype);
-				}
 			}
 		}
 	}
-	if(serialize_dynamic_fields){
-		cdr_types.push_back("json"); //dynamic fields serialized to json
-	}
-
-	//i_lega_headers json
-	cdr_types.push_back("json");
 
 	{
 		pqxx::nontransaction t(c);

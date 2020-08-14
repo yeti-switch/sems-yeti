@@ -109,8 +109,7 @@ pqxx::prepare::invocation AuthCdr::get_invocation(cdr_transaction &tnx)
 
 void AuthCdr::invoc(
     pqxx::prepare::invocation &i,
-    const DynFieldsT &,
-    bool)
+    const DynFieldsT &)
 {
     i(timeval2double(request_time));
     i(transport_proto_id);

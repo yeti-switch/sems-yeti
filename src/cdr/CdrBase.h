@@ -31,8 +31,7 @@ class CdrBase
 
     virtual void invoc(
         pqxx::prepare::invocation &invoc,
-        const DynFieldsT &df,
-        bool serialize_dynamic_fields) = 0;
+        const DynFieldsT &dfs) = 0;
     virtual void to_csv_stream(ofstream &s, const DynFieldsT &df) = 0;
     virtual void info(AmArg &s) = 0;
 

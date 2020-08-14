@@ -58,7 +58,9 @@ const static_field cdr_static_fields[] = {
 	{ "failed_resource_id", "bigint" },
 	{ "dtmf_events", "json" },
 	{ "versions", "json" },
-	{ "is_redirected", "boolean" }
+	{ "is_redirected", "boolean" },
+	{ "i_dynamic_fields", "json" },
+	{ "i_aleg_cdr_headers", "json" }
 };
 
 
@@ -81,20 +83,11 @@ int CdrWriter::configure(CdrWriterCfg& cfg)
 		DBG("CdrWriterArg:     %d: %s : %s [static]",param_num,sf.name,sf.type);
 	}
 
-	if(config.serialize_dynamic_fields){
-		DBG("CdrWriterArg:     %d: dynamic : json [serialized dynamic fields]:",
-			param_num);
-	}
 	//dynamic params
 	DynFieldsT_iterator dit = config.dyn_fields.begin();
 	for(;dit!=config.dyn_fields.end();++dit){
-		if(config.serialize_dynamic_fields){
-			DBG("CdrWriterArg:             dynamic: %s : %s",
-				dit->name.c_str(),dit->type_name.c_str());
-		} else {
-			DBG("CdrWriterArg:     %d: %s : %s [dynamic]",param_num++,
-				dit->name.c_str(),dit->type_name.c_str());
-		}
+		DBG("CdrWriterArg:             dynamic: %s : %s",
+			dit->name.c_str(),dit->type_name.c_str());
 	}
 
 	param_num = 0;
@@ -162,7 +155,6 @@ void CdrWriter::getConfig(AmArg &arg){
 
 	arg["failover_to_slave"] = config.failover_to_slave;
 	arg["failover_requeue"] = config.failover_requeue;
-	arg["serialize_dynamic_fields"] = config.serialize_dynamic_fields;
 	arg["check_interval"] = config.check_interval;
 	arg["retry_interval"] = config.retry_interval;
 	arg["batch_timeout"] = config.batch_timeout;
@@ -634,15 +626,6 @@ void CdrThread::prepare_queries(pqxx::connection *c){
 			//d("varchar",pqxx::prepare::treat_direct);
 			d(cdr_static_fields[i].type,pqxx::prepare::treat_direct);
 		}
-		//dynamic fields
-		if(!config.serialize_dynamic_fields){
-			dit = config.dyn_fields.begin();
-			for(;dit!=config.dyn_fields.end();++dit){
-				d(dit->type_name,pqxx::prepare::treat_direct);
-			}
-		} else {
-			d("json",pqxx::prepare::treat_direct);
-		}
 		//trusted headers
 		TrustedHeaders::instance()->invocate(d);
 #endif
@@ -755,7 +738,7 @@ int CdrThread::writecdr(cdr_queue_t &cdr_queue, cdr_writer_connection* conn, siz
             invoc(conn->isMaster());
             invoc(AmConfig.node_id);
             invoc(gc.pop_id);
-            cdr.invoc(invoc,config.dyn_fields,config.serialize_dynamic_fields);
+            cdr.invoc(invoc,config.dyn_fields);
 
             invoc.exec();
         }
@@ -873,7 +856,6 @@ int CdrThreadCfg::cfg2CdrThCfg(AmConfigReader& cfg, string& prefix){
 	string cdr_file_dir = prefix+"_dir";
 	string cdr_file_completed_dir = prefix+"_completed_dir";
 
-	serialize_dynamic_fields = cfg.getParameterInt("serialize_dynamic_fields",0);
 	failover_requeue = cfg.getParameterInt("failover_requeue",0);
 
 	failover_to_file = cfg.getParameterInt("failover_to_file",1);
@@ -925,6 +907,5 @@ int CdrWriterCfg::cfg2CdrWrCfg(AmConfigReader& cfg){
 	batch_timeout = cfg.getParameterInt("cdr_batch_timeout",DEFAULT_BATCH_TIMEOUT_MSEC)/1000;
 	batch_size = cfg.getParameterInt("cdr_batch_size",DEFAULT_BATCH_SIZE);
 	failover_to_slave = cfg.getParameterInt("cdr_failover_to_slave",1);
-	serialize_dynamic_fields = cfg.getParameterInt("serialize_dynamic_fields",0);
 	return cfg2CdrThCfg(cfg,name);
 }

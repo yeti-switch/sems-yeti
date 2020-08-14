@@ -48,8 +48,7 @@ class AuthCdr
     pqxx::prepare::invocation get_invocation(cdr_transaction &tnx) override;
     void invoc(
         pqxx::prepare::invocation &i,
-        const DynFieldsT &,
-        bool) override;
+        const DynFieldsT &) override;
     void to_csv_stream(ofstream &s, const DynFieldsT &df) override;
     void info(AmArg &s) override;
 };
