@@ -11,6 +11,7 @@
 #include <unordered_set>
 
 #include "CdrBase.h"
+#include "ALegCdrHeaders.h"
 
 enum UpdateAction {
     Start,
@@ -122,6 +123,8 @@ struct Cdr
     std::queue<dtmf_event_info> dtmf_events_a2b;
     std::queue<dtmf_event_info> dtmf_events_b2a;
 
+    string aleg_headers_json;
+
     Cdr();
     Cdr(const Cdr& cdr,const SqlCallProfile &profile);
     Cdr(const Cdr& cdr);
@@ -132,13 +135,13 @@ struct Cdr
 
     void update_sql(const SqlCallProfile &profile);
     void update_sbc(const SBCCallProfile &profile);
-    void update(const AmSipRequest &req);
-    void update(const AmISUP &isup);
-    void update(const AmSipReply &reply);
+    void update_with_sip_request(const AmSipRequest &req, const aleg_cdr_headers_t &aleg_headers);
+    void update_with_isup(const AmISUP &isup);
+    void update_with_sip_reply(const AmSipReply &reply);
     void update_init_aleg(const string &leg_local_tag, const string &leg_global_tag, const string &leg_orig_call_id);
     void update_init_bleg(const string &leg_term_call_id, const string &leg_local_tag);
-    void update(UpdateAction act);
-    void update(const ResourceList &rl);
+    void update_with_action(UpdateAction act);
+    void update_with_resource_list(const ResourceList &rl);
     void update_failed_resource(const Resource &r);
     void add_dtmf_event(bool aleg, int event, struct timeval &now, int rx_proto, int tx_proto);
     void set_start_time(const timeval &t);

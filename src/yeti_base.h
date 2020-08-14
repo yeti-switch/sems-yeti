@@ -4,6 +4,7 @@
 #include "hash/CdrList.h"
 #include "resources/ResourceControl.h"
 #include "RegistrarRedisConnection.h"
+#include "cdr/ALegCdrHeaders.h"
 
 #include "AmConfigReader.h"
 
@@ -77,6 +78,8 @@ struct YetiBase {
         int registrar_keepalive_interval;
         int registrar_expires_min;
         int registrar_expires_max;
+
+        aleg_cdr_headers_t aleg_cdr_headers;
     } config;
 
     AmConfigReader cfg;

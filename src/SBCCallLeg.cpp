@@ -321,7 +321,7 @@ void SBCCallLeg::terminateLegOnReplyException(const AmSipReply& reply,const Inte
     if(!getOtherId().empty()) { //ignore not connected B legs
         with_cdr_for_read {
             cdr->update_internal_reason(DisconnectByTS, e.internal_reason, e.internal_code);
-            cdr->update(reply);
+            cdr->update_with_sip_reply(reply);
         }
     }
 
@@ -473,7 +473,7 @@ void SBCCallLeg::processResourcesAndSdp()
     PROF_PRINT("check and grab resources",rchk);
 
     profile = call_ctx->getCurrentProfile();
-    cdr->update(profile->rl);
+    cdr->update_with_resource_list(profile->rl);
     updateCallProfile(*profile);
 
     PROF_START(sdp_processing);
@@ -632,7 +632,7 @@ bool SBCCallLeg::chooseNextProfile(){
         return false;
     } else {
         DBG("%s() update call profile for legA",FUNC_NAME);
-        cdr->update(profile->rl);
+        cdr->update_with_resource_list(profile->rl);
         updateCallProfile(*profile);
         return true;
     }
@@ -1879,7 +1879,7 @@ void SBCCallLeg::onSipReply(const AmSipRequest& req, const AmSipReply& reply,
             }
         } else {
             with_cdr_for_read
-                cdr->update(reply);
+                cdr->update_with_sip_reply(reply);
         }
     }
 
@@ -1896,7 +1896,7 @@ void SBCCallLeg::onSendRequest(AmSipRequest& req, int &flags)
        call_ctx->referrer_session.empty() &&
         req.method==SIP_METH_INVITE)
     {
-        with_cdr_for_read cdr->update(BLegInvite);
+        with_cdr_for_read cdr->update_with_action(BLegInvite);
     }
 
     if(a_leg) {
@@ -2400,7 +2400,7 @@ void SBCCallLeg::onInvite(const AmSipRequest& req)
         throw AmSession::Exception(400,"Failed to parse R-URI");
     }
 
-    call_ctx->cdr->update(req);
+    call_ctx->cdr->update_with_sip_request(req, yeti.config.aleg_cdr_headers);
     call_ctx->initial_invite = new AmSipRequest(aleg_modified_req);
 
     if(yeti.config.early_100_trying) {
@@ -2734,8 +2734,8 @@ void SBCCallLeg::onCallConnected(const AmSipReply&)
     if(call_ctx) {
         if(!call_ctx->transfer_intermediate_state) {
             with_cdr_for_read {
-                if(a_leg) cdr->update(Connect);
-                else cdr->update(BlegConnect);
+                if(a_leg) cdr->update_with_action(Connect);
+                else cdr->update_with_action(BlegConnect);
                 radius_accounting_start(this,*cdr,call_profile);
             }
         } else if(!a_leg) {
@@ -2936,7 +2936,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
 
     removeTimer(YETI_FAKE_RINGING_TIMER);
 
-    cdr->update(reply);
+    cdr->update_with_sip_reply(reply);
     cdr->update_bleg_reason(reply.reason,static_cast<int>(reply.code));
 
     //save original destination reply code for stop_hunting lookup

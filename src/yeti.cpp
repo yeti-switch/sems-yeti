@@ -52,9 +52,14 @@ static char opt_name_port[] = "port";
 static char opt_name_timeout[] = "timeout";
 static char section_name_mgmt[] = "management";
 static char section_name_mgmt_node[] = "node";
+static char section_name_lega_cdr_headers[] = "lega_cdr_headers";
 
 static char opt_name_core_options_handling[] = "core_options_handling";
 static char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
+
+static char opt_func_name_header[] = "header";
+
+extern int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 
 static cfg_opt_t mgmt_node_opts[] = {
     CFG_STR(opt_name_host,YETI_SCTP_DEFAULT_HOST,CFGF_NONE),
@@ -70,8 +75,14 @@ static cfg_opt_t mgmt_opts[] = {
     CFG_END()
 };
 
+static cfg_opt_t lega_cdr_headers_opts[] = {
+    CFG_FUNC(opt_func_name_header, add_aleg_cdr_header),
+    CFG_END()
+};
+
 static cfg_opt_t yeti_opts[] = {
     CFG_SEC(section_name_mgmt,mgmt_opts, CFGF_NONE),
+    CFG_SEC(section_name_lega_cdr_headers,lega_cdr_headers_opts, CFGF_NONE),
     CFG_BOOL(opt_name_core_options_handling, cfg_true, CFGF_NONE),
     CFG_BOOL(opt_name_pcap_memory_logger, cfg_false, CFGF_NONE),
     CFG_END()
@@ -95,6 +106,22 @@ void cfg_reader_error(cfg_t *cfg, const char *fmt, va_list ap)
     }
     l+= vsnprintf(buf+l,static_cast<size_t>(LOG_BUF_SIZE-l),fmt,ap);
     ERROR("%.*s",l,buf);
+}
+
+aleg_cdr_headers_t cfg_aleg_cdr_headers;
+
+int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv)
+{
+    if(argc != 2) {
+        ERROR("header(%s,%s): unexpected option args count.\n"
+              "expected format: header(header_name, string|array)",
+              argv[0],argv[1]);
+        return 1;
+    }
+    if(cfg_aleg_cdr_headers.add_header(argv[0],argv[1])) {
+        return 1;
+    }
+    return 0;
 }
 
 Yeti* Yeti::_instance = nullptr;
@@ -269,6 +296,8 @@ int Yeti::configure(const std::string& config_buf)
 
     core_options_handling = cfg_getbool(cfg, opt_name_core_options_handling);
     config.pcap_memory_logger = cfg_getbool(cfg, opt_name_pcap_memory_logger);
+
+    config.aleg_cdr_headers = cfg_aleg_cdr_headers;
 
     return 0;
 }

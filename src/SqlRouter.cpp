@@ -143,6 +143,9 @@ try {
 		cdr_types.push_back("json"); //dynamic fields serialized to json
 	}
 
+	//i_lega_headers json
+	cdr_types.push_back("json");
+
 	{
 		pqxx::nontransaction t(c);
 		pqxx::result r = t.exec("SELECT * from load_interface_in()");
@@ -816,7 +819,7 @@ bool SqlRouter::check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
     }
     if(send_reply && need_reply){
         if(write_cdr){
-            cdr->update(req);
+            cdr->update_with_sip_request(req, Yeti::instance().config.aleg_cdr_headers);
             cdr->update_sbc(*profile);
         }
         //prepare & send sip response

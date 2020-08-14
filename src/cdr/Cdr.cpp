@@ -139,6 +139,8 @@ Cdr::Cdr(const Cdr& cdr,const SqlCallProfile &profile)
     msg_logger_path = cdr.msg_logger_path;
     dump_level_id = cdr.dump_level_id;
     legA_transport_protocol_id = cdr.legA_transport_protocol_id;
+
+    aleg_headers_json = cdr.aleg_headers_json;
 }
 
 Cdr::Cdr(const SqlCallProfile &profile)
@@ -190,7 +192,7 @@ void Cdr::update_sbc(const SBCCallProfile &profile)
     audio_record_enabled = profile.record_audio;
 }
 
-void Cdr::update(const AmSipRequest &req)
+void Cdr::update_with_sip_request(const AmSipRequest &req, const aleg_cdr_headers_t &aleg_headers)
 {
     size_t pos1,pos2,pos;
 
@@ -211,24 +213,25 @@ void Cdr::update(const AmSipRequest &req)
     if(findHeader(req.hdrs,server_hdr,0,pos1,pos2,pos))
         aleg_versions.emplace(req.hdrs.substr(pos1,pos2-pos1));
 
-    if(req.method==SIP_METH_INVITE){
+    if(req.method==SIP_METH_INVITE) {
         const AmMimeBody *body = req.body.hasContentType(SIP_APPLICATION_ISUP);
         if(body){
             AmISUP isup;
             if(0==isup.parse(body)){
-                update(isup);
+                update_with_isup(isup);
             }
         }
+        aleg_headers_json = aleg_headers.serialize_headers_to_json(req);
     }
 }
 
-void Cdr::update(const AmISUP &isup)
+void Cdr::update_with_isup(const AmISUP &isup)
 {
     DBG("Cdr::%s(AmISUP)",FUNC_NAME);
     isup_propagation_delay = isup.propagation_delay;
 }
 
-void Cdr::update(const AmSipReply &reply){
+void Cdr::update_with_sip_reply(const AmSipReply &reply){
     size_t pos1,pos2,pos;
 
     DBG("Cdr::%s(AmSipReply)",FUNC_NAME);
@@ -297,7 +300,7 @@ void Cdr::update_init_bleg(
     bleg_local_tag = leg_local_tag;
 }
 
-void Cdr::update(UpdateAction act)
+void Cdr::update_with_action(UpdateAction act)
 {
     DBG("Cdr::%s(act = %s)",FUNC_NAME,updateAction2str(act));
     if(writed) return;
@@ -327,7 +330,7 @@ void Cdr::update(UpdateAction act)
     }
 }
 
-void Cdr::update(const ResourceList &rl)
+void Cdr::update_with_resource_list(const ResourceList &rl)
 {
     if(rl.empty()) return;
 
@@ -425,7 +428,7 @@ void Cdr::update_internal_reason(DisconnectInitiator initiator,string reason, un
 
     AmLock l(*this);
 
-    update(End);
+    update_with_action(End);
 
     if(!disconnect_initiator_writed) {
         disconnect_initiator = initiator;
@@ -1007,6 +1010,9 @@ void Cdr::invoc(
         for(const auto &f : df)
             invoc_AmArg(invoc, dyn_fields[f.name]);
     }
+
+    invoc(aleg_headers_json);
+
     /* invocate trusted hdrs  */
     for(const auto &h : trusted_hdrs)
         invoc_AmArg(invoc,h);
