@@ -1,3 +1,9 @@
+sems-yeti (1.9.14) stable; urgency=medium
+
+  * do not write aleg_cdr_headers to CDR if not configured
+
+ -- dev <dev@yeti-switch.org>  Mon, 31 Aug 2020 15:25:07 +0300
+
 sems-yeti (1.9.13) stable; urgency=medium
 
   * cdr: write aleg_cdr_headers

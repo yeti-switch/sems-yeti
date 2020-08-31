@@ -9,6 +9,7 @@
 #include "sems.h"
 #include "../yeti_version.h"
 #include "../RTPParameters.h"
+#include "../yeti.h"
 
 #include <stdio.h>
 //#include <float.h>
@@ -1005,7 +1006,9 @@ void Cdr::invoc(
     /* invocate dynamic fields  */
     invoc_json(serialize_dynamic(df));
 
-    invoc(aleg_headers_json);
+    if(Yeti::instance().config.aleg_cdr_headers.enabled()) {
+        invoc(aleg_headers_json);
+    }
 
     /* invocate trusted hdrs  */
     for(const auto &h : trusted_hdrs)

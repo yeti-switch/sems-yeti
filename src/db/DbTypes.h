@@ -11,7 +11,7 @@
 #include <pqxx/result>
 
 #define GETPROFILE_STATIC_FIELDS_COUNT 20
-#define WRITECDR_STATIC_FIELDS_COUNT 45
+#define WRITECDR_STATIC_FIELDS_COUNT 44
 
 struct static_field {
     const char *name;

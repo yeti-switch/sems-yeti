@@ -10,6 +10,11 @@ static int normalize_aleg_header_name(int c) {
     return ::tolower(c);
 }
 
+bool aleg_cdr_headers_t::enabled()
+{
+    return !headers.empty();
+}
+
 int aleg_cdr_headers_t::add_header(std::string header_name, const std::string &serialization_type)
 {
     cdr_header_serialization_type_t type;

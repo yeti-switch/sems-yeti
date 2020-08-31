@@ -112,6 +112,10 @@ try {
 		profile_types.push_back(profile_static_fields[k].type);
 	for(int k = 0;k<WRITECDR_STATIC_FIELDS_COUNT;k++)
 		cdr_types.push_back(cdr_static_fields[k].type);
+	if(Yeti::instance().config.aleg_cdr_headers.enabled()) {
+		//aleg_cdr_headers
+		cdr_types.push_back("json");
+	}
 
 	for(const auto &f : auth_log_static_fields)
 		auth_log_types.push_back(f.type);
