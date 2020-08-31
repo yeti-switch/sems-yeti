@@ -185,7 +185,6 @@ cat >Dockerfile <<EOF
 FROM debian:${TRAVIS_DEBIAN_DISTRIBUTION}
 RUN echo "deb ${TRAVIS_DEBIAN_MIRROR} ${TRAVIS_DEBIAN_DISTRIBUTION} main" > /etc/apt/sources.list
 RUN echo "deb-src ${TRAVIS_DEBIAN_MIRROR} ${TRAVIS_DEBIAN_DISTRIBUTION} main" >> /etc/apt/sources.list
-RUN echo "deb [arch=amd64] http://pkg.yeti-switch.org/debian/stretch nightly main" >> /etc/apt/sources.list
 EOF
 
 if [ "${TRAVIS_DEBIAN_BACKPORTS}" = true ]
@@ -227,8 +226,7 @@ fi
 
 cat >>Dockerfile <<EOF
 RUN apt-get update && apt-get dist-upgrade --yes
-RUN apt-get install --yes --no-install-recommends build-essential devscripts git-buildpackage ca-certificates debhelper fakeroot lintian ${EXTRA_PACKAGES}
-
+RUN apt-get install --yes --no-install-recommends build-essential cmake devscripts equivs git-buildpackage ca-certificates debhelper fakeroot lintian ${EXTRA_PACKAGES}
 WORKDIR $(pwd)
 COPY . .
 EOF
@@ -261,7 +259,8 @@ EOF
 fi
 
 cat >>Dockerfile <<EOF
-RUN apt-get install --yes --no-install-recommends --force-yes libsems1-dev libhiredis-dev libcurl3-dev libpqxx3-dev libspandsp-dev libprotobuf-dev libsamplerate0-dev protobuf-compiler
+RUN echo "deb [arch=amd64] http://pkg.yeti-switch.org/debian/buster nightly main" >> /etc/apt/sources.list
+RUN apt-get update
 
 RUN rm -f Dockerfile
 RUN git checkout .travis.yml || true
@@ -271,7 +270,8 @@ RUN git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
 RUN git fetch
 RUN for X in \$(git branch -r | grep -v HEAD); do git branch --track \$(echo "\${X}" | sed -e 's@.*/@@g') \${X} || true; done
 
-CMD ./package.sh
+RUN mk-build-deps -i -t "apt-get --yes --no-install-recommends --force-yes"
+RUN debuild -us -uc -b -j$(nproc)
 EOF
 
 Info "Using Dockerfile:"

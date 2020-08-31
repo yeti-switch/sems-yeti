@@ -4,7 +4,7 @@ language: generic
 services:
   - docker
 env:
-  - TRAVIS_DEBIAN_DISTRIBUTION=stretch TRAVIS_DEBIAN_BACKPORTS=true
+  - TRAVIS_DEBIAN_DISTRIBUTION=buster TRAVIS_DEBIAN_EXTRA_REPOSITORY_GPG_URL=https://pkg.yeti-switch.org/key.gpg
 
 script:
   - sh script.sh
