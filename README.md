@@ -32,7 +32,7 @@ $ cd sems-yeti
 
 ### build package
 ```sh
-$ debuild -us -uc -b -j $(nproc)
+$ debuild -us -uc -b -j$(nproc)
 ```
 
 [Yeti]:http://yeti-switch.org/
