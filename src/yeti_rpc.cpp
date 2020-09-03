@@ -667,6 +667,10 @@ void YetiRpc::GetConfig(const AmArg& args, AmArg& ret) {
 	ret["calls_show_limit"] = calls_show_limit;
 	ret["node_id"] = AmConfig.node_id;
 	ret["pop_id"] = config.pop_id;
+	ret["pcap_memory_logger"] = config.pcap_memory_logger;
+	ret["auth_feedback"] = config.auth_feedback;
+	ret["registrar_enabled"] = config.registrar_enabled;
+	ret["lega_cdr_headers_enabled"] = config.aleg_cdr_headers.enabled();
 
 	router.getConfig(ret["router"]);
 

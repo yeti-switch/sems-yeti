@@ -50,6 +50,8 @@
 static char opt_name_host[] = "address";
 static char opt_name_port[] = "port";
 static char opt_name_timeout[] = "timeout";
+static char opt_name_auth_feedback[] = "enable_auth_feedback";
+
 static char section_name_mgmt[] = "management";
 static char section_name_mgmt_node[] = "node";
 static char section_name_lega_cdr_headers[] = "lega_cdr_headers";
@@ -85,6 +87,7 @@ static cfg_opt_t yeti_opts[] = {
     CFG_SEC(section_name_lega_cdr_headers,lega_cdr_headers_opts, CFGF_NONE),
     CFG_BOOL(opt_name_core_options_handling, cfg_true, CFGF_NONE),
     CFG_BOOL(opt_name_pcap_memory_logger, cfg_false, CFGF_NONE),
+    CFG_BOOL(opt_name_auth_feedback, cfg_false, CFGF_NONE),
     CFG_END()
 };
 
@@ -296,6 +299,7 @@ int Yeti::configure(const std::string& config_buf)
 
     core_options_handling = cfg_getbool(cfg, opt_name_core_options_handling);
     config.pcap_memory_logger = cfg_getbool(cfg, opt_name_pcap_memory_logger);
+    config.auth_feedback = cfg_getbool(cfg, opt_name_auth_feedback);
 
     config.aleg_cdr_headers = cfg_aleg_cdr_headers;
 

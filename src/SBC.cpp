@@ -73,6 +73,7 @@ SBCFactory* SBCFactory::instance()
     return _instance;
 }
 
+static string yeti_auth_feedback_header("X-Yeti-Auth-Error: ");
 
 // helper functions
 
@@ -122,6 +123,7 @@ int SBCFactory::onLoad()
     yeti_invoke = dynamic_cast<AmDynInvoke *>(yeti.get());
 
     registrar_enabled = yeti->config.registrar_enabled;
+    auth_feedback = yeti->config.auth_feedback;
 
     session_timer_fact = AmPlugIn::instance()->getFactory4Seh("session_timer");
     if(!session_timer_fact) {
@@ -175,6 +177,35 @@ inline void answer_100_trying(const AmSipRequest &req, CallCtx *ctx)
     }
 }
 
+void SBCFactory::send_auth_error_reply(
+    const AmSipRequest& req,
+    AmArg &ret,
+    int auth_feedback_code)
+{
+    string hdr;
+    if(auth_feedback && auth_feedback_code) {
+        hdr = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
+    }
+    AmSipDialog::reply_error(
+        req,
+        static_cast<unsigned int>(ret[0].asInt()),
+        ret[1].asCStr(),
+        hdr + ret[2].asCStr());
+    router.log_auth(req,false,ret);
+}
+
+void SBCFactory::send_and_log_auth_challenge(
+    const AmSipRequest& req,
+    const string &internal_reason,
+    int auth_feedback_code)
+{
+    string hdrs;
+    if(auth_feedback && auth_feedback_code) {
+        hdrs = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
+    }
+    router.send_and_log_auth_challenge(req,internal_reason, hdrs);
+}
+
 AmSession* SBCFactory::onInvite(
     const AmSipRequest& req,
     const string&,
@@ -203,12 +234,10 @@ AmSession* SBCFactory::onInvite(
         DBG("auth error. reply with 401");
         switch(-auth_id) {
         case Auth::UAC_AUTH_ERROR:
-            AmSipDialog::reply_error(req,
-                static_cast<unsigned int>(ret[0].asInt()), ret[1].asCStr(),ret[2].asCStr());
-            router.log_auth(req,false,ret);
+            send_auth_error_reply(req, ret, -auth_id);
             break;
         default:
-            router.send_and_log_auth_challenge(req,ret.asCStr());
+            send_and_log_auth_challenge(req,ret.asCStr(), -auth_id);
             break;
         }
         delete call_ctx;
@@ -233,7 +262,7 @@ AmSession* SBCFactory::onInvite(
 
         if(!authorized) {
             DBG("auth required for not authorized request. send auth challenge");
-            router.send_and_log_auth_challenge(req,"no Authorization header");
+            send_and_log_auth_challenge(req,"no Authorization header");
         } else {
             ERROR("got callprofile with auth_required "
                 "for already authorized request. reply internal error");
@@ -311,7 +340,7 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
         Auth::auth_id_type auth_id = router.check_request_auth(req,ret);
 
         if(auth_id == Auth::NO_AUTH) {
-            router.send_and_log_auth_challenge(req,"no Authorization header");
+            send_and_log_auth_challenge(req,"no Authorization header");
             return;
         }
 
@@ -319,16 +348,11 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
             switch(-auth_id) {
             case Auth::UAC_AUTH_ERROR:
                 DBG("REGISTER auth error. reply with 401");
-                AmSipDialog::reply_error(
-                    req,
-                    static_cast<unsigned int>(ret[0].asInt()),
-                    ret[1].asCStr(),
-                    ret[2].asCStr());
-                router.log_auth(req,false,ret);
+                send_auth_error_reply(req, ret, -auth_id);
                 break;
             default:
                 DBG("REGISTER no auth. reply 401 with challenge");
-                router.send_and_log_auth_challenge(req,ret.asCStr());
+                send_and_log_auth_challenge(req,ret.asCStr(), -auth_id);
                 break;
             }
             return;

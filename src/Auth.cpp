@@ -168,7 +168,7 @@ Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req,  AmArg &ret
     return -UAC_AUTH_ERROR;
 }
 
-void Auth::send_auth_challenge(const AmSipRequest &req)
+void Auth::send_auth_challenge(const AmSipRequest &req, const string &hdrs)
 {
     AmArg args, ret;
     args.push(realm);
@@ -176,7 +176,7 @@ void Auth::send_auth_challenge(const AmSipRequest &req)
     ret.clear();
     uac_auth->invoke("getChallenge", args, ret);
 
-    AmSipDialog::reply_error(req, 401, "Unauthorized", ret.asCStr());
+    AmSipDialog::reply_error(req, 401, "Unauthorized", hdrs + ret.asCStr());
 }
 
 void Auth::auth_info(AmArg &ret)

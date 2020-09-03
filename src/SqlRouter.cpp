@@ -619,9 +619,12 @@ void SqlRouter::log_auth(
         auth_id));
 }
 
-void SqlRouter::send_and_log_auth_challenge(const AmSipRequest &req, const string &internal_reason)
+void SqlRouter::send_and_log_auth_challenge(
+    const AmSipRequest &req,
+    const string &internal_reason,
+    const string &hdrs)
 {
-    Auth::send_auth_challenge(req);
+    Auth::send_auth_challenge(req, hdrs);
     cdr_writer->post_auth_log(
         new AuthCdr(
             req,used_header_fields, false,
