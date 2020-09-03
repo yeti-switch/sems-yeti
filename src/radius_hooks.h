@@ -200,5 +200,3 @@ static inline void radius_accounting_stop(SBCCallLeg *call, const Cdr &cdr)
 			RadiusRequestEvent::End, profile_id,
 			call->getLocalTag(), v));
 }
-
-

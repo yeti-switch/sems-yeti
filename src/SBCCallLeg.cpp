@@ -11,6 +11,7 @@
 #include "AmSessionContainer.h"
 #include "AmSipHeaders.h"
 #include "Am100rel.h"
+#include "jsonArg.h"
 
 #include "sip/pcap_logger.h"
 #include "sip/sip_parser.h"
@@ -29,8 +30,10 @@
 #include "RedisConnection.h"
 
 #include "sdp_filter.h"
-#include "ampi/RadiusClientAPI.h"
 #include "dtmf_sip_info.h"
+
+#include "ampi/RadiusClientAPI.h"
+#include "ampi/HttpClientAPI.h"
 
 using namespace std;
 
@@ -2412,6 +2415,9 @@ void SBCCallLeg::onInvite(const AmSipRequest& req)
         dlg->reply(req,100,"Connecting");
     }
 
+
+    httpCallStartedHook();
+
     if(!radius_auth(this,*call_ctx->cdr,call_profile,req)) {
         processAorResolving();
     }
@@ -2734,8 +2740,12 @@ void SBCCallLeg::onCallConnected(const AmSipReply&)
     if(call_ctx) {
         if(!call_ctx->transfer_intermediate_state) {
             with_cdr_for_read {
-                if(a_leg) cdr->update_with_action(Connect);
-                else cdr->update_with_action(BlegConnect);
+                if(a_leg) {
+                    cdr->update_with_action(Connect);
+                    httpCallConnectedHook();
+                } else {
+                    cdr->update_with_action(BlegConnect);
+                }
                 radius_accounting_start(this,*cdr,call_profile);
             }
         } else if(!a_leg) {
@@ -2915,6 +2925,9 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
                 cdr->update_internal_reason(DisconnectByTS,internal_reason,internal_code);
             }
             radius_accounting_stop(this, *cdr);
+            if(a_leg) {
+                httpCallDisconnectedHook();
+            }
         }
     }
 
@@ -3421,4 +3434,84 @@ void SBCCallLeg::sendReferNotify(int code, string &reason)
     if(last_refer_cseq.empty()) return;
     string body = "SIP/2.0 " + int2str(code) + " " + reason + CRLF;
     subs->sendReferNotify(dlg,last_refer_cseq,body,code >= 200);
+}
+
+void SBCCallLeg::serializeCommonHttpHookData(AmArg &a)
+{
+    with_cdr_for_read {
+        a["local_tag"] = cdr->local_tag;
+        a["time_start"] = timeval2double(cdr->start_time);
+    }
+}
+
+void SBCCallLeg::httpCallStartedHook()
+{
+    DBG("%s", FUNC_NAME);
+    if(yeti.config.http_events_destination.empty())
+        return;
+
+    AmArg d;
+    with_cdr_for_read {
+        cdr->serialize_for_http(d, router.getDynFields());
+        //started specific fields
+        d["type"] = "started";
+    }
+
+    if(!AmSessionContainer::instance()->postEvent(
+      HTTP_EVENT_QUEUE,
+      new HttpPostEvent(
+        yeti.config.http_events_destination,
+        arg2json(d),
+        string())))
+    {
+        ERROR("can't post call_start http event. remove http_events_destination opt or configure http_client module");
+    }
+}
+
+void SBCCallLeg::httpCallConnectedHook()
+{
+    DBG("%s", FUNC_NAME);
+    if(yeti.config.http_events_destination.empty())
+        return;
+
+    AmArg d;
+    with_cdr_for_read {
+        cdr->serialize_for_http(d, router.getDynFields());
+        //connected specific fields
+        d["type"] = "connected";
+    }
+
+    if(!AmSessionContainer::instance()->postEvent(
+      HTTP_EVENT_QUEUE,
+      new HttpPostEvent(
+        yeti.config.http_events_destination,
+        arg2json(d),
+        string())))
+    {
+        ERROR("can't post call_connected http event. remove http_events_destination opt or configure http_client module");
+    }
+}
+
+void SBCCallLeg::httpCallDisconnectedHook()
+{
+    DBG("%s", FUNC_NAME);
+    if(yeti.config.http_events_destination.empty())
+        return;
+
+    AmArg d;
+    with_cdr_for_read {
+        cdr->serialize_for_http(d, router.getDynFields());
+        //disconnected specific fields
+        d["type"] = "disconnected";
+    }
+
+    if(!AmSessionContainer::instance()->postEvent(
+      HTTP_EVENT_QUEUE,
+      new HttpPostEvent(
+        yeti.config.http_events_destination,
+        arg2json(d),
+        string())))
+    {
+        ERROR("can't post call_disconnected http event. remove http_events_destination opt or configure http_client module");
+    }
 }

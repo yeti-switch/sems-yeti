@@ -1230,6 +1230,58 @@ void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df,
 #undef filter
 }
 
+void Cdr::serialize_for_http(AmArg &a, const DynFieldsT &df) const
+{
+    static char strftime_buf[64] = {0};
+    static struct tm tt;
+
+#define add_field(val)\
+    a[#val] = val;
+#define add_field_as(name,val)\
+    a[name] = val;
+#define add_timeval_field(val)\
+    a[#val] = timerisset(&val) ? timeval2double(val) : AmArg();
+
+    add_timeval_field(cdr_born_time);
+    add_timeval_field(start_time);
+    add_timeval_field(connect_time);
+
+    add_field(legB_remote_port);
+    add_field(legB_local_port);
+    add_field(legA_remote_port);
+    add_field(legA_local_port);
+    add_field(legB_remote_ip);
+    add_field(legB_local_ip);
+    add_field(legA_remote_ip);
+    add_field(legA_local_ip);
+
+    add_field(orig_call_id);
+    add_field(term_call_id);
+    add_field(local_tag);
+    add_field(global_tag);
+
+    add_field(time_limit);
+    add_field(dump_level_id);
+    add_field(audio_record_enabled);
+
+    add_field(attempt_num);
+
+    add_field(resources);
+    add_field_as("active_resources", active_resources_amarg);
+
+    for(const auto &dit: df) {
+        const string &fname = dit.name;
+        AmArg &f = dyn_fields[fname];
+        if(f.getType()==AmArg::Undef && (dit.type_id==DynField::VARCHAR))
+            a[fname] = "";
+        a[fname] = f;
+    }
+
+#undef add_field
+#undef add_field_as
+#undef add_timeval_field
+}
+
 void Cdr::info(AmArg &s)
 {
     s["dump_level"] = dump_level2str(dump_level_id);

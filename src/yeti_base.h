@@ -72,6 +72,7 @@ struct YetiBase {
         string log_dir;
         bool pcap_memory_logger;
         bool auth_feedback;
+        string http_events_destination;
 
         bool registrar_enabled;
         string registrar_redis_host;

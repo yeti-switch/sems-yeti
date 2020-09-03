@@ -159,6 +159,11 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void onOtherRefer(const B2BReferEvent &refer);
   void sendReferNotify(int code, string &reason);
 
+  void serializeCommonHttpHookData(AmArg &a);
+  void httpCallStartedHook();
+  void httpCallConnectedHook();
+  void httpCallDisconnectedHook();
+
  public:
 
   SqlRouter &router;
