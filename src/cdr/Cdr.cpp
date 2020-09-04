@@ -1007,7 +1007,7 @@ void Cdr::invoc(
     invoc_json(serialize_dynamic(df));
 
     if(Yeti::instance().config.aleg_cdr_headers.enabled()) {
-        invoc(arg2json(aleg_headers_amarg));
+        invoc_cond(arg2json(aleg_headers_amarg), isArgStruct(aleg_headers_amarg));
     }
 
     /* invocate trusted hdrs  */

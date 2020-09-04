@@ -1,3 +1,9 @@
+sems-yeti (1.9.16) stable; urgency=medium
+
+  * cdrwriter: fix invocation on empty aleg_headers
+
+ -- dev <dev@yeti-switch.org>  Fri, 04 Sep 2020 17:03:48 +0300
+
 sems-yeti (1.9.15) stable; urgency=medium
 
   * http hooks. new option 'http_events_destination'
