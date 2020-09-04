@@ -38,7 +38,7 @@ int aleg_cdr_headers_t::add_header(std::string header_name, const std::string &s
     return 0;
 }
 
-std::string aleg_cdr_headers_t::serialize_headers_to_json(const AmSipRequest &req) const
+AmArg aleg_cdr_headers_t::serialize_headers(const AmSipRequest &req) const
 {
     AmArg a;
     size_t start_pos = 0, name_end, val_begin, val_end, hdr_end;
@@ -75,5 +75,5 @@ std::string aleg_cdr_headers_t::serialize_headers_to_json(const AmSipRequest &re
             a[hdr.first] = AmArg();
     }*/
 
-    return arg2json(a);
+    return a;
 }

@@ -141,7 +141,7 @@ Cdr::Cdr(const Cdr& cdr,const SqlCallProfile &profile)
     dump_level_id = cdr.dump_level_id;
     legA_transport_protocol_id = cdr.legA_transport_protocol_id;
 
-    aleg_headers_json = cdr.aleg_headers_json;
+    aleg_headers_amarg = cdr.aleg_headers_amarg;
 }
 
 Cdr::Cdr(const SqlCallProfile &profile)
@@ -222,7 +222,7 @@ void Cdr::update_with_sip_request(const AmSipRequest &req, const aleg_cdr_header
                 update_with_isup(isup);
             }
         }
-        aleg_headers_json = aleg_headers.serialize_headers_to_json(req);
+        aleg_headers_amarg = aleg_headers.serialize_headers(req);
     }
 }
 
@@ -1007,7 +1007,7 @@ void Cdr::invoc(
     invoc_json(serialize_dynamic(df));
 
     if(Yeti::instance().config.aleg_cdr_headers.enabled()) {
-        invoc(aleg_headers_json);
+        invoc(arg2json(aleg_headers_amarg));
     }
 
     /* invocate trusted hdrs  */
@@ -1230,11 +1230,6 @@ void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df,
 #undef filter
 }
 
-void Cdr::serialize_for_http(AmArg &a, const DynFieldsT &df) const
-{
-    static char strftime_buf[64] = {0};
-    static struct tm tt;
-
 #define add_field(val)\
     a[#val] = val;
 #define add_field_as(name,val)\
@@ -1242,45 +1237,75 @@ void Cdr::serialize_for_http(AmArg &a, const DynFieldsT &df) const
 #define add_timeval_field(val)\
     a[#val] = timerisset(&val) ? timeval2double(val) : AmArg();
 
+void Cdr::serialize_for_http_common(AmArg &a, const DynFieldsT &df) const
+{
     add_timeval_field(cdr_born_time);
     add_timeval_field(start_time);
-    add_timeval_field(connect_time);
 
-    add_field(legB_remote_port);
-    add_field(legB_local_port);
     add_field(legA_remote_port);
     add_field(legA_local_port);
-    add_field(legB_remote_ip);
-    add_field(legB_local_ip);
     add_field(legA_remote_ip);
     add_field(legA_local_ip);
 
     add_field(orig_call_id);
-    add_field(term_call_id);
-    add_field(local_tag);
     add_field(global_tag);
 
     add_field(time_limit);
     add_field(dump_level_id);
     add_field(audio_record_enabled);
 
-    add_field(attempt_num);
-
     add_field(resources);
-    add_field_as("active_resources", active_resources_amarg);
 
+    add_field_as("aleg_headers", aleg_headers_amarg);
+
+    AmArg &routing = a["routing"];
     for(const auto &dit: df) {
         const string &fname = dit.name;
-        AmArg &f = dyn_fields[fname];
-        if(f.getType()==AmArg::Undef && (dit.type_id==DynField::VARCHAR))
-            a[fname] = "";
-        a[fname] = f;
+        //AmArg &f = dyn_fields[fname];
+        /*if(f.getType()==AmArg::Undef && (dit.type_id==DynField::VARCHAR))
+            a[fname] = "";*/
+        routing[fname] = dyn_fields[fname];
     }
+}
+
+void Cdr::serialize_for_http_connected(AmArg &a) const
+{
+    add_field_as("active_resources", active_resources_amarg);
+    add_field(attempt_num);
+    add_field(sip_early_media_present);
+    add_field(term_call_id);
+    add_field(bleg_local_tag);
+
+    add_field(legB_remote_port);
+    add_field(legB_local_port);
+    add_field(legB_remote_ip);
+    add_field(legB_local_ip);
+
+    add_timeval_field(connect_time);
+    add_timeval_field(bleg_invite_time);
+    add_timeval_field(bleg_connect_time);
+    add_timeval_field(sip_10x_time);
+    add_timeval_field(sip_18x_time);
+}
+
+void Cdr::serialize_for_http_disconnected(AmArg &a) const
+{
+    add_field(is_redirected);
+    add_timeval_field(end_time);
+
+    add_field(disconnect_initiator);
+    add_field(disconnect_code);
+    add_field(disconnect_reason);
+    add_field(disconnect_internal_code);
+    add_field(disconnect_internal_reason);
+    add_field(disconnect_rewrited_code);
+    add_field(disconnect_rewrited_reason);
+
+}
 
 #undef add_field
 #undef add_field_as
 #undef add_timeval_field
-}
 
 void Cdr::info(AmArg &s)
 {
@@ -1299,4 +1324,3 @@ void Cdr::info(AmArg &s)
     s["resources"] = resources;
     s["active_resources"] = active_resources;
 }
-

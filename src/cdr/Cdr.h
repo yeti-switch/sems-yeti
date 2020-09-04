@@ -123,7 +123,7 @@ struct Cdr
     std::queue<dtmf_event_info> dtmf_events_a2b;
     std::queue<dtmf_event_info> dtmf_events_b2a;
 
-    string aleg_headers_json;
+    AmArg aleg_headers_amarg;
 
     Cdr();
     Cdr(const Cdr& cdr,const SqlCallProfile &profile);
@@ -175,7 +175,9 @@ struct Cdr
     void snapshot_info(AmArg &s, const DynFieldsT &df) const;
     void snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered_set<string> &wanted_fields) const;
 
-    void serialize_for_http(AmArg &s, const DynFieldsT &df) const;
+    void serialize_for_http_common(AmArg &a, const DynFieldsT &df) const;
+    void serialize_for_http_connected(AmArg &a) const;
+    void serialize_for_http_disconnected(AmArg &a) const;
 
     void info(AmArg &s) override;
 };

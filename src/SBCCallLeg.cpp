@@ -3436,82 +3436,58 @@ void SBCCallLeg::sendReferNotify(int code, string &reason)
     subs->sendReferNotify(dlg,last_refer_cseq,body,code >= 200);
 }
 
-void SBCCallLeg::serializeCommonHttpHookData(AmArg &a)
+void SBCCallLeg::httpSendRequest()
 {
-    with_cdr_for_read {
-        a["local_tag"] = cdr->local_tag;
-        a["time_start"] = timeval2double(cdr->start_time);
-    }
-}
-
-void SBCCallLeg::httpCallStartedHook()
-{
-    DBG("%s", FUNC_NAME);
-    if(yeti.config.http_events_destination.empty())
-        return;
-
-    AmArg d;
-    with_cdr_for_read {
-        cdr->serialize_for_http(d, router.getDynFields());
-        //started specific fields
-        d["type"] = "started";
-    }
-
     if(!AmSessionContainer::instance()->postEvent(
       HTTP_EVENT_QUEUE,
       new HttpPostEvent(
         yeti.config.http_events_destination,
-        arg2json(d),
+        arg2json(serialized_http_data),
         string())))
     {
         ERROR("can't post call_start http event. remove http_events_destination opt or configure http_client module");
     }
 }
 
-void SBCCallLeg::httpCallConnectedHook()
+void SBCCallLeg::httpCallStartedHook()
 {
-    DBG("%s", FUNC_NAME);
+    //DBG("%s", FUNC_NAME);
     if(yeti.config.http_events_destination.empty())
         return;
 
-    AmArg d;
     with_cdr_for_read {
-        cdr->serialize_for_http(d, router.getDynFields());
-        //connected specific fields
-        d["type"] = "connected";
+        serialized_http_data["type"] = "started";
+        serialized_http_data["local_tag"] = cdr->local_tag;
+        cdr->serialize_for_http_common(serialized_http_data["data"], router.getDynFields());
     }
 
-    if(!AmSessionContainer::instance()->postEvent(
-      HTTP_EVENT_QUEUE,
-      new HttpPostEvent(
-        yeti.config.http_events_destination,
-        arg2json(d),
-        string())))
-    {
-        ERROR("can't post call_connected http event. remove http_events_destination opt or configure http_client module");
+    httpSendRequest();
+}
+
+void SBCCallLeg::httpCallConnectedHook()
+{
+    //DBG("%s", FUNC_NAME);
+    if(yeti.config.http_events_destination.empty())
+        return;
+
+    with_cdr_for_read {
+        serialized_http_data["type"] = "connected";
+        cdr->serialize_for_http_connected(serialized_http_data["data"]);
     }
+    httpSendRequest();
+
 }
 
 void SBCCallLeg::httpCallDisconnectedHook()
 {
-    DBG("%s", FUNC_NAME);
+    //DBG("%s", FUNC_NAME);
     if(yeti.config.http_events_destination.empty())
         return;
 
-    AmArg d;
     with_cdr_for_read {
-        cdr->serialize_for_http(d, router.getDynFields());
-        //disconnected specific fields
-        d["type"] = "disconnected";
+        serialized_http_data["type"] = "disconnected";
+        cdr->serialize_for_http_disconnected(serialized_http_data["data"]);
     }
 
-    if(!AmSessionContainer::instance()->postEvent(
-      HTTP_EVENT_QUEUE,
-      new HttpPostEvent(
-        yeti.config.http_events_destination,
-        arg2json(d),
-        string())))
-    {
-        ERROR("can't post call_disconnected http event. remove http_events_destination opt or configure http_client module");
-    }
+    httpSendRequest();
 }
