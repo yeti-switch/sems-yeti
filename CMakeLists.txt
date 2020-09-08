@@ -16,7 +16,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 find_package(PQXX REQUIRED)
 find_package(Hiredis REQUIRED)
 find_package(SEMS REQUIRED)
-find_package(Protobuf REQUIRED)
 
 list(APPEND CMAKE_CXX_FLAGS_DEBUG -D_DEBUG)
 list(APPEND CMAKE_C_FLAGS_DEBUG -D_DEBUG)
