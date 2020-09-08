@@ -25,13 +25,8 @@ struct YetiCfg {
     int registrar_expires_max;
 
     aleg_cdr_headers_t aleg_cdr_headers;
-
-    std::list<sockaddr_storage> management_nodes;
-    unsigned long cfg_remote_timeout;
-
     bool core_options_handling;
 
-    bool add_mgmt_node(cfg_t *node_cfg);
     int configure(const std::string& config_buf, AmConfigReader &am_cfg);
 
 private:

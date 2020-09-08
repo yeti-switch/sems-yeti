@@ -10,14 +10,9 @@
 #define YETI_SCTP_DEFAULT_HOST "127.0.0.1"
 #define YETI_SCTP_DEFAULT_PORT 4444
 
-static char opt_name_host[] = "address";
-static char opt_name_port[] = "port";
-static char opt_name_timeout[] = "timeout";
 static char opt_name_auth_feedback[] = "enable_auth_feedback";
 static char opt_name_http_events_destination[] = "http_events_destination";
 
-static char section_name_mgmt[] = "management";
-static char section_name_mgmt_node[] = "node";
 static char section_name_lega_cdr_headers[] = "lega_cdr_headers";
 
 static char opt_name_core_options_handling[] = "core_options_handling";
@@ -128,21 +123,6 @@ cfg_opt_t sig_yeti_auth_opts[] = {
     CFG_END()
 };
 
-//mgmt
-static cfg_opt_t mgmt_node_opts[] = {
-    CFG_STR(opt_name_host,YETI_SCTP_DEFAULT_HOST,CFGF_NONE),
-    CFG_INT(opt_name_port,YETI_SCTP_DEFAULT_PORT,CFGF_NONE),
-    CFG_END()
-};
-
-static cfg_opt_t mgmt_opts[] = {
-    CFG_STR(opt_name_host,YETI_SCTP_DEFAULT_HOST,CFGF_NONE),
-    CFG_INT(opt_name_port,YETI_SCTP_DEFAULT_PORT,CFGF_NONE),
-    CFG_INT(opt_name_timeout,YETI_CFG_DEFAULT_TIMEOUT,CFGF_NONE),
-    CFG_SEC(section_name_mgmt_node, mgmt_node_opts, CFGF_MULTI),
-    CFG_END()
-};
-
 static cfg_opt_t lega_cdr_headers_opts[] = {
     CFG_FUNC(opt_func_name_header, add_aleg_cdr_header),
     CFG_END()
@@ -164,7 +144,6 @@ cfg_opt_t yeti_opts[] = {
     DCFG_SEC(statistics,sig_yeti_statistics_opts,CFGF_NONE),
     DCFG_SEC(auth,sig_yeti_auth_opts,CFGF_NONE),
 
-    CFG_SEC(section_name_mgmt,mgmt_opts, CFGF_NONE),
     CFG_SEC(section_name_lega_cdr_headers,lega_cdr_headers_opts, CFGF_NONE),
     CFG_BOOL(opt_name_core_options_handling, cfg_true, CFGF_NONE),
     CFG_BOOL(opt_name_pcap_memory_logger, cfg_false, CFGF_NONE),

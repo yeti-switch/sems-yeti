@@ -54,9 +54,7 @@ Yeti::Yeti(YetiBaseParams &params)
   : YetiBase(params),
     YetiRadius(*this),
     YetiRpc(*this),
-    AmEventFdQueue(this)/*,
-    intial_config_received(false),
-    cfg_error(false)*/
+    AmEventFdQueue(this)
 {}
 
 

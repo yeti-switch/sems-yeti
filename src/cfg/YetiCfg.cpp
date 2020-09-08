@@ -43,30 +43,6 @@ int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv)
     return 0;
 }
 
-bool YetiCfg::add_mgmt_node(cfg_t *node_cfg)
-{
-    dns_handle dh;
-
-    management_nodes.emplace_back();
-    auto &node_adddress = management_nodes.back();
-
-    char *address = cfg_getstr(node_cfg, opt_name_host);
-    if(-1==resolver::instance()->resolve_name(address,&dh,&node_adddress,IPv4_only)) {
-        ERROR("configuration error. "
-              "management node host contains invalid address or unresolvable FQDN: %s",
-              address);
-        return true;
-    }
-    am_set_port(&node_adddress, static_cast<short>(cfg_getint(node_cfg, opt_name_port)));
-
-    DBG("add management node %s (%s:%hu)",
-        address,
-        am_inet_ntop(&node_adddress).data(),
-        am_get_port(&node_adddress));
-
-    return false;
-}
-
 int YetiCfg::configure(const std::string& config_buf, AmConfigReader &am_cfg)
 {
     dns_handle dh;
@@ -91,25 +67,6 @@ int YetiCfg::configure(const std::string& config_buf, AmConfigReader &am_cfg)
         return -1;
     }
 
-    cfg_t *mgmt_cfg = cfg_getsec(cfg,section_name_mgmt);
-    if(!mgmt_cfg) {
-        ERROR("yeti: missed 'mgmt' section");
-        return -1;
-    }
-
-    auto mgmt_nodes_count = cfg_size(mgmt_cfg, section_name_mgmt_node);
-    if(mgmt_nodes_count) {
-        for(decltype(mgmt_nodes_count) i = 0; i < mgmt_nodes_count; i++) {
-            auto node_cfg = cfg_getnsec(mgmt_cfg, section_name_mgmt_node, i);
-            if(add_mgmt_node(node_cfg))
-                return -1;
-        }
-    } else {
-        if(add_mgmt_node(mgmt_cfg))
-            return -1;
-    }
-
-    cfg_remote_timeout = static_cast<unsigned long>(cfg_getint(mgmt_cfg, opt_name_timeout));
     core_options_handling = cfg_getbool(cfg, opt_name_core_options_handling);
     pcap_memory_logger = cfg_getbool(cfg, opt_name_pcap_memory_logger);
     auth_feedback = cfg_getbool(cfg, opt_name_auth_feedback);
@@ -124,8 +81,6 @@ int YetiCfg::configure(const std::string& config_buf, AmConfigReader &am_cfg)
 void YetiCfg::serialize_to_amconfig(cfg_t *y, AmConfigReader &out)
 {
 	cfg_t *c;
-
-	DBG(">>> sserialize_to_amconfig");
 
 	add2hash(y,"pop_id","pop_id",out);
 	add2hash(y,"msg_logger_dir","msg_logger_dir",out);
