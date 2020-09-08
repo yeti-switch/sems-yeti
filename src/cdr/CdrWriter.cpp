@@ -719,7 +719,7 @@ int CdrThread::writecdr(cdr_queue_t &cdr_queue, cdr_writer_connection* conn, siz
     DBG("writecdr[%p](conn = %p,entries_to_write = %zd, retry = %d)",
         this,conn,entries_to_write,retry);
 
-    Yeti::global_config &gc = Yeti::instance().config;
+    auto &gc = Yeti::instance().config;
 
     if(conn==NULL){
         ERROR("writecdr() we got NULL connection pointer.");
@@ -841,7 +841,7 @@ int CdrThread::writecdrtofile(cdr_queue_t &cdr_queue) {
 	CdrBase *cdr = cdr_queue.front().get();
 
 	ofstream &s = *wfp.get();
-	Yeti::global_config &gc = Yeti::instance().config;
+	auto &gc = Yeti::instance().config;
 
 	s << std::dec <<
 	quote(AmConfig.node_id) <<

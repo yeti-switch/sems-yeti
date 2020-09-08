@@ -39,7 +39,7 @@ int Registration::load_registrations(){
 
 	try {
 		pqxx::result r;
-		Yeti::global_config &gc = Yeti::instance().config;
+		auto &gc = Yeti::instance().config;
 
 		pqxx::connection c(dbc.conn_str());
 		c.set_variable("search_path",gc.routing_schema+", public");
@@ -150,7 +150,7 @@ void Registration::list_registrations(AmArg &ret)
 	registrar_client_i->invoke("listRegistrations", AmArg(), ret);
 
 	//add node_id and pop_id to the each element of array  to keep compatibility
-	const Yeti::global_config &c = Yeti::instance().config;
+	const auto &c = Yeti::instance().config;
 	for(int i = 0;i < ret.size(); i++) {
 		AmArg &a = ret[i];
 		a["node_id"] = AmConfig.node_id;
@@ -213,7 +213,7 @@ int Registration::reload_registration(AmConfigReader &cfg, const AmArg &args)
 	try {
 		string reg_id(args.get(0).asCStr());
 		pqxx::result r;
-		Yeti::global_config &gc = Yeti::instance().config;
+		auto &gc = Yeti::instance().config;
 
 		pqxx::connection c(dbc.conn_str());
 		c.set_variable("search_path",gc.routing_schema+", public");

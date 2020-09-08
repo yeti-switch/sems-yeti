@@ -90,7 +90,7 @@ void ResourceCache::run(){
 
 	setThreadName("yeti-res-wr");
 
-	Yeti::global_config &gc = Yeti::instance().config;
+	auto &gc = Yeti::instance().config;
 
 	read_pool.start();
 	write_pool.start();

@@ -86,16 +86,17 @@ void SqlRouter::stop()
     cdr_writer->stop();
 }
 
-int SqlRouter::run(){
-  master_pool->start();
-  WARN("Master SQLThread started\n");
-  if (1==failover_to_slave){
-    slave_pool->start();
-    WARN("Slave SQLThread started\n");
-  }
-  cdr_writer->start();
-  start_time = time(NULL);
-  return 0;
+int SqlRouter::start()
+{
+    master_pool->start();
+    WARN("Master SQLThread started\n");
+    if (1==failover_to_slave) {
+        slave_pool->start();
+        WARN("Slave SQLThread started\n");
+    }
+    cdr_writer->start();
+    start_time = time(NULL);
+    return 0;
 };
 
 int SqlRouter::db_configure(AmConfigReader& cfg){
@@ -409,7 +410,7 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(
 	pqxx::result r;
 	pqxx::nontransaction tnx(*conn);
 	ProfilesCacheEntry *entry = NULL;
-	Yeti::global_config &gc = Yeti::instance().config;
+	auto &gc = Yeti::instance().config;
 	AmArg fields_values;
 
 	const char *sptr;

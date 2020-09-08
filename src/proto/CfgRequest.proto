@@ -1,6 +1,0 @@
-syntax = "proto2";
-
-message CfgRequest {
-  required int32 node_id = 1;
-  required string cfg_part = 2;
-}

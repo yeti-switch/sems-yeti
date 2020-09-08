@@ -97,7 +97,7 @@ long int CdrList::getCallsCount()
 
 int CdrList::getCall(const string &local_tag,AmArg &call,const SqlRouter *router)
 {
-    Yeti::global_config &gc = Yeti::instance().config;
+    auto &gc = Yeti::instance().config;
     const get_calls_ctx ctx(AmConfig.node_id,gc.pop_id,router);
 
     AmLock l(*this);
@@ -112,7 +112,7 @@ int CdrList::getCall(const string &local_tag,AmArg &call,const SqlRouter *router
 void CdrList::getCalls(AmArg &calls,int limit,const SqlRouter *router)
 {
     int i = limit;
-    Yeti::global_config &gc = Yeti::instance().config;
+    auto &gc = Yeti::instance().config;
 
     const get_calls_ctx ctx(AmConfig.node_id,gc.pop_id,router);
 
@@ -142,7 +142,7 @@ void CdrList::getCallsFields(
 {
     calls.assertArray();
     int i = limit;
-    Yeti::global_config &gc = Yeti::instance().config;
+    auto &gc = Yeti::instance().config;
 
     cmp_rules filter_rules;
     vector<string> fields;
@@ -361,7 +361,7 @@ void CdrList::onTimer()
     len = strftime(strftime_buf, sizeof strftime_buf, "%F", &t);
     snapshot_date_str = string(strftime_buf, len);
 
-    Yeti::global_config &gc = Yeti::instance().config;
+    auto &gc = Yeti::instance().config;
     const DynFieldsT &df = router->getDynFields();
 
     AmArg calls;

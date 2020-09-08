@@ -21,19 +21,11 @@ class Yeti
     AmObject
 {
     static Yeti* _instance;
-    bool add_mgmt_node(cfg_t *node_cfg);
-    bool request_config();
-    bool wait_and_apply_config();
     bool stopped;
     int epoll_fd;
     AmTimerFd keepalive_timer;
 
-    std::list<sockaddr_storage> management_nodes;
-    unsigned long cfg_remote_timeout;
-    AmCondition<bool> intial_config_received;
-    bool cfg_error;
-
-    bool core_options_handling;
+    bool apply_config();
 
   public:
 
@@ -53,6 +45,6 @@ class Yeti
 
     void processRedisRegisterReply(RedisReplyEvent &e);
     void processRedisRpcAorLookupReply(RedisReplyEvent &e);
-    bool getCoreOptionsHandling() { return core_options_handling; }
+    bool getCoreOptionsHandling() { return config.core_options_handling; }
 };
 

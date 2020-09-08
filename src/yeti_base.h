@@ -5,6 +5,7 @@
 #include "resources/ResourceControl.h"
 #include "RegistrarRedisConnection.h"
 #include "cdr/ALegCdrHeaders.h"
+#include "cfg/YetiCfg.h"
 
 #include "AmConfigReader.h"
 
@@ -61,28 +62,7 @@ struct YetiBase {
     CdrList &cdr_list;
     ResourceControl &rctl;
 
-    struct global_config {
-        int pop_id;
-        bool use_radius;
-        bool early_100_trying;
-        string routing_schema;
-        string msg_logger_dir;
-        string audio_recorder_dir;
-        bool audio_recorder_compress;
-        string log_dir;
-        bool pcap_memory_logger;
-        bool auth_feedback;
-        string http_events_destination;
-
-        bool registrar_enabled;
-        string registrar_redis_host;
-        int registrar_redis_port;
-        int registrar_keepalive_interval;
-        int registrar_expires_min;
-        int registrar_expires_max;
-
-        aleg_cdr_headers_t aleg_cdr_headers;
-    } config;
+    YetiCfg config;
 
     AmConfigReader cfg;
     time_t start_time;
