@@ -43,6 +43,7 @@ AmArg aleg_cdr_headers_t::serialize_headers(const AmSipRequest &req) const
     AmArg a;
     size_t start_pos = 0, name_end, val_begin, val_end, hdr_end;
 
+    a.assertStruct();
     while(start_pos<req.hdrs.length()) {
         if (skip_header(req.hdrs, start_pos,
             name_end, val_begin, val_end, hdr_end) != 0)

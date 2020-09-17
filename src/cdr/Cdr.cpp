@@ -1007,7 +1007,7 @@ void Cdr::invoc(
     invoc_json(serialize_dynamic(df));
 
     if(Yeti::instance().config.aleg_cdr_headers.enabled()) {
-        invoc_cond(arg2json(aleg_headers_amarg), isArgStruct(aleg_headers_amarg));
+        invoc_cond(arg2json(aleg_headers_amarg), isArgStruct(aleg_headers_amarg) && aleg_headers_amarg.size());
     }
 
     /* invocate trusted hdrs  */
@@ -1239,6 +1239,9 @@ void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df,
 
 void Cdr::serialize_for_http_common(AmArg &a, const DynFieldsT &df) const
 {
+    a["node_id"] = AmConfig.node_id;
+    a["pop_id"] = Yeti::instance().config.pop_id;
+
     add_timeval_field(cdr_born_time);
     add_timeval_field(start_time);
 
