@@ -1,3 +1,9 @@
+sems-yeti (1.11.1) stable; urgency=medium
+
+  * SBCCallLeg: guard SDP processing with call_ctx mutex
+
+ -- dev <dev@yeti-switch.org>  Wed, 23 Sep 2020 00:21:02 +0300
+
 sems-yeti (1.11.0) stable; urgency=medium
 
   * http hooks: add pop_id,node_id. ensure empty hash on no matched aleg headers
