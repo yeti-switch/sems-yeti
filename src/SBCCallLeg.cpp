@@ -1380,6 +1380,7 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
 
         try {
             int res;
+            AmLock l(*call_ctx);
             if(req.method==SIP_METH_ACK){
                 //ACK can contain only answer
                 dump_SdpMedia(call_ctx->bleg_negotiated_media,"bleg_negotiated media_pre");
@@ -1518,6 +1519,7 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
 
             try {
                 int res;
+                AmControlledLock l(*call_ctx);
                 if(dlg_oa_state==AmOfferAnswer::OA_OfferRecved){
                     DBG("relayEvent(): process offer in reply");
                     res = processSdpOffer(
@@ -1553,6 +1555,7 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                 }
 
                 if(res != 0){
+                    l.release_ownership();
                     terminateLegOnReplyException(
                         reply,
                         InternalException(res, call_ctx->getOverrideId(a_leg)));
@@ -1665,6 +1668,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
 
             AmSipRequest upd_req(req);
             try {
+                AmLock l(*call_ctx);
                 int res = processSdpOffer(
                     this, call_profile,
                     upd_req.body, upd_req.method,
@@ -1745,6 +1749,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
 
             AmSipRequest inv_req(req);
             try {
+                AmLock l(*call_ctx);
                 int res = processSdpOffer(
                     this, call_profile,
                     inv_req.body, inv_req.method,
