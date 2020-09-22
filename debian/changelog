@@ -1,3 +1,9 @@
+sems-yeti (1.9.17) stable; urgency=medium
+
+  * SBCCallLeg: guard SDP processing with call_ctx mutex
+
+ -- dev <dev@yeti-switch.org>  Wed, 23 Sep 2020 00:28:44 +0300
+
 sems-yeti (1.9.16) stable; urgency=medium
 
   * cdrwriter: fix invocation on empty aleg_headers
