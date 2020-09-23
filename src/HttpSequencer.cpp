@@ -12,7 +12,7 @@ bool HttpSequencer::postHttpRequest(const string &token, const AmArg &data)
         arg2json(data),
         token, YETI_QUEUE_NAME)))
     {
-        ERROR("can't post call_start http event. "
+        ERROR("can't post http event. "
               "remove http_events_destination opt or configure http_client module");
         return false;
     }
