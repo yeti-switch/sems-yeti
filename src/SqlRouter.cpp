@@ -440,7 +440,10 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(
 	if(fixup_utf8_inplace(from_name))
 		WARN("From display name contained at least one invalid utf8 sequence. wrong bytes erased");
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 	pqxx::prepare::invocation invoc = tnx.prepared("getprofile");
+#pragma GCC diagnostic pop
 
 	if(!invoc.exists())
 		throw GetProfileException(FC_NOT_PREPARED,true);

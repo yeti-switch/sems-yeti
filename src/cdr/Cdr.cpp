@@ -925,7 +925,10 @@ static inline void invoc_AmArg(pqxx::prepare::invocation &invoc,const AmArg &arg
 
 pqxx::prepare::invocation Cdr::get_invocation(cdr_transaction &tnx)
 {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     return tnx.prepared(cdr_sql_statement_name);
+#pragma GCC diagnostic pop
 }
 
 void Cdr::invoc(
