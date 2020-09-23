@@ -211,6 +211,8 @@ int Yeti::onLoad()
         }
     }
 
+    http_sequencer.setHttpDestinationName(config.http_events_destination);
+
     //start threads
     router.start();
     rctl.start();
@@ -270,10 +272,10 @@ void Yeti::run()
 
     stopped = false;
     do {
-        DBG("epoll_wait...");
+        //DBG("epoll_wait...");
         ret = epoll_wait(epoll_fd, events, EPOLL_MAX_EVENTS, -1);
 
-        DBG("epoll_wait = %d",ret);
+        //DBG("epoll_wait = %d",ret);
 
         if(ret == -1 && errno != EINTR){
             ERROR("epoll_wait: %s\n",strerror(errno));
@@ -336,6 +338,9 @@ void Yeti::process(AmEvent *ev)
             processRedisRpcAorLookupReply(*e);
             break;
         }
+    } else
+    ON_EVENT_TYPE(HttpPostResponseEvent) {
+        http_sequencer.processHttpReply(*e);
     } else
     ON_EVENT_TYPE(AmSystemEvent) {
         if(e->sys_event==AmSystemEvent::ServerShutdown) {

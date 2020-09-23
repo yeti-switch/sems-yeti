@@ -184,6 +184,7 @@ void YetiRpc::init_rpc_tree()
 
 		method(show,"aors","show registered AoRs",showAors,"");
 		method(show,"keepalive_contexts","show keepalive contexts",showKeepaliveContexts,"");
+		method(show,"http_sequencer_data","show http sequencer runtime data",showHttpSequencerData,"");
 	/* request */
 	leaf(root,request,"request","modify commands");
 
@@ -1253,4 +1254,9 @@ void YetiRpc::showAors(const AmArg& arg, AmArg& ret)
 void YetiRpc::showKeepaliveContexts(const AmArg& arg, AmArg& ret)
 {
 	registrar_redis.dumpKeepAliveContexts(ret);
+}
+
+void YetiRpc::showHttpSequencerData(const AmArg& arg, AmArg& ret)
+{
+	http_sequencer.serialize(ret);
 }

@@ -3441,22 +3441,8 @@ void SBCCallLeg::sendReferNotify(int code, string &reason)
     subs->sendReferNotify(dlg,last_refer_cseq,body,code >= 200);
 }
 
-void SBCCallLeg::httpSendRequest()
-{
-    if(!AmSessionContainer::instance()->postEvent(
-      HTTP_EVENT_QUEUE,
-      new HttpPostEvent(
-        yeti.config.http_events_destination,
-        arg2json(serialized_http_data),
-        string())))
-    {
-        ERROR("can't post call_start http event. remove http_events_destination opt or configure http_client module");
-    }
-}
-
 void SBCCallLeg::httpCallStartedHook()
 {
-    //DBG("%s", FUNC_NAME);
     if(yeti.config.http_events_destination.empty())
         return;
 
@@ -3466,12 +3452,11 @@ void SBCCallLeg::httpCallStartedHook()
         cdr->serialize_for_http_common(serialized_http_data["data"], router.getDynFields());
     }
 
-    httpSendRequest();
+    yeti.http_sequencer.processHook(HttpSequencer::CallStarted, getLocalTag(), serialized_http_data);
 }
 
 void SBCCallLeg::httpCallConnectedHook()
 {
-    //DBG("%s", FUNC_NAME);
     if(yeti.config.http_events_destination.empty())
         return;
 
@@ -3479,13 +3464,12 @@ void SBCCallLeg::httpCallConnectedHook()
         serialized_http_data["type"] = "connected";
         cdr->serialize_for_http_connected(serialized_http_data["data"]);
     }
-    httpSendRequest();
 
+    yeti.http_sequencer.processHook(HttpSequencer::CallConnected, getLocalTag(), serialized_http_data);
 }
 
 void SBCCallLeg::httpCallDisconnectedHook()
 {
-    //DBG("%s", FUNC_NAME);
     if(yeti.config.http_events_destination.empty())
         return;
 
@@ -3494,5 +3478,5 @@ void SBCCallLeg::httpCallDisconnectedHook()
         cdr->serialize_for_http_disconnected(serialized_http_data["data"]);
     }
 
-    httpSendRequest();
+    yeti.http_sequencer.processHook(HttpSequencer::CallDisconnected, getLocalTag(), serialized_http_data);
 }

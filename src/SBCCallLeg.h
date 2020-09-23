@@ -160,7 +160,6 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void sendReferNotify(int code, string &reason);
 
   AmArg serialized_http_data;
-  void httpSendRequest();
   void httpCallStartedHook();
   void httpCallConnectedHook();
   void httpCallDisconnectedHook();

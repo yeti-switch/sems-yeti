@@ -3,13 +3,12 @@
 #include "yeti_rpc.h"
 #include "yeti_base.h"
 #include "yeti_radius.h"
+#include "HttpSequencer.h"
 
 #include <AmEventFdQueue.h>
 
 #define YETI_REDIS_REGISTER_TYPE_ID 0
 #define YETI_REDIS_RPC_AOR_LOOKUP_TYPE_ID 1
-
-static const string YETI_QUEUE_NAME(MOD_NAME);
 
 class Yeti
   : public YetiRpc,

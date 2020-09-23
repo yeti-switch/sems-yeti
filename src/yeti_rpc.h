@@ -150,4 +150,6 @@ class YetiRpc
 
     rpc_handler showAors;
     rpc_handler showKeepaliveContexts;
+
+    rpc_handler showHttpSequencerData;
 };

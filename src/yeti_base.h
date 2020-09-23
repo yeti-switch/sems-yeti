@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SqlRouter.h"
+#include "HttpSequencer.h"
 #include "hash/CdrList.h"
 #include "resources/ResourceControl.h"
 #include "RegistrarRedisConnection.h"
@@ -12,6 +13,8 @@
 #include <ctime>
 
 #include "log.h"
+
+static const string YETI_QUEUE_NAME(MOD_NAME);
 
 #define YETI_ENABLE_PROFILING 1
 
@@ -68,4 +71,5 @@ struct YetiBase {
     time_t start_time;
 
     RegistrarRedisConnection registrar_redis;
+    HttpSequencer http_sequencer;
 };
