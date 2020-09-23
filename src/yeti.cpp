@@ -313,8 +313,10 @@ void Yeti::on_stop()
     registrar_redis.stop();
 
     stopped = true;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
     ::write(queue_fd(), &u, sizeof(uint64_t)); //trigger events processing
-
+#pragma GCC diagnostic pop
     join();
 }
 
