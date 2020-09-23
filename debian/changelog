@@ -1,3 +1,9 @@
+sems-yeti (1.11.2) stable; urgency=medium
+
+  * add HttpSequencer to ensure http hooks ordering
+
+ -- dev <dev@yeti-switch.org>  Thu, 24 Sep 2020 00:19:59 +0300
+
 sems-yeti (1.11.1) stable; urgency=medium
 
   * SBCCallLeg: guard SDP processing with call_ctx mutex
