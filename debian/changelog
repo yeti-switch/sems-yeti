@@ -1,3 +1,9 @@
+sems-yeti (1.9.18) stable; urgency=medium
+
+  * use public domain for $Oi placeholder if set
+
+ -- dev <dev@yeti-switch.org>  Thu, 08 Oct 2020 20:59:34 +0300
+
 sems-yeti (1.9.17) stable; urgency=medium
 
   * SBCCallLeg: guard SDP processing with call_ctx mutex
