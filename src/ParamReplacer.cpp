@@ -432,7 +432,7 @@ string replaceParameters(const string& s,
 														  req.route,
 														  call_profile->ruri);
             //TODO: use smth like req.local_proto to get correct public_ip
-            res += AmConfig.sip_ifs[outbound_interface].proto_info[0]->getIP();
+            res += AmConfig.sip_ifs[outbound_interface].proto_info[0]->getHost();
 			break;
 		}
 		WARN("unknown replacement $O%c\n", s[p+1]);

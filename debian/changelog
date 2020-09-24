@@ -1,3 +1,9 @@
+sems-yeti (1.11.3) stable; urgency=medium
+
+  * use public domain for $Oi placeholder if set
+
+ -- dev <dev@yeti-switch.org>  Thu, 24 Sep 2020 23:25:24 +0300
+
 sems-yeti (1.11.2) stable; urgency=medium
 
   * add HttpSequencer to ensure http hooks ordering
