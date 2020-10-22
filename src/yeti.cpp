@@ -123,8 +123,7 @@ static void apply_yeti_signatures()
     if(AmConfig.sdp_session_name==DEFAULT_SDP_SESSION_NAME)
         AmConfig.sdp_session_name = YETI_SIGNATURE;
 
-    if(AmConfig.signature==DEFAULT_SIGNATURE)
-        AmConfig.signature = YETI_AGENT_SIGNATURE;
+    AmLcConfig::instance().applySignature(YETI_AGENT_SIGNATURE);
 }
 
 int Yeti::onLoad()

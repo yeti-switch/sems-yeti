@@ -168,8 +168,7 @@ inline void answer_100_trying(const AmSipRequest &req, CallCtx *ctx)
     reply.reason = "Connecting";
     reply.tt = req.tt;
 
-    if (AmConfig.signature.length())
-        reply.hdrs += SIP_HDR_COLSP(SIP_HDR_SERVER) + AmConfig.signature + CRLF;
+    AmLcConfig::instance().addSignatureHdr(reply);
 
     if(SipCtrlInterface::send(reply,string(""),ctx->early_trying_logger,nullptr)) {
         ERROR("Could not send early 100 Trying. call-id=%s, cseq = %i\n",
