@@ -1,3 +1,9 @@
+sems-yeti (1.11.4) stable; urgency=medium
+
+  * fix signature override
+
+ -- dev <dev@yeti-switch.org>  Fri, 23 Oct 2020 01:36:06 +0300
+
 sems-yeti (1.11.3) stable; urgency=medium
 
   * use public domain for $Oi placeholder if set
