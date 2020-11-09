@@ -686,6 +686,50 @@ void YetiRpc::DropCall(const AmArg& args, AmArg& ret){
 	ret = "Dropped from sessions container";
 }
 
+static void free_session_resource_handler(
+	const AmEventDispatcher::QueueEntry &entry,
+	void *arg)
+{
+	static const string ret_prefix("put resource handler: ");
+
+	SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q);
+	if(!leg) return;
+
+	auto &local_tag = leg->getLocalTag();
+
+	auto call_ctx = leg->getCallCtx();
+	if(!call_ctx) {
+		ERROR("no call_ctx for leg: %s", local_tag.data());
+		return;
+	}
+
+	call_ctx->lock();
+
+	SqlCallProfile *p = call_ctx->getCurrentProfile();
+	if(!p) {
+		ERROR("no current profile for leg: %s", local_tag.data());
+		call_ctx->unlock();
+		return;
+	}
+
+	auto &ret = *(AmArg *)arg;
+
+	if(p->resource_handler.empty()) {
+		call_ctx->unlock();
+		ret.push("empty resource handler");
+		return;
+	}
+
+	INFO("put resource_handler:'%s' for local_tag:'%s'",
+		p->resource_handler.data(), local_tag.data());
+
+	ret.push(ret_prefix + p->resource_handler);
+
+	leg->rctl.put(p->resource_handler);
+
+	call_ctx->unlock();
+}
+
 void YetiRpc::RemoveCall(const AmArg& args, AmArg& ret){
 	string local_tag;
 	handler_log();
@@ -696,22 +740,24 @@ void YetiRpc::RemoveCall(const AmArg& args, AmArg& ret){
 
 	local_tag = args[0].asCStr();
 
-	string ret_reason;
+	ret.assertArray();
+
+	AmEventDispatcher::instance()->apply(local_tag, &free_session_resource_handler, &ret);
 
 	if (AmSessionContainer::instance()->postEvent(
 		local_tag,
 		new SBCControlEvent("teardown")))
 	{
-		ret_reason = "Call found in sessions container. teardown command sent";
+		ret.push("found in sessions container. teardown event sent");
+	} else {
+		ret.push("not found in sessions container");
 	}
 
 	if(cdr_list.remove_by_local_tag(local_tag)) {
-		ret_reason += ". Removed from active calls container";
+		ret.push("removed from active calls container");
 	} else {
-		ret_reason += ". Failed to remove from active calls container";
+		ret.push("not found in active calls container");
 	}
-
-	ret = ret_reason;
 }
 
 void YetiRpc::showVersion(const AmArg& args, AmArg& ret) {
