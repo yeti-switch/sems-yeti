@@ -1,3 +1,10 @@
+sems-yeti (1.7.35-6p5) stable; urgency=low
+
+  * yeti_rpc: RemoveCall: force resource_handler put
+  * yeti_rpc: RemoveCall: force removing from cdr_list even on presence in sessions container
+
+ -- dev <dev@yeti-switch.org>  Mon, 09 Nov 2020 13:53:16 +0200
+
 sems-yeti (1.7.35-6p4) stable; urgency=low
 
   * fix sessions leak on generic failure [hdl->onFailure()]
