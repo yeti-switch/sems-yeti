@@ -1465,6 +1465,15 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
             }
         }
 
+        if(reply.code == 481 || reply.code == 408) {
+            DBG("got fatal error reply code for reINVITE. terminate call");
+            terminateLegOnReplyException(
+                reply,
+                InternalException(DC_REINVITE_ERROR_REPLY, call_ctx->getOverrideId(a_leg)));
+            delete ev;
+            return -488;
+        }
+
         DBG("Yeti::relayEvent(%p) filtering body for reply %d cseq.method '%s' (c/t '%s') oa_state = %d\n",
             to_void(this),reply.code,reply_ev->trans_method.c_str(), reply.body.getCTStr().c_str(),
             dlg_oa_state);

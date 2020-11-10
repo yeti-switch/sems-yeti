@@ -1,3 +1,10 @@
+sems-yeti (1.11.5) stable; urgency=medium
+
+  * terminate the call on 481,408 replies for reINVITE 
+  * yeti_rpc: RemoveCall: force resource_handler put
+
+ -- dev <dev@yeti-switch.org>  Tue, 10 Nov 2020 22:11:03 +0200
+
 sems-yeti (1.11.4) stable; urgency=medium
 
   * fix signature override
