@@ -44,7 +44,6 @@ cfg_opt_t sig_yeti_routing_opts[] = {
 	DCFG_STR(function),
 	DCFG_STR(init),
 	DCFG_BOOL(failover_to_slave),
-	DCFG_BOOL(use_radius),
 	DCFG_SEC(master_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
 	DCFG_SEC(slave_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
 	DCFG_SEC(cache,sig_yeti_routing_cache_opts,CFGF_NONE),

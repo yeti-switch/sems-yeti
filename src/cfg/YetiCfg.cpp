@@ -102,7 +102,6 @@ void YetiCfg::serialize_to_amconfig(cfg_t *y, AmConfigReader &out)
 			add2hash(c,"profiles_cache_enabled","enabled",out);
 			add2hash(c,"profiles_cache_check_interval","check_interval",out);
 			add2hash(c,"profiles_cache_buckets","buckets",out);
-		add2hash(r,"use_radius","use_radius",out);
 
 		//cdr
 		c = cfg_getsec(y,"cdr");

@@ -8,16 +8,14 @@ int YetiRadius::init_radius_module(AmConfigReader& cfg)
 {
 	AmArg ret;
 
-	if(!config.use_radius){
+	AmDynInvokeFactory* radius_client_factory = AmPlugIn::instance()->getFactory4Di("radius_client");
+	if(NULL==radius_client_factory){
+		config.use_radius = false;
 		return 0;
 	}
 
-	AmDynInvokeFactory* radius_client_factory = AmPlugIn::instance()->getFactory4Di("radius_client");
-	if(NULL==radius_client_factory){
-		ERROR("radius enabled on management node, but radius_client module is not loaded."
-			  " please, check your 'load_plugins' option in sems.conf or disable radius usage on management node");
-		return 1;
-	}
+	config.use_radius = true;
+
 	AmDynInvoke* radius_client = radius_client_factory->getInstance();
 	if(NULL==radius_client){
 		ERROR("radius_client module factory error");

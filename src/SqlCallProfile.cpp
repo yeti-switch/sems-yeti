@@ -707,18 +707,15 @@ bool SqlCallProfile::eval_radius(){
 		}
 	} else {
 		if(radius_profile_id){
-			ERROR("got call_profile with radius_profile_id set, but radius support is disabled. "
-				  "fix your configuration ");
+			ERROR("got call_profile with radius_profile_id set, but radius_client module is not loaded");
 			return false;
 		}
 		if(aleg_radius_acc_profile_id){
-			ERROR("got call_profile with aleg_radius_acc_profile_id set, but radius support is disabled. "
-				  "fix your configuration ");
+			ERROR("got call_profile with aleg_radius_acc_profile_id set, but radius_client module is not loaded");
 			return false;
 		}
 		if(bleg_radius_acc_profile_id){
-			ERROR("got call_profile with bleg_radius_acc_profile_id set, but radius support is disabled. "
-				  "fix your configuration ");
+			ERROR("got call_profile with bleg_radius_acc_profile_id set, but radius_client module is not loaded");
 			return false;
 		}
 	}

@@ -87,7 +87,6 @@ bool Yeti::apply_config() {
         return false;
     }
     config.routing_schema = cfg.getParameter("routing_schema");
-    config.use_radius = cfg.getParameterInt("use_radius",0)==1;
     config.early_100_trying = cfg.getParameterInt("early_100_trying",1)==1;
 
     if(!cfg.hasParameter("msg_logger_dir")){
