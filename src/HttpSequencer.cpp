@@ -88,6 +88,7 @@ void HttpSequencer::processHook(call_stage_type_t type, const string &local_tag,
         case ConnectedHookReplyReceived:
             postHttpRequest(local_tag, data);
             states.erase(it);
+            break;
         default:
             ERROR("got CallDisconnected for sequencer in unexpected stage %d for %s",
                   it->second.stage, local_tag.data());
