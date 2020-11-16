@@ -19,6 +19,23 @@ bool HttpSequencer::postHttpRequest(const string &token, const AmArg &data)
     return true;
 }
 
+bool HttpSequencer::postHttpRequestNoReply(const AmArg &data)
+{
+    static string empty_token;
+    if(!AmSessionContainer::instance()->postEvent(
+      HTTP_EVENT_QUEUE,
+      new HttpPostEvent(
+        http_destination_name,
+        arg2json(data),
+        empty_token)))
+    {
+        ERROR("can't post http event. "
+              "remove http_events_destination opt or configure http_client module");
+        return false;
+    }
+    return true;
+}
+
 void HttpSequencer::setHttpDestinationName(const std::string &name)
 {
     http_destination_name = name;
@@ -86,7 +103,7 @@ void HttpSequencer::processHook(call_stage_type_t type, const string &local_tag,
             break;
         case StartedHookReplyReceived:
         case ConnectedHookReplyReceived:
-            postHttpRequest(local_tag, data);
+            postHttpRequestNoReply(data);
             states.erase(it);
             break;
         default:
@@ -124,7 +141,7 @@ void HttpSequencer::processHttpReply(const HttpPostResponseEvent &reply)
         }
 
         if(!isArgUndef(it->second.disconnected_data)) {
-            postHttpRequest(it->first, it->second.disconnected_data);
+            postHttpRequestNoReply(it->second.disconnected_data);
             states.erase(it);
             return;
         }
@@ -133,7 +150,7 @@ void HttpSequencer::processHttpReply(const HttpPostResponseEvent &reply)
         break;
     case ConnectedHookIsQueued:
         if(!isArgUndef(it->second.disconnected_data)) {
-            postHttpRequest(it->first, it->second.disconnected_data);
+            postHttpRequestNoReply(it->second.disconnected_data);
             states.erase(it);
             return;
         }

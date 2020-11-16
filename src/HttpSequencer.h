@@ -34,6 +34,7 @@ class HttpSequencer {
 
     //true if posted successfully
     bool postHttpRequest(const string &token, const AmArg &data);
+    bool postHttpRequestNoReply(const AmArg &data);
 
   public:
     enum call_stage_type_t {
