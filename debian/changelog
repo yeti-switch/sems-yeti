@@ -1,3 +1,9 @@
+sems-yeti (1.9.20) stable; urgency=medium
+
+  * fix session processing deadlock on SDP Answer processing errors
+
+ -- dev <dev@yeti-switch.org>  Thu, 19 Nov 2020 18:04:32 +0200
+
 sems-yeti (1.9.19) stable; urgency=medium
 
   * fix signature override
