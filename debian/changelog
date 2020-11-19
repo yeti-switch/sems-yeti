@@ -1,3 +1,9 @@
+sems-yeti (1.11.7) stable; urgency=medium
+
+  * fix session processing deadlock on SDP Answer processing errors
+
+ -- dev <dev@yeti-switch.org>  Thu, 19 Nov 2020 17:55:42 +0200
+
 sems-yeti (1.11.6) stable; urgency=medium
 
   * HttpSequencer: remove reply subscription for CallDisconnected http events
