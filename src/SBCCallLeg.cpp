@@ -1465,7 +1465,9 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
             }
         }
 
-        if(reply.code == 481 || reply.code == 408) {
+        if(getCallStatus()==CallLeg::Connected &&
+           (reply.code == 481 || reply.code == 408))
+        {
             DBG("got fatal error reply code for reINVITE. terminate call");
             terminateLegOnReplyException(
                 reply,
