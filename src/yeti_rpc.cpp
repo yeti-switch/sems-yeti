@@ -172,10 +172,6 @@ void YetiRpc::init_rpc_tree()
 				method_arg(show_radius_acc,"statistics","radius connections statistic",showRadiusAccStat,"",
 						   "<id>","show stats for certain accounting profile");
 
-		leaf(show,show_upload,"upload","upload");
-			method(show_upload,"destinations","show configured destinations for http_client",showUploadDestinations,"");
-			method(show_upload,"stats","show http_client stats",showUploadStats,"");
-
 		leaf(show,show_recorder,"recorder","audio recorder instance");
 			method(show_recorder,"stats","show audio recorder processor stats",showRecorderStats,"");
 
@@ -187,8 +183,6 @@ void YetiRpc::init_rpc_tree()
 		method(show,"http_sequencer_data","show http sequencer runtime data",showHttpSequencerData,"");
 	/* request */
 	leaf(root,request,"request","modify commands");
-
-		method(request,"upload","upload file using http_client",requestUpload,"<destination_id> <file_name> <path_to_file>");
 
 		leaf(request,request_sensors,"sensors","sensors");
 			method(request_sensors,"reload","reload sensors",requestReloadSensors,"");
@@ -1222,8 +1216,6 @@ DEFINE_CORE_PROXY_METHOD(setSessionsLimit);
 DEFINE_CORE_PROXY_METHOD(requestResolverClear);
 DEFINE_CORE_PROXY_METHOD(requestResolverGet);
 
-DEFINE_CORE_PROXY_METHOD_ALTER(showUploadDestinations,showHttpDestinations);
-DEFINE_CORE_PROXY_METHOD_ALTER(showUploadStats,showHttpStats);
 DEFINE_CORE_PROXY_METHOD_ALTER(showSystemLogLevel,showLogLevel);
 DEFINE_CORE_PROXY_METHOD_ALTER(showSystemDumpLevel,showDumpLevel);
 DEFINE_CORE_PROXY_METHOD_ALTER(showSessions,showSessionsLimit);
@@ -1235,7 +1227,6 @@ DEFINE_CORE_PROXY_METHOD_ALTER(setSystemDumpLevelSignalling,setDumpLevelSignalli
 DEFINE_CORE_PROXY_METHOD_ALTER(setSystemDumpLevelRtp,setDumpLevelRtp);
 DEFINE_CORE_PROXY_METHOD_ALTER(setSystemDumpLevelFull,setDumpLevelFull);
 
-DEFINE_CORE_PROXY_METHOD_ALTER(requestUpload,requestHttpUpload);
 DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemLogDump,requestLogDump);
 DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdown,requestShutdownNormal);
 DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdownImmediate,requestShutdownImmediate);

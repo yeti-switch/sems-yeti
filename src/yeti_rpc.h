@@ -134,10 +134,6 @@ class YetiRpc
 
     rpc_handler showRecorderStats;
 
-    rpc_handler showUploadDestinations;
-    rpc_handler showUploadStats;
-    rpc_handler requestUpload;
-
     rpc_handler showAuthCredentials;
     rpc_handler showAuthCredentialsByUser;
     rpc_handler showAuthCredentialsById;
