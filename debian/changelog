@@ -1,3 +1,10 @@
+sems-yeti (1.11.9) stable; urgency=medium
+
+  *  fix min expires check for per-Contact de-REGISTER
+  *  fix double-free abort on long reconnection to redis servers
+
+ -- dev <dev@yeti-switch.org>  Thu, 10 Dec 2020 00:52:05 +0200
+
 sems-yeti (1.11.8) stable; urgency=medium
 
   * generate internal error 150 for connected calls only
