@@ -487,6 +487,7 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
 
         //check min/max expires
         if(yeti->config.registrar_expires_min &&
+           expires_int &&
            expires_int < 3600 &&
            expires_int < yeti->config.registrar_expires_min)
         {
