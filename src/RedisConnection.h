@@ -158,6 +158,7 @@ class RedisConnection
 
     int add_event(int flag);
     int del_event(int flag);
+    void cleanup();
 };
 
 static inline bool postRedisRequest(const string &queue_name, const string &src_tag,

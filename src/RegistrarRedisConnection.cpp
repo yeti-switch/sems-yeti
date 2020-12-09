@@ -28,7 +28,7 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_reply_eve
         event.user_type_id, AmArg::print(event.data).c_str());*/
 
     if(event.result!=RedisReplyEvent::SuccessReply) {
-        DBG("error reply: %d, data: %s",event.result, AmArg::print(event.data).data());
+        DBG("non-succ reply: %d, data: %s",event.result, AmArg::print(event.data).data());
         return;
     }
 
