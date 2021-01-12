@@ -148,4 +148,6 @@ class YetiRpc
     rpc_handler showKeepaliveContexts;
 
     rpc_handler showHttpSequencerData;
+
+    rpc_handler requestOptionsProberReload;
 };

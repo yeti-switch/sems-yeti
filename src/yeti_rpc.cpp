@@ -267,6 +267,9 @@ void YetiRpc::init_rpc_tree()
 		leaf(request,request_cdrwriter,"cdrwriter","cdrwriter");
 			method(request_cdrwriter,"pause","pause CDRs processing",requestCdrWriterPause,"");
 			method(request_cdrwriter,"resume","resume CDRs processing",requestCdrWriterResume,"");
+
+		leaf(request,request_options_prober,"options_prober","options_prober");
+			method(request_options_prober,"reload","",requestOptionsProberReload,"");
 	/* set */
 	leaf(root,lset,"set","set");
 		leaf(lset,set_system,"system","system commands");
@@ -1296,4 +1299,25 @@ void YetiRpc::showKeepaliveContexts(const AmArg& arg, AmArg& ret)
 void YetiRpc::showHttpSequencerData(const AmArg& arg, AmArg& ret)
 {
 	http_sequencer.serialize(ret);
+}
+
+void YetiRpc::requestOptionsProberReload(const AmArg& arg, AmArg& ret)
+{
+	int prober_id = -1;
+	arg.assertArray();
+	if(!arg.size()) {
+		//reload all probers
+	} else if(arg.size() == 1) {
+		//reload single prober
+		if(!isArgInt(arg[0])) {
+			throw AmSession::Exception(400,"expected integer options prober id");
+		}
+		prober_id = arg[0].asInt();
+	} else {
+		throw AmSession::Exception(400,"expected empty or one-element array");
+	}
+	if(options_prober_manager.reload_probers(prober_id)) {
+		throw AmSession::Exception(500,"failed to reload");
+	}
+	ret = 0;
 }

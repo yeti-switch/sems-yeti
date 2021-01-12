@@ -176,6 +176,11 @@ int Yeti::onLoad()
         return -1;
     }
 
+    if(options_prober_manager.configure(cfg, config.routing_schema)) {
+        ERROR("SipProberManager configure failed");
+        return -1;
+    }
+
     if(CodecsGroups::instance()->configure(cfg)){
         ERROR("CodecsGroups configure failed");
         return -1;

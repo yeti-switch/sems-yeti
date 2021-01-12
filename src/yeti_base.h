@@ -2,6 +2,7 @@
 
 #include "SqlRouter.h"
 #include "HttpSequencer.h"
+#include "OptionsProberManager.h"
 #include "hash/CdrList.h"
 #include "resources/ResourceControl.h"
 #include "RegistrarRedisConnection.h"
@@ -72,4 +73,5 @@ struct YetiBase {
 
     RegistrarRedisConnection registrar_redis;
     HttpSequencer http_sequencer;
+    OptionsProberManager options_prober_manager;
 };
