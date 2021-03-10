@@ -1,3 +1,9 @@
+sems-yeti (1.11.11) stable; urgency=medium
+
+  * registrations: process 'o_sip_interface_name' field
+
+ -- dev <dev@yeti-switch.org>  Wed, 10 Mar 2021 12:56:36 +0200
+
 sems-yeti (1.11.10) stable; urgency=medium
 
   * add options prober manager
