@@ -93,43 +93,68 @@ int Registration::reload(AmConfigReader &cfg){
 
 bool Registration::create_registration(const pqxx::row &r, AmDynInvoke* registrar_client_i)
 {
-#define push_str(key) \
-	di_args.push(r[#key].c_str());
+	AmArg args, ret;
 
-#define push_type_as_int_safe(key,type,default_value) \
-	try { \
-		di_args.push((int)r[#key].as<type>((int)default_value)); \
-	} catch(...) { \
-		di_args.push((int)default_value); \
+	args.push(AmArg());
+	AmArg &ri = args.back();
+
+	static std::vector< std::tuple<const char *, const char *> > str_fields({
+		{"id", "o_id"},
+		{"domain", "o_domain"},
+		{"user", "o_user"},
+		{"name", "o_display_name"},
+		{"auth_username", "o_auth_user"},
+		{"auth_password", "o_auth_password"},
+		{"proxy", "o_proxy"},
+		{"contact", "o_contact"},
+		{"sip_interface_name", "o_sip_interface_name"}
+	});
+	for(const auto &t: str_fields) {
+		try {
+			ri[std::get<0>(t)] = r[std::get<1>(t)].c_str();
+		} catch(pqxx::pqxx_exception &e) {
+			DBG("pqxx exception for tuple (%s,%s): %s",
+				std::get<0>(t), std::get<1>(t),
+				e.base().what());
+		}
 	}
 
-	AmArg di_args, ret;
+	static std::vector< std::tuple<const char *, const char *, int> > int_fields({
+		{"expires_interval", "o_expire", 0},
+		{"retry_delay", "o_retry_delay", DEFAULT_REGISTER_RETRY_DELAY},
+		{"max_attempts", "o_max_attempts", REGISTER_ATTEMPTS_UNLIMITED},
+		{"transport_protocol_id", "o_transport_protocol_id", sip_transport::UDP},
+		{"proxy_transport_protocol_id", "o_proxy_transport_protocol_id", sip_transport::UDP},
+		{"scheme_id", "o_scheme_id", sip_uri::SIP}
+	});
+	for(const auto &t: int_fields) {
+		try {
+			ri[std::get<0>(t)] = r[std::get<1>(t)].as<int>(std::get<2>(t));
+		} catch(pqxx::pqxx_exception &e) {
+			DBG("exception on tuple: %s %s %d. use default value: %s",
+				std::get<0>(t), std::get<1>(t), std::get<2>(t),
+				e.base().what());
+			ri[std::get<0>(t)] = std::get<2>(t);
+		}
+	}
 
-	push_str(o_id);
-	push_str(o_domain);
-	push_str(o_user);
-	push_str(o_display_name);
-	push_str(o_auth_user);
-	push_str(o_auth_password);
-	di_args.push(""); //sess_link
-	push_str(o_proxy);
-	push_str(o_contact);
-	push_type_as_int_safe(o_expire,int,0);
-	push_type_as_int_safe(o_force_expire,bool,false);
-	push_type_as_int_safe(o_retry_delay,int,DEFAULT_REGISTER_RETRY_DELAY);
-	push_type_as_int_safe(o_max_attempts,int,REGISTER_ATTEMPTS_UNLIMITED);
-	push_type_as_int_safe(o_transport_protocol_id,int,sip_transport::UDP);
-	push_type_as_int_safe(o_proxy_transport_protocol_id,int,sip_transport::UDP);
-	di_args.push(AmArg()); //transaction_timeout
-	di_args.push(AmArg()); //srv_failover_timeout
-	di_args.push(AmArg()); //handle
-	push_type_as_int_safe(o_scheme_id,int,sip_uri::SIP); //scheme_id
+	static std::vector< std::tuple<const char *, const char *, bool> > bool_fields({
+		{"force_expires_interval", "o_force_expire", false},
+	});
+	for(const auto &t: bool_fields) {
+		try {
+			ri[std::get<0>(t)] = static_cast<int>(r[std::get<1>(t)].as<bool>(std::get<2>(t)));
+		} catch(pqxx::pqxx_exception &e) {
+			DBG("exception on tuple: %s %s %d. use default value: %s",
+				std::get<0>(t), std::get<1>(t), std::get<2>(t),
+				e.base().what());
+			ri[std::get<0>(t)] = static_cast<int>(std::get<2>(t));
+		}
+	}
 
-	registrar_client_i->invoke("createRegistration", di_args, ret);
-	DBG("created registration with handle %s",ret[0].asCStr());
+	registrar_client_i->invoke("createRegistration", args, ret);
+
 	return true;
-#undef push_str
-#undef push_type_as_int_safe
 }
 
 void Registration::list_registrations(AmArg &ret)
