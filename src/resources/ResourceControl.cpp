@@ -101,7 +101,7 @@ void ResourceControl::start(){
 }
 
 void ResourceControl::stop(){
-	cache.stop();
+	cache.stop(true);
 }
 
 bool ResourceControl::reload(){

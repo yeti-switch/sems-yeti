@@ -1,3 +1,9 @@
+sems-yeti (1.11.12) stable; urgency=medium
+
+  * fix threads termination on module finalization
+
+ -- dev <dev@yeti-switch.org>  Mon, 22 Mar 2021 15:15:05 +0200
+
 sems-yeti (1.11.11) stable; urgency=medium
 
   * registrations: process 'o_sip_interface_name' field

@@ -272,8 +272,8 @@ void ResourceCache::on_stop(){
 	tostop = true;
 	data_ready.set(true);
 
-	write_pool.stop();
-	read_pool.stop();
+	write_pool.stop(true);
+	read_pool.stop(true);
 }
 
 void ResourceCache::registerReconnectCallback(RedisConnPool::cb_func *func,void *arg){

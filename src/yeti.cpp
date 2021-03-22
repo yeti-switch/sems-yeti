@@ -59,7 +59,9 @@ Yeti::Yeti(YetiBaseParams &params)
 
 
 Yeti::~Yeti()
-{}
+{
+    stop(true);
+}
 
 static int check_dir_write_permissions(const string &dir)
 {
@@ -322,7 +324,6 @@ void Yeti::on_stop()
 #pragma GCC diagnostic ignored "-Wunused-result"
     ::write(queue_fd(), &u, sizeof(uint64_t)); //trigger events processing
 #pragma GCC diagnostic pop
-    join();
 }
 
 #define ON_EVENT_TYPE(type) if(type *e = dynamic_cast<type *>(ev))
