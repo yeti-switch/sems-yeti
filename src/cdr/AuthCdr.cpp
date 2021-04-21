@@ -98,8 +98,12 @@ AuthCdr::AuthCdr(
         return;
     nonce =  find_attribute("nonce", auth_hdr);
     response =  find_attribute("response", auth_hdr);
+
     username = find_attribute("username", auth_hdr);
+    fixup_utf8_inplace(username);
+
     realm = find_attribute("realm", auth_hdr);
+    fixup_utf8_inplace(realm);
 }
 
 pqxx::prepare::invocation AuthCdr::get_invocation(cdr_transaction &tnx)
