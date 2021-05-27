@@ -1,3 +1,9 @@
+sems-yeti (1.11.14) stable; urgency=medium
+
+  * fixes CDRs with negative duration on failover after exceptions
+
+ -- dev <dev@yeti-switch.org>  Thu, 27 May 2021 19:09:59 +0300
+
 sems-yeti (1.11.13) stable; urgency=medium
 
   * auth cdr: sanitize username, realm to contain vaild utf8
