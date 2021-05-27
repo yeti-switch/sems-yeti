@@ -14,9 +14,11 @@ static char opt_name_auth_feedback[] = "enable_auth_feedback";
 static char opt_name_http_events_destination[] = "http_events_destination";
 
 static char section_name_lega_cdr_headers[] = "lega_cdr_headers";
+static char section_name_identity[] = "identity_opts";
 
 static char opt_name_core_options_handling[] = "core_options_handling";
 static char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
+static char opt_identity_expires[] = "identity_expires";
 
 static char opt_func_name_header[] = "header";
 
@@ -127,6 +129,11 @@ static cfg_opt_t lega_cdr_headers_opts[] = {
     CFG_END()
 };
 
+static cfg_opt_t identity_opts[] {
+    CFG_INT(opt_identity_expires, 60,CFGF_NONE),
+    CFG_END()
+};
+
 //yeti
 cfg_opt_t yeti_opts[] = {
     DCFG_INT(pop_id),
@@ -142,7 +149,7 @@ cfg_opt_t yeti_opts[] = {
     DCFG_SEC(rpc,sig_yeti_rpc_opts,CFGF_NONE),
     DCFG_SEC(statistics,sig_yeti_statistics_opts,CFGF_NONE),
     DCFG_SEC(auth,sig_yeti_auth_opts,CFGF_NONE),
-
+    CFG_SEC(section_name_identity, identity_opts, CFGF_NONE),
     CFG_SEC(section_name_lega_cdr_headers,lega_cdr_headers_opts, CFGF_NONE),
     CFG_BOOL(opt_name_core_options_handling, cfg_true, CFGF_NONE),
     CFG_BOOL(opt_name_pcap_memory_logger, cfg_false, CFGF_NONE),

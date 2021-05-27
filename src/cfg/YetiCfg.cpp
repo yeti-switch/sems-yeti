@@ -73,6 +73,9 @@ int YetiCfg::configure(const std::string& config_buf, AmConfigReader &am_cfg)
     http_events_destination = cfg_getstr(cfg, opt_name_http_events_destination);
     aleg_cdr_headers = cfg_aleg_cdr_headers;
 
+    cfg_t* identity_sec = cfg_getsec(cfg, section_name_identity);
+    identity_expires = cfg_getint(identity_sec, opt_identity_expires);
+
     serialize_to_amconfig(cfg, am_cfg);
 
     return 0;
