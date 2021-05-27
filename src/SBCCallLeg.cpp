@@ -2964,6 +2964,11 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
 
     if(!a_leg) return;
 
+    if(reply.from_tag != getOtherId()) {
+        DBG("ignore onBLegRefused not from current peer");
+        return;
+    }
+
     removeTimer(YETI_FAKE_RINGING_TIMER);
 
     cdr->update_with_sip_reply(reply);
