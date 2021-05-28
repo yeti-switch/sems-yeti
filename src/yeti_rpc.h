@@ -150,4 +150,8 @@ class YetiRpc
     rpc_handler showHttpSequencerData;
 
     rpc_handler requestOptionsProberReload;
+
+    rpc_handler showCertCacheEnries;
+    rpc_handler clearCertCacheEnries;
+    rpc_handler renewCertCacheEnries;
 };

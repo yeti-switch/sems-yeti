@@ -4,6 +4,7 @@
 #include "yeti_base.h"
 #include "yeti_radius.h"
 #include "HttpSequencer.h"
+#include "CertCache.h"
 
 #include <AmEventFdQueue.h>
 
@@ -24,6 +25,8 @@ class Yeti
     int epoll_fd;
     AmTimerFd keepalive_timer;
 
+    CertCache cache;
+
     bool apply_config();
 
   public:
@@ -33,6 +36,8 @@ class Yeti
 
     static Yeti* create_instance(YetiBaseParams params);
     static Yeti& instance();
+
+    CertCache* getCache() { return &cache; }
 
     int onLoad();
     int configure(const std::string& config);

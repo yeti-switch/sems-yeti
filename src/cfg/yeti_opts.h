@@ -18,7 +18,10 @@ static char section_name_identity[] = "identity_opts";
 
 static char opt_name_core_options_handling[] = "core_options_handling";
 static char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
-static char opt_identity_expires[] = "identity_expires";
+
+static char opt_identity_expires[] = "expires";
+static char opt_identity_http_destination[] = "http_destination";
+static char opt_identity_ttl_cache[] = "ttl_cache";
 
 static char opt_func_name_header[] = "header";
 
@@ -131,6 +134,8 @@ static cfg_opt_t lega_cdr_headers_opts[] = {
 
 static cfg_opt_t identity_opts[] {
     CFG_INT(opt_identity_expires, 60,CFGF_NONE),
+    CFG_STR(opt_identity_http_destination,0,CFGF_NODEFAULT),
+    CFG_INT(opt_identity_ttl_cache, 86400,CFGF_NONE),
     CFG_END()
 };
 
