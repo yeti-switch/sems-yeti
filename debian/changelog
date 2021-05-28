@@ -1,3 +1,9 @@
+sems-yeti (1.11.15) stable; urgency=medium
+
+  * fix onBLegRefused skipping on negative replies
+
+ -- dev <dev@yeti-switch.org>  Sat, 29 May 2021 00:00:13 +0300
+
 sems-yeti (1.11.14) stable; urgency=medium
 
   * fixes CDRs with negative duration on failover after exceptions

@@ -2964,7 +2964,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
 
     if(!a_leg) return;
 
-    if(reply.from_tag != getOtherId()) {
+    if(getOtherId().size() && reply.from_tag != getOtherId()) {
         DBG("ignore onBLegRefused not from current peer");
         return;
     }
