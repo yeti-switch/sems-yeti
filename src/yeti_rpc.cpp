@@ -289,6 +289,10 @@ void YetiRpc::init_rpc_tree()
 
 		leaf(lset,set_cdrwriter,"cdrwriter","cdrwriter");
 			method(set_cdrwriter,"retry_interval","set cdrwriter retry_interval",setCdrWriterRetryInterval,"");
+    leaf(root, lidentity,"cache","cert_cache");
+        method(lidentity, "show", "show certificates in cache", showCertCacheEnries, "");
+        method_arg(lidentity, "clear", "", clearCertCacheEnries, "","<x5url>...", "clear certificates in cache");
+        method_arg(lidentity, "renew", "", renewCertCacheEnries, "","<x5url>...", "renew certificates in cache");
 
 #undef leaf
 #undef method
@@ -1321,3 +1325,19 @@ void YetiRpc::requestOptionsProberReload(const AmArg& arg, AmArg& ret)
 	}
 	ret = 0;
 }
+
+void YetiRpc::showCertCacheEnries(const AmArg&, AmArg& ret)
+{
+    Yeti::instance().getCache()->ShowCerts(ret);
+}
+
+void YetiRpc::clearCertCacheEnries(const AmArg& arg, AmArg& ret)
+{
+    ret = Yeti::instance().getCache()->ClearCerts(arg);
+}
+
+void YetiRpc::renewCertCacheEnries(const AmArg& arg, AmArg& ret)
+{
+    ret = Yeti::instance().getCache()->RenewCerts(arg);
+}
+

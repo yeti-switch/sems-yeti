@@ -54,7 +54,8 @@ Yeti::Yeti(YetiBaseParams &params)
   : YetiBase(params),
     YetiRadius(*this),
     YetiRpc(*this),
-    AmEventFdQueue(this)
+    AmEventFdQueue(this),
+    cache(this)
 {}
 
 
@@ -345,6 +346,9 @@ void Yeti::process(AmEvent *ev)
     } else
     ON_EVENT_TYPE(HttpPostResponseEvent) {
         http_sequencer.processHttpReply(*e);
+    } else
+    ON_EVENT_TYPE(HttpGetResponseEvent) {
+        cache.processHttpReply(*e);
     } else
     ON_EVENT_TYPE(AmSystemEvent) {
         if(e->sys_event==AmSystemEvent::ServerShutdown) {
