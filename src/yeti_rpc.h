@@ -151,7 +151,7 @@ class YetiRpc
 
     rpc_handler requestOptionsProberReload;
 
-    rpc_handler showCertCacheEnries;
-    rpc_handler clearCertCacheEnries;
-    rpc_handler renewCertCacheEnries;
+    rpc_handler showCertCacheEntries;
+    rpc_handler clearCertCacheEntries;
+    rpc_handler renewCertCacheEntries;
 };

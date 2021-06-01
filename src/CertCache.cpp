@@ -1,9 +1,10 @@
 #include "CertCache.h"
 #include "yeti.h"
 #include <AmSessionContainer.h>
+#include "cfg/yeti_opts.h"
 
-CertCache::CertCache(Yeti* yeti)
-: yeti(yeti) {}
+CertCache::CertCache()
+{}
 
 CertCache::~CertCache()
 {
@@ -11,6 +12,19 @@ CertCache::~CertCache()
     for(auto pair : entries) {
         delete pair.second;
     }
+}
+
+int CertCache::configure(cfg_t *cfg)
+{
+    expires = cfg_getint(cfg, opt_identity_expires);
+    cert_cache_ttl = cfg_getint(cfg, opt_identity_certs_cache_ttl);
+    if(cfg_size(cfg, opt_identity_http_destination)) {
+        http_destination = cfg_getstr(cfg, opt_identity_http_destination);
+    } else {
+        ERROR("missed mandatory param 'http_destination' for identity section");
+        return -1;
+    }
+    return 0;
 }
 
 CertCacheEntry * CertCache::getCertEntry(const string& x5url, const string& session_id)
@@ -23,7 +37,7 @@ CertCacheEntry * CertCache::getCertEntry(const string& x5url, const string& sess
         entries.emplace(x5url, entry);
         AmSessionContainer::instance()->postEvent(
             HTTP_EVENT_QUEUE,
-            new HttpGetEvent(yeti->config.identity_http_destination, //destination
+            new HttpGetEvent(http_destination, //destination
                             x5url,                                   //url
                             x5url,                                   //token
                             YETI_QUEUE_NAME));                       //session_id
@@ -62,7 +76,7 @@ void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
             if(t.cmp(Botan::X509_Time(std::chrono::_V2::system_clock::now())) < 0)
                 throw Botan::Exception("certificate expired");
             it->second->cert = cert;
-            it->second->expire_time = time(0) + yeti->config.identity_ttl_cache;
+            it->second->expire_time = time(0) + cert_cache_ttl;
             it->second->state = CertCacheEntry::LOADED;
         } catch(const Botan::Exception& e) {
             it->second->state = CertCacheEntry::UNAVAILABLE;
@@ -86,6 +100,7 @@ void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
 
 void CertCache::ShowCerts(AmArg& ret)
 {
+    ret.assertArray();
     AmLock lock(mutex);
     for(auto& pair : entries) {
         AmArg entry;
@@ -143,7 +158,7 @@ int CertCache::RenewCerts(const AmArg& args)
             entry.second->reset();
             AmSessionContainer::instance()->postEvent(
                 HTTP_EVENT_QUEUE,
-                new HttpGetEvent(yeti->config.identity_http_destination, //destination
+                new HttpGetEvent(http_destination, //destination
                                 entry.first,                             //url
                                 entry.first,                             //token
                                 YETI_QUEUE_NAME));                       //session_id
@@ -163,7 +178,7 @@ int CertCache::RenewCerts(const AmArg& args)
         }
         AmSessionContainer::instance()->postEvent(
             HTTP_EVENT_QUEUE,
-            new HttpGetEvent(yeti->config.identity_http_destination, //destination
+            new HttpGetEvent(http_destination, //destination
                             x5urlarg.asCStr(),                       //url
                             x5urlarg.asCStr(),                       //token
                             YETI_QUEUE_NAME));                       //session_id

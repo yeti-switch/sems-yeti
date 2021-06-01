@@ -181,6 +181,7 @@ void YetiRpc::init_rpc_tree()
 		method(show,"aors","show registered AoRs",showAors,"");
 		method(show,"keepalive_contexts","show keepalive contexts",showKeepaliveContexts,"");
 		method(show,"http_sequencer_data","show http sequencer runtime data",showHttpSequencerData,"");
+		method(show, "cert_cache", "show certificates in cache", showCertCacheEntries, "");
 	/* request */
 	leaf(root,request,"request","modify commands");
 
@@ -270,6 +271,10 @@ void YetiRpc::init_rpc_tree()
 
 		leaf(request,request_options_prober,"options_prober","options_prober");
 			method(request_options_prober,"reload","",requestOptionsProberReload,"");
+
+		leaf(request,request_cert_cache,"cert_cache","cert_cache");
+			method_arg(request_cert_cache, "clear", "", clearCertCacheEntries, "","<x5url>...", "clear certificates in cache");
+			method_arg(request_cert_cache, "renew", "", renewCertCacheEntries, "","<x5url>...", "renew certificates in cache");
 	/* set */
 	leaf(root,lset,"set","set");
 		leaf(lset,set_system,"system","system commands");
@@ -289,10 +294,6 @@ void YetiRpc::init_rpc_tree()
 
 		leaf(lset,set_cdrwriter,"cdrwriter","cdrwriter");
 			method(set_cdrwriter,"retry_interval","set cdrwriter retry_interval",setCdrWriterRetryInterval,"");
-    leaf(root, lidentity,"cache","cert_cache");
-        method(lidentity, "show", "show certificates in cache", showCertCacheEnries, "");
-        method_arg(lidentity, "clear", "", clearCertCacheEnries, "","<x5url>...", "clear certificates in cache");
-        method_arg(lidentity, "renew", "", renewCertCacheEnries, "","<x5url>...", "renew certificates in cache");
 
 #undef leaf
 #undef method
@@ -1326,18 +1327,18 @@ void YetiRpc::requestOptionsProberReload(const AmArg& arg, AmArg& ret)
 	ret = 0;
 }
 
-void YetiRpc::showCertCacheEnries(const AmArg&, AmArg& ret)
+void YetiRpc::showCertCacheEntries(const AmArg&, AmArg& ret)
 {
-    Yeti::instance().getCache()->ShowCerts(ret);
+    cache.ShowCerts(ret);
 }
 
-void YetiRpc::clearCertCacheEnries(const AmArg& arg, AmArg& ret)
+void YetiRpc::clearCertCacheEntries(const AmArg& arg, AmArg& ret)
 {
-    ret = Yeti::instance().getCache()->ClearCerts(arg);
+    ret = cache.ClearCerts(arg);
 }
 
-void YetiRpc::renewCertCacheEnries(const AmArg& arg, AmArg& ret)
+void YetiRpc::renewCertCacheEntries(const AmArg& arg, AmArg& ret)
 {
-    ret = Yeti::instance().getCache()->RenewCerts(arg);
+    ret = cache.RenewCerts(arg);
 }
 

@@ -31,7 +31,7 @@ struct YetiCfg {
     string identity_http_destination;
     int identity_ttl_cache;
 
-    int configure(const std::string& config_buf, AmConfigReader &am_cfg);
+    int configure(cfg_t *cfg, AmConfigReader &am_cfg);
 
 private:
     void serialize_to_amconfig(cfg_t *y, AmConfigReader &out);

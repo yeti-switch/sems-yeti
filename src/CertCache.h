@@ -5,6 +5,7 @@
 #include <botan/x509_ca.h>
 #include <ampi/HttpClientAPI.h>
 #include <AmSipMsg.h>
+#include "confuse.h"
 
 using namespace std;
 
@@ -54,12 +55,17 @@ struct CertCacheEntry {
 
 class CertCache
 {
-    auto_ptr<Yeti> yeti;
+    int expires;
+    string http_destination;
+    int cert_cache_ttl;
+
     AmMutex mutex;
     unordered_map<string, CertCacheEntry*> entries;
 public:
-    CertCache(Yeti* yeti);
+    CertCache();
     ~CertCache();
+
+    int configure(cfg_t *cfg);
 
     CertCacheEntry* getCertEntry(const string& x5url, const string& session_id);
     void processHttpReply(const HttpGetResponseEvent& resp);

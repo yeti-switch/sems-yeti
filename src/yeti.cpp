@@ -25,6 +25,9 @@
 
 #include "RedisConnection.h"
 
+#include "cfg/yeti_opts.h"
+#include "cfg/cfg_helpers.h"
+
 #define EPOLL_MAX_EVENTS 2048
 
 #define DEFAULT_REDIS_HOST "127.0.0.1"
@@ -36,6 +39,27 @@
 
 #define YETI_DEFAULT_AUDIO_RECORDER_DIR "/var/spool/sems/record"
 #define YETI_DEFAULT_LOG_DIR "/var/spool/sems/logdump"
+
+#define LOG_BUF_SIZE 2048
+
+void cfg_reader_error(cfg_t *cfg, const char *fmt, va_list ap)
+{
+    int l = 0;
+    char buf[LOG_BUF_SIZE];
+    if(cfg->title) {
+    //if(cfg->opts->flags & CFGF_TITLE) {
+        l = snprintf(buf,LOG_BUF_SIZE,"line:%d section '%s'(%s): ",
+            cfg->line,
+            cfg->name,
+            cfg->title);
+    } else {
+        l = snprintf(buf,LOG_BUF_SIZE,"line:%d section '%s': ",
+            cfg->line,
+            cfg->name);
+    }
+    l+= vsnprintf(buf+l,static_cast<size_t>(LOG_BUF_SIZE-l),fmt,ap);
+    ERROR("%.*s",l,buf);
+}
 
 Yeti* Yeti::_instance = nullptr;
 
@@ -54,8 +78,7 @@ Yeti::Yeti(YetiBaseParams &params)
   : YetiBase(params),
     YetiRadius(*this),
     YetiRpc(*this),
-    AmEventFdQueue(this),
-    cache(this)
+    AmEventFdQueue(this)
 {}
 
 
@@ -114,7 +137,41 @@ bool Yeti::apply_config() {
 
 int Yeti::configure(const std::string& config_buf)
 {
-    return config.configure(config_buf, cfg);
+    cfg_t *confuse_cfg = nullptr;
+
+    confuse_cfg = cfg_init(yeti_opts, CFGF_NONE);
+    if(!confuse_cfg) {
+        ERROR("failed to init cfg opts");
+        return -1;
+    }
+
+    cfg_set_error_function(confuse_cfg,cfg_reader_error);
+
+    switch(cfg_parse_buf(confuse_cfg, config_buf.c_str())) {
+    case CFG_SUCCESS:
+        break;
+    case CFG_PARSE_ERROR:
+        ERROR("failed to parse Yeti configuration");
+        return -1;
+    default:
+        ERROR("unexpected error on Yeti configuring");
+        return -1;
+    }
+
+    if(config.configure(confuse_cfg, cfg))
+        return -1;
+
+    cfg_t* identity_sec = cfg_getsec(confuse_cfg, section_name_identity);
+    if(identity_sec) {
+        if(cache.configure(identity_sec)) {
+            ERROR("failed to configure certificates cache for identity verification");
+            return -1;
+        }
+    } else {
+        WARN("missed identity section. Identity validation support will be disabled");
+    }
+
+    return 0;
 }
 
 static void apply_yeti_signatures()

@@ -5,6 +5,7 @@
 #include "OptionsProberManager.h"
 #include "hash/CdrList.h"
 #include "resources/ResourceControl.h"
+#include "CertCache.h"
 #include "RegistrarRedisConnection.h"
 #include "cdr/ALegCdrHeaders.h"
 #include "cfg/YetiCfg.h"
@@ -74,4 +75,5 @@ struct YetiBase {
     RegistrarRedisConnection registrar_redis;
     HttpSequencer http_sequencer;
     OptionsProberManager options_prober_manager;
+    CertCache cache;
 };

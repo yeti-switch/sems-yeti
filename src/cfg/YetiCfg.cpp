@@ -8,28 +8,9 @@
 
 #define LOG_BUF_SIZE 2048
 
-void cfg_reader_error(cfg_t *cfg, const char *fmt, va_list ap)
-{
-    int l = 0;
-    char buf[LOG_BUF_SIZE];
-    if(cfg->title) {
-    //if(cfg->opts->flags & CFGF_TITLE) {
-        l = snprintf(buf,LOG_BUF_SIZE,"line:%d section '%s'(%s): ",
-            cfg->line,
-            cfg->name,
-            cfg->title);
-    } else {
-        l = snprintf(buf,LOG_BUF_SIZE,"line:%d section '%s': ",
-            cfg->line,
-            cfg->name);
-    }
-    l+= vsnprintf(buf+l,static_cast<size_t>(LOG_BUF_SIZE-l),fmt,ap);
-    ERROR("%.*s",l,buf);
-}
-
 aleg_cdr_headers_t cfg_aleg_cdr_headers;
 
-int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv)
+int add_aleg_cdr_header(cfg_t */*cfg*/, cfg_opt_t */*opt*/, int argc, const char **argv)
 {
     if(argc != 2) {
         ERROR("header(%s,%s): unexpected option args count.\n"
@@ -43,40 +24,13 @@ int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv)
     return 0;
 }
 
-int YetiCfg::configure(const std::string& config_buf, AmConfigReader &am_cfg)
+int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
 {
-    dns_handle dh;
-    cfg_t *cfg = nullptr;
-
-    cfg = cfg_init(yeti_opts, CFGF_NONE);
-    if(!cfg) {
-        ERROR("failed to init cfg opts");
-        return -1;
-    }
-
-    cfg_set_error_function(cfg,cfg_reader_error);
-
-    switch(cfg_parse_buf(cfg, config_buf.c_str())) {
-    case CFG_SUCCESS:
-        break;
-    case CFG_PARSE_ERROR:
-        ERROR("failed to parse Yeti configuration");
-        return -1;
-    default:
-        ERROR("unexpected error on Yeti configuring");
-        return -1;
-    }
-
     core_options_handling = cfg_getbool(cfg, opt_name_core_options_handling);
     pcap_memory_logger = cfg_getbool(cfg, opt_name_pcap_memory_logger);
     auth_feedback = cfg_getbool(cfg, opt_name_auth_feedback);
     http_events_destination = cfg_getstr(cfg, opt_name_http_events_destination);
     aleg_cdr_headers = cfg_aleg_cdr_headers;
-
-    cfg_t* identity_sec = cfg_getsec(cfg, section_name_identity);
-    identity_expires = cfg_getint(identity_sec, opt_identity_expires);
-    identity_http_destination = cfg_getstr(identity_sec, opt_identity_http_destination);
-    identity_ttl_cache = cfg_getint(identity_sec, opt_identity_ttl_cache);
 
     serialize_to_amconfig(cfg, am_cfg);
 
