@@ -176,10 +176,8 @@ CallCtx::CallCtx(SqlRouter &router):
 	bleg_early_media_muted(false),
 	on_hold(false),
 	transfer_intermediate_state(false),
-	early_trying_logger(new fake_logger()),
 	router(router)
 {
-	inc_ref(early_trying_logger);
 	//DBG("%s() this = %p",FUNC_NAME,this);
 }
 
@@ -191,6 +189,5 @@ CallCtx::~CallCtx(){
 	}
 	if(initial_invite)
 		delete initial_invite;
-	dec_ref(early_trying_logger);
 }
 

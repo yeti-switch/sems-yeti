@@ -18,16 +18,18 @@ int CertCache::configure(cfg_t *cfg)
 {
     expires = cfg_getint(cfg, opt_identity_expires);
     cert_cache_ttl = cfg_getint(cfg, opt_identity_certs_cache_ttl);
+
     if(cfg_size(cfg, opt_identity_http_destination)) {
         http_destination = cfg_getstr(cfg, opt_identity_http_destination);
     } else {
         ERROR("missed mandatory param 'http_destination' for identity section");
         return -1;
     }
+
     return 0;
 }
 
-CertCacheEntry * CertCache::getCertEntry(const string& x5url, const string& session_id)
+CertCache::get_key_result CertCache::getCertPubKeyByUrl(const string& x5url, const string& session_id, Botan::Public_Key *key)
 {
     AmLock lock(mutex);
     auto it = entries.find(x5url);
@@ -41,17 +43,23 @@ CertCacheEntry * CertCache::getCertEntry(const string& x5url, const string& sess
                             x5url,                                   //url
                             x5url,                                   //token
                             YETI_QUEUE_NAME));                       //session_id
-        return 0;
+        return KEY_RESULT_DEFFERED;
     }
 
-    if(it->second->expire_time > time(0)) {
+    if(it->second->state == CertCacheEntry::LOADED) {
+        key = it->second->cert.subject_public_key();
+        return KEY_RESULT_READY;
+    }
+
+    if(it->second->state == CertCacheEntry::LOADING) {
+        it->second->defer_sessions.push_back(session_id);
+        return KEY_RESULT_DEFFERED;
+    }
+
+    /*if(it->second->expire_time > time(0)) {
         it->second->state = CertCacheEntry::EXPIRED;
-    }
-
-    if(it->second->state != CertCacheEntry::LOADING) return it->second;
-
-    it->second->defer_sessions.push_back(session_id);
-    return 0;
+    }*/
+    return KEY_RESULT_UNAVAILABLE;
 }
 
 void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
@@ -86,8 +94,9 @@ void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
         }
     }
 
+    //
     for(auto& session_id : it->second->defer_sessions) {
-        if(AmSessionContainer::instance()->postEvent(session_id, 
+        if(AmSessionContainer::instance()->postEvent(session_id,
                         new HttpGetResponseEvent(resp.code, resp.data, resp.mime_type, resp.token)))
         {
             ERROR("failed to post HttpGetResponseEvent for session %s",
@@ -98,7 +107,7 @@ void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
     it->second->defer_sessions.clear();
 }
 
-void CertCache::ShowCerts(AmArg& ret)
+void CertCache::ShowCerts(AmArg& ret, time_t now)
 {
     ret.assertArray();
     AmLock lock(mutex);
@@ -106,6 +115,7 @@ void CertCache::ShowCerts(AmArg& ret)
         AmArg entry;
         entry["url"] = pair.first;
         entry["expire_time"] = pair.second->expire_time;
+        entry["ttl"] = pair.second->expire_time - now;
         entry["error_str"] = pair.second->error_str;
         entry["error_code"] = pair.second->error_code;
         entry["error_type"] = pair.second->error_type ? Botan::to_string((Botan::ErrorType)pair.second->error_type) : "";

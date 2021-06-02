@@ -53,7 +53,7 @@ using std::string;
 #define SBC_TIMER_ID_CALL_TIMERS_END     99
 
 struct CallLegCreator {
-  virtual SBCCallLeg* create(CallCtx *call_ctx);
+  virtual SBCCallLeg* create(fake_logger *logger);
   virtual SBCCallLeg* create(SBCCallLeg* caller);
 };
 

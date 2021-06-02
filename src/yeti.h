@@ -11,6 +11,8 @@
 #define YETI_REDIS_REGISTER_TYPE_ID 0
 #define YETI_REDIS_RPC_AOR_LOOKUP_TYPE_ID 1
 
+extern string yeti_auth_feedback_header;
+
 class Yeti
   : public YetiRpc,
     public AmThread,

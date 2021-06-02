@@ -161,7 +161,7 @@ void PayloadIdMapping::reset()
 
 // A leg constructor (from SBCDialog)
 SBCCallLeg::SBCCallLeg(
-    CallCtx *call_ctx,
+    fake_logger *early_logger,
     AmSipDialog* p_dlg,
     AmSipSubscription* p_subs)
   : CallLeg(p_dlg,p_subs),
@@ -170,9 +170,9 @@ SBCCallLeg::SBCCallLeg(
     sdp_session_version(0),
     sdp_session_offer_last_cseq(0),
     sdp_session_answer_last_cseq(0),
-    call_ctx(call_ctx),
+    call_ctx(nullptr),
+    early_trying_logger(early_logger),
     auth(nullptr),
-    call_profile(*call_ctx->getCurrentProfile()),
     placeholders_hash(call_profile.placeholders_hash),
     logger(nullptr),
     sensor(nullptr),
@@ -181,33 +181,10 @@ SBCCallLeg::SBCCallLeg(
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
 {
-    DBG("SBCCallLeg[%p](ctx %p,%p,%p)",
-        to_void(this),to_void(call_ctx),to_void(p_dlg),to_void(p_subs));
+    DBG("SBCCallLeg[%p](%p,%p)",
+        to_void(this),to_void(p_dlg),to_void(p_subs));
 
     setLocalTag();
-
-    set_sip_relay_only(false);
-    if(call_profile.aleg_rel100_mode_id!=-1) {
-        dlg->setRel100State(static_cast<Am100rel::State>(call_profile.aleg_rel100_mode_id));
-    } else {
-        dlg->setRel100State(Am100rel::REL100_IGNORED);
-    }
-
-    if(call_profile.rtprelay_bw_limit_rate > 0
-       && call_profile.rtprelay_bw_limit_peak > 0)
-    {
-        RateLimit* limit = new RateLimit(
-            static_cast<unsigned int>(call_profile.rtprelay_bw_limit_rate),
-            static_cast<unsigned int>(call_profile.rtprelay_bw_limit_peak),
-            1000);
-        rtp_relay_rate_limit.reset(limit);
-    }
-
-    if(call_profile.global_tag.empty()) {
-        global_tag = getLocalTag();
-    } else {
-        global_tag = call_profile.global_tag;
-    }
 }
 
 // B leg constructor (from SBCCalleeSession)
@@ -249,25 +226,6 @@ SBCCallLeg::SBCCallLeg(
     init();
 
     setLogger(caller->getLogger());
-}
-
-SBCCallLeg::SBCCallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
-  : CallLeg(p_dlg,p_subs),
-    m_state(BB_Init),
-    yeti(Yeti::instance()),
-    sdp_session_version(0),
-    sdp_session_offer_last_cseq(0),
-    sdp_session_answer_last_cseq(0),
-    auth(nullptr),
-    logger(nullptr),
-    sensor(nullptr),
-    memory_logger_enabled(false),
-    router(yeti.router),
-    cdr_list(yeti.cdr_list),
-    rctl(yeti.rctl)
-{
-    DBG("SBCCallLeg[%p](%p,%p)",
-        to_void(this),to_void(p_dlg),to_void(p_subs));
 }
 
 void SBCCallLeg::init()
@@ -1591,10 +1549,10 @@ SBCCallLeg::~SBCCallLeg()
 {
     DBG("~SBCCallLeg[%p]",to_void(this));
 
-    if (auth)
-        delete auth;
+    if (auth) delete auth;
     if (logger) dec_ref(logger);
     if(sensor) dec_ref(sensor);
+    if(early_trying_logger) dec_ref(early_trying_logger);
 }
 
 void SBCCallLeg::onBeforeDestroy()
@@ -1602,11 +1560,14 @@ void SBCCallLeg::onBeforeDestroy()
     DBG("%s(%p|%s,leg%s)",FUNC_NAME,
         to_void(this),getLocalTag().c_str(),a_leg?"A":"B");
 
+    if(!call_ctx) {
+        DBG("no call_ctx in onBeforeDestroy. return");
+        return;
+    }
+
     if(call_profile.record_audio) {
         AmAudioFileRecorderProcessor::instance()->removeRecorder(getLocalTag());
     }
-
-    if(!call_ctx) return;
 
     call_ctx->lock();
 
@@ -2380,7 +2341,135 @@ void SBCCallLeg::process(AmEvent* ev)
 
 void SBCCallLeg::onInvite(const AmSipRequest& req)
 {
+    timeval now;
+
     DBG("processing initial INVITE %s\n", req.r_uri.c_str());
+
+    //OLD SBCFactory::onInvite PART
+    gettimeofday(&now,nullptr);
+
+    AmArg ret;
+    bool authorized = false;
+    auto auth_id = router.check_request_auth(req,ret);
+    if(auth_id > 0) {
+        DBG("successfully authorized with id %d",auth_id);
+        router.log_auth(req,true,ret,auth_id);
+        authorized = true;
+    } else if(auth_id < 0) {
+        DBG("auth error. reply with 401");
+        switch(-auth_id) {
+        case Auth::UAC_AUTH_ERROR:
+            send_auth_error_reply(req, ret, -auth_id);
+            break;
+        default:
+            send_and_log_auth_challenge(req,ret.asCStr(), -auth_id);
+            break;
+        }
+
+        dlg->drop();
+        dlg->dropTransactions();
+        setStopped();
+        return;
+    }
+
+    call_ctx = new CallCtx(router);
+
+    PROF_START(gprof);
+
+    router.getprofiles(req,*call_ctx,auth_id);
+    SqlCallProfile *profile = call_ctx->getFirstProfile();
+    if(nullptr == profile) {
+        delete call_ctx;
+        call_ctx = nullptr;
+
+        AmSipDialog::reply_error(req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+        dlg->drop();
+        dlg->dropTransactions();
+        setStopped();
+        return;
+    }
+
+    PROF_END(gprof);
+    PROF_PRINT("get profiles",gprof);
+
+    Cdr *cdr = call_ctx->cdr;
+    if(profile->auth_required) {
+        delete cdr;
+        delete call_ctx;
+        call_ctx = nullptr;
+
+        if(!authorized) {
+            DBG("auth required for not authorized request. send auth challenge");
+            send_and_log_auth_challenge(req,"no Authorization header");
+        } else {
+            ERROR("got callprofile with auth_required "
+                "for already authorized request. reply internal error");
+            AmSipDialog::reply_error(req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+        }
+
+        dlg->drop();
+        dlg->dropTransactions();
+        setStopped();
+        return;
+    }
+
+     cdr->set_start_time(now);
+
+     ctx.call_profile = profile;
+     if(router.check_and_refuse(profile,cdr,req,ctx,true)) {
+         cdr->dump_level_id = 0; //override dump_level_id. we have no logging at this stage
+         if(!call_ctx->SQLexception) { //avoid to write cdr on failed getprofile()
+             router.write_cdr(cdr,true);
+         } else {
+             delete cdr;
+         }
+         delete call_ctx;
+         call_ctx = nullptr;
+
+         //AmSipDialog::reply_error(req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+         dlg->drop();
+         dlg->dropTransactions();
+         setStopped();
+         return;
+     }
+
+     //check for registered_aor_id in profiles
+     std::set<int> aor_ids;
+     for(const auto &p : call_ctx->profiles) {
+         if(0!=p->registered_aor_id) {
+             aor_ids.emplace(p->registered_aor_id);
+         }
+     }
+
+     if(!aor_ids.empty()) {
+         DBG("got %zd AoR ids to resolve", aor_ids.size());
+     }
+
+    call_profile = *call_ctx->getCurrentProfile();
+
+    set_sip_relay_only(false);
+
+    if(call_profile.aleg_rel100_mode_id!=-1) {
+        dlg->setRel100State(static_cast<Am100rel::State>(call_profile.aleg_rel100_mode_id));
+    } else {
+        dlg->setRel100State(Am100rel::REL100_IGNORED);
+    }
+
+    if(call_profile.rtprelay_bw_limit_rate > 0
+       && call_profile.rtprelay_bw_limit_peak > 0)
+    {
+            RateLimit* limit = new RateLimit(
+                static_cast<unsigned int>(call_profile.rtprelay_bw_limit_rate),
+                static_cast<unsigned int>(call_profile.rtprelay_bw_limit_peak),
+                1000);
+        rtp_relay_rate_limit.reset(limit);
+    }
+
+    if(call_profile.global_tag.empty()) {
+        global_tag = getLocalTag();
+    } else {
+        global_tag = call_profile.global_tag;
+    }
 
     ctx.call_profile = &call_profile;
     ctx.app_param = getHeader(req.hdrs, PARAM_HDR, true);
@@ -2426,7 +2515,7 @@ void SBCCallLeg::onInvite(const AmSipRequest& req)
     if(yeti.config.early_100_trying) {
         msg_logger *logger = getLogger();
         if(logger){
-            call_ctx->early_trying_logger->relog(logger);
+            early_trying_logger->relog(logger);
         }
     } else {
         dlg->reply(req,100,"Connecting");
@@ -3496,4 +3585,34 @@ void SBCCallLeg::httpCallDisconnectedHook()
     }
 
     yeti.http_sequencer.processHook(HttpSequencer::CallDisconnected, getLocalTag(), serialized_http_data);
+}
+
+void SBCCallLeg::send_auth_error_reply(
+    const AmSipRequest& req,
+    AmArg &ret,
+    int auth_feedback_code)
+{
+    string hdr;
+    if(yeti.config.auth_feedback && auth_feedback_code) {
+        hdr = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
+    }
+    AmSipDialog::reply_error(
+        req,
+        static_cast<unsigned int>(ret[0].asInt()),
+        ret[1].asCStr(),
+        hdr + ret[2].asCStr());
+
+    router.log_auth(req,false,ret);
+}
+
+void SBCCallLeg::send_and_log_auth_challenge(
+    const AmSipRequest& req,
+    const string &internal_reason,
+    int auth_feedback_code)
+{
+    string hdrs;
+    if(yeti.config.auth_feedback && auth_feedback_code) {
+        hdrs = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
+    }
+    router.send_and_log_auth_challenge(req,internal_reason, hdrs);
 }

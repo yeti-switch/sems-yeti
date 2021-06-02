@@ -40,8 +40,6 @@ struct CallCtx: public
 	string referrer_session;
 	bool transfer_intermediate_state;
 
-	fake_logger *early_trying_logger;
-
 	AmSdp bleg_initial_offer;
 
 	SqlRouter &router;

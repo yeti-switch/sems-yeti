@@ -73,8 +73,6 @@ SBCFactory* SBCFactory::instance()
     return _instance;
 }
 
-static string yeti_auth_feedback_header("X-Yeti-Auth-Error: ");
-
 // helper functions
 
 void assertEndCRLF(string& s) {
@@ -90,9 +88,9 @@ void assertEndCRLF(string& s) {
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-SBCCallLeg* CallLegCreator::create(CallCtx *call_ctx)
+SBCCallLeg* CallLegCreator::create(fake_logger *logger)
 {
-    return new SBCCallLeg(call_ctx, new AmSipDialog());
+    return new SBCCallLeg(logger, new AmSipDialog());
 }
 
 SBCCallLeg* CallLegCreator::create(SBCCallLeg* caller)
@@ -161,7 +159,7 @@ int SBCFactory::reconfigure(const std::string& config)
     return 0;
 }
 
-inline void answer_100_trying(const AmSipRequest &req, CallCtx *ctx)
+inline void answer_100_trying(const AmSipRequest &req, fake_logger *logger)
 {
     AmSipReply reply;
     reply.code = 100;
@@ -170,7 +168,7 @@ inline void answer_100_trying(const AmSipRequest &req, CallCtx *ctx)
 
     AmLcConfig::instance().addSignatureHdr(reply);
 
-    if(SipCtrlInterface::send(reply,string(""),ctx->early_trying_logger,nullptr)) {
+    if(SipCtrlInterface::send(reply,string(""),logger,nullptr)) {
         ERROR("Could not send early 100 Trying. call-id=%s, cseq = %i\n",
               req.callid.c_str(),req.cseq);
     }
@@ -210,38 +208,23 @@ AmSession* SBCFactory::onInvite(
     const string&,
     const map<string,string>&)
 {
-    ParamReplacerCtx ctx;
+    fake_logger *early_trying_logger = new fake_logger();
+    inc_ref(early_trying_logger);
+
+    if(yeti->config.early_100_trying)
+        answer_100_trying(req,early_trying_logger);
+
+    /*ParamReplacerCtx ctx;
     CallCtx *call_ctx;
     timeval t;
     Auth::auth_id_type auth_id = 0;
     AmArg ret;
 
-    bool authorized = false;
+    bool authorized = false;*/
 
-    gettimeofday(&t,nullptr);
+    /*gettimeofday(&t,nullptr);
 
     call_ctx = new CallCtx(router);
-    if(yeti->config.early_100_trying)
-        answer_100_trying(req,call_ctx);
-
-    auth_id = router.check_request_auth(req,ret);
-    if(auth_id > 0) {
-        DBG("successfully authorized with id %d",auth_id);
-        router.log_auth(req,true,ret,auth_id);
-        authorized = true;
-    } else if(auth_id < 0) {
-        DBG("auth error. reply with 401");
-        switch(-auth_id) {
-        case Auth::UAC_AUTH_ERROR:
-            send_auth_error_reply(req, ret, -auth_id);
-            break;
-        default:
-            send_and_log_auth_challenge(req,ret.asCStr(), -auth_id);
-            break;
-        }
-        delete call_ctx;
-        return nullptr;
-    }
 
     PROF_START(gprof);
     router.getprofiles(req,*call_ctx,auth_id);
@@ -294,13 +277,12 @@ AmSession* SBCFactory::onInvite(
 
     if(!aor_ids.empty()) {
         DBG("got %zd AoR ids to resolve", aor_ids.size());
-    }
+    }*/
 
-    SBCCallLeg* leg = callLegCreator->create(call_ctx);
+    SBCCallLeg* leg = callLegCreator->create(early_trying_logger);
     if(!leg) {
         DBG("failed to create B2B leg");
-        delete cdr;
-        delete call_ctx;
+        dec_ref(early_trying_logger);
         return nullptr;
     }
 

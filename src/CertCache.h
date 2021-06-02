@@ -1,5 +1,4 @@
-#ifndef CERT_CACHE_H
-#define CERT_CACHE_H
+#pragma once
 
 #include <unordered_map>
 #include <botan/x509_ca.h>
@@ -9,8 +8,6 @@
 
 using namespace std;
 
-class Yeti;
-
 struct CertCacheEntry {
     enum cert_state {
         LOADING,
@@ -19,7 +16,7 @@ struct CertCacheEntry {
         UNAVAILABLE
     };
 
-	uint64_t expire_time;
+    time_t expire_time;
     vector<uint8_t> cert_binary;
     Botan::X509_Certificate cert;
     string error_str;
@@ -29,8 +26,13 @@ struct CertCacheEntry {
 
     vector<string> defer_sessions;
 
-	CertCacheEntry() : expire_time(0), error_code(0), error_type(0), state(LOADING){}
-	~CertCacheEntry(){}
+    CertCacheEntry()
+      : expire_time(0),
+        error_code(0),
+        error_type(0),
+        state(LOADING){}
+
+    ~CertCacheEntry() {}
 
 	void reset() {
         expire_time = 0;
@@ -61,19 +63,40 @@ class CertCache
 
     AmMutex mutex;
     unordered_map<string, CertCacheEntry*> entries;
-public:
+  public:
     CertCache();
     ~CertCache();
 
     int configure(cfg_t *cfg);
 
-    CertCacheEntry* getCertEntry(const string& x5url, const string& session_id);
+    enum get_key_result {
+        KEY_RESULT_READY,
+        KEY_RESULT_DEFFERED,
+        KEY_RESULT_UNAVAILABLE
+    };
+    get_key_result getCertPubKeyByUrl(const string& x5url, const string& session_id, Botan::Public_Key *key);
+
     void processHttpReply(const HttpGetResponseEvent& resp);
 
     //rpc methods
-    void ShowCerts(AmArg& ret);
+    void ShowCerts(AmArg& ret, time_t now);
     int ClearCerts(const AmArg& args);
     int RenewCerts(const AmArg& args);
 };
 
-#endif/*CERT_CACHE_H*/
+struct CertCacheResponseEvent
+  : public AmEvent
+{
+  CertCache::get_key_result result;
+  std::unique_ptr<Botan::Public_Key> key;
+
+  CertCacheResponseEvent(CertCache::get_key_result result, Botan::Public_Key *key)
+    : AmEvent(E_PLUGIN),
+      result(result),
+      key(key)
+    {}
+  CertCacheResponseEvent(CertCacheResponseEvent &) = delete;
+
+  ~CertCacheResponseEvent()
+  { }
+};

@@ -79,6 +79,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   string global_tag;
   CallCtx *call_ctx;
+  fake_logger *early_trying_logger;
   std::queue< unique_ptr<B2BSipReplyEvent> > postponed_replies;
 
   // auth
@@ -164,19 +165,21 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void httpCallConnectedHook();
   void httpCallDisconnectedHook();
 
+  void send_auth_error_reply(const AmSipRequest& req, AmArg &ret, int auth_feedback_code);
+  void send_and_log_auth_challenge(const AmSipRequest& req,
+                                   const string &internal_reason,
+                                   int auth_feedback_code = 0);
+
  public:
 
   SqlRouter &router;
   CdrList &cdr_list;
   ResourceControl &rctl;
 
-  SBCCallLeg(CallCtx *call_ctx,
-        AmSipDialog* dlg=NULL,
-        AmSipSubscription* p_subs=NULL);
+  SBCCallLeg(fake_logger *early_trying_logger, AmSipDialog* dlg=NULL, AmSipSubscription* p_subs=NULL);
   SBCCallLeg(SBCCallLeg* caller,
         AmSipDialog* dlg=NULL,
         AmSipSubscription* p_subs=NULL);
-  SBCCallLeg(AmSipDialog* dlg=NULL, AmSipSubscription* p_subs=NULL);
   ~SBCCallLeg();
 
   void process(AmEvent* ev);

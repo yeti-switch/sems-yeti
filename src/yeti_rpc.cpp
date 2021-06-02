@@ -1329,7 +1329,7 @@ void YetiRpc::requestOptionsProberReload(const AmArg& arg, AmArg& ret)
 
 void YetiRpc::showCertCacheEntries(const AmArg&, AmArg& ret)
 {
-    cache.ShowCerts(ret);
+    cache.ShowCerts(ret, time(nullptr));
 }
 
 void YetiRpc::clearCertCacheEntries(const AmArg& arg, AmArg& ret)
