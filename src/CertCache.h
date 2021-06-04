@@ -24,7 +24,7 @@ struct CertCacheEntry {
     int error_type;
     cert_state state;
 
-    vector<string> defer_sessions;
+    set<string> defer_sessions;
 
     CertCacheEntry()
       : expire_time(0),
@@ -74,7 +74,13 @@ class CertCache
         KEY_RESULT_DEFFERED,
         KEY_RESULT_UNAVAILABLE
     };
-    get_key_result getCertPubKeyByUrl(const string& x5url, const string& session_id, Botan::Public_Key *key);
+
+    int getExpires() { return expires; }
+
+    //returns if cert is presented in cache and ready to be used
+    bool checkAndFetch(const string& cert_url,
+                       const string& session_id);
+    Botan::Public_Key *getPubKey(const string& cert_url);
 
     void processHttpReply(const HttpGetResponseEvent& resp);
 
@@ -88,15 +94,14 @@ struct CertCacheResponseEvent
   : public AmEvent
 {
   CertCache::get_key_result result;
-  std::unique_ptr<Botan::Public_Key> key;
+  string cert_url;
 
-  CertCacheResponseEvent(CertCache::get_key_result result, Botan::Public_Key *key)
+  CertCacheResponseEvent(CertCache::get_key_result result, const string &cert_url)
     : AmEvent(E_PLUGIN),
       result(result),
-      key(key)
+      cert_url(cert_url)
     {}
   CertCacheResponseEvent(CertCacheResponseEvent &) = delete;
 
-  ~CertCacheResponseEvent()
-  { }
+  virtual ~CertCacheResponseEvent() = default;
 };

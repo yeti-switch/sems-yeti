@@ -27,9 +27,7 @@ struct YetiCfg {
     aleg_cdr_headers_t aleg_cdr_headers;
     bool core_options_handling;
 
-    int identity_expires;
-    string identity_http_destination;
-    int identity_ttl_cache;
+    int identity_enabled;
 
     int configure(cfg_t *cfg, AmConfigReader &am_cfg);
 

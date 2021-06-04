@@ -6,6 +6,7 @@
 #include "sbc_events.h"
 #include "RateLimit.h"
 #include "ampi/RadiusClientAPI.h"
+#include "AmIdentity.h"
 
 #include "yeti.h"
 
@@ -82,6 +83,12 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   fake_logger *early_trying_logger;
   std::queue< unique_ptr<B2BSipReplyEvent> > postponed_replies;
 
+  Auth::auth_id_type auth_result_id;;
+  timeval call_start_time;
+
+  set<string> awaited_identity_certs;
+  vector<AmIdentity> identity_list;
+
   // auth
   AmSessionEventHandler* auth;
 
@@ -104,6 +111,18 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   msg_logger *logger;
   msg_sensor *sensor;
   bool memory_logger_enabled;
+
+  struct identity_entry {
+    AmIdentity identity;
+    bool parsed;
+    bool valid;
+    identity_entry()
+      : parsed(false),
+        valid(false)
+    {}
+  };
+  std::list<identity_entry> identity_headers;
+  void addIdentityHdr(const string &header_value);
 
   void setLogger(msg_logger *_logger);
 
@@ -148,6 +167,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   void onRadiusReply(const RadiusReplyEvent &ev);
   void onRedisReply(const RedisReplyEvent &e);
+  void onCertCacheReply(const CertCacheResponseEvent &e);
   void onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event);
   bool onTimerEvent(int timer_id);
   void onInterimRadiusTimer();
@@ -184,6 +204,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   void process(AmEvent* ev);
   void onInvite(const AmSipRequest& req);
+  void onIdentityReady();
   void onRoutingReady();
   void onFailure() override;
   void onInviteException(int code,string reason,bool no_reply);

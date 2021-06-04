@@ -2,6 +2,7 @@
 #include "yeti.h"
 #include <AmSessionContainer.h>
 #include "cfg/yeti_opts.h"
+#include <botan/pk_keys.h>
 
 CertCache::CertCache()
 {}
@@ -29,37 +30,45 @@ int CertCache::configure(cfg_t *cfg)
     return 0;
 }
 
-CertCache::get_key_result CertCache::getCertPubKeyByUrl(const string& x5url, const string& session_id, Botan::Public_Key *key)
+bool CertCache::checkAndFetch(const string& cert_url,
+                                 const string& session_id)
 {
     AmLock lock(mutex);
-    auto it = entries.find(x5url);
+    auto it = entries.find(cert_url);
     if(it == entries.end()) {
-        CertCacheEntry *entry = new CertCacheEntry;
-        entry->defer_sessions.push_back(session_id);
-        entries.emplace(x5url, entry);
+        auto entry = new CertCacheEntry;
+        entry->defer_sessions.emplace(session_id);
+        entries.emplace(cert_url, entry);
+
         AmSessionContainer::instance()->postEvent(
             HTTP_EVENT_QUEUE,
             new HttpGetEvent(http_destination, //destination
-                            x5url,                                   //url
-                            x5url,                                   //token
+                            cert_url,                                //url
+                            cert_url,                                //token
                             YETI_QUEUE_NAME));                       //session_id
-        return KEY_RESULT_DEFFERED;
-    }
-
-    if(it->second->state == CertCacheEntry::LOADED) {
-        key = it->second->cert.subject_public_key();
-        return KEY_RESULT_READY;
+        return false;
     }
 
     if(it->second->state == CertCacheEntry::LOADING) {
-        it->second->defer_sessions.push_back(session_id);
-        return KEY_RESULT_DEFFERED;
+        return false;
     }
 
-    /*if(it->second->expire_time > time(0)) {
-        it->second->state = CertCacheEntry::EXPIRED;
-    }*/
-    return KEY_RESULT_UNAVAILABLE;
+    return true;
+}
+
+Botan::Public_Key *CertCache::getPubKey(const string& cert_url)
+{
+    AmLock lock(mutex);
+    auto it = entries.find(cert_url);
+    if(it == entries.end()) {
+        return nullptr;
+    }
+
+    if(it->second->state != CertCacheEntry::LOADED) {
+        return nullptr;
+    }
+
+    return it->second->cert.subject_public_key();
 }
 
 void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
@@ -94,12 +103,15 @@ void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
         }
     }
 
-    //
+    auto result = it->second->state==CertCacheEntry::LOADED ?
+        KEY_RESULT_READY : KEY_RESULT_UNAVAILABLE;
+
     for(auto& session_id : it->second->defer_sessions) {
-        if(AmSessionContainer::instance()->postEvent(session_id,
-                        new HttpGetResponseEvent(resp.code, resp.data, resp.mime_type, resp.token)))
+        if(!AmSessionContainer::instance()->postEvent(
+            session_id,
+            new CertCacheResponseEvent(result, it->first)))
         {
-            ERROR("failed to post HttpGetResponseEvent for session %s",
+            ERROR("failed to post CertCacheResponseEvent for session %s",
                 session_id.c_str());
         }
     }

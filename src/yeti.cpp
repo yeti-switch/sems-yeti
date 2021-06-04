@@ -169,8 +169,10 @@ int Yeti::configure(const std::string& config_buf)
             ERROR("failed to configure certificates cache for identity verification");
             return -1;
         }
+        config.identity_enabled = true;
     } else {
         WARN("missed identity section. Identity validation support will be disabled");
+        config.identity_enabled = false;
     }
 
     return 0;
