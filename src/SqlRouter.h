@@ -32,7 +32,7 @@ class SqlRouter
   : public Auth
 {
 public:
-  void getprofiles(const AmSipRequest&,CallCtx &ctx,Auth::auth_id_type auth_id);
+  void getprofiles(const AmSipRequest&,CallCtx &ctx,Auth::auth_id_type auth_id, AmArg *identity_data);
   int configure(AmConfigReader &cfg);
   int start();
   void stop();
@@ -84,7 +84,8 @@ private:
   ProfilesCacheEntry* _getprofiles(
     const AmSipRequest&,
     pqxx::connection*,
-    Auth::auth_id_type auth_id);
+    Auth::auth_id_type auth_id,
+    AmArg *identity_data);
   void dbg_get_profiles(AmArg &fields_values);
   void update_counters(struct timeval &start_time);
 

@@ -2445,8 +2445,9 @@ void SBCCallLeg::addIdentityHdr(const string &header_value)
 
 void SBCCallLeg::onIdentityReady()
 {
+    AmArg identity_data;
+    AmArg *identity_data_ptr = nullptr;
     if(yeti.config.identity_enabled) {
-        AmArg identity_data;
         string error_reason;
         identity_data.assertArray();
         //verify parsed identity headers
@@ -2481,13 +2482,16 @@ void SBCCallLeg::onIdentityReady()
             }
         } //for(auto &e : identity_headers)
 
-        DBG("identity_json: %s", arg2json(identity_data).data());
+        //DBG("identity_json: %s", arg2json(identity_data).data());
+        identity_data_ptr = &identity_data;
     }
+
     call_ctx = new CallCtx(router);
 
     PROF_START(gprof);
 
-    router.getprofiles(uac_req,*call_ctx,auth_result_id);
+    router.getprofiles(uac_req,*call_ctx,auth_result_id,identity_data_ptr);
+
     SqlCallProfile *profile = call_ctx->getFirstProfile();
     if(nullptr == profile) {
         delete call_ctx;

@@ -17,6 +17,7 @@
 #include "yeti.h"
 #include "cdr/TrustedHeaders.h"
 #include "cdr/AuthCdr.h"
+#include "jsonArg.h"
 
 #include "AmSession.h"
 
@@ -111,6 +112,9 @@ try {
 	//fill arg types for static fields
 	for(int k = 0;k<GETPROFILE_STATIC_FIELDS_COUNT;k++)
 		profile_types.push_back(profile_static_fields[k].type);
+	if(Yeti::instance().config.identity_enabled) {
+		profile_types.push_back("json"); //identity
+	}
 	for(int k = 0;k<WRITECDR_STATIC_FIELDS_COUNT;k++)
 		cdr_types.push_back(cdr_static_fields[k].type);
 	if(Yeti::instance().config.aleg_cdr_headers.enabled()) {
@@ -327,7 +331,9 @@ void SqlRouter::update_counters(struct timeval &start_time){
         gt_min = diff;
 }
 
-void SqlRouter::getprofiles(const AmSipRequest &req,CallCtx &ctx, Auth::auth_id_type auth_id)
+void SqlRouter::getprofiles(
+	const AmSipRequest &req,CallCtx &ctx,
+	Auth::auth_id_type auth_id, AmArg *identity_data)
 {
 	PgConnection *conn = NULL;
 	PgConnectionPool *pool = master_pool;
@@ -352,7 +358,7 @@ void SqlRouter::getprofiles(const AmSipRequest &req,CallCtx &ctx, Auth::auth_id_
 	try {
 		conn = pool->getActiveConnection();
 		if(conn!=NULL){
-			entry = _getprofiles(req,conn,auth_id);
+			entry = _getprofiles(req,conn,auth_id,identity_data);
 			pool->returnConnection(conn);
 			getprofile_fail = false;
 		} else {
@@ -401,7 +407,8 @@ void SqlRouter::getprofiles(const AmSipRequest &req,CallCtx &ctx, Auth::auth_id_
 ProfilesCacheEntry* SqlRouter::_getprofiles(
 	const AmSipRequest &req,
 	pqxx::connection* conn,
-	Auth::auth_id_type auth_id)
+	Auth::auth_id_type auth_id,
+	AmArg *identity_data)
 {
 #define invoc_field(field_value)\
 	fields_values.push(AmArg(field_value));\
@@ -473,6 +480,11 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(
 
 	if(auth_id!=0) { invoc_field(auth_id) }
 	else { invoc_field(); }
+
+	if(identity_data) {
+		string identity_data_str(arg2json(*identity_data));
+		invoc_field(identity_data_str);
+	}
 
 	//invoc headers from sip request
 	for(vector<UsedHeaderField>::const_iterator it = used_header_fields.begin();
