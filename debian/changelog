@@ -1,3 +1,9 @@
+sems-yeti (1.11.16) stable; urgency=medium
+
+  * Identity headers processing
+
+ -- dev <dev@yeti-switch.org>  Thu, 10 Jun 2021 20:37:38 +0300
+
 sems-yeti (1.11.15) stable; urgency=medium
 
   * fix onBLegRefused skipping on negative replies
