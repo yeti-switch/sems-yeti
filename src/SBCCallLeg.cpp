@@ -2435,7 +2435,7 @@ void SBCCallLeg::addIdentityHdr(const string &header_value)
     if(!e.parsed) return;
 
     auto &cert_url = e.identity.get_x5u_url();
-    if(!yeti.cache.checkAndFetch(cert_url, getLocalTag())) {
+    if(!yeti.cert_cache.checkAndFetch(cert_url, getLocalTag())) {
         DBG("awaited_identity_certs add '%s'", cert_url.data());
         awaited_identity_certs.emplace(cert_url);
     } else {
@@ -2467,9 +2467,9 @@ void SBCCallLeg::onIdentityReady()
             a["header"] = e.identity.get_parsed_header();
             a["payload"] = e.identity.get_parsed_payload();
 
-            std::unique_ptr<Botan::Public_Key> key(yeti.cache.getPubKey(e.identity.get_x5u_url()));
+            std::unique_ptr<Botan::Public_Key> key(yeti.cert_cache.getPubKey(e.identity.get_x5u_url()));
             if(key.get()) {
-                bool verified = e.identity.verify(key.get(), yeti.cache.getExpires());
+                bool verified = e.identity.verify(key.get(), yeti.cert_cache.getExpires());
                 if(!verified) {
                     a["error_code"] = e.identity.get_last_error(error_reason);
                     a["error_reason"] = error_reason;

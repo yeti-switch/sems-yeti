@@ -75,5 +75,5 @@ struct YetiBase {
     RegistrarRedisConnection registrar_redis;
     HttpSequencer http_sequencer;
     OptionsProberManager options_prober_manager;
-    CertCache cache;
+    CertCache cert_cache;
 };

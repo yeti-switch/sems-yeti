@@ -1329,16 +1329,16 @@ void YetiRpc::requestOptionsProberReload(const AmArg& arg, AmArg& ret)
 
 void YetiRpc::showCertCacheEntries(const AmArg&, AmArg& ret)
 {
-    cache.ShowCerts(ret, time(nullptr));
+    cert_cache.ShowCerts(ret, std::chrono::system_clock::now());
 }
 
 void YetiRpc::clearCertCacheEntries(const AmArg& arg, AmArg& ret)
 {
-    ret = cache.ClearCerts(arg);
+    ret = cert_cache.ClearCerts(arg);
 }
 
 void YetiRpc::renewCertCacheEntries(const AmArg& arg, AmArg& ret)
 {
-    ret = cache.RenewCerts(arg);
+    ret = cert_cache.RenewCerts(arg);
 }
 

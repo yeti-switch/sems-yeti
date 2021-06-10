@@ -12,11 +12,11 @@ struct CertCacheEntry {
     enum cert_state {
         LOADING,
         LOADED,
-        EXPIRED,
         UNAVAILABLE
     };
 
-    time_t expire_time;
+    //time_t expire_time;
+    std::chrono::system_clock::time_point expire_time;
     vector<uint8_t> cert_binary;
     Botan::X509_Certificate cert;
     string error_str;
@@ -27,15 +27,13 @@ struct CertCacheEntry {
     set<string> defer_sessions;
 
     CertCacheEntry()
-      : expire_time(0),
-        error_code(0),
+      : error_code(0),
         error_type(0),
         state(LOADING){}
 
     ~CertCacheEntry() {}
 
-	void reset() {
-        expire_time = 0;
+    void reset() {
         error_type = 0;
         error_code = 0;
         error_str.clear();
@@ -48,21 +46,27 @@ struct CertCacheEntry {
         switch(state){
         case LOADING: return "loading";
         case LOADED: return "loaded";
-        case EXPIRED: return "expired";
         case UNAVAILABLE: return "unavailable";
         }
         return "";
     }
+
+    void getInfo(AmArg &a, const std::chrono::system_clock::time_point &now);
 };
 
 class CertCache
 {
     int expires;
     string http_destination;
-    int cert_cache_ttl;
+    std::chrono::seconds cert_cache_ttl;
 
     AmMutex mutex;
-    unordered_map<string, CertCacheEntry*> entries;
+
+    using HashType = unordered_map<string, CertCacheEntry>;
+    HashType entries;
+
+    void renewCertEntry(HashType::value_type &entry);
+
   public:
     CertCache();
     ~CertCache();
@@ -83,9 +87,10 @@ class CertCache
     Botan::Public_Key *getPubKey(const string& cert_url);
 
     void processHttpReply(const HttpGetResponseEvent& resp);
+    void onTimer();
 
     //rpc methods
-    void ShowCerts(AmArg& ret, time_t now);
+    void ShowCerts(AmArg& ret, const std::chrono::system_clock::time_point &now);
     int ClearCerts(const AmArg& args);
     int RenewCerts(const AmArg& args);
 };

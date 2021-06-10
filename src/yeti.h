@@ -26,6 +26,7 @@ class Yeti
     bool stopped;
     int epoll_fd;
     AmTimerFd keepalive_timer;
+    AmTimerFd cert_cache_timer;
 
     bool apply_config();
 

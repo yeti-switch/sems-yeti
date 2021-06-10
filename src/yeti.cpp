@@ -165,7 +165,7 @@ int Yeti::configure(const std::string& config_buf)
 
     cfg_t* identity_sec = cfg_getsec(confuse_cfg, section_name_identity);
     if(identity_sec) {
-        if(cache.configure(identity_sec)) {
+        if(cert_cache.configure(identity_sec)) {
             ERROR("failed to configure certificates cache for identity verification");
             return -1;
         }
@@ -278,6 +278,11 @@ int Yeti::onLoad()
         }
     }
 
+    if(config.identity_enabled) {
+        cert_cache_timer.link(epoll_fd);
+        cert_cache_timer.set(1e6 /* 1 second */,true);
+    }
+
     http_sequencer.setHttpDestinationName(config.http_events_destination);
 
     //start threads
@@ -358,6 +363,9 @@ void Yeti::run()
             if(f==keepalive_timer){
                 registrar_redis.on_keepalive_timer();
                 keepalive_timer.read();
+            } else if(f==cert_cache_timer) {
+                cert_cache.onTimer();
+                cert_cache_timer.read();
             } else if(f == -queue_fd()) {
                 clear_pending();
                 processEvents();
@@ -409,7 +417,7 @@ void Yeti::process(AmEvent *ev)
         http_sequencer.processHttpReply(*e);
     } else
     ON_EVENT_TYPE(HttpGetResponseEvent) {
-        cache.processHttpReply(*e);
+        cert_cache.processHttpReply(*e);
     } else
     ON_EVENT_TYPE(AmSystemEvent) {
         if(e->sys_event==AmSystemEvent::ServerShutdown) {
