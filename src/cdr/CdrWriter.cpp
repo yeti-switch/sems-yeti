@@ -60,7 +60,8 @@ const static_field cdr_static_fields[] = {
 	{ "is_redirected", "boolean" },
 	{ "i_dynamic_fields", "json" },
 	{ "i_aleg_cdr_headers", "json" },
-	{ "i_bleg_response_cdr_headers", "json" }
+	{ "i_bleg_response_cdr_headers", "json" },
+	{ "i_lega_identity", "json" }
 };
 
 
@@ -81,11 +82,6 @@ int CdrWriter::configure(CdrWriterCfg& cfg)
 	for(;param_num<=WRITECDR_STATIC_FIELDS_COUNT;param_num++){
 		const static_field &sf = cdr_static_fields[param_num-1];
 		DBG("CdrWriterArg:     %d: %s : %s [static]",param_num,sf.name,sf.type);
-	}
-
-	if(Yeti::instance().config.aleg_cdr_headers.enabled()) {
-		//aleg_cdr_headers
-		DBG("CdrWriterArg:     %d: aleg_cdr_headers : json [static]",++param_num);
 	}
 
 	//dynamic params

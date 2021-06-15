@@ -1019,6 +1019,7 @@ void Cdr::invoc(
     invoc_cond(arg2json(bleg_reply_headers_amarg), isArgStruct(bleg_reply_headers_amarg) && bleg_reply_headers_amarg.size());
 
     //i_lega_identity  will be here
+    invoc();
 
 #undef invoc_json
 #undef invoc_cond
