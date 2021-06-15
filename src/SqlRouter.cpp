@@ -483,7 +483,7 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(
 		string identity_data_str(arg2json(*identity_data));
 		invoc_field(identity_data_str);
 	} else {
-		invoc();
+		invoc_field();
 	}
 
 	//invoc headers from sip request
