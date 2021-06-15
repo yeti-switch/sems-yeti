@@ -41,6 +41,7 @@ const static_field profile_static_fields[] = {
     { "uri_name", "varchar" },
     { "uri_domain", "varchar" },
     { "auth_id", "integer" },
+    { "identity", "json" }
 };
 
 SqlRouter::SqlRouter()
@@ -111,9 +112,7 @@ try {
 	//fill arg types for static fields
 	for(int k = 0;k<GETPROFILE_STATIC_FIELDS_COUNT;k++)
 		profile_types.push_back(profile_static_fields[k].type);
-	if(Yeti::instance().config.identity_enabled) {
-		profile_types.push_back("json"); //identity
-	}
+
 	for(int k = 0;k<WRITECDR_STATIC_FIELDS_COUNT;k++)
 		cdr_types.push_back(cdr_static_fields[k].type);
 	/*if(Yeti::instance().config.aleg_cdr_headers.enabled()) {
@@ -483,6 +482,8 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(
 	if(identity_data) {
 		string identity_data_str(arg2json(*identity_data));
 		invoc_field(identity_data_str);
+	} else {
+		invoc();
 	}
 
 	//invoc headers from sip request
