@@ -1,3 +1,10 @@
+sems-yeti (1.11.17) stable; urgency=medium
+
+  * get trusted headers from config section 'legb_response_cdr_headers' instead of database query load_trusted_headers()"
+  * write identity data to Cdr
+
+ -- dev <dev@yeti-switch.org>  Tue, 15 Jun 2021 19:28:58 +0300
+
 sems-yeti (1.11.16) stable; urgency=medium
 
   * Identity headers processing
