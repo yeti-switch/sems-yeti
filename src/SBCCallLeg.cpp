@@ -2430,6 +2430,8 @@ void SBCCallLeg::addIdentityHdr(const string &header_value)
 {
     identity_headers.resize(identity_headers.size()+1);
     auto &e = identity_headers.back();
+
+    e.raw_header_value = header_value;
     e.parsed = e.identity.parse(header_value);
 
     if(!e.parsed) return;
@@ -2461,6 +2463,8 @@ void SBCCallLeg::onIdentityReady()
                 a["parsed"] = false;
                 a["error_code"] = e.identity.get_last_error(error_reason);
                 a["error_reason"] = error_reason;
+                a["verified"] = false;
+                a["raw"] = e.raw_header_value;
                 continue;
             }
 
@@ -2508,6 +2512,10 @@ void SBCCallLeg::onIdentityReady()
     PROF_PRINT("get profiles",gprof);
 
     Cdr *cdr = call_ctx->cdr;
+    if(cdr && identity_data_ptr) {
+        cdr->identity_data = *identity_data_ptr;
+    }
+
     if(profile->auth_required) {
         delete cdr;
         delete call_ctx;

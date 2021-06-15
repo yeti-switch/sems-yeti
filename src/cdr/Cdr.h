@@ -125,6 +125,7 @@ struct Cdr
 
     AmArg aleg_headers_amarg;
     AmArg bleg_reply_headers_amarg;
+    AmArg identity_data;
 
     Cdr();
     Cdr(const Cdr& cdr,const SqlCallProfile &profile);

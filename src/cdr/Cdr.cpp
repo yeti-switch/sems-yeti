@@ -114,6 +114,8 @@ Cdr::Cdr()
 
     active_resources_amarg.assertArray();
     active_resources_clickhouse.assertStruct();
+    bleg_reply_headers_amarg.assertStruct();
+    identity_data.assertArray();
 }
 
 Cdr::Cdr(const Cdr& cdr,const SqlCallProfile &profile)
@@ -141,6 +143,7 @@ Cdr::Cdr(const Cdr& cdr,const SqlCallProfile &profile)
     legA_transport_protocol_id = cdr.legA_transport_protocol_id;
 
     aleg_headers_amarg = cdr.aleg_headers_amarg;
+    identity_data = cdr.identity_data;
 }
 
 Cdr::Cdr(const SqlCallProfile &profile)
@@ -1019,7 +1022,7 @@ void Cdr::invoc(
     invoc_cond(arg2json(bleg_reply_headers_amarg), isArgStruct(bleg_reply_headers_amarg) && bleg_reply_headers_amarg.size());
 
     //i_lega_identity  will be here
-    invoc();
+    invoc_cond(arg2json(identity_data), isArgArray(identity_data) && identity_data.size());
 
 #undef invoc_json
 #undef invoc_cond

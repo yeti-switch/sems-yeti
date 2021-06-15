@@ -114,6 +114,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   struct identity_entry {
     AmIdentity identity;
+    string raw_header_value;
     bool parsed;
     bool valid;
     identity_entry()
