@@ -25,6 +25,8 @@ struct YetiCfg {
     int registrar_expires_max;
 
     cdr_headers_t aleg_cdr_headers;
+    cdr_headers_t bleg_reply_cdr_headers;
+
     bool core_options_handling;
 
     int identity_enabled;

@@ -124,6 +124,7 @@ struct Cdr
     std::queue<dtmf_event_info> dtmf_events_b2a;
 
     AmArg aleg_headers_amarg;
+    AmArg bleg_reply_headers_amarg;
 
     Cdr();
     Cdr(const Cdr& cdr,const SqlCallProfile &profile);

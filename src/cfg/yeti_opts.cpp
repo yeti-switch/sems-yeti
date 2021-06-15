@@ -14,6 +14,7 @@ char opt_name_auth_feedback[] = "enable_auth_feedback";
 char opt_name_http_events_destination[] = "http_events_destination";
 
 char section_name_lega_cdr_headers[] = "lega_cdr_headers";
+char section_name_legb_reply_cdr_headers[] = "legb_response_cdr_headers";
 char section_name_identity[] = "identity";
 
 char opt_name_core_options_handling[] = "core_options_handling";
@@ -26,6 +27,7 @@ char opt_identity_certs_cache_ttl[] = "certs_cache_ttl";
 char opt_func_name_header[] = "header";
 
 int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
+int add_bleg_reply_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 
 //routing
 cfg_opt_t sig_yeti_routing_pool_opts[] = {
@@ -132,6 +134,11 @@ cfg_opt_t lega_cdr_headers_opts[] = {
     CFG_END()
 };
 
+cfg_opt_t legb_reply_cdr_headers_opts[] = {
+    CFG_FUNC(opt_func_name_header, add_bleg_reply_cdr_header),
+    CFG_END()
+};
+
 cfg_opt_t identity_opts[] {
     CFG_INT(opt_identity_expires, 60,CFGF_NONE),
     CFG_STR(opt_identity_http_destination,0,CFGF_NODEFAULT),
@@ -156,6 +163,7 @@ cfg_opt_t yeti_opts[] = {
     DCFG_SEC(auth,sig_yeti_auth_opts,CFGF_NONE),
     CFG_SEC(section_name_identity, identity_opts, CFGF_NODEFAULT),
     CFG_SEC(section_name_lega_cdr_headers,lega_cdr_headers_opts, CFGF_NONE),
+    CFG_SEC(section_name_legb_reply_cdr_headers,legb_reply_cdr_headers_opts, CFGF_NONE),
     CFG_BOOL(opt_name_core_options_handling, cfg_true, CFGF_NONE),
     CFG_BOOL(opt_name_pcap_memory_logger, cfg_false, CFGF_NONE),
     CFG_BOOL(opt_name_auth_feedback, cfg_false, CFGF_NONE),

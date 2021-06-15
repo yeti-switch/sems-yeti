@@ -15,7 +15,6 @@
 #include "SqlRouter.h"
 #include "db/DbTypes.h"
 #include "yeti.h"
-#include "cdr/TrustedHeaders.h"
 #include "cdr/AuthCdr.h"
 #include "jsonArg.h"
 
@@ -117,16 +116,16 @@ try {
 	}
 	for(int k = 0;k<WRITECDR_STATIC_FIELDS_COUNT;k++)
 		cdr_types.push_back(cdr_static_fields[k].type);
-	if(Yeti::instance().config.aleg_cdr_headers.enabled()) {
+	/*if(Yeti::instance().config.aleg_cdr_headers.enabled()) {
 		//aleg_cdr_headers
 		cdr_types.push_back("json");
-	}
+	}*/
 
 	for(const auto &f : auth_log_static_fields)
 		auth_log_types.push_back(f.type);
 
-	for(int k = 0;k<TrustedHeaders::instance()->count();k++)
-		cdr_types.push_back("varchar");
+	/*for(int k = 0;k<TrustedHeaders::instance()->count();k++)
+		cdr_types.push_back("varchar");*/
 
 	pqxx::connection c(dbc.conn_str());
 	c.set_variable("search_path",routing_schema+", public");

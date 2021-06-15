@@ -16,7 +16,6 @@
 #include "SDPFilter.h"
 #include "CallLeg.h"
 #include "Registration.h"
-#include "cdr/TrustedHeaders.h"
 #include "CodecsGroup.h"
 #include "Sensors.h"
 #include "AmEventDispatcher.h"
@@ -210,10 +209,10 @@ int Yeti::onLoad()
 
     calls_show_limit = static_cast<int>(cfg.getParameterInt("calls_show_limit",100));
 
-    if(TrustedHeaders::instance()->configure(cfg)){
+    /*if(TrustedHeaders::instance()->configure(cfg)){
         ERROR("TrustedHeaders configure failed");
         return -1;
-    }
+    }*/
 
     if (cdr_list.configure(cfg)){
         ERROR("CdrList configure failed");

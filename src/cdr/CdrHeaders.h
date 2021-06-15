@@ -16,5 +16,5 @@ class cdr_headers_t
   public:
     bool enabled();
     int add_header(std::string header_name, const std::string &serialization_type);
-    AmArg serialize_headers(const AmSipRequest &req) const;
+    AmArg serialize_headers(const string &hdrs) const;
 };

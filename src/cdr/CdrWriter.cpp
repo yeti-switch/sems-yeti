@@ -5,7 +5,6 @@
 #include <pqxx/pqxx>
 #include "../yeti.h"
 #include "../alarms.h"
-#include "../cdr/TrustedHeaders.h"
 #include "../yeti_version.h"
 #include "AuthCdr.h"
 
@@ -60,7 +59,8 @@ const static_field cdr_static_fields[] = {
 	{ "versions", "json" },
 	{ "is_redirected", "boolean" },
 	{ "i_dynamic_fields", "json" },
-//	{ "i_aleg_cdr_headers", "json" }
+	{ "i_aleg_cdr_headers", "json" },
+	{ "i_bleg_response_cdr_headers", "json" }
 };
 
 
@@ -805,12 +805,12 @@ void CdrThread::closefile(){
 
 void CdrThread::write_header(){
 	ofstream &wf = *wfp.get();
-	TrustedHeaders &th = *TrustedHeaders::instance();
+	//TrustedHeaders &th = *TrustedHeaders::instance();
 		//write description header
 	wf << "#version: " << YETI_VERSION << endl;
 	wf << "#static_fields_count: " << WRITECDR_STATIC_FIELDS_COUNT << endl;
 	wf << "#dynamic_fields_count: " << config.dyn_fields.size() << endl;
-	wf << "#trusted_hdrs_count: " << th.count() << endl;
+	//wf << "#trusted_hdrs_count: " << th.count() << endl;
 
 		//static fields names
 	wf << "#fields_descr: ";
@@ -825,8 +825,8 @@ void CdrThread::write_header(){
 		wf << ",'"<< dit->name << "'";
 	}
 
-		//trusted headers names
-	th.print_csv(wf);
+	//trusted headers names
+	//th.print_csv(wf);
 
 	wf << endl;
 	wf.flush();

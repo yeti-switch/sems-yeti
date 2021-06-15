@@ -38,20 +38,20 @@ int cdr_headers_t::add_header(std::string header_name, const std::string &serial
     return 0;
 }
 
-AmArg cdr_headers_t::serialize_headers(const AmSipRequest &req) const
+AmArg cdr_headers_t::serialize_headers(const string &hdrs) const
 {
     AmArg a;
     size_t start_pos = 0, name_end, val_begin, val_end, hdr_end;
 
     a.assertStruct();
-    while(start_pos<req.hdrs.length()) {
-        if (skip_header(req.hdrs, start_pos,
+    while(start_pos<hdrs.length()) {
+        if (skip_header(hdrs, start_pos,
             name_end, val_begin, val_end, hdr_end) != 0)
         {
             break;
         }
 
-        string hdr_name = req.hdrs.substr(start_pos, name_end-start_pos);
+        string hdr_name = hdrs.substr(start_pos, name_end-start_pos);
         std::transform(hdr_name.begin(), hdr_name.end(), hdr_name.begin(), normalize_aleg_header_name);
 
         auto it = headers.find(hdr_name);
@@ -59,11 +59,11 @@ AmArg cdr_headers_t::serialize_headers(const AmSipRequest &req) const
             switch(it->second) {
             case SerializeFirstAsString:
                 if(!a.hasMember(hdr_name)) {
-                    a[hdr_name] = req.hdrs.substr(val_begin, val_end - val_begin);
+                    a[hdr_name] = hdrs.substr(val_begin, val_end - val_begin);
                 }
                 break;
             case SerializeAllAsArrayOfStrings:
-                a[hdr_name].push(req.hdrs.substr(val_begin, val_end - val_begin));
+                a[hdr_name].push(hdrs.substr(val_begin, val_end - val_begin));
                 break;
             }
         }

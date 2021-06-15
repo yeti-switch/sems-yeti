@@ -3,7 +3,6 @@
 #include "AmSipMsg.h"
 #include "log.h"
 #include "CoreRpc.h"
-#include "TrustedHeaders.h"
 #include "jsonArg.h"
 #include "sip/defs.h"
 #include "sems.h"
@@ -111,7 +110,7 @@ Cdr::Cdr()
     timerclear(&sip_10x_time);
     timerclear(&sip_18x_time);
 
-    TrustedHeaders::instance()->init_hdrs(trusted_hdrs);
+    //TrustedHeaders::instance()->init_hdrs(trusted_hdrs);
 
     active_resources_amarg.assertArray();
     active_resources_clickhouse.assertStruct();
@@ -222,7 +221,7 @@ void Cdr::update_with_sip_request(const AmSipRequest &req, const cdr_headers_t &
                 update_with_isup(isup);
             }
         }
-        aleg_headers_amarg = aleg_headers.serialize_headers(req);
+        aleg_headers_amarg = aleg_headers.serialize_headers(req.hdrs);
     }
 }
 
@@ -242,7 +241,8 @@ void Cdr::update_with_sip_reply(const AmSipReply &reply){
     AmLock l(*this);
 
     if(reply.code == 200 && trusted_hdrs_gw){ //try to fill trusted headers from 200 OK reply
-        TrustedHeaders::instance()->parse_reply_hdrs(reply,trusted_hdrs);
+        //TrustedHeaders::instance()->parse_reply_hdrs(reply,trusted_hdrs);
+        bleg_reply_headers_amarg = Yeti::instance().config.bleg_reply_cdr_headers.serialize_headers(reply.hdrs);
     }
 
     if(reply.remote_port==0)
@@ -1009,14 +1009,14 @@ void Cdr::invoc(
     /* invocate dynamic fields  */
     invoc_json(serialize_dynamic(df));
 
-    if(Yeti::instance().config.aleg_cdr_headers.enabled()) {
-        invoc_cond(arg2json(aleg_headers_amarg), isArgStruct(aleg_headers_amarg) && aleg_headers_amarg.size());
-    }
+    /*if(Yeti::instance().config.aleg_cdr_headers.enabled()) {*/
+    invoc_cond(arg2json(aleg_headers_amarg), isArgStruct(aleg_headers_amarg) && aleg_headers_amarg.size());
+    //}
 
     /* invocate trusted hdrs  */
-    //TODO: serialize trusted_hdrs
-    for(const auto &h : trusted_hdrs)
-        invoc_AmArg(invoc,h);
+    /*for(const auto &h : trusted_hdrs)
+        invoc_AmArg(invoc,h);*/
+    invoc_cond(arg2json(bleg_reply_headers_amarg), isArgStruct(bleg_reply_headers_amarg) && bleg_reply_headers_amarg.size());
 
     //i_lega_identity  will be here
 
