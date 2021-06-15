@@ -7,7 +7,7 @@
 #include "resources/ResourceControl.h"
 #include "CertCache.h"
 #include "RegistrarRedisConnection.h"
-#include "cdr/ALegCdrHeaders.h"
+#include "cdr/CdrHeaders.h"
 #include "cfg/YetiCfg.h"
 
 #include "AmConfigReader.h"

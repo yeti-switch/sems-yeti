@@ -1,4 +1,4 @@
-#include "ALegCdrHeaders.h"
+#include "CdrHeaders.h"
 
 #include "log.h"
 #include "jsonArg.h"
@@ -10,12 +10,12 @@ static int normalize_aleg_header_name(int c) {
     return ::tolower(c);
 }
 
-bool aleg_cdr_headers_t::enabled()
+bool cdr_headers_t::enabled()
 {
     return !headers.empty();
 }
 
-int aleg_cdr_headers_t::add_header(std::string header_name, const std::string &serialization_type)
+int cdr_headers_t::add_header(std::string header_name, const std::string &serialization_type)
 {
     cdr_header_serialization_type_t type;
     if(serialization_type=="string") {
@@ -38,7 +38,7 @@ int aleg_cdr_headers_t::add_header(std::string header_name, const std::string &s
     return 0;
 }
 
-AmArg aleg_cdr_headers_t::serialize_headers(const AmSipRequest &req) const
+AmArg cdr_headers_t::serialize_headers(const AmSipRequest &req) const
 {
     AmArg a;
     size_t start_pos = 0, name_end, val_begin, val_end, hdr_end;

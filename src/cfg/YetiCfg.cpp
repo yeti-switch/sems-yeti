@@ -8,7 +8,7 @@
 
 #define LOG_BUF_SIZE 2048
 
-aleg_cdr_headers_t cfg_aleg_cdr_headers;
+cdr_headers_t cfg_aleg_cdr_headers;
 
 int add_aleg_cdr_header(cfg_t */*cfg*/, cfg_opt_t */*opt*/, int argc, const char **argv)
 {

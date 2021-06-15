@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../cdr/ALegCdrHeaders.h"
+#include "../cdr/CdrHeaders.h"
 #include "confuse.h"
 #include "AmConfigReader.h"
 
@@ -24,7 +24,7 @@ struct YetiCfg {
     int registrar_expires_min;
     int registrar_expires_max;
 
-    aleg_cdr_headers_t aleg_cdr_headers;
+    cdr_headers_t aleg_cdr_headers;
     bool core_options_handling;
 
     int identity_enabled;

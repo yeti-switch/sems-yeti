@@ -5,7 +5,7 @@
 
 #include "AmSipMsg.h"
 
-class aleg_cdr_headers_t
+class cdr_headers_t
 {
     enum cdr_header_serialization_type_t {
         SerializeFirstAsString,

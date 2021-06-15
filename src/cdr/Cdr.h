@@ -11,7 +11,7 @@
 #include <unordered_set>
 
 #include "CdrBase.h"
-#include "ALegCdrHeaders.h"
+#include "CdrHeaders.h"
 
 enum UpdateAction {
     Start,
@@ -135,7 +135,7 @@ struct Cdr
 
     void update_sql(const SqlCallProfile &profile);
     void update_sbc(const SBCCallProfile &profile);
-    void update_with_sip_request(const AmSipRequest &req, const aleg_cdr_headers_t &aleg_headers);
+    void update_with_sip_request(const AmSipRequest &req, const cdr_headers_t &aleg_headers);
     void update_with_isup(const AmISUP &isup);
     void update_with_sip_reply(const AmSipReply &reply);
     void update_init_aleg(const string &leg_local_tag, const string &leg_global_tag, const string &leg_orig_call_id);

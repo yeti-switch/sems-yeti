@@ -193,7 +193,7 @@ void Cdr::update_sbc(const SBCCallProfile &profile)
     audio_record_enabled = profile.record_audio;
 }
 
-void Cdr::update_with_sip_request(const AmSipRequest &req, const aleg_cdr_headers_t &aleg_headers)
+void Cdr::update_with_sip_request(const AmSipRequest &req, const cdr_headers_t &aleg_headers)
 {
     size_t pos1,pos2,pos;
 
@@ -1014,8 +1014,11 @@ void Cdr::invoc(
     }
 
     /* invocate trusted hdrs  */
+    //TODO: serialize trusted_hdrs
     for(const auto &h : trusted_hdrs)
         invoc_AmArg(invoc,h);
+
+    //i_lega_identity  will be here
 
 #undef invoc_json
 #undef invoc_cond
