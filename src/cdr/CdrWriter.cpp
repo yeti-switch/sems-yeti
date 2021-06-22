@@ -7,6 +7,7 @@
 #include "../alarms.h"
 #include "../yeti_version.h"
 #include "AuthCdr.h"
+#include "AmUtils.h"
 
 //affect on precision check_interval and batch_timeout handling precision
 #define QUEUE_RUN_TIMEOUT_MSEC 1000
@@ -66,8 +67,13 @@ const static_field cdr_static_fields[] = {
 
 
 CdrWriter::CdrWriter()
-  : paused(false)
-{ }
+  : paused(false),
+    get_queue_len_group_proxy(this, &CdrWriter::get_queue_len),
+    get_retry_queue_len_group_proxy(this, &CdrWriter::get_retry_queue_len)
+{
+    statistics::instance()->add_groups_container("yeti_cdr_queue_len", &get_queue_len_group_proxy);
+    statistics::instance()->add_groups_container("yeti_cdr_retry_queue_len", &get_retry_queue_len_group_proxy);
+}
 
 CdrWriter::~CdrWriter()
 { }
@@ -109,13 +115,13 @@ void CdrWriter::start()
 {
 	DBG("CdrWriter::start: Starting %d async DB threads",config.poolsize*2);
 	for(unsigned int i=0;i<config.poolsize;i++) {
-		CdrThread* th = new CdrThread;
+		CdrThread* th = new CdrThread("cdr",i);
 		th->configure(config);
 		th->start();
 		cdrthreadpool.emplace_back(th);
 	}
 	for(unsigned int i=0;i<config.auth_pool_size;i++) {
-		CdrThread* th = new CdrThread;
+		CdrThread* th = new CdrThread("auth", i);
 		th->configure(config);
 		th->start();
 		auth_log_threadpool.emplace_back(th);
@@ -232,11 +238,24 @@ void CdrWriter::getStats(AmArg &arg){
 	}
 }
 
-void CdrWriter::clearStats(){
-	for(auto &t: cdrthreadpool)
-		t->clearStats();
-	for(auto &t: auth_log_threadpool)
-		t->clearStats();
+void CdrWriter::get_queue_len(StatCounterInterface::iterate_func_type f)
+{
+	for(auto &t: cdrthreadpool) {
+		t->get_queue_len(f);
+	}
+	for(auto &t: auth_log_threadpool) {
+		t->get_queue_len(f);
+	}
+}
+
+void CdrWriter::get_retry_queue_len(StatCounterInterface::iterate_func_type f)
+{
+	for(auto &t: cdrthreadpool) {
+		t->get_retry_queue_len(f);
+	}
+	for(auto &t: auth_log_threadpool) {
+		t->get_retry_queue_len(f);
+	}
 }
 
 void CdrWriter::setPaused(bool p)
@@ -268,13 +287,15 @@ void CdrThread::postcdr(CdrBase* cdr)
 }
 
 
-CdrThread::CdrThread() :
+CdrThread::CdrThread(const char *thread_type, int thread_idx) :
 	queue_run(false),stopped(false),
 	masterconn(NULL),slaveconn(NULL),gotostop(false),
 	masteralarm(false),slavealarm(false),db_err(false),
-	paused(false)
+	paused(false),
+	stats(thread_type, int2str(thread_idx))
 {
-	clearStats();
+	labels.emplace("type", thread_type);
+	labels.emplace("idx", int2str(thread_idx));
 }
 
 CdrThread::~CdrThread()
@@ -288,9 +309,21 @@ void CdrThread::getStats(AmArg &arg){
 		arg["retry_queue_len"] = retry_queue.size();
 	queue_mut.unlock();
 
-	arg["db_exceptions"] = stats.db_exceptions;
-	arg["writed_cdrs"] = stats.writed_cdrs;
-	arg["tried_cdrs"] = stats.tried_cdrs;
+	arg["db_exceptions"] = (int)stats.db_exceptions.get();
+	arg["writed_cdrs"] = (int)stats.writed_cdrs.get();
+	arg["tried_cdrs"] = (int)stats.tried_cdrs.get();
+}
+
+void CdrThread::get_queue_len(StatCounterInterface::iterate_func_type f)
+{
+	AmLock l(queue_mut);
+	f(queue.size(), 0, labels);
+}
+
+void CdrThread::get_retry_queue_len(StatCounterInterface::iterate_func_type f)
+{
+	AmLock l(queue_mut);
+	f(retry_queue.size(), 0, labels);
 }
 
 void CdrThread::showOpenedFiles(AmArg &arg){
@@ -309,12 +342,6 @@ void CdrThread::showRetryQueue(AmArg &arg)
 		arg.push(AmArg());
 		cdr->info(arg.back());
 	}
-}
-
-void CdrThread::clearStats(){
-	stats.db_exceptions = 0;
-	stats.writed_cdrs = 0;
-	stats.tried_cdrs = 0;
 }
 
 int CdrThread::configure(CdrThreadCfg& cfg ){
@@ -381,7 +408,7 @@ void CdrThread::run()
             DBG("retry_queue time reached (interval: %d). queue size: %zd",
                 config.retry_interval,retry_queue.size());
             if(write_with_failover(retry_queue,1,true)) {
-                stats.writed_cdrs++;
+                stats.writed_cdrs.inc();
                 queue_mut.lock();
                 retry_queue.pop_front();
                 queue_mut.unlock();
@@ -421,7 +448,7 @@ void CdrThread::run()
         queue_mut.unlock();
 
         if(write_with_failover(queue,entries_to_write)) {
-            stats.writed_cdrs+=entries_to_write;
+            stats.writed_cdrs.inc(entries_to_write);
 
             queue_mut.lock();
 
@@ -723,7 +750,7 @@ int CdrThread::writecdr(cdr_queue_t &cdr_queue, cdr_writer_connection* conn, siz
         return 1;
     }
 
-    stats.tried_cdrs++;
+    stats.tried_cdrs.inc();
     try {
         cdr_transaction tnx(*conn);
 
@@ -753,7 +780,7 @@ int CdrThread::writecdr(cdr_queue_t &cdr_queue, cdr_writer_connection* conn, siz
     } catch(const pqxx::pqxx_exception &e) {
         DBG("SQL exception on CdrWriter thread: %s",e.base().what());
         conn->disconnect();
-        stats.db_exceptions++;
+        stats.db_exceptions.inc();
     }
 
     return ret;
@@ -848,7 +875,7 @@ int CdrThread::writecdrtofile(cdr_queue_t &cdr_queue) {
 
 	s << endl;
 	s.flush();
-	stats.writed_cdrs++;
+	stats.writed_cdrs.inc();
 	return 0;
 #undef quote
 }

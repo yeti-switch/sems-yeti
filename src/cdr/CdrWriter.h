@@ -12,6 +12,8 @@
 #include "../UsedHeaderField.h"
 #include "Cdr.h"
 #include "../db/DbTypes.h"
+#include "AmStatistics.h"
+
 #include <fstream>
 #include <sstream>
 #include <cstdio>
@@ -102,18 +104,29 @@ class CdrThread
     bool openfile();
     void write_header();
 
-    struct {
-        int db_exceptions;
-        int writed_cdrs;
-        int tried_cdrs;
+    struct stats_t {
+        AtomicCounter &db_exceptions;
+        AtomicCounter &writed_cdrs;
+        AtomicCounter &tried_cdrs;
+        stats_t(const char *thread_type, const string &thread_idx)
+          : db_exceptions(stat_group(Counter, "yeti", "cdr_exceptions").addAtomicCounter()
+                          .addLabel("type",thread_type).addLabel("idx",thread_idx)),
+            writed_cdrs(stat_group(Counter, "yeti", "cdr_writed").addAtomicCounter()
+                            .addLabel("type",thread_type).addLabel("idx",thread_idx)),
+            tried_cdrs(stat_group(Counter, "yeti", "cdr_tried").addAtomicCounter()
+                            .addLabel("type",thread_type).addLabel("idx",thread_idx))
+        {}
     } stats;
 
   public:
-     CdrThread();
+     CdrThread(const char *thread_type, int thread_idx);
      ~CdrThread();
-    void clearStats();
     void closefile();
     void getStats(AmArg &arg);
+    void get_queue_len(StatCounterInterface::iterate_func_type f);
+    void get_retry_queue_len(StatCounterInterface::iterate_func_type f);
+    map<string, string> labels;
+
     void showOpenedFiles(AmArg &arg);
     void showRetryQueue(AmArg &arg);
     void postcdr(CdrBase* cdr);
@@ -131,9 +144,50 @@ class CdrWriter {
     CdrWriterCfg config;
     bool paused;
   public:
-    void clearStats();
     void closeFiles();
+
     void getStats(AmArg &arg);
+
+    class GroupContainerProxy
+      : public StatsCountersGroupsContainerInterface
+    {
+        typedef void (CdrWriter::*MemberCallback)(StatCounterInterface::iterate_func_type callback);
+        struct Group
+          : public StatCountersGroupsInterface
+        {
+            CdrWriter *parent;
+            MemberCallback member;
+            Group(CdrWriter *parent, MemberCallback member)
+              : StatCountersGroupsInterface(Gauge),
+                parent(parent),
+                member(member)
+            {}
+
+            void iterate_counters(iterate_counters_callback_type callback) override
+            {
+                (parent->*member)(callback);
+            }
+        } group;
+
+      public:
+        GroupContainerProxy(
+            CdrWriter *parent,
+            MemberCallback member)
+          : group(parent, member)
+        {}
+
+        void operator ()(const string &name, iterate_groups_callback_type callback)
+        {
+            callback(name, group);
+        }
+    };
+
+    GroupContainerProxy get_queue_len_group_proxy;
+    void get_queue_len(StatCounterInterface::iterate_func_type f);
+
+    GroupContainerProxy get_retry_queue_len_group_proxy;
+    void get_retry_queue_len(StatCounterInterface::iterate_func_type f);
+
     void getConfig(AmArg &arg);
     void showOpenedFiles(AmArg &arg);
     void showRetryQueues(AmArg &arg);
@@ -144,6 +198,7 @@ class CdrWriter {
     void stop();
     void setPaused(bool p);
     void setRetryInterval(int retry_interval);
+
     CdrWriter();
     ~CdrWriter();
 };

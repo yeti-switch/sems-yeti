@@ -46,7 +46,6 @@ public:
   void send_and_log_auth_challenge(const AmSipRequest &req, const string &internal_reason,
                                    const string &hdrs);
   void dump_config();
-  void clearStats();
   void clearCache();
   void showCache(AmArg& ret);
   void closeCdrFiles();

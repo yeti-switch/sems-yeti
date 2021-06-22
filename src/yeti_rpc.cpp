@@ -615,9 +615,9 @@ void YetiRpc::GetRegistrationsCount(const AmArg& args, AmArg& ret){
 
 void YetiRpc::ClearStats(const AmArg& args, AmArg& ret){
 	handler_log();
-	router.clearStats();
-	rctl.clearStats();
-	ret = RPC_CMD_SUCC;
+	throw AmSession::Exception(500,"deprecated method");
+	/*rctl.clearStats();
+	ret = RPC_CMD_SUCC;*/
 }
 
 void YetiRpc::ClearCache(const AmArg& args, AmArg& ret){

@@ -46,14 +46,18 @@ const static_field profile_static_fields[] = {
 
 SqlRouter::SqlRouter()
   : Auth(),
-    master_pool(NULL),
-    slave_pool(NULL),
-    cdr_writer(NULL),
-    cache_enabled(false),
-    cache(NULL),
-    mi(5)
+    cache_hits(0), db_hits(0), hits(0),
+    gt_min(0), gt_max(0),
+    gps_max(0), gps_avg(0),
+    mi(5),
+    gpi(0),
+    master_pool(nullptr),
+    slave_pool(nullptr),
+    cdr_writer(nullptr),
+    cache(nullptr),
+    cache_enabled(false)
 {
-  clearStats();
+  time(&mi_start);
 
   INFO("SqlRouter instance[%p] created",this);
 }
@@ -294,7 +298,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg){
         WARN("Slave SQLThread disabled\n");
     }
 
-    cdr_writer = new CdrWriter;
+    cdr_writer = new CdrWriter();
     if (cdr_writer->configure(cdrconfig)){
         ERROR("Cdr writer pool configuration error.");
         return 1;
@@ -667,26 +671,6 @@ void SqlRouter::dump_config()
 void SqlRouter::closeCdrFiles(){
 	if(cdr_writer)
 		cdr_writer->closeFiles();
-}
-
-void SqlRouter::clearStats(){
-  if(cdr_writer)
-    cdr_writer->clearStats();
-  if(master_pool)
-    master_pool->clearStats();
-  if(slave_pool)
-    slave_pool->clearStats();
-
-  time(&mi_start);
-  hits = 0;
-  db_hits = 0;
-  cache_hits = 0;
-  gpi = 0;
-  gt_min = 0;
-  gt_max = 0;
-  gps_max = 0;
-  gps_avg = 0;
-
 }
 
 void SqlRouter::clearCache(){
