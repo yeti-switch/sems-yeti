@@ -138,8 +138,6 @@ bool Yeti::apply_config() {
 
 int Yeti::configure(const std::string& config_buf)
 {
-    cfg_t *confuse_cfg = nullptr;
-
     confuse_cfg = cfg_init(yeti_opts, CFGF_NONE);
     if(!confuse_cfg) {
         ERROR("failed to init cfg opts");
@@ -219,7 +217,7 @@ int Yeti::onLoad()
         return -1;
     }
 
-    if (router.configure(cfg)){
+    if (router.configure(confuse_cfg, cfg)){
         ERROR("SqlRouter configure failed");
         return -1;
     }

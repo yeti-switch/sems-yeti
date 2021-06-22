@@ -60,7 +60,8 @@ struct YetiBase {
     YetiBase(YetiBaseParams &params)
       : router(params.router),
         cdr_list(params.cdr_list),
-        rctl(params.rctl)
+        rctl(params.rctl),
+        confuse_cfg(nullptr)
     { }
 
     SqlRouter &router;
@@ -69,6 +70,7 @@ struct YetiBase {
 
     YetiCfg config;
 
+    cfg_t *confuse_cfg;
     AmConfigReader cfg;
     time_t start_time;
 

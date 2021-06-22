@@ -70,6 +70,7 @@ cfg_opt_t sig_yeti_cdr_opts[] = {
 	DCFG_BOOL(failover_requeue),
 	DCFG_BOOL(serialize_dynamic_fields),
 	DCFG_INT(pool_size),
+	DCFG_INT(auth_pool_size),
 	DCFG_INT(check_interval),
 	DCFG_INT(batch_size),
 	DCFG_INT(batch_timeout),

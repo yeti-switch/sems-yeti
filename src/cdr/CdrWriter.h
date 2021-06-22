@@ -58,6 +58,7 @@ struct CdrWriterCfg
   : public CdrThreadCfg
 {
     unsigned int poolsize;
+    unsigned int auth_pool_size;
     string name;
     int cfg2CdrWrCfg(AmConfigReader& cfg);
 };

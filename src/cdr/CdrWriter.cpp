@@ -114,7 +114,7 @@ void CdrWriter::start()
 		th->start();
 		cdrthreadpool.emplace_back(th);
 	}
-	for(unsigned int i=0;i<config.poolsize;i++) {
+	for(unsigned int i=0;i<config.auth_pool_size;i++) {
 		CdrThread* th = new CdrThread;
 		th->configure(config);
 		th->start();
@@ -219,6 +219,7 @@ void CdrWriter::closeFiles(){
 void CdrWriter::getStats(AmArg &arg){
 	arg["name"] = config.name;
 	arg["poolsize"]= (int)config.poolsize;
+	arg["auth_poolsize"]= (int)config.auth_pool_size;
 	AmArg &cdr_threads = arg["cdr_threads"];
 	AmArg &auth_log_threads = arg["auth_log_threads"];
 	for(auto &t: cdrthreadpool) {

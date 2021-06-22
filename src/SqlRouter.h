@@ -33,7 +33,7 @@ class SqlRouter
 {
 public:
   void getprofiles(const AmSipRequest&,CallCtx &ctx,Auth::auth_id_type auth_id, AmArg *identity_data);
-  int configure(AmConfigReader &cfg);
+  int configure(cfg_t *confuse_cfg, AmConfigReader &cfg);
   int start();
   void stop();
   void align_cdr(Cdr &cdr);

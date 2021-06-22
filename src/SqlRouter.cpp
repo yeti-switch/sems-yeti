@@ -208,95 +208,106 @@ try {
 	return ret;
 }
 
-int SqlRouter::configure(AmConfigReader &cfg){
-
-	CdrWriterCfg cdrconfig;
-	PgConnectionPoolCfg masterpoolcfg,slavepoolcfg;
+int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg){
+    CdrWriterCfg cdrconfig;
+    PgConnectionPoolCfg masterpoolcfg,slavepoolcfg;
 
 #define GET_VARIABLE(var)\
-	if(!cfg.hasParameter(#var)){\
-		ERROR("missed parameter '"#var"'");\
-		return 1;\
-	}\
-	var = cfg.getParameter(#var);
+    if(!cfg.hasParameter(#var)){\
+        ERROR("missed parameter '"#var"'");\
+        return 1;\
+    }\
+    var = cfg.getParameter(#var);
 
-	routing_schema = Yeti::instance().config.routing_schema;
-	GET_VARIABLE(routing_function);
+    routing_schema = Yeti::instance().config.routing_schema;
+    GET_VARIABLE(routing_function);
 
-	GET_VARIABLE(writecdr_schema);
-	GET_VARIABLE(writecdr_function);
-	authlog_function = cfg.getParameter("authlog_function","write_auth_log");
+    GET_VARIABLE(writecdr_schema);
+    GET_VARIABLE(writecdr_function);
+    authlog_function = cfg.getParameter("authlog_function","write_auth_log");
 
 #undef GET_VARIABLE
 
-  if(0==db_configure(cfg)){
-    INFO("SqlRouter::db_configure: config successfuly readed");
-  } else {
-    INFO("SqlRouter::db_configure: config read error");
-    return 1;
-  }
-    
-  cdrconfig.name="cdr";
-  if (0==cdrconfig.cfg2CdrWrCfg(cfg)){
-    cdrconfig.prepared_queries = cdr_prepared_queries;
-    cdrconfig.dyn_fields  = dyn_fields;
-    cdrconfig.db_schema = writecdr_schema;
-    cdrconfig.used_header_fields = used_header_fields;
-    INFO("Cdr writer pool config loaded");
-  } else {
-    INFO("Cdr writer pool config loading error");
-    return 1;
-  }
-  
-  masterpoolcfg.name="master";
-  if(0==masterpoolcfg.cfg2PgCfg(cfg)){
-    masterpoolcfg.prepared_queries = prepared_queries;
-    INFO("Master pool config loaded");
-  } else {
-    ERROR("Master pool config loading error");
-    return 1;
-  }
-  failover_to_slave=cfg.hasParameter("failover_to_slave") ? cfg.getParameterInt("failover_to_slave") : 0;
-  
-  if (1==failover_to_slave){
-    slavepoolcfg.name="slave";
-    if (0==slavepoolcfg.cfg2PgCfg(cfg)){
-      slavepoolcfg.prepared_queries = prepared_queries;
-      INFO("Slave pool config loaded");
-    } else{
-      WARN("Failover to slave enabled but slave config is wrong. Disabling failover");
-      failover_to_slave=0;
+    if(0==db_configure(cfg)){
+        INFO("SqlRouter::db_configure: config successfuly readed");
+    } else {
+        INFO("SqlRouter::db_configure: config read error");
+        return 1;
     }
-  }
 
-  master_pool= new PgConnectionPool;
-  master_pool->set_config(masterpoolcfg);
-  master_pool->add_connections(masterpoolcfg.size);
-  master_pool->dump_config();
-  WARN("Master SQLThread configured\n");
-  if (1==failover_to_slave){
-    slave_pool= new PgConnectionPool(true);
-    slave_pool->set_config(slavepoolcfg);
-    slave_pool->add_connections(slavepoolcfg.size);
-    slave_pool->dump_config();
-    WARN("Slave SQLThread configured\n");
-  } else {
-    WARN("Slave SQLThread disabled\n");
-  }
-  cdr_writer = new CdrWriter;
-  if (cdr_writer->configure(cdrconfig)){
-    ERROR("Cdr writer pool configuration error.");
-	return 1;
-  }
+    cdrconfig.name="cdr";
+    if (0==cdrconfig.cfg2CdrWrCfg(cfg)){
+        cdrconfig.prepared_queries = cdr_prepared_queries;
+        cdrconfig.dyn_fields  = dyn_fields;
+        cdrconfig.db_schema = writecdr_schema;
+        cdrconfig.used_header_fields = used_header_fields;
 
-  cache_enabled = cfg.getParameterInt("profiles_cache_enabled",0);
-  if(cache_enabled){
-    cache_check_interval = cfg.getParameterInt("profiles_cache_check_interval",30);
-	cache_buckets = cfg.getParameterInt("profiles_cache_buckets",65000);
-	cache = new ProfilesCache(used_header_fields,cache_buckets,cache_check_interval);
-  }
+        cfg_t* cdr_section = cfg_getsec(confuse_cfg, "cdr");
+        if(cdr_section) {
+            if(cfg_size(cdr_section, "auth_pool_size")) {
+                cdrconfig.auth_pool_size = cfg_getint(cdr_section, "auth_pool_size");
+            } else {
+                //use pool_size value
+                cdrconfig.auth_pool_size = cdrconfig.poolsize;
+            }
+        }
 
-  return 0;
+        INFO("Cdr writer pool config loaded");
+    } else {
+        INFO("Cdr writer pool config loading error");
+        return 1;
+    }
+
+    masterpoolcfg.name="master";
+    if(0==masterpoolcfg.cfg2PgCfg(cfg)) {
+        masterpoolcfg.prepared_queries = prepared_queries;
+        INFO("Master pool config loaded");
+    } else {
+        ERROR("Master pool config loading error");
+        return 1;
+    }
+    failover_to_slave=cfg.hasParameter("failover_to_slave") ? cfg.getParameterInt("failover_to_slave") : 0;
+
+    if (1==failover_to_slave) {
+        slavepoolcfg.name="slave";
+        if (0==slavepoolcfg.cfg2PgCfg(cfg)) {
+            slavepoolcfg.prepared_queries = prepared_queries;
+            INFO("Slave pool config loaded");
+        } else{
+            WARN("Failover to slave enabled but slave config is wrong. Disabling failover");
+            failover_to_slave=0;
+        }
+    }
+
+    master_pool= new PgConnectionPool;
+    master_pool->set_config(masterpoolcfg);
+    master_pool->add_connections(masterpoolcfg.size);
+    master_pool->dump_config();
+    WARN("Master SQLThread configured\n");
+    if (1==failover_to_slave){
+        slave_pool= new PgConnectionPool(true);
+        slave_pool->set_config(slavepoolcfg);
+        slave_pool->add_connections(slavepoolcfg.size);
+        slave_pool->dump_config();
+        WARN("Slave SQLThread configured\n");
+    } else {
+        WARN("Slave SQLThread disabled\n");
+    }
+
+    cdr_writer = new CdrWriter;
+    if (cdr_writer->configure(cdrconfig)){
+        ERROR("Cdr writer pool configuration error.");
+        return 1;
+    }
+
+    cache_enabled = cfg.getParameterInt("profiles_cache_enabled",0);
+    if(cache_enabled){
+        cache_check_interval = cfg.getParameterInt("profiles_cache_check_interval",30);
+        cache_buckets = cfg.getParameterInt("profiles_cache_buckets",65000);
+        cache = new ProfilesCache(used_header_fields,cache_buckets,cache_check_interval);
+    }
+
+    return 0;
 }
 
 void SqlRouter::update_counters(struct timeval &start_time){
