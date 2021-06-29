@@ -46,7 +46,9 @@ const static_field profile_static_fields[] = {
 
 SqlRouter::SqlRouter()
   : Auth(),
-    db_hits(0), hits(0),
+    db_hits(stat_group(Counter, "yeti", "router_db_hits").addAtomicCounter()),
+    db_hits_time(stat_group(Counter, "yeti", "router_db_hits_time").addAtomicCounter()),
+    hits(stat_group(Counter, "yeti", "router_hits").addAtomicCounter()),
     gt_min(0), gt_max(0),
     gps_max(0), gps_avg(0),
     mi(5),
@@ -55,9 +57,12 @@ SqlRouter::SqlRouter()
     slave_pool(nullptr),
     cdr_writer(nullptr)
 {
-  time(&mi_start);
+    time(&mi_start);
 
-  INFO("SqlRouter instance[%p] created",this);
+    INFO("SqlRouter instance[%p] created",this);
+
+    stat_group(Counter, "yeti", "router_db_hits_time").setHelp(
+        "aggregated get_profiles() requests execution time in msec");
 }
 
 SqlRouter::~SqlRouter()
@@ -95,7 +100,6 @@ int SqlRouter::start()
         WARN("Slave SQLThread started\n");
     }
     cdr_writer->start();
-    start_time = time(NULL);
     return 0;
 };
 
@@ -304,17 +308,16 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg){
 
 void SqlRouter::update_counters(struct timeval &start_time){
     struct timeval now_time,diff_time;
-    time_t now;
     int intervals;
     double diff,gps;
 
     gettimeofday(&now_time,NULL);
+
     //per second
-    now = now_time.tv_sec;
-    diff = difftime(now,mi_start);
+    diff = difftime(now_time.tv_sec,mi_start);
     intervals = diff/mi;
     if(intervals > 0){
-        mi_start = now;
+        mi_start = now_time.tv_sec;
         gps = gpi/(double)mi;
         gps_avg = gps;
         if(gps > gps_max)
@@ -323,13 +326,16 @@ void SqlRouter::update_counters(struct timeval &start_time){
     } else {
        gpi++;
     }
+
     // took
     timersub(&now_time,&start_time,&diff_time);
-	diff = timeval2double(diff_time);
+    diff = timeval2double(diff_time);
     if(diff > gt_max)
         gt_max = diff;
     if(!gt_min || (diff < gt_min))
         gt_min = diff;
+
+    db_hits_time.inc(diff_time.tv_sec + diff_time.tv_usec/1000);
 }
 
 void SqlRouter::getprofiles(
@@ -344,7 +350,7 @@ void SqlRouter::getprofiles(
 
 	DBG("Lookup profile for request: \n %s",req.print().c_str());
 
-	hits++;
+	hits.inc();
 	gettimeofday(&start_time,NULL);
 
 	while (getprofile_fail&&pool) {
@@ -387,7 +393,7 @@ void SqlRouter::getprofiles(
 		ctx.SQLexception = true;
 	} else {
 		update_counters(start_time);
-		db_hits++;
+		db_hits.inc();
 	}
 	return;
 }
@@ -684,14 +690,13 @@ void SqlRouter::showRetryQueues(AmArg &arg)
 void SqlRouter::getStats(AmArg &arg)
 {
     /* SqlRouter stats */
-    arg["uptime"] = difftime(time(NULL),start_time);
     arg["gt_min"] = gt_min;
     arg["gt_max"] = gt_max;
     arg["gps_max"] = gps_max;
     arg["gps_avg"] = gps_avg;
 
-    arg["hits"] = hits;
-    arg["db_hits"] = db_hits;
+    arg["hits"] = static_cast<unsigned int>(hits.get());
+    arg["db_hits"] = static_cast<unsigned int>(db_hits.get());
 
     /* pools stats */
     if(master_pool) {

@@ -66,8 +66,7 @@ public:
 
 private:
   //stats
-  time_t start_time;
-  int db_hits,hits;
+  AtomicCounter &db_hits, &db_hits_time, &hits;
   double gt_min,gt_max;
   double gps_max,gps_avg;
   time_t mi_start;
