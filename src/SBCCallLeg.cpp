@@ -306,8 +306,8 @@ void SBCCallLeg::processAorResolving()
     //check for registered_aor_id in profiles
     std::set<int> aor_ids;
     for(const auto &p : call_ctx->profiles) {
-        if(0==p->disconnect_code_id && 0!=p->registered_aor_id) {
-            aor_ids.emplace(p->registered_aor_id);
+        if(0==p.disconnect_code_id && 0!=p.registered_aor_id) {
+            aor_ids.emplace(p.registered_aor_id);
         }
     }
 
@@ -857,7 +857,7 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
 
     unsigned int profile_idx = 0, sub_profile_idx;
     for(auto it = profiles.begin(); it != profiles.end(); profile_idx++) {
-        SqlCallProfile &p = *(*it);
+        SqlCallProfile &p = *it;
 
         DBG("> process profile idx:%u, disconnect_code_id: %d, registered_aor_id:%d",
             profile_idx, p.disconnect_code_id, p.registered_aor_id);
@@ -898,7 +898,7 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
             SqlCallProfile *cloned_p = p.copy();
             sub_profile_idx++;
             ++it;
-            it = profiles.insert(it, cloned_p);
+            it = profiles.insert(it, *cloned_p);
             DBG("< clone profile %d.0 to %d.%d because user resolved to the multiple AoRs",
                 profile_idx, profile_idx, sub_profile_idx);
 
@@ -922,22 +922,22 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
     profile_idx = 0;
     for(const auto &p: profiles) {
         DBG("profile idx:%u, disconnect_code_id:%d, registered_aor_id:%d, skip_code_id:%d, ruri:'%s', to:'%s', route:'%s'",
-            profile_idx, p->disconnect_code_id,
-            p->registered_aor_id, p->skip_code_id,
-            p->ruri.data(), p->to.data(), p->route.data());
+            profile_idx, p.disconnect_code_id,
+            p.registered_aor_id, p.skip_code_id,
+            p.ruri.data(), p.to.data(), p.route.data());
         profile_idx++;
     }
 
     //at this stage rejecting profile can not be the first one
 
     auto next_profile = call_ctx->current_profile;
-    if((*next_profile)->skip_code_id != 0) {
+    if((*next_profile).skip_code_id != 0) {
         unsigned int internal_code,response_code;
         string internal_reason,response_reason;
 
         //skip profiles with skip_code_id writing CDRs
         do {
-            SqlCallProfile &p = *(*next_profile);
+            SqlCallProfile &p = *next_profile;
             DBG("process profile with skip_code_id: %d",p.skip_code_id);
 
             bool write_cdr = CodesTranslator::instance()->translate_db_code(
@@ -956,7 +956,7 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
             ++next_profile;
 
             if(next_profile == profiles.end() ||
-               (*next_profile)->disconnect_code_id != 0)
+               (*next_profile).disconnect_code_id != 0)
             {
                 DBG("no more profiles or reject profile after the skipped profile. terminate leg");
                 router.write_cdr(call_ctx->cdr, true);
@@ -967,11 +967,11 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
 
             call_ctx->current_profile = next_profile;
             with_cdr_for_write {
-                call_ctx->cdr = new Cdr(*cdr,**next_profile);
+                call_ctx->cdr = new Cdr(*cdr,*next_profile);
                 router.write_cdr(cdr, false);
             }
 
-        } while((*next_profile)->skip_code_id != 0);
+        } while((*next_profile).skip_code_id != 0);
     }
 
     processResourcesAndSdp();
@@ -2559,8 +2559,8 @@ void SBCCallLeg::onIdentityReady()
      //check for registered_aor_id in profiles
      std::set<int> aor_ids;
      for(const auto &p : call_ctx->profiles) {
-         if(0!=p->registered_aor_id) {
-             aor_ids.emplace(p->registered_aor_id);
+         if(0!=p.registered_aor_id) {
+             aor_ids.emplace(p.registered_aor_id);
          }
      }
 

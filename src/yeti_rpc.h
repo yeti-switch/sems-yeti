@@ -60,8 +60,6 @@ class YetiRpc
     rpc_handler DropCall;
     rpc_handler RemoveCall;
     rpc_handler ClearStats;
-    rpc_handler ClearCache;
-    rpc_handler ShowCache;
     rpc_handler GetStats;
     rpc_handler GetConfig;
     rpc_handler GetCall;

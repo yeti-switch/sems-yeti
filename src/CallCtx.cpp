@@ -43,8 +43,8 @@ SqlCallProfile *CallCtx::getFirstProfile(){
 	if(profiles.empty())
 		return NULL;
 	current_profile = profiles.begin();
-	cdr = new Cdr(**current_profile);
-	return *current_profile;
+	cdr = new Cdr(*current_profile);
+	return &(*current_profile);
 }
 
 /*
@@ -57,12 +57,12 @@ SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover
 	auto next_profile = current_profile;
 	int attempts_counter = cdr->attempt_num;
 
-	if((*next_profile)->skip_code_id != 0) {
+	if((*next_profile).skip_code_id != 0) {
 		//skip profiles with skip_code_id writing CDRs
 		do {
 			unsigned int internal_code,response_code;
 			string internal_reason,response_reason;
-			SqlCallProfile &p = *(*next_profile);
+			SqlCallProfile &p = *next_profile;
 
 			DBG("process profile with skip_code_id: %d",p.skip_code_id);
 
@@ -85,7 +85,7 @@ SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover
 			if(next_profile == profiles.end())
 				return nullptr;
 
-		} while((*next_profile)->skip_code_id != 0);
+		} while((*next_profile).skip_code_id != 0);
 	} else {
 		++next_profile;
 		if(next_profile == profiles.end()) {
@@ -94,44 +94,44 @@ SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover
 	}
 
 	if(!early_state){
-		if((*next_profile)->disconnect_code_id!=0){
+		if((*next_profile).disconnect_code_id!=0){
 			//ignore refuse profiles for non early state
 			return nullptr;
 		}
 		if(!resource_failover) {
-			cdr = new Cdr(*cdr,**next_profile);
+			cdr = new Cdr(*cdr,*next_profile);
 			attempts_counter++;
 		} else {
-			cdr->update_sql(**next_profile);
+			cdr->update_sql(*next_profile);
 		}
 	} else {
-		cdr->update_sql(**next_profile);
+		cdr->update_sql(*next_profile);
 	}
 
 	cdr->attempt_num = attempts_counter;
 	current_profile = next_profile;
-	return *current_profile;
+	return &(*current_profile);
 }
 
 SqlCallProfile *CallCtx::getCurrentProfile(){
 	if(current_profile == profiles.end())
 		return NULL;
-	return *current_profile;
+	return &(*current_profile);
 }
 
 int CallCtx::getOverrideId(bool aleg){
 	if(current_profile == profiles.end())
 		return 0;
 	if(aleg){
-		return (*current_profile)->aleg_override_id;
+		return (*current_profile).aleg_override_id;
 	}
-	return (*current_profile)->bleg_override_id;
+	return (*current_profile).bleg_override_id;
 }
 
 ResourceList &CallCtx::getCurrentResourceList(){
 	if(current_profile == profiles.end())
 		throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-	return (*current_profile)->rl;
+	return (*current_profile).rl;
 }
 
 Cdr *CallCtx::getCdrSafeWrite()
@@ -183,10 +183,6 @@ CallCtx::CallCtx(SqlRouter &router):
 
 CallCtx::~CallCtx(){
 	//DBG("%s() this = %p",FUNC_NAME,this);
-	list<SqlCallProfile *>::iterator it = profiles.begin();
-	for(;it != profiles.end();++it){
-		delete (*it);
-	}
 	if(initial_invite)
 		delete initial_invite;
 }

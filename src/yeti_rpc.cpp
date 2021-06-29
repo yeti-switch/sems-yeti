@@ -117,7 +117,6 @@ void YetiRpc::init_rpc_tree()
 			method(show_sensors,"state","show active sensors configuration",showSensorsState,"");*/
 
 		leaf(show,show_router,"router","active router instance");
-			method(show_router,"cache","show callprofile's cache state",ShowCache,"");
 
 			leaf(show_router,show_router_cdrwriter,"cdrwriter","cdrwriter");
 				method(show_router_cdrwriter,"opened-files","show opened csv files",showRouterCdrWriterOpenedFiles,"");
@@ -201,9 +200,6 @@ void YetiRpc::init_rpc_tree()
 
 			leaf(request_router,request_router_resources,"resources","resources actions configuration");
 				method(request_router_resources,"reload","reload resources",reloadResources,"");
-
-			leaf(request_router,request_router_cache,"cache","callprofile's cache");
-				method(request_router_cache,"clear","clear cached profiles",ClearCache,"");
 
 		leaf(request,request_registrations,"registrations","uac registrations");
 			method_arg(request_registrations,"reload","reload reqistrations preferences",reloadRegistrations,
@@ -409,12 +405,6 @@ void YetiRpc::invoke(const string& method, const AmArg& args, AmArg& ret)
 	} else if (method == "clearStats"){
 		INFO ("clearStats received via rpc2di");
 		ClearStats(args,ret);
-	} else if (method == "showCache"){
-		INFO ("showCache received via rpc2di");
-		ShowCache(args,ret);
-	} else if (method == "clearCache"){
-		INFO ("clearCache received via rpc2di");
-		ClearCache(args,ret);
 	} else if (method == "getRegistration"){
 		INFO("getRegistration via rpc2di");
 		GetRegistration(args,ret);
@@ -618,17 +608,6 @@ void YetiRpc::ClearStats(const AmArg& args, AmArg& ret){
 	throw AmSession::Exception(500,"deprecated method");
 	/*rctl.clearStats();
 	ret = RPC_CMD_SUCC;*/
-}
-
-void YetiRpc::ClearCache(const AmArg& args, AmArg& ret){
-	handler_log();
-	router.clearCache();
-	ret = RPC_CMD_SUCC;
-}
-
-void YetiRpc::ShowCache(const AmArg& args, AmArg& ret){
-	handler_log();
-	router.showCache(ret);
 }
 
 void YetiRpc::GetStats(const AmArg& args, AmArg& ret){

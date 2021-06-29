@@ -46,16 +46,14 @@ const static_field profile_static_fields[] = {
 
 SqlRouter::SqlRouter()
   : Auth(),
-    cache_hits(0), db_hits(0), hits(0),
+    db_hits(0), hits(0),
     gt_min(0), gt_max(0),
     gps_max(0), gps_avg(0),
     mi(5),
     gpi(0),
     master_pool(nullptr),
     slave_pool(nullptr),
-    cdr_writer(nullptr),
-    cache(nullptr),
-    cache_enabled(false)
+    cdr_writer(nullptr)
 {
   time(&mi_start);
 
@@ -73,9 +71,6 @@ SqlRouter::~SqlRouter()
   
   if (cdr_writer)
     delete cdr_writer;
-  
-  if (cache_enabled&&cache)
-    delete cache;
 
   INFO("SqlRouter instance[%p] destroyed",this);
 }
@@ -304,13 +299,6 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg){
         return 1;
     }
 
-    cache_enabled = cfg.getParameterInt("profiles_cache_enabled",0);
-    if(cache_enabled){
-        cache_check_interval = cfg.getParameterInt("profiles_cache_check_interval",30);
-        cache_buckets = cfg.getParameterInt("profiles_cache_buckets",65000);
-        cache = new ProfilesCache(used_header_fields,cache_buckets,cache_check_interval);
-    }
-
     return 0;
 }
 
@@ -350,7 +338,6 @@ void SqlRouter::getprofiles(
 {
 	PgConnection *conn = NULL;
 	PgConnectionPool *pool = master_pool;
-	ProfilesCacheEntry *entry = NULL;
 	bool getprofile_fail = true;
 	int refuse_code = 0xffff;
 	struct timeval start_time;
@@ -360,18 +347,11 @@ void SqlRouter::getprofiles(
 	hits++;
 	gettimeofday(&start_time,NULL);
 
-	if(cache_enabled&&cache->get_profiles(&req,ctx.profiles)){
-		DBG("%s() got from cache. %ld profiles in set",FUNC_NAME,ctx.profiles.size());
-		cache_hits++;
-		update_counters(start_time);
-		return;
-	}
-
 	while (getprofile_fail&&pool) {
 	try {
 		conn = pool->getActiveConnection();
 		if(conn!=NULL){
-			entry = _getprofiles(req,conn,auth_id,identity_data);
+			_getprofiles(ctx.profiles,req,conn,auth_id,identity_data);
 			pool->returnConnection(conn);
 			getprofile_fail = false;
 		} else {
@@ -401,23 +381,19 @@ void SqlRouter::getprofiles(
 
 	if(getprofile_fail){
 		ERROR("SQL cant get profiles. Drop request");
-		SqlCallProfile *profile = new SqlCallProfile();
-		profile->disconnect_code_id = refuse_code;
+		ctx.profiles.clear();
+		ctx.profiles.emplace_back();
+		ctx.profiles.back().disconnect_code_id = refuse_code;
 		ctx.SQLexception = true;
-		ctx.profiles.push_back(profile);
 	} else {
 		update_counters(start_time);
 		db_hits++;
-		ctx.profiles = entry->profiles;
-		if(cache_enabled&&timerisset(&entry->expire_time))
-			cache->insert_profile(&req,entry);
-		entry->profiles.clear();
-		delete entry;
 	}
 	return;
 }
 
-ProfilesCacheEntry* SqlRouter::_getprofiles(
+void SqlRouter::_getprofiles(
+	list<SqlCallProfile> &profiles,
 	const AmSipRequest &req,
 	pqxx::connection* conn,
 	Auth::auth_id_type auth_id,
@@ -429,7 +405,6 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(
 
 	pqxx::result r;
 	pqxx::nontransaction tnx(*conn);
-	ProfilesCacheEntry *entry = NULL;
 	auto &gc = Yeti::instance().config;
 	AmArg fields_values;
 
@@ -535,59 +510,36 @@ ProfilesCacheEntry* SqlRouter::_getprofiles(
 	if (r.size()==0)
 		throw GetProfileException(FC_DB_EMPTY_RESPONSE,false);
 
-	entry = new ProfilesCacheEntry();
-
-	if(cache_enabled){
-		//get first callprofile cache_time as cache_time for entire profiles set
-		int cache_time = r[0]["cache_time"].as<int>(0);
-		//DBG("%s() cache_time = %d",FUNC_NAME,cache_time);
-		if(cache_time > 0){
-			//DBG("SqlRouter: entry lifetime is %d seconds",cache_time);
-			gettimeofday(&entry->expire_time,NULL);
-			entry->expire_time.tv_sec+=cache_time;
-		} else {
-			timerclear(&entry->expire_time);
-		}
-	}
-
 	pqxx::result::const_iterator rit = r.begin();
 	for(;rit != r.end();++rit){
 		const pqxx::row &t = (*rit);
 		if(SqlCallProfile::skip(t)){
 			continue;
 		}
-		SqlCallProfile* profile = new SqlCallProfile();
+
+		profiles.emplace_back();
+		SqlCallProfile& profile = profiles.back();
+
 		//read profile
 		try{
-			if(!profile->readFromTuple(t,dyn_fields)){
-				delete profile;
-				delete entry;
+			if(!profile.readFromTuple(t,dyn_fields)){
 				throw GetProfileException(FC_READ_FROM_TUPLE_FAILED,false);
 			}
 		} catch(pqxx::pqxx_exception &e){
 			ERROR("SQL exception while reading from profile tuple: %s.",e.base().what());
-			delete profile;
-			delete entry;
 			throw GetProfileException(FC_READ_FROM_TUPLE_FAILED,false);
 		}
 
 		//evaluate it
-		if(!profile->eval()){
-			delete profile;
-			delete entry;
+		if(!profile.eval()){
 			throw GetProfileException(FC_EVALUATION_FAILED,false);
 		}
-		profile->infoPrint(dyn_fields);
-		//push to ret
-		entry->profiles.push_back(profile);
+		profile.infoPrint(dyn_fields);
 	}
 
-	if(entry->profiles.empty()){
-		delete entry;
+	if(profiles.empty()){
 		throw GetProfileException(FC_DB_EMPTY_RESPONSE,false);
 	}
-
-	return entry;
 #undef invoc_field
 }
 
@@ -673,20 +625,6 @@ void SqlRouter::closeCdrFiles(){
 		cdr_writer->closeFiles();
 }
 
-void SqlRouter::clearCache(){
-	if(cache_enabled && cache){
-		cache->clear();
-	}
-}
-
-void SqlRouter::showCache(AmArg& ret){
-	if(cache_enabled && cache){
-		cache->dump(ret);
-	} else {
-        throw AmSession::Exception(404,"profiles cache is not used");
-	}
-}
-
 void SqlRouter::getConfig(AmArg &arg){
 	AmArg u;
 	arg["config_db"] = dbc.conn_str();
@@ -730,13 +668,6 @@ void SqlRouter::getConfig(AmArg &arg){
 		arg.push("cdrwriter",u);
 		u.clear();
 	}
-
-	arg["cache_enabled"] = cache_enabled;
-	if(cache_enabled){
-		arg["cache_check_interval"] = cache_check_interval;
-		arg["cache_buckets"] = cache_buckets;
-	}
-
 }
 
 void SqlRouter::showOpenedFiles(AmArg &arg){
@@ -750,44 +681,30 @@ void SqlRouter::showRetryQueues(AmArg &arg)
     cdr_writer->showRetryQueues(arg);
 }
 
-void SqlRouter::getStats(AmArg &arg){
-  AmArg underlying_stats;
-      /* SqlRouter stats */
-  arg["uptime"] = difftime(time(NULL),start_time);
-  arg["gt_min"] = gt_min;
-  arg["gt_max"] = gt_max;
-  arg["gps_max"] = gps_max;
-  arg["gps_avg"] = gps_avg;
+void SqlRouter::getStats(AmArg &arg)
+{
+    /* SqlRouter stats */
+    arg["uptime"] = difftime(time(NULL),start_time);
+    arg["gt_min"] = gt_min;
+    arg["gt_max"] = gt_max;
+    arg["gps_max"] = gps_max;
+    arg["gps_avg"] = gps_avg;
 
-  arg["hits"] = hits;
-  arg["db_hits"] = db_hits;
-  if(cache_enabled){
-    arg["cache_hits"] = cache_hits;
-  }
-      /* SqlRouter ProfilesCache stats */
-  if(cache_enabled){
-	//underlying_stats["entries"] = (int)cache->get_count();
-	cache->getStats(underlying_stats);
-	arg.push("profiles_cache",underlying_stats);
-	underlying_stats.clear();
-  }
-      /* pools stats */
-  if(master_pool){
-	master_pool->getStats(underlying_stats);
-	arg.push("master_pool",underlying_stats);
-	underlying_stats.clear();
-  }
-  if(slave_pool){
-	slave_pool->getStats(underlying_stats);
-	arg.push("slave_pool",underlying_stats);
-	underlying_stats.clear();
-  }
-      /* cdr writer stats */
-  if(cdr_writer){
-	cdr_writer->getStats(underlying_stats);
-	arg.push("cdr_writer",underlying_stats);
-	underlying_stats.clear();
-  }
+    arg["hits"] = hits;
+    arg["db_hits"] = db_hits;
+
+    /* pools stats */
+    if(master_pool) {
+        master_pool->getStats(arg["master_pool"]);
+    }
+    if(slave_pool) {
+        slave_pool->getStats(arg["slave_pool"]);
+    }
+
+    /* cdr writer stats */
+    if(cdr_writer) {
+        cdr_writer->getStats(arg["cdr_writer"]);
+    }
 }
 
 static void assertEndCRLF(string& s)

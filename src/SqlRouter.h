@@ -7,7 +7,6 @@
 #include "HeaderFilter.h"
 #include <algorithm>
 #include "cdr/CdrWriter.h"
-#include "hash/ProfilesCache.h"
 #include "db/DbTypes.h"
 #include "cdr/CdrBase.h"
 #include "cdr/AuthCdr.h"
@@ -46,8 +45,6 @@ public:
   void send_and_log_auth_challenge(const AmSipRequest &req, const string &internal_reason,
                                    const string &hdrs);
   void dump_config();
-  void clearCache();
-  void showCache(AmArg& ret);
   void closeCdrFiles();
   void getStats(AmArg &arg);
   void getConfig(AmArg &arg);
@@ -70,7 +67,7 @@ public:
 private:
   //stats
   time_t start_time;
-  int cache_hits,db_hits,hits;
+  int db_hits,hits;
   double gt_min,gt_max;
   double gps_max,gps_avg;
   time_t mi_start;
@@ -80,7 +77,8 @@ private:
   DbConfig dbc;
   int db_configure(AmConfigReader &cfg);
 
-  ProfilesCacheEntry* _getprofiles(
+  void _getprofiles(
+    list<SqlCallProfile> &profiles,
     const AmSipRequest&,
     pqxx::connection*,
     Auth::auth_id_type auth_id,
@@ -91,13 +89,9 @@ private:
   PgConnectionPool *master_pool;
   PgConnectionPool *slave_pool;
   CdrWriter *cdr_writer;
-  ProfilesCache *cache;
 
   vector<UsedHeaderField> used_header_fields;
   int failover_to_slave;
-  int cache_enabled;
-  double cache_check_interval;
-  int cache_buckets;
   string writecdr_schema;
   string writecdr_function;
   string authlog_function;
