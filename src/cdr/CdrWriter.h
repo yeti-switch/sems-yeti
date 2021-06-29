@@ -108,18 +108,18 @@ class CdrThread
         AtomicCounter &db_exceptions;
         AtomicCounter &writed_cdrs;
         AtomicCounter &tried_cdrs;
-        stats_t(const char *thread_type, const string &thread_idx)
+        stats_t(const char *thread_type)
           : db_exceptions(stat_group(Counter, "yeti", "cdr_exceptions").addAtomicCounter()
-                          .addLabel("type",thread_type).addLabel("idx",thread_idx)),
+                          .addLabel("type",thread_type)),
             writed_cdrs(stat_group(Counter, "yeti", "cdr_writed").addAtomicCounter()
-                            .addLabel("type",thread_type).addLabel("idx",thread_idx)),
+                            .addLabel("type",thread_type)),
             tried_cdrs(stat_group(Counter, "yeti", "cdr_tried").addAtomicCounter()
-                            .addLabel("type",thread_type).addLabel("idx",thread_idx))
+                            .addLabel("type",thread_type))
         {}
     } stats;
 
   public:
-     CdrThread(const char *thread_type, int thread_idx);
+     CdrThread(const char *thread_type);
      ~CdrThread();
     void closefile();
     void getStats(AmArg &arg);

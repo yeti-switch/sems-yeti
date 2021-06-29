@@ -115,13 +115,13 @@ void CdrWriter::start()
 {
 	DBG("CdrWriter::start: Starting %d async DB threads",config.poolsize*2);
 	for(unsigned int i=0;i<config.poolsize;i++) {
-		CdrThread* th = new CdrThread("cdr",i);
+		CdrThread* th = new CdrThread("cdr");
 		th->configure(config);
 		th->start();
 		cdrthreadpool.emplace_back(th);
 	}
 	for(unsigned int i=0;i<config.auth_pool_size;i++) {
-		CdrThread* th = new CdrThread("auth", i);
+		CdrThread* th = new CdrThread("auth");
 		th->configure(config);
 		th->start();
 		auth_log_threadpool.emplace_back(th);
@@ -287,15 +287,14 @@ void CdrThread::postcdr(CdrBase* cdr)
 }
 
 
-CdrThread::CdrThread(const char *thread_type, int thread_idx) :
+CdrThread::CdrThread(const char *thread_type) :
 	queue_run(false),stopped(false),
 	masterconn(NULL),slaveconn(NULL),gotostop(false),
 	masteralarm(false),slavealarm(false),db_err(false),
 	paused(false),
-	stats(thread_type, int2str(thread_idx))
+	stats(thread_type)
 {
 	labels.emplace("type", thread_type);
-	labels.emplace("idx", int2str(thread_idx));
 }
 
 CdrThread::~CdrThread()
@@ -371,6 +370,12 @@ void CdrThread::run()
     size_t entries_to_write, no_batch_entries_left;
 
     INFO("Starting CdrWriter thread");
+
+    string tid_str = long2str(_self_tid);
+    labels.emplace("tid",tid_str);
+    stats.db_exceptions.addLabel("tid",tid_str);
+    stats.writed_cdrs.addLabel("tid",tid_str);
+    stats.tried_cdrs.addLabel("tid",tid_str);
 
     setThreadName("yeti-cdr-wr");
     if(!connectdb()){
