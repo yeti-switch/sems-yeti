@@ -2102,7 +2102,7 @@ void SBCCallLeg::updateLocalSdp(AmSdp &sdp)
 {
     // anonymize SDP if configured to do so (we need to have our local media IP,
     // not the media IP of our peer leg there)
-    normalizeSDP(sdp, true, advertisedIP());
+    normalizeSDP(sdp, true, RTPStream()->getLocalAddress());
 
     // remember transcodable payload IDs
     //if (call_profile.transcoder.isActive()) savePayloadIDs(sdp);
@@ -3371,7 +3371,7 @@ void SBCCallLeg::alterHoldRequestImpl(AmSdp &sdp)
         } else {
             // use public IP to be put into connection addresses (overwrite 0.0.0.0
             // there)
-            ::alterHoldRequest(sdp, call_profile.hold_settings.activity(a_leg), advertisedIP());
+            ::alterHoldRequest(sdp, call_profile.hold_settings.activity(a_leg), RTPStream()->getLocalAddress());
         }
     }
 }
@@ -3597,10 +3597,7 @@ bool SBCCallLeg::getSdpOffer(AmSdp& offer){
         DBG("provide saved initial offer for legB");
         offer = call_ctx->bleg_initial_offer;
         auto addr_type = dlg->getOutboundAddrType();
-        m->replaceConnectionAddress(offer,a_leg,
-                                    localMediaIP(addr_type),
-                                    advertisedIP(addr_type),
-                                    addr_type);
+        m->replaceConnectionAddress(offer,a_leg, addr_type);
     }
     offer.origin.sessV = local_sdp.origin.sessV+1; //increase session version. rfc4566 5.2 <sess-version>
     return true;
