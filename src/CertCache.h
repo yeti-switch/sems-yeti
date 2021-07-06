@@ -24,8 +24,8 @@ struct CertCacheEntry {
     };
 
     std::chrono::system_clock::time_point expire_time;
-    vector<uint8_t> cert_binary;
-    Botan::X509_Certificate cert;
+    string response_data;
+    vector<Botan::X509_Certificate> cert_chain;
     string error_str;
     int error_code;
     int error_type;
@@ -44,12 +44,12 @@ struct CertCacheEntry {
         error_type = 0;
         error_code = 0;
         error_str.clear();
-        cert_binary.clear();
-        cert = Botan::X509_Certificate();
+        response_data.clear();
+        cert_chain.clear();
         state = LOADING;
     }
 
-	static string to_string(cert_state state) {
+    static string to_string(cert_state state) {
         switch(state){
         case LOADING: return "loading";
         case LOADED: return "loaded";

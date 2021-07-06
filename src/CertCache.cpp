@@ -46,30 +46,16 @@ void CertCacheEntry::getInfo(AmArg &a, const std::
     a["error_code"] = error_code;
     a["error_type"] = error_type ? Botan::to_string((Botan::ErrorType)error_type) : "";
     a["state"] = CertCacheEntry::to_string(state);
-    try {
-        a["cert_end_time"] = cert.not_after().readable_string();
-    } catch(Botan::Exception&) {
-        a["cert_end_time"] = "";
-    }
-    try {
-        a["cert_start_time"] = cert.not_before().readable_string();
-    } catch(Botan::Exception&) {
-        a["cert_start_time"] = "";
-    }
-    /*try {
-        a["cert_serial"] = cert.subject_info("X509.Certificate.serial")[0];
-    } catch(Botan::Exception&) {
-        a["cert_serial"] = "";
-    }*/
-    try {
-        a["cert_subject_dn"] = cert.subject_dn().to_string();
-    } catch(Botan::Exception&) {
-        a["cert_subject_dn"] = "";
-    }
-    try {
-        a["cert_issuer_dn"] = cert.issuer_dn().to_string();
-    } catch(Botan::Exception&) {
-        a["cert_issuer_dn"] = "";
+
+    auto &cert_chain_amarg = a["cert_chain"];
+    cert_chain_amarg.assertArray();
+    for(const auto &cert: cert_chain) {
+        cert_chain_amarg.push(AmArg());
+        auto &a = cert_chain_amarg.back();
+        a["end_time"] = cert.not_after().readable_string();
+        a["start_time"] = cert.not_before().readable_string();
+        a["subject_dn"] = cert.subject_dn().to_string();
+        a["issuer_dn"] = cert.issuer_dn().to_string();
     }
 }
 
@@ -130,7 +116,7 @@ Botan::Public_Key *CertCache::getPubKey(const string& cert_url)
         return nullptr;
     }
 
-    return it->second.cert.subject_public_key();
+    return it->second.cert_chain[0].subject_public_key();
 }
 
 void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
@@ -150,20 +136,25 @@ void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
         it->second.error_code = resp.code;
         it->second.error_type = (int)Botan::ErrorType::HttpError;
     } else {
-        it->second.cert_binary.resize(resp.data.size());
-        memcpy(it->second.cert_binary.data(), resp.data.c_str(), resp.data.size());
+        auto &entry = it->second;
+        entry.response_data = resp.data;
         try {
-            Botan::X509_Certificate cert(it->second.cert_binary);
-            const Botan::X509_Time& t = cert.not_after();
-            if(t.cmp(Botan::X509_Time(std::chrono::_V2::system_clock::now())) < 0)
-                throw Botan::Exception("certificate expired");
-            it->second.cert = cert;
-            it->second.state = CertCacheEntry::LOADED;
+            pem_iterate(entry.response_data, [&entry](const std::string &cert_data) {
+                entry.cert_chain.emplace_back(Botan::X509_Certificate(
+                    reinterpret_cast<const uint8_t *>(cert_data.c_str()), cert_data.size()));
+                auto &t = entry.cert_chain.back().not_after();
+                if(t.cmp(Botan::X509_Time(std::chrono::_V2::system_clock::now())) < 0)
+                    throw Botan::Exception("certificate expired");
+            });
+
+            if(entry.cert_chain.size())
+                it->second.state = CertCacheEntry::LOADED;
+
         } catch(const Botan::Exception& e) {
-            it->second.state = CertCacheEntry::UNAVAILABLE;
-            it->second.error_str = e.what();
-            it->second.error_code = e.error_code();
-            it->second.error_type = (int)e.error_type();
+            entry.state = CertCacheEntry::UNAVAILABLE;
+            entry.error_str = e.what();
+            entry.error_code = e.error_code();
+            entry.error_type = (int)e.error_type();
         }
     }
 
@@ -221,7 +212,7 @@ void CertCache::reloadTrustedCerts() noexcept
                         //DBG("cert: '%s'", cert_data.data());
                         cert_entry.certs.emplace_back(
                         new Botan::X509_Certificate(
-                        reinterpret_cast<const uint8_t *>(cert_data.c_str()), cert_data.size()));
+                            reinterpret_cast<const uint8_t *>(cert_data.c_str()), cert_data.size()));
                         tmp_cert_store->add_certificate(cert_entry.certs.back());
                     } catch(Botan::Exception &e) {
                         ERROR("CertCache entry %lu '%s' Botan::exception: %s",
@@ -355,10 +346,10 @@ void CertCache::ShowTrustedCerts(AmArg& ret)
         for(auto &cert: cert_entry.certs) {
             certs.push(AmArg());
             auto &a = certs.back();
-            a["cert_end_time"] = cert->not_after().readable_string();
-            a["cert_start_time"] = cert->not_before().readable_string();
-            a["cert_subject_dn"] = cert->subject_dn().to_string();
-            a["cert_issuer_dn"] = cert->issuer_dn().to_string();
+            a["not_after"] = cert->not_after().readable_string();
+            a["not_before"] = cert->not_before().readable_string();
+            a["subject_dn"] = cert->subject_dn().to_string();
+            a["issuer_dn"] = cert->issuer_dn().to_string();
         }
     }
 
