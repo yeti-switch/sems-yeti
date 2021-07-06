@@ -2471,14 +2471,21 @@ void SBCCallLeg::onIdentityReady()
             a["header"] = e.identity.get_parsed_header();
             a["payload"] = e.identity.get_parsed_payload();
 
-            std::unique_ptr<Botan::Public_Key> key(yeti.cert_cache.getPubKey(e.identity.get_x5u_url()));
+            bool cert_is_valid;
+            std::unique_ptr<Botan::Public_Key> key(yeti.cert_cache.getPubKey(
+                e.identity.get_x5u_url(), cert_is_valid));
             if(key.get()) {
-                bool verified = e.identity.verify(key.get(), yeti.cert_cache.getExpires());
-                if(!verified) {
-                    a["error_code"] = e.identity.get_last_error(error_reason);
-                    a["error_reason"] = error_reason;
+                if(cert_is_valid) {
+                    bool verified = e.identity.verify(key.get(), yeti.cert_cache.getExpires());
+                    if(!verified) {
+                        a["error_code"] = e.identity.get_last_error(error_reason);
+                        a["error_reason"] = error_reason;
+                    }
+                    a["verified"] = verified;
+                } else {
+                    a["error_code"] = -1;
+                    a["error_reason"] = "certificate is not valid";
                 }
-                a["verified"] = verified;
             } else {
                 a["error_code"] = -1;
                 a["error_reason"] = "certificate is not available";

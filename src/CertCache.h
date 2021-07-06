@@ -31,6 +31,10 @@ struct CertCacheEntry {
     int error_type;
     cert_state state;
 
+    bool validation_sucessfull;
+    string validation_result;
+    string trust_root_cert;
+
     set<string> defer_sessions;
 
     CertCacheEntry()
@@ -84,7 +88,8 @@ class CertCache
     };
 
     vector<TrustedCertEntry> trusted_certs;
-    vector<Botan::Certificate_Store *> ca; //trusted certificates
+    Botan::Certificate_Store_In_Memory trusted_certs_store;
+    //vector<Botan::Certificate_Store *> ca; //trusted certificates
     std::chrono::system_clock::time_point ca_expire_time;
 
     void renewCertEntry(HashType::value_type &entry);
@@ -107,7 +112,7 @@ class CertCache
     //returns if cert is presented in cache and ready to be used
     bool checkAndFetch(const string& cert_url,
                        const string& session_id);
-    Botan::Public_Key *getPubKey(const string& cert_url);
+    Botan::Public_Key *getPubKey(const string& cert_url, bool &cert_is_valid);
 
     void processHttpReply(const HttpGetResponseEvent& resp);
     void onTimer();

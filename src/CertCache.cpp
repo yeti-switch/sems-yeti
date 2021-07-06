@@ -5,6 +5,7 @@
 
 #include <botan/pk_keys.h>
 #include <botan/data_src.h>
+#include <botan/x509path.h>
 
 #include <chrono>
 
@@ -22,6 +23,10 @@ void CertCacheEntry::getInfo(AmArg &a, const std::
     a["error_type"] = error_type ? Botan::to_string((Botan::ErrorType)error_type) : "";
     a["state"] = CertCacheEntry::to_string(state);
 
+    a["valid"] = validation_sucessfull;
+    a["validation_result"] = validation_result;
+    a["trust_root"] = trust_root_cert;
+
     auto &cert_chain_amarg = a["cert_chain"];
     cert_chain_amarg.assertArray();
     for(const auto &cert: cert_chain) {
@@ -29,8 +34,8 @@ void CertCacheEntry::getInfo(AmArg &a, const std::
         auto &a = cert_chain_amarg.back();
         a["end_time"] = cert.not_after().readable_string();
         a["start_time"] = cert.not_before().readable_string();
-        a["subject_dn"] = cert.subject_dn().to_string();
-        a["issuer_dn"] = cert.issuer_dn().to_string();
+        a["subject"] = cert.subject_dn().to_string();
+        a["issuer"] = cert.issuer_dn().to_string();
     }
 }
 
@@ -79,7 +84,7 @@ bool CertCache::checkAndFetch(const string& cert_url,
     return true;
 }
 
-Botan::Public_Key *CertCache::getPubKey(const string& cert_url)
+Botan::Public_Key *CertCache::getPubKey(const string& cert_url, bool &cert_is_valid)
 {
     AmLock lock(mutex);
     auto it = entries.find(cert_url);
@@ -91,6 +96,7 @@ Botan::Public_Key *CertCache::getPubKey(const string& cert_url)
         return nullptr;
     }
 
+    cert_is_valid = it->second.validation_sucessfull;
     return it->second.cert_chain[0].subject_public_key();
 }
 
@@ -116,14 +122,27 @@ void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
         try {
             Botan::DataSource_Memory in(entry.response_data);
             while(!in.end_of_data()) {
-                entry.cert_chain.emplace_back(in);
-                auto &t = entry.cert_chain.back().not_after();
-                if(t.cmp(Botan::X509_Time(std::chrono::_V2::system_clock::now())) < 0)
-                    throw Botan::Exception("certificate expired");
+                try {
+                    entry.cert_chain.emplace_back(in);
+                    auto &t = entry.cert_chain.back().not_after();
+                    if(t.cmp(Botan::X509_Time(std::chrono::_V2::system_clock::now())) < 0)
+                        throw Botan::Exception("certificate expired");
+                } catch(...) {
+                    //ignore additional certs parsing exceptions
+                    if(entry.cert_chain.empty())
+                        throw;
+                }
             }
 
-            //validate cert
-            //Botan::TLS::Callbacks::tls_verify_cert_chain(cert_chain, ocsp_responses, trusted_roots, usage, "", policy);
+            static Botan::Path_Validation_Restrictions restrictions;
+            auto validation_result = Botan::x509_path_validate(
+                entry.cert_chain, restrictions, trusted_certs_store);
+
+            entry.validation_sucessfull = validation_result.successful_validation();
+            entry.validation_result = validation_result.result_string();
+            if(entry.validation_sucessfull) {
+                entry.trust_root_cert = validation_result.trust_root().subject_dn().to_string();
+            }
 
             if(entry.cert_chain.size())
                 it->second.state = CertCacheEntry::LOADED;
@@ -173,16 +192,20 @@ void CertCache::reloadTrustedCerts() noexcept
         pqxx::work t(c);
         auto r = t.exec("SELECT * FROM load_stir_shaken_trusted_certificates()");
 
-        unique_ptr<Botan::Certificate_Store_In_Memory> tmp_cert_store(new Botan::Certificate_Store_In_Memory());
-        vector<TrustedCertEntry> tmp_trusted_certs;
+        //unique_ptr<Botan::Certificate_Store_In_Memory> tmp_cert_store(new Botan::Certificate_Store_In_Memory());
         pqxx::row q;
+
+        AmLock l(mutex);
+
+        trusted_certs.clear();
+        trusted_certs_store = Botan::Certificate_Store_In_Memory();
 
         for(const auto &row: r) {
             try {
-                tmp_trusted_certs.emplace_back(
+                trusted_certs.emplace_back(
                     row["id"].as<unsigned long>(),
                     row["name"].c_str());
-                auto &cert_entry = tmp_trusted_certs.back();
+                auto &cert_entry = trusted_certs.back();
 
                 string cert_data = row["certificate"].c_str();
                 //split and parse certificates
@@ -190,7 +213,7 @@ void CertCache::reloadTrustedCerts() noexcept
                 while(!in.end_of_data()) {
                     try {
                         cert_entry.certs.emplace_back(new Botan::X509_Certificate(in));
-                        tmp_cert_store->add_certificate(cert_entry.certs.back());
+                        trusted_certs_store.add_certificate(cert_entry.certs.back());
                     } catch(Botan::Exception &e) {
                         ERROR("CertCache entry %lu '%s' Botan::exception: %s",
                             cert_entry.id, cert_entry.name.data(),
@@ -201,16 +224,6 @@ void CertCache::reloadTrustedCerts() noexcept
                 ERROR("CertCache row pqxx_exception: %s ",e.base().what());
             }
         }
-
-        //swap temporary containers with active ones
-        vector<Botan::Certificate_Store *> tmp_ca;
-        tmp_ca.emplace_back(tmp_cert_store.release());
-        {
-            AmLock l(mutex);
-            ca.swap(tmp_ca);
-            trusted_certs.swap(tmp_trusted_certs);
-        }
-        if(!tmp_ca.empty()) delete tmp_ca.back();
 
     } catch(const pqxx::pqxx_exception &e){
         ERROR("CertCache pqxx_exception: %s ",e.base().what());
@@ -325,13 +338,13 @@ void CertCache::ShowTrustedCerts(AmArg& ret)
             auto &a = certs.back();
             a["not_after"] = cert->not_after().readable_string();
             a["not_before"] = cert->not_before().readable_string();
-            a["subject_dn"] = cert->subject_dn().to_string();
-            a["issuer_dn"] = cert->issuer_dn().to_string();
+            a["subject"] = cert->subject_dn().to_string();
+            a["issuer"] = cert->issuer_dn().to_string();
         }
     }
 
     auto &store = ret["store"];
-    for(const auto &dn : ca[0]->all_subjects()) {
+    for(const auto &dn : trusted_certs_store.all_subjects()) {
         store.push(AmArg());
         auto &a = store.back();
         for(const auto &c: dn.contents()) {
