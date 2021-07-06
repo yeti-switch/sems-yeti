@@ -3,12 +3,16 @@
 #include "../cdr/CdrHeaders.h"
 #include "confuse.h"
 #include "AmConfigReader.h"
+#include "../db/DbConfig.h"
 
 struct YetiCfg {
     int pop_id;
     bool use_radius;
     bool early_100_trying;
+
     string routing_schema;
+    DbConfig routing_db_master;
+
     string msg_logger_dir;
     string audio_recorder_dir;
     bool audio_recorder_compress;

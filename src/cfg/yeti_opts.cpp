@@ -23,6 +23,7 @@ char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
 char opt_identity_expires[] = "expires";
 char opt_identity_http_destination[] = "http_destination";
 char opt_identity_certs_cache_ttl[] = "certs_cache_ttl";
+char opt_identity_certs_ca_ttl[] = "certs_ca_ttl";
 
 char opt_func_name_header[] = "header";
 
@@ -144,6 +145,7 @@ cfg_opt_t identity_opts[] {
     CFG_INT(opt_identity_expires, 60,CFGF_NONE),
     CFG_STR(opt_identity_http_destination,0,CFGF_NODEFAULT),
     CFG_INT(opt_identity_certs_cache_ttl, 86400,CFGF_NONE),
+    CFG_INT(opt_identity_certs_ca_ttl, 300 /* 5 min */,CFGF_NONE),
     CFG_END()
 };
 

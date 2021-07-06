@@ -6,7 +6,12 @@
 #include "yeti_opts.h"
 #include "cfg_helpers.h"
 
+#include <fstream>
+
 #define LOG_BUF_SIZE 2048
+
+#define YETI_DEFAULT_AUDIO_RECORDER_DIR "/var/spool/sems/record"
+#define YETI_DEFAULT_LOG_DIR "/var/spool/sems/logdump"
 
 cdr_headers_t cfg_aleg_cdr_headers;
 cdr_headers_t cfg_bleg_reply_cdr_headers;
@@ -39,6 +44,20 @@ int add_bleg_reply_cdr_header(cfg_t */*cfg*/, cfg_opt_t */*opt*/, int argc, cons
     return 0;
 }
 
+static int check_dir_write_permissions(const string &dir)
+{
+    std::ofstream st;
+    string testfile = dir + "/test";
+    st.open(testfile.c_str(),std::ofstream::out | std::ofstream::trunc);
+    if(!st.is_open()){
+        ERROR("can't write test file in '%s' directory",dir.c_str());
+        return 1;
+    }
+    st.close();
+    std::remove(testfile.c_str());
+    return 0;
+}
+
 int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
 {
     core_options_handling = cfg_getbool(cfg, opt_name_core_options_handling);
@@ -49,6 +68,39 @@ int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
     bleg_reply_cdr_headers = cfg_bleg_reply_cdr_headers;
 
     serialize_to_amconfig(cfg, am_cfg);
+
+    if(!am_cfg.hasParameter("pop_id")){
+        ERROR("Missed parameter 'pop_id'");
+        return -1;
+    }
+    pop_id = static_cast<int>(am_cfg.getParameterInt("pop_id"));
+
+    early_100_trying = am_cfg.getParameterInt("early_100_trying",1)==1;
+
+    if(!am_cfg.hasParameter("msg_logger_dir")){
+        ERROR("Missed parameter 'msg_logger_dir'");
+        return -1;
+    }
+    msg_logger_dir = am_cfg.getParameter("msg_logger_dir");
+    if(check_dir_write_permissions(msg_logger_dir))
+        return -1;
+
+    audio_recorder_dir = am_cfg.getParameter("audio_recorder_dir",YETI_DEFAULT_AUDIO_RECORDER_DIR);
+    if(check_dir_write_permissions(audio_recorder_dir))
+        return -1;
+    audio_recorder_compress = am_cfg.getParameterInt("audio_recorder_compress",1)==1;
+
+    log_dir = am_cfg.getParameter("log_dir",YETI_DEFAULT_LOG_DIR);
+    if(check_dir_write_permissions(log_dir))
+        return -1;
+
+    routing_db_master.cfg2dbcfg(am_cfg, "master");
+
+    if(!am_cfg.hasParameter("routing_schema")) {
+        ERROR("Missed parameter 'routing_schema'");
+        return -1;
+    }
+    routing_schema = am_cfg.getParameter("routing_schema");
 
     return 0;
 }

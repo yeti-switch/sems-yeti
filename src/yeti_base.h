@@ -61,7 +61,8 @@ struct YetiBase {
       : router(params.router),
         cdr_list(params.cdr_list),
         rctl(params.rctl),
-        confuse_cfg(nullptr)
+        confuse_cfg(nullptr),
+        cert_cache(config)
     { }
 
     SqlRouter &router;

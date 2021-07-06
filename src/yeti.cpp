@@ -36,9 +36,6 @@
 #define YETI_SIGNATURE "yeti-switch"
 #define YETI_AGENT_SIGNATURE YETI_SIGNATURE " " YETI_VERSION
 
-#define YETI_DEFAULT_AUDIO_RECORDER_DIR "/var/spool/sems/record"
-#define YETI_DEFAULT_LOG_DIR "/var/spool/sems/logdump"
-
 #define LOG_BUF_SIZE 2048
 
 string yeti_auth_feedback_header("X-Yeti-Auth-Error: ");
@@ -86,54 +83,6 @@ Yeti::Yeti(YetiBaseParams &params)
 Yeti::~Yeti()
 {
     stop(true);
-}
-
-static int check_dir_write_permissions(const string &dir)
-{
-    ofstream st;
-    string testfile = dir + "/test";
-    st.open(testfile.c_str(),std::ofstream::out | std::ofstream::trunc);
-    if(!st.is_open()){
-        ERROR("can't write test file in '%s' directory",dir.c_str());
-        return 1;
-    }
-    st.close();
-    std::remove(testfile.c_str());
-    return 0;
-}
-
-bool Yeti::apply_config() {
-    if(!cfg.hasParameter("pop_id")){
-        ERROR("Missed parameter 'pop_id'");
-        return false;
-    }
-    config.pop_id = static_cast<int>(cfg.getParameterInt("pop_id"));
-
-    if(!cfg.hasParameter("routing_schema")) {
-        ERROR("Missed parameter 'routing_schema'");
-        return false;
-    }
-    config.routing_schema = cfg.getParameter("routing_schema");
-    config.early_100_trying = cfg.getParameterInt("early_100_trying",1)==1;
-
-    if(!cfg.hasParameter("msg_logger_dir")){
-        ERROR("Missed parameter 'msg_logger_dir'");
-        return false;
-    }
-    config.msg_logger_dir = cfg.getParameter("msg_logger_dir");
-    if(check_dir_write_permissions(config.msg_logger_dir))
-        return false;
-
-    config.audio_recorder_dir = cfg.getParameter("audio_recorder_dir",YETI_DEFAULT_AUDIO_RECORDER_DIR);
-    if(check_dir_write_permissions(config.audio_recorder_dir))
-        return false;
-    config.audio_recorder_compress = cfg.getParameterInt("audio_recorder_compress",1)==1;
-
-    config.log_dir = cfg.getParameter("log_dir",YETI_DEFAULT_LOG_DIR);
-    if(check_dir_write_permissions(config.log_dir))
-        return false;
-
-    return true;
 }
 
 int Yeti::configure(const std::string& config_buf)
@@ -201,9 +150,6 @@ int Yeti::onLoad()
     }
 
     epoll_link(epoll_fd);
-
-    if(!apply_config())
-        return -1;
 
     calls_show_limit = static_cast<int>(cfg.getParameterInt("calls_show_limit",100));
 

@@ -180,7 +180,11 @@ void YetiRpc::init_rpc_tree()
 		method(show,"aors","show registered AoRs",showAors,"");
 		method(show,"keepalive_contexts","show keepalive contexts",showKeepaliveContexts,"");
 		method(show,"http_sequencer_data","show http sequencer runtime data",showHttpSequencerData,"");
-		method(show, "cert_cache", "show certificates in cache", showCertCacheEntries, "");
+
+		leaf(show,show_cert_cache,"cert_cache","");
+			method(show_cert_cache, "cached", "show cached certificates", showCertCacheEntries, "");
+			method(show_cert_cache, "trusted", "show trusted certificates", showCertCacheTrustedCerts, "");
+
 	/* request */
 	leaf(root,request,"request","modify commands");
 
@@ -1319,5 +1323,10 @@ void YetiRpc::clearCertCacheEntries(const AmArg& arg, AmArg& ret)
 void YetiRpc::renewCertCacheEntries(const AmArg& arg, AmArg& ret)
 {
     ret = cert_cache.RenewCerts(arg);
+}
+
+void YetiRpc::showCertCacheTrustedCerts(const AmArg& arg, AmArg& ret)
+{
+    cert_cache.ShowTrustedCerts(ret);
 }
 

@@ -28,8 +28,6 @@ class Yeti
     AmTimerFd keepalive_timer;
     AmTimerFd cert_cache_timer;
 
-    bool apply_config();
-
   public:
 
     Yeti(YetiBaseParams &params);

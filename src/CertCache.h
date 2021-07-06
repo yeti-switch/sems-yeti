@@ -1,10 +1,18 @@
 #pragma once
 
-#include <unordered_map>
-#include <botan/x509_ca.h>
 #include <ampi/HttpClientAPI.h>
 #include <AmSipMsg.h>
+#include <AmConfigReader.h>
+
+#include "db/DbConfig.h"
+#include "cfg/YetiCfg.h"
+
 #include "confuse.h"
+
+#include <botan/x509_ca.h>
+#include <botan/certstor.h>
+
+#include <unordered_map>
 
 using namespace std;
 
@@ -15,7 +23,6 @@ struct CertCacheEntry {
         UNAVAILABLE
     };
 
-    //time_t expire_time;
     std::chrono::system_clock::time_point expire_time;
     vector<uint8_t> cert_binary;
     Botan::X509_Certificate cert;
@@ -59,16 +66,32 @@ class CertCache
     int expires;
     string http_destination;
     std::chrono::seconds cert_cache_ttl;
+    std::chrono::seconds ca_ttl;
+    YetiCfg &ycfg;
 
     AmMutex mutex;
 
     using HashType = unordered_map<string, CertCacheEntry>;
     HashType entries;
 
+    struct TrustedCertEntry {
+        unsigned long id;
+        string name;
+        vector<shared_ptr<Botan::X509_Certificate>> certs;
+        TrustedCertEntry(unsigned long id, string name)
+          : id(id), name(name)
+        {}
+    };
+
+    vector<TrustedCertEntry> trusted_certs;
+    vector<Botan::Certificate_Store *> ca; //trusted certificates
+    std::chrono::system_clock::time_point ca_expire_time;
+
     void renewCertEntry(HashType::value_type &entry);
+    void reloadTrustedCerts() noexcept;
 
   public:
-    CertCache();
+    CertCache(YetiCfg & ycfg);
     ~CertCache();
 
     int configure(cfg_t *cfg);
@@ -93,6 +116,8 @@ class CertCache
     void ShowCerts(AmArg& ret, const std::chrono::system_clock::time_point &now);
     int ClearCerts(const AmArg& args);
     int RenewCerts(const AmArg& args);
+
+    void ShowTrustedCerts(AmArg& ret);
 };
 
 struct CertCacheResponseEvent

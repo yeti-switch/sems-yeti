@@ -1,9 +1,37 @@
-#include "CertCache.h"
+﻿#include "CertCache.h"
 #include "yeti.h"
 #include <AmSessionContainer.h>
 #include "cfg/yeti_opts.h"
 #include <botan/pk_keys.h>
 #include <chrono>
+
+static void pem_iterate(const string &certificates_pem_data,
+                        std::function<void (const std::string &cert_data)> f)
+{
+    static string pem_label_begin("-----BEGIN");
+    static string pem_label_end("-----END");
+    static string pem_label_end_tail("-----");
+
+    string::size_type pem_start, pem_end = 0;
+    do {
+        pem_start = certificates_pem_data.find(pem_label_begin, pem_end);
+        if(pem_start == string::npos)
+            break;
+
+        pem_end = certificates_pem_data.find(pem_label_end, pem_start);
+        if(pem_end == string::npos)
+            break;
+        pem_end += pem_label_end.size();
+
+        pem_end = certificates_pem_data.find(pem_label_end_tail, pem_end);
+        if(pem_end == string::npos)
+            break;
+        pem_end += pem_label_end_tail.size();
+
+        f(certificates_pem_data.substr(pem_start, pem_end - pem_start));
+
+    } while(true);
+}
 
 void CertCacheEntry::getInfo(AmArg &a, const std::
                              chrono::system_clock::time_point &now)
@@ -45,7 +73,8 @@ void CertCacheEntry::getInfo(AmArg &a, const std::
     }
 }
 
-CertCache::CertCache()
+CertCache::CertCache(YetiCfg & ycfg)
+  : ycfg(ycfg)
 {}
 
 CertCache::~CertCache()
@@ -55,6 +84,7 @@ int CertCache::configure(cfg_t *cfg)
 {
     expires = cfg_getint(cfg, opt_identity_expires);
     cert_cache_ttl = std::chrono::seconds(cfg_getint(cfg, opt_identity_certs_cache_ttl));
+    ca_ttl = std::chrono::seconds(cfg_getint(cfg, opt_identity_certs_ca_ttl));
 
     if(cfg_size(cfg, opt_identity_http_destination)) {
         http_destination = cfg_getstr(cfg, opt_identity_http_destination);
@@ -164,17 +194,83 @@ void CertCache::renewCertEntry(HashType::value_type &entry)
                         YETI_QUEUE_NAME)); //session_id
 }
 
+void CertCache::reloadTrustedCerts() noexcept
+{
+    //TODO: async DB request
+    try {
+        pqxx::connection c(ycfg.routing_db_master.conn_str());
+        c.set_variable("search_path",ycfg.routing_schema+", public");
+
+        pqxx::work t(c);
+        auto r = t.exec("SELECT * FROM load_stir_shaken_trusted_certificates()");
+
+        unique_ptr<Botan::Certificate_Store_In_Memory> tmp_cert_store(new Botan::Certificate_Store_In_Memory());
+        vector<TrustedCertEntry> tmp_trusted_certs;
+        pqxx::row q;
+
+        for(const auto &row: r) {
+            try {
+                tmp_trusted_certs.emplace_back(
+                    row["id"].as<unsigned long>(),
+                    row["name"].c_str());
+                auto &cert_entry = tmp_trusted_certs.back();
+
+                //split and parse certificates
+                pem_iterate(row["certificate"].c_str(), [&tmp_cert_store, &cert_entry](const std::string &cert_data) {
+                    try {
+                        //DBG("cert: '%s'", cert_data.data());
+                        cert_entry.certs.emplace_back(
+                        new Botan::X509_Certificate(
+                        reinterpret_cast<const uint8_t *>(cert_data.c_str()), cert_data.size()));
+                        tmp_cert_store->add_certificate(cert_entry.certs.back());
+                    } catch(Botan::Exception &e) {
+                        ERROR("CertCache entry %lu '%s' Botan::exception: %s",
+                            cert_entry.id, cert_entry.name.data(),
+                            e.what());
+                    }
+                });
+            } catch(const pqxx::pqxx_exception &e) {
+                ERROR("CertCache row pqxx_exception: %s ",e.base().what());
+            }
+        }
+
+        //swap temporary containers with active ones
+        vector<Botan::Certificate_Store *> tmp_ca;
+        tmp_ca.emplace_back(tmp_cert_store.release());
+        {
+            AmLock l(mutex);
+            ca.swap(tmp_ca);
+            trusted_certs.swap(tmp_trusted_certs);
+        }
+        if(!tmp_ca.empty()) delete tmp_ca.back();
+
+    } catch(const pqxx::pqxx_exception &e){
+        ERROR("CertCache pqxx_exception: %s ",e.base().what());
+    } catch(...) {
+        ERROR("CertCache unexpected exception");
+    }
+}
+
 void CertCache::onTimer()
 {
     const auto now(std::chrono::system_clock::now());
-    AmLock lock(mutex);
-    for(auto& entry : entries) {
-        if(entry.second.state==CertCacheEntry::LOADING)
-            continue;
-        if(now > entry.second.expire_time) {
-            renewCertEntry(entry);
+
+    {
+        AmLock lock(mutex);
+        for(auto& entry : entries) {
+            if(entry.second.state==CertCacheEntry::LOADING)
+                continue;
+            if(now > entry.second.expire_time) {
+                renewCertEntry(entry);
+            }
         }
     }
+
+    if(now > ca_expire_time) {
+        reloadTrustedCerts();
+        ca_expire_time = now + ca_ttl;
+    }
+
 }
 
 void CertCache::ShowCerts(AmArg& ret, const std::chrono::system_clock::time_point &now)
@@ -239,5 +335,40 @@ int CertCache::RenewCerts(const AmArg& args)
         }
     }
     return ret;
+}
+
+void CertCache::ShowTrustedCerts(AmArg& ret)
+{
+    AmLock lock(mutex);
+    if(trusted_certs.empty()) return;
+
+    auto &entries = ret["entries"];
+    for(const auto &cert_entry : trusted_certs) {
+        entries.push(AmArg());
+        auto &a = entries.back();
+
+        a["id"] = cert_entry.id;
+        a["name"] = cert_entry.name;
+
+        auto &certs = a["certs"];
+        certs.assertArray();
+        for(auto &cert: cert_entry.certs) {
+            certs.push(AmArg());
+            auto &a = certs.back();
+            a["cert_end_time"] = cert->not_after().readable_string();
+            a["cert_start_time"] = cert->not_before().readable_string();
+            a["cert_subject_dn"] = cert->subject_dn().to_string();
+            a["cert_issuer_dn"] = cert->issuer_dn().to_string();
+        }
+    }
+
+    auto &store = ret["store"];
+    for(const auto &dn : ca[0]->all_subjects()) {
+        store.push(AmArg());
+        auto &a = store.back();
+        for(const auto &c: dn.contents()) {
+            a[c.first] = c.second;
+        }
+    }
 }
 

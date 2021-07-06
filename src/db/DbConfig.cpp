@@ -20,7 +20,7 @@ string DbConfig::info_str(){
 	return ret;
 }
 
-int DbConfig::cfg2dbcfg(AmConfigReader& cfg, string& prefix)
+int DbConfig::cfg2dbcfg(AmConfigReader& cfg, const string& prefix)
 {
   string var;
   var=prefix+"_host";
