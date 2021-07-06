@@ -50,7 +50,7 @@ int CertCache::configure(cfg_t *cfg)
 {
     expires = cfg_getint(cfg, opt_identity_expires);
     cert_cache_ttl = std::chrono::seconds(cfg_getint(cfg, opt_identity_certs_cache_ttl));
-    ca_ttl = std::chrono::seconds(cfg_getint(cfg, opt_identity_certs_ca_ttl));
+    db_refresh_interval = std::chrono::seconds(cfg_getint(cfg, opt_identity_db_refresh_interval));
 
     if(cfg_size(cfg, opt_identity_http_destination)) {
         http_destination = cfg_getstr(cfg, opt_identity_http_destination);
@@ -66,8 +66,12 @@ bool CertCache::checkAndFetch(const string& cert_url,
                                  const string& session_id)
 {
     AmLock lock(mutex);
+    bool repository_is_trusted = isTrustedRepositoryUnsafe(cert_url);
     auto it = entries.find(cert_url);
     if(it == entries.end()) {
+        if(!repository_is_trusted)
+            return true;
+
         auto ret = entries.emplace(cert_url, CertCacheEntry{});
         auto &entry = ret.first;
 
@@ -75,6 +79,12 @@ bool CertCache::checkAndFetch(const string& cert_url,
         renewCertEntry(*entry);
 
         return false;
+    } else {
+        //remove cached entries from non-trusted repositories
+        if(!repository_is_trusted) {
+            entries.erase(it);
+            return true;
+        }
     }
 
     if(it->second.state == CertCacheEntry::LOADING) {
@@ -171,6 +181,15 @@ void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
     it->second.defer_sessions.clear();
 }
 
+bool CertCache::isTrustedRepositoryUnsafe(const string &url)
+{
+    for(const auto &r: trusted_repositories) {
+        if(std::regex_match(url, r.regex))
+            return true;
+    }
+    return false;
+}
+
 void CertCache::renewCertEntry(HashType::value_type &entry)
 {
     entry.second.reset();
@@ -182,7 +201,7 @@ void CertCache::renewCertEntry(HashType::value_type &entry)
                         YETI_QUEUE_NAME)); //session_id
 }
 
-void CertCache::reloadTrustedCerts() noexcept
+void CertCache::reloadDatabaseSettings() noexcept
 {
     //TODO: async DB request
     try {
@@ -192,39 +211,55 @@ void CertCache::reloadTrustedCerts() noexcept
         pqxx::work t(c);
         auto r = t.exec("SELECT * FROM load_stir_shaken_trusted_certificates()");
 
-        //unique_ptr<Botan::Certificate_Store_In_Memory> tmp_cert_store(new Botan::Certificate_Store_In_Memory());
-        pqxx::row q;
+        {
+            AmLock l(mutex);
+            trusted_certs.clear();
+            trusted_certs_store = Botan::Certificate_Store_In_Memory();
 
-        AmLock l(mutex);
+            for(const auto &row: r) {
+                try {
+                    trusted_certs.emplace_back(
+                        row["id"].as<unsigned long>(),
+                        row["name"].c_str());
+                    auto &cert_entry = trusted_certs.back();
 
-        trusted_certs.clear();
-        trusted_certs_store = Botan::Certificate_Store_In_Memory();
-
-        for(const auto &row: r) {
-            try {
-                trusted_certs.emplace_back(
-                    row["id"].as<unsigned long>(),
-                    row["name"].c_str());
-                auto &cert_entry = trusted_certs.back();
-
-                string cert_data = row["certificate"].c_str();
-                //split and parse certificates
-                Botan::DataSource_Memory in(cert_data);
-                while(!in.end_of_data()) {
-                    try {
-                        cert_entry.certs.emplace_back(new Botan::X509_Certificate(in));
-                        trusted_certs_store.add_certificate(cert_entry.certs.back());
-                    } catch(Botan::Exception &e) {
-                        ERROR("CertCache entry %lu '%s' Botan::exception: %s",
-                            cert_entry.id, cert_entry.name.data(),
-                            e.what());
+                    string cert_data = row["certificate"].c_str();
+                    //split and parse certificates
+                    Botan::DataSource_Memory in(cert_data);
+                    while(!in.end_of_data()) {
+                        try {
+                            cert_entry.certs.emplace_back(new Botan::X509_Certificate(in));
+                            trusted_certs_store.add_certificate(cert_entry.certs.back());
+                        } catch(Botan::Exception &e) {
+                            ERROR("CertCache entry %lu '%s' Botan::exception: %s",
+                                cert_entry.id, cert_entry.name.data(),
+                                e.what());
+                        }
                     }
+                } catch(const pqxx::pqxx_exception &e) {
+                    ERROR("CertCache row pqxx_exception: %s ",e.base().what());
                 }
-            } catch(const pqxx::pqxx_exception &e) {
-                ERROR("CertCache row pqxx_exception: %s ",e.base().what());
             }
         }
 
+        r = t.exec("SELECT * FROM load_stir_shaken_trusted_repositories()");
+        {
+            AmLock l(mutex);
+
+            trusted_repositories.clear();
+            for(const auto &row: r) {
+                try {
+                    trusted_repositories.emplace_back(
+                        row["id"].as<unsigned long>(),
+                        row["url_pattern"].c_str(),
+                        row["validate_https_certificate"].as<bool>());
+                } catch(const pqxx::pqxx_exception &e) {
+                    ERROR("CertCache row pqxx_exception: %s ",e.base().what());
+                } catch(std::regex_error& e) {
+                    ERROR("CertCache row regex_error: %s", e.what());
+                }
+            }
+        }
     } catch(const pqxx::pqxx_exception &e){
         ERROR("CertCache pqxx_exception: %s ",e.base().what());
     } catch(...) {
@@ -236,22 +271,29 @@ void CertCache::onTimer()
 {
     const auto now(std::chrono::system_clock::now());
 
+    if(now > db_refresh_expire) {
+        reloadDatabaseSettings();
+        db_refresh_expire = now + db_refresh_interval;
+    }
+
     {
         AmLock lock(mutex);
-        for(auto& entry : entries) {
-            if(entry.second.state==CertCacheEntry::LOADING)
+        auto it = entries.begin();
+        while(it != entries.end()) {
+            if(it->second.state==CertCacheEntry::LOADING) {
+                it++;
                 continue;
-            if(now > entry.second.expire_time) {
-                renewCertEntry(entry);
+            }
+            if(isTrustedRepositoryUnsafe(it->first)) {
+                if(now > it->second.expire_time) {
+                    renewCertEntry(*it);
+                }
+                it++;
+            } else {
+                it = entries.erase(it);
             }
         }
     }
-
-    if(now > ca_expire_time) {
-        reloadTrustedCerts();
-        ca_expire_time = now + ca_ttl;
-    }
-
 }
 
 void CertCache::ShowCerts(AmArg& ret, const std::chrono::system_clock::time_point &now)
@@ -298,21 +340,37 @@ int CertCache::RenewCerts(const AmArg& args)
     AmLock lock(mutex);
 
     if(args.size() == 0) {
-        for(auto& entry : entries) {
-            renewCertEntry(entry);
+        auto it = entries.begin();
+        while(it != entries.end()) {
+            if(isTrustedRepositoryUnsafe(it->first)) {
+                renewCertEntry(*it);
+                it++;
+            } else {
+                it = entries.erase(it);
+            }
         }
         return entries.size();
     }
 
     int ret = 0;
-    for(int i = 0; i < args.size(); i++, ret++) {
-        AmArg& x5urlarg = args[i];
-        auto it = entries.find(x5urlarg.asCStr());
+    for(int i = 0; i < args.size(); i++) {
+        string cert_url(args[i].asCStr());
+        bool repository_is_trusted = isTrustedRepositoryUnsafe(cert_url);
+        auto it = entries.find(cert_url);
         if(it != entries.end()) {
+            if(!repository_is_trusted) {
+                entries.erase(it);
+                continue;
+            }
             renewCertEntry(*it);
+            ret++;
         } else {
-            auto ret = entries.emplace(x5urlarg.asCStr(), CertCacheEntry{});
-            renewCertEntry(*ret.first);
+            if(!repository_is_trusted) {
+                continue;
+            }
+            auto it = entries.emplace(cert_url, CertCacheEntry{});
+            renewCertEntry(*it.first);
+            ret++;
         }
     }
     return ret;
@@ -350,6 +408,21 @@ void CertCache::ShowTrustedCerts(AmArg& ret)
         for(const auto &c: dn.contents()) {
             a[c.first] = c.second;
         }
+    }
+}
+
+void CertCache::ShowTrustedRepositories(AmArg& ret)
+{
+    ret.assertArray();
+
+    AmLock lock(mutex);
+
+    for(const auto &r: trusted_repositories) {
+        ret.push(AmArg());
+        auto &a = ret.back();
+        a["id"] = r.id;
+        a["url_pattern"] = r.url_pattern;
+        a["validate_https_certificate"] = r.validate_https_certificate;
     }
 }
 

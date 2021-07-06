@@ -23,7 +23,7 @@ extern char opt_name_pcap_memory_logger[];
 extern char opt_identity_expires[];
 extern char opt_identity_http_destination[];
 extern char opt_identity_certs_cache_ttl[];
-extern char opt_identity_certs_ca_ttl[];
+extern char opt_identity_db_refresh_interval[];
 
 extern char opt_func_name_header[];
 

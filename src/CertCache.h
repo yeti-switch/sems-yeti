@@ -13,6 +13,7 @@
 #include <botan/certstor.h>
 
 #include <unordered_map>
+#include <regex>
 
 using namespace std;
 
@@ -70,7 +71,7 @@ class CertCache
     int expires;
     string http_destination;
     std::chrono::seconds cert_cache_ttl;
-    std::chrono::seconds ca_ttl;
+    std::chrono::seconds db_refresh_interval;
     YetiCfg &ycfg;
 
     AmMutex mutex;
@@ -86,14 +87,30 @@ class CertCache
           : id(id), name(name)
         {}
     };
-
     vector<TrustedCertEntry> trusted_certs;
     Botan::Certificate_Store_In_Memory trusted_certs_store;
-    //vector<Botan::Certificate_Store *> ca; //trusted certificates
-    std::chrono::system_clock::time_point ca_expire_time;
+    std::chrono::system_clock::time_point db_refresh_expire;
 
+    struct TrustedRepositoryEntry {
+        unsigned long id;
+        string url_pattern;
+        bool validate_https_certificate;
+        std::regex regex;
+        TrustedRepositoryEntry(
+            unsigned long id,
+            string url_pattern,
+            bool validate_https_certificate)
+          : id(id),
+            url_pattern(url_pattern),
+            validate_https_certificate(validate_https_certificate),
+            regex(url_pattern)
+        {}
+    };
+    vector<TrustedRepositoryEntry> trusted_repositories;
+
+    bool isTrustedRepositoryUnsafe(const string &url);
     void renewCertEntry(HashType::value_type &entry);
-    void reloadTrustedCerts() noexcept;
+    void reloadDatabaseSettings() noexcept;
 
   public:
     CertCache(YetiCfg & ycfg);
@@ -123,6 +140,7 @@ class CertCache
     int RenewCerts(const AmArg& args);
 
     void ShowTrustedCerts(AmArg& ret);
+    void ShowTrustedRepositories(AmArg& ret);
 };
 
 struct CertCacheResponseEvent
