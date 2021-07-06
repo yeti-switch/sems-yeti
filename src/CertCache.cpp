@@ -2,36 +2,11 @@
 #include "yeti.h"
 #include <AmSessionContainer.h>
 #include "cfg/yeti_opts.h"
+
 #include <botan/pk_keys.h>
+#include <botan/data_src.h>
+
 #include <chrono>
-
-static void pem_iterate(const string &certificates_pem_data,
-                        std::function<void (const std::string &cert_data)> f)
-{
-    static string pem_label_begin("-----BEGIN");
-    static string pem_label_end("-----END");
-    static string pem_label_end_tail("-----");
-
-    string::size_type pem_start, pem_end = 0;
-    do {
-        pem_start = certificates_pem_data.find(pem_label_begin, pem_end);
-        if(pem_start == string::npos)
-            break;
-
-        pem_end = certificates_pem_data.find(pem_label_end, pem_start);
-        if(pem_end == string::npos)
-            break;
-        pem_end += pem_label_end.size();
-
-        pem_end = certificates_pem_data.find(pem_label_end_tail, pem_end);
-        if(pem_end == string::npos)
-            break;
-        pem_end += pem_label_end_tail.size();
-
-        f(certificates_pem_data.substr(pem_start, pem_end - pem_start));
-
-    } while(true);
-}
 
 void CertCacheEntry::getInfo(AmArg &a, const std::
                              chrono::system_clock::time_point &now)
@@ -139,13 +114,16 @@ void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
         auto &entry = it->second;
         entry.response_data = resp.data;
         try {
-            pem_iterate(entry.response_data, [&entry](const std::string &cert_data) {
-                entry.cert_chain.emplace_back(Botan::X509_Certificate(
-                    reinterpret_cast<const uint8_t *>(cert_data.c_str()), cert_data.size()));
+            Botan::DataSource_Memory in(entry.response_data);
+            while(!in.end_of_data()) {
+                entry.cert_chain.emplace_back(in);
                 auto &t = entry.cert_chain.back().not_after();
                 if(t.cmp(Botan::X509_Time(std::chrono::_V2::system_clock::now())) < 0)
                     throw Botan::Exception("certificate expired");
-            });
+            }
+
+            //validate cert
+            //Botan::TLS::Callbacks::tls_verify_cert_chain(cert_chain, ocsp_responses, trusted_roots, usage, "", policy);
 
             if(entry.cert_chain.size())
                 it->second.state = CertCacheEntry::LOADED;
@@ -206,20 +184,19 @@ void CertCache::reloadTrustedCerts() noexcept
                     row["name"].c_str());
                 auto &cert_entry = tmp_trusted_certs.back();
 
+                string cert_data = row["certificate"].c_str();
                 //split and parse certificates
-                pem_iterate(row["certificate"].c_str(), [&tmp_cert_store, &cert_entry](const std::string &cert_data) {
+                Botan::DataSource_Memory in(cert_data);
+                while(!in.end_of_data()) {
                     try {
-                        //DBG("cert: '%s'", cert_data.data());
-                        cert_entry.certs.emplace_back(
-                        new Botan::X509_Certificate(
-                            reinterpret_cast<const uint8_t *>(cert_data.c_str()), cert_data.size()));
+                        cert_entry.certs.emplace_back(new Botan::X509_Certificate(in));
                         tmp_cert_store->add_certificate(cert_entry.certs.back());
                     } catch(Botan::Exception &e) {
                         ERROR("CertCache entry %lu '%s' Botan::exception: %s",
                             cert_entry.id, cert_entry.name.data(),
                             e.what());
                     }
-                });
+                }
             } catch(const pqxx::pqxx_exception &e) {
                 ERROR("CertCache row pqxx_exception: %s ",e.base().what());
             }
