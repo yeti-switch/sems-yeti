@@ -2485,6 +2485,7 @@ void SBCCallLeg::onIdentityReady()
                 } else {
                     a["error_code"] = -1;
                     a["error_reason"] = "certificate is not valid";
+                    a["verified"] = false;
                 }
             } else {
                 a["error_code"] = -1;
