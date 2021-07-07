@@ -49,6 +49,7 @@ SqlRouter::SqlRouter()
     db_hits(stat_group(Counter, "yeti", "router_db_hits").addAtomicCounter()),
     db_hits_time(stat_group(Counter, "yeti", "router_db_hits_time").addAtomicCounter()),
     hits(stat_group(Counter, "yeti", "router_hits").addAtomicCounter()),
+    active_requests(stat_group(Gauge, "yeti", "router_db_active_requests").addAtomicCounter()),
     gt_min(0), gt_max(0),
     gps_max(0), gps_avg(0),
     mi(5),
@@ -349,6 +350,8 @@ void SqlRouter::getprofiles(
 	struct timeval start_time;
 
 	DBG("Lookup profile for request: \n %s",req.print().c_str());
+
+	UsageCounterHelper u(active_requests);
 
 	hits.inc();
 	gettimeofday(&start_time,NULL);

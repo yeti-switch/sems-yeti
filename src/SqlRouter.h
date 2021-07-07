@@ -27,6 +27,20 @@ struct GetProfileException {
 	GetProfileException(int c, bool h): code(c), fatal(h) {}
 };
 
+class UsageCounterHelper {
+    AtomicCounter &counter;
+  public:
+    UsageCounterHelper(AtomicCounter &counter)
+      : counter(counter)
+    {
+        counter.inc();
+    }
+    ~UsageCounterHelper()
+    {
+        counter.dec();
+    }
+};
+
 class SqlRouter
   : public Auth
 {
@@ -66,7 +80,7 @@ public:
 
 private:
   //stats
-  AtomicCounter &db_hits, &db_hits_time, &hits;
+  AtomicCounter &db_hits, &db_hits_time, &hits, &active_requests;
   double gt_min,gt_max;
   double gps_max,gps_avg;
   time_t mi_start;
