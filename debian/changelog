@@ -1,3 +1,10 @@
+sems-yeti (1.11.19) stable; urgency=medium
+
+  * add sems_yeti_router_db_active_requests metric
+  * CdrWriter: rename metrics label tid -> thread
+
+ -- dev <dev@yeti-switch.org>  Thu, 08 Jul 2021 00:03:56 +0300
+
 sems-yeti (1.11.18) stable; urgency=medium
 
   * add prometheus metrics for routing and CDR databases queries
