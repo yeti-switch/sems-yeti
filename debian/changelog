@@ -1,3 +1,15 @@
+sems-yeti (1.11.18) stable; urgency=medium
+
+  * add prometheus metrics for routing and CDR databases queries
+  * add 'auth_pool_size' option for 'cdr' section
+  * identity: load trusted repositories for certificates from DB
+  * identity: load trusted root certificated from DB
+  * identity: validate certificate chain for tokens signing certificates
+  * SBCCallLeg: initialize early_trying_logger in Bleg constructor (fixes crash)
+  * changes to build with libsems 1.54.x
+
+ -- dev <dev@yeti-switch.org>  Wed, 07 Jul 2021 19:09:34 +0300
+
 sems-yeti (1.11.17) stable; urgency=medium
 
   * get trusted headers from config section 'legb_response_cdr_headers' instead of database query load_trusted_headers()"
