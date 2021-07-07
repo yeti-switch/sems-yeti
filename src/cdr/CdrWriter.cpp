@@ -372,10 +372,10 @@ void CdrThread::run()
     INFO("Starting CdrWriter thread");
 
     string tid_str = long2str(_self_tid);
-    labels.emplace("tid",tid_str);
-    stats.db_exceptions.addLabel("tid",tid_str);
-    stats.writed_cdrs.addLabel("tid",tid_str);
-    stats.tried_cdrs.addLabel("tid",tid_str);
+    labels.emplace("thread",tid_str);
+    stats.db_exceptions.addLabel("thread",tid_str);
+    stats.writed_cdrs.addLabel("thread",tid_str);
+    stats.tried_cdrs.addLabel("thread",tid_str);
 
     setThreadName("yeti-cdr-wr");
     if(!connectdb()){
