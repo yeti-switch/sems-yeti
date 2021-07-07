@@ -199,6 +199,7 @@ SBCCallLeg::SBCCallLeg(
     sdp_session_answer_last_cseq(0),
     global_tag(caller->getGlobalTag()),
     call_ctx(caller->getCallCtx()),
+    early_trying_logger(nullptr),
     auth(nullptr),
     call_profile(caller->getCallProfile()),
     placeholders_hash(caller->getPlaceholders()),
