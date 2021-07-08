@@ -110,6 +110,14 @@ in_memory_msg_logger::log_entry::log_entry(const char* buf_arg, int len_arg,
     }
 }
 
+in_memory_msg_logger::log_entry::~log_entry()
+{
+    delete [] buf;
+    if(method.s && method.len) {
+        free((void*)method.s);
+    }
+}
+
 int in_memory_msg_logger::log(const char* buf, int len,
         sockaddr_storage* src_ip,
         sockaddr_storage* dst_ip,

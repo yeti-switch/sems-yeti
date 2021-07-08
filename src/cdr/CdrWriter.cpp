@@ -357,10 +357,12 @@ void CdrThread::on_stop(){
 	if(masterconn){
 		DBG("CdrWriter: Disconnect master SQL. Backend pid: %d.",masterconn->backendpid());
 		masterconn->disconnect();
+        delete masterconn;
 	}
 	if(slaveconn){
 		DBG("CdrWriter: Disconnect slave SQL. Backend pid: %d.",slaveconn->backendpid());
 		slaveconn->disconnect();
+        delete slaveconn;
 	}
 }
 
