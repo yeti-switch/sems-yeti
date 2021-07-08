@@ -155,7 +155,6 @@ cfg_opt_t yeti_opts[] = {
     DCFG_STR(msg_logger_dir),
     DCFG_STR(audio_recorder_dir),
     DCFG_BOOL(audio_recorder_compress),
-    DCFG_STR(log_dir),
     DCFG_SEC(routing,sig_yeti_routing_opts,CFGF_NONE),
     DCFG_SEC(cdr,sig_yeti_cdr_opts,CFGF_NONE),
     DCFG_SEC(resources,sig_yeti_resources_opts,CFGF_NONE),
