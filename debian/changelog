@@ -1,3 +1,10 @@
+sems-yeti (1.11.20) stable; urgency=medium
+
+  * remove obsolete option 'log_dir'
+  * fix memory leak on enabled pcap_memory_logger
+
+ -- dev <dev@yeti-switch.org>  Thu, 08 Jul 2021 22:21:46 +0300
+
 sems-yeti (1.11.19) stable; urgency=medium
 
   * add sems_yeti_router_db_active_requests metric
