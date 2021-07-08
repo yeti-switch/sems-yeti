@@ -27,6 +27,7 @@ class in_memory_msg_logger: public msg_logger {
                   sockaddr_storage* src_ip_arg,
                   sockaddr_storage* dst_ip_arg,
                   cstring method_arg, int reply_code_arg);
+        ~log_entry();
     };
 
     std::list<log_entry> packets;
