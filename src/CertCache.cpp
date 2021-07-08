@@ -82,7 +82,9 @@ bool CertCache::checkAndFetch(const string& cert_url,
     } else {
         //remove cached entries from non-trusted repositories
         if(!repository_is_trusted) {
-            entries.erase(it);
+            if(it->second.state != CertCacheEntry::LOADING) {
+                entries.erase(it);
+            }
             return true;
         }
     }
