@@ -40,13 +40,6 @@ cfg_opt_t sig_yeti_routing_pool_opts[] = {
 	CFG_END()
 };
 
-cfg_opt_t sig_yeti_routing_cache_opts[] = {
-	DCFG_BOOL(enabled),
-	DCFG_INT(check_interval),
-	DCFG_INT(buckets),
-	CFG_END()
-};
-
 cfg_opt_t sig_yeti_routing_opts[] = {
 	DCFG_STR(schema),
 	DCFG_STR(function),
@@ -54,7 +47,6 @@ cfg_opt_t sig_yeti_routing_opts[] = {
 	DCFG_BOOL(failover_to_slave),
 	DCFG_SEC(master_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
 	DCFG_SEC(slave_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
-	DCFG_SEC(cache,sig_yeti_routing_cache_opts,CFGF_NONE),
 	CFG_END()
 };
 

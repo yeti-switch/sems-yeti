@@ -118,11 +118,6 @@ void YetiCfg::serialize_to_amconfig(cfg_t *y, AmConfigReader &out)
 			apply_pool_cfg(cfg_getsec(r,"master_pool"),"master_",out);
 			//slave pool
 			apply_pool_cfg(cfg_getsec(r,"slave_pool"),"slave_",out);
-			//cache
-			c = cfg_getsec(r,"cache");
-			add2hash(c,"profiles_cache_enabled","enabled",out);
-			add2hash(c,"profiles_cache_check_interval","check_interval",out);
-			add2hash(c,"profiles_cache_buckets","buckets",out);
 
 		//cdr
 		c = cfg_getsec(y,"cdr");
