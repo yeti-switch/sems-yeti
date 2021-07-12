@@ -1,3 +1,9 @@
+sems-yeti (1.11.15p1) stable; urgency=medium
+
+  * fix pcap_memory_logger memory leak
+
+ -- dev <dev@yeti-switch.org>  Mon, 12 Jul 2021 15:00:06 +0300
+
 sems-yeti (1.11.15) stable; urgency=medium
 
   * fix onBLegRefused skipping on negative replies
