@@ -180,6 +180,7 @@ class CdrWriter {
         {
             callback(name, group);
         }
+        bool is_need_delete() { return false; }
     };
 
     GroupContainerProxy get_queue_len_group_proxy;
