@@ -1,3 +1,9 @@
+sems-yeti (1.11.21) stable; urgency=medium
+
+  * CertCache: remove mimetype checking
+
+ -- dev <dev@yeti-switch.org>  Fri, 16 Jul 2021 13:29:33 +0300
+
 sems-yeti (1.11.20) stable; urgency=medium
 
   * remove obsolete option 'log_dir'
