@@ -1,3 +1,9 @@
+sems-yeti (1.11.22) stable; urgency=medium
+
+  * CertCache: show X509v3.{Subject,Authority}KeyIdentifier
+
+ -- dev <dev@yeti-switch.org>  Fri, 16 Jul 2021 15:27:17 +0300
+
 sems-yeti (1.11.21) stable; urgency=medium
 
   * CertCache: remove mimetype checking
