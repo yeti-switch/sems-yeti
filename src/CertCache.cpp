@@ -124,47 +124,41 @@ void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
 
     it->second.expire_time = std::chrono::system_clock::now() + cert_cache_ttl;
 
-    if(resp.mime_type.empty()) {
-        it->second.state = CertCacheEntry::UNAVAILABLE;
-        it->second.error_code = resp.code;
-        it->second.error_type = (int)Botan::ErrorType::HttpError;
-    } else {
-        auto &entry = it->second;
-        entry.response_data = resp.data;
-        try {
-            Botan::DataSource_Memory in(entry.response_data);
-            while(!in.end_of_data()) {
-                try {
-                    entry.cert_chain.emplace_back(in);
-                    auto &t = entry.cert_chain.back().not_after();
-                    if(t.cmp(Botan::X509_Time(std::chrono::_V2::system_clock::now())) < 0)
-                        throw Botan::Exception("certificate expired");
-                } catch(...) {
-                    //ignore additional certs parsing exceptions
-                    if(entry.cert_chain.empty())
-                        throw;
-                }
+    auto &entry = it->second;
+    entry.response_data = resp.data;
+    try {
+        Botan::DataSource_Memory in(entry.response_data);
+        while(!in.end_of_data()) {
+            try {
+                entry.cert_chain.emplace_back(in);
+                auto &t = entry.cert_chain.back().not_after();
+                if(t.cmp(Botan::X509_Time(std::chrono::_V2::system_clock::now())) < 0)
+                    throw Botan::Exception("certificate expired");
+            } catch(...) {
+                //ignore additional certs parsing exceptions
+                if(entry.cert_chain.empty())
+                    throw;
             }
-
-            static Botan::Path_Validation_Restrictions restrictions;
-            auto validation_result = Botan::x509_path_validate(
-                entry.cert_chain, restrictions, trusted_certs_store);
-
-            entry.validation_sucessfull = validation_result.successful_validation();
-            entry.validation_result = validation_result.result_string();
-            if(entry.validation_sucessfull) {
-                entry.trust_root_cert = validation_result.trust_root().subject_dn().to_string();
-            }
-
-            if(entry.cert_chain.size())
-                it->second.state = CertCacheEntry::LOADED;
-
-        } catch(const Botan::Exception& e) {
-            entry.state = CertCacheEntry::UNAVAILABLE;
-            entry.error_str = e.what();
-            entry.error_code = e.error_code();
-            entry.error_type = (int)e.error_type();
         }
+
+        static Botan::Path_Validation_Restrictions restrictions;
+        auto validation_result = Botan::x509_path_validate(
+            entry.cert_chain, restrictions, trusted_certs_store);
+
+        entry.validation_sucessfull = validation_result.successful_validation();
+        entry.validation_result = validation_result.result_string();
+        if(entry.validation_sucessfull) {
+            entry.trust_root_cert = validation_result.trust_root().subject_dn().to_string();
+        }
+
+        if(entry.cert_chain.size())
+            it->second.state = CertCacheEntry::LOADED;
+
+    } catch(const Botan::Exception& e) {
+        entry.state = CertCacheEntry::UNAVAILABLE;
+        entry.error_str = e.what();
+        entry.error_code = e.error_code();
+        entry.error_type = (int)e.error_type();
     }
 
     auto result = it->second.state==CertCacheEntry::LOADED ?
