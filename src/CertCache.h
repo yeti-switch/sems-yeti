@@ -141,6 +141,8 @@ class CertCache
 
     void ShowTrustedCerts(AmArg& ret);
     void ShowTrustedRepositories(AmArg& ret);
+
+    static void serialize_cert_to_amarg(const Botan::X509_Certificate &cert, AmArg &a);
 };
 
 struct CertCacheResponseEvent

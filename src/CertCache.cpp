@@ -31,11 +31,7 @@ void CertCacheEntry::getInfo(AmArg &a, const std::
     cert_chain_amarg.assertArray();
     for(const auto &cert: cert_chain) {
         cert_chain_amarg.push(AmArg());
-        auto &a = cert_chain_amarg.back();
-        a["end_time"] = cert.not_after().readable_string();
-        a["start_time"] = cert.not_before().readable_string();
-        a["subject"] = cert.subject_dn().to_string();
-        a["issuer"] = cert.issuer_dn().to_string();
+        CertCache::serialize_cert_to_amarg(cert, cert_chain_amarg.back());
     }
 }
 
@@ -387,13 +383,9 @@ void CertCache::ShowTrustedCerts(AmArg& ret)
 
         auto &certs = a["certs"];
         certs.assertArray();
-        for(auto &cert: cert_entry.certs) {
+        for(const auto &cert: cert_entry.certs) {
             certs.push(AmArg());
-            auto &a = certs.back();
-            a["not_after"] = cert->not_after().readable_string();
-            a["not_before"] = cert->not_before().readable_string();
-            a["subject"] = cert->subject_dn().to_string();
-            a["issuer"] = cert->issuer_dn().to_string();
+            CertCache::serialize_cert_to_amarg(*cert, certs.back());
         }
     }
 
@@ -422,3 +414,23 @@ void CertCache::ShowTrustedRepositories(AmArg& ret)
     }
 }
 
+void CertCache::serialize_cert_to_amarg(const Botan::X509_Certificate &cert, AmArg &a)
+{
+    a["not_after"] = cert.not_after().readable_string();
+    a["not_before"] = cert.not_before().readable_string();
+    a["subject"] = cert.subject_dn().to_string();
+    a["issuer"] = cert.issuer_dn().to_string();
+    a["fingerprint_sha1"] = cert.fingerprint("SHA-1");
+    auto info_vector = cert.subject_info("X509.Certificate.serial");
+    if(!info_vector.empty()) {
+        a["serial"] = *info_vector.begin();
+    }
+    info_vector = cert.subject_info("X509v3.SubjectKeyIdentifier");
+    if(!info_vector.empty()) {
+        a["subject_key_identifier"] = *info_vector.begin();
+    }
+    info_vector = cert.issuer_info("X509v3.AuthorityKeyIdentifier");
+    if(!info_vector.empty()) {
+        a["authority_key_identifier"] = *info_vector.begin();
+    }
+}
