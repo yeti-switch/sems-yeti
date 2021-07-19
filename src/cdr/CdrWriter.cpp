@@ -71,8 +71,10 @@ CdrWriter::CdrWriter()
     get_queue_len_group_proxy(this, &CdrWriter::get_queue_len),
     get_retry_queue_len_group_proxy(this, &CdrWriter::get_retry_queue_len)
 {
-    statistics::instance()->add_groups_container("yeti_cdr_queue_len", &get_queue_len_group_proxy);
-    statistics::instance()->add_groups_container("yeti_cdr_retry_queue_len", &get_retry_queue_len_group_proxy);
+    statistics::instance()->add_groups_container(
+        "yeti_cdr_queue_len", &get_queue_len_group_proxy, false);
+    statistics::instance()->add_groups_container(
+        "yeti_cdr_retry_queue_len", &get_retry_queue_len_group_proxy, false);
 }
 
 CdrWriter::~CdrWriter()
