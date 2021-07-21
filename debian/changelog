@@ -1,3 +1,9 @@
+sems-yeti (1.11.23) stable; urgency=medium
+
+  * CdrWriter: fix add_groups_container() call
+
+ -- dev <dev@yeti-switch.org>  Wed, 21 Jul 2021 12:08:09 +0300
+
 sems-yeti (1.11.22) stable; urgency=medium
 
   * CertCache: show X509v3.{Subject,Authority}KeyIdentifier
