@@ -130,6 +130,7 @@ class CertCache
     bool checkAndFetch(const string& cert_url,
                        const string& session_id);
     Botan::Public_Key *getPubKey(const string& cert_url, bool &cert_is_valid);
+    bool isTrustedRepository(const string& cert_url);
 
     void processHttpReply(const HttpGetResponseEvent& resp);
     void onTimer();

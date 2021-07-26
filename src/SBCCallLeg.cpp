@@ -2437,20 +2437,35 @@ void SBCCallLeg::onInvite(const AmSipRequest& req)
 
 void SBCCallLeg::addIdentityHdr(const string &header_value)
 {
-    identity_headers.resize(identity_headers.size()+1);
-    auto &e = identity_headers.back();
+    auto &e = identity_headers.emplace_back();
 
     e.raw_header_value = header_value;
     e.parsed = e.identity.parse(header_value);
 
-    if(!e.parsed) return;
+    if(!e.parsed) {
+        string last_error;
+        auto last_errcode = e.identity.get_last_error(last_error);
+        ERROR("[%s] failed to parse identity header: '%s', error:%d(%s)",
+              getLocalTag().data(),
+              e.raw_header_value.data(),
+              last_errcode,
+              last_error.data());
+        return;
+    }
 
     auto &cert_url = e.identity.get_x5u_url();
+    if(cert_url.empty()) {
+        ERROR("[%s] empty x5u in identity header: '%s'",
+              getLocalTag().data(),
+              e.raw_header_value.data());
+        return;
+    }
+
     if(!yeti.cert_cache.checkAndFetch(cert_url, getLocalTag())) {
         DBG("awaited_identity_certs add '%s'", cert_url.data());
         awaited_identity_certs.emplace(cert_url);
     } else {
-        DBG("cert for '%s' has already IN cache", cert_url.data());
+        DBG("cert for '%s' has already in cache or not available", cert_url.data());
     }
 }
 
@@ -2496,6 +2511,10 @@ void SBCCallLeg::onIdentityReady()
                     a["error_reason"] = "certificate is not valid";
                     a["verified"] = false;
                 }
+            } else if(!yeti.cert_cache.isTrustedRepository(e.identity.get_x5u_url())) {
+                a["error_code"] = -1;
+                a["error_reason"] = "x5u is not in trusted repositories";
+                a["verified"] = false;
             } else {
                 a["error_code"] = -1;
                 a["error_reason"] = "certificate is not available";

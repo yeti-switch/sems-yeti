@@ -108,6 +108,12 @@ Botan::Public_Key *CertCache::getPubKey(const string& cert_url, bool &cert_is_va
     return it->second.cert_chain[0].subject_public_key();
 }
 
+bool CertCache::isTrustedRepository(const string& cert_url)
+{
+    AmLock lock(mutex);
+    return isTrustedRepositoryUnsafe(cert_url);
+}
+
 void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
 {
     AmLock lock(mutex);
