@@ -72,6 +72,22 @@ Yeti& Yeti::instance() {
     return *_instance;
 }
 
+Yeti::Counters::Counters()
+  : identity_success(stat_group(Counter,MOD_NAME, "identity_headers_success").addAtomicCounter()),
+    identity_failed_parse(stat_group(Counter,MOD_NAME, "identity_headers_failed").addAtomicCounter()
+        .addLabel("reason","parse_failed")),
+    identity_failed_verify_expired(stat_group(Counter,MOD_NAME, "identity_headers_failed").addAtomicCounter()
+        .addLabel("reason","iat_expired")),
+    identity_failed_verify_signature(stat_group(Counter,MOD_NAME, "identity_headers_failed").addAtomicCounter()
+        .addLabel("reason","wrong_signature")),
+    identity_failed_x5u_not_trusted(stat_group(Counter,MOD_NAME, "identity_headers_failed").addAtomicCounter()
+        .addLabel("reason","x5u_not_trusted")),
+    identity_failed_cert_invalid(stat_group(Counter,MOD_NAME, "identity_headers_failed").addAtomicCounter()
+        .addLabel("reason","cert_invalid")),
+    identity_failed_cert_not_available(stat_group(Counter,MOD_NAME, "identity_headers_failed").addAtomicCounter()
+        .addLabel("reason","cert_not_available"))
+{}
+
 Yeti::Yeti(YetiBaseParams &params)
   : YetiBase(params),
     YetiRadius(*this),

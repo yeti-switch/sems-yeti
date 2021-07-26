@@ -2443,6 +2443,7 @@ void SBCCallLeg::addIdentityHdr(const string &header_value)
     e.parsed = e.identity.parse(header_value);
 
     if(!e.parsed) {
+        yeti.counters.identity_failed_parse.inc();
         string last_error;
         auto last_errcode = e.identity.get_last_error(last_error);
         ERROR("[%s] failed to parse identity header: '%s', error:%d(%s)",
@@ -2455,6 +2456,7 @@ void SBCCallLeg::addIdentityHdr(const string &header_value)
 
     auto &cert_url = e.identity.get_x5u_url();
     if(cert_url.empty()) {
+        yeti.counters.identity_failed_parse.inc();
         ERROR("[%s] empty x5u in identity header: '%s'",
               getLocalTag().data(),
               e.raw_header_value.data());
@@ -2502,20 +2504,38 @@ void SBCCallLeg::onIdentityReady()
                 if(cert_is_valid) {
                     bool verified = e.identity.verify(key.get(), yeti.cert_cache.getExpires());
                     if(!verified) {
-                        a["error_code"] = e.identity.get_last_error(error_reason);
+                        auto error_code = e.identity.get_last_error(error_reason);
+                        switch(error_code) {
+                        case ERR_EXPIRE_TIMEOUT:
+                            yeti.counters.identity_failed_verify_expired.inc();
+                            break;
+                        case ERR_VERIFICATION:
+                            yeti.counters.identity_failed_verify_signature.inc();
+                            break;
+                        }
+                        a["error_code"] = error_code;
                         a["error_reason"] = error_reason;
+                        ERROR("[%s] identity '%s' verification failed: %d/%s",
+                              getLocalTag().data(),
+                              e.raw_header_value.data(),
+                              error_code, error_reason.data());
+                    } else {
+                        yeti.counters.identity_success.inc();
                     }
                     a["verified"] = verified;
                 } else {
+                    yeti.counters.identity_failed_cert_invalid.inc();
                     a["error_code"] = -1;
                     a["error_reason"] = "certificate is not valid";
                     a["verified"] = false;
                 }
             } else if(!yeti.cert_cache.isTrustedRepository(e.identity.get_x5u_url())) {
+                yeti.counters.identity_failed_x5u_not_trusted.inc();
                 a["error_code"] = -1;
                 a["error_reason"] = "x5u is not in trusted repositories";
                 a["verified"] = false;
             } else {
+                yeti.counters.identity_failed_cert_not_available.inc();
                 a["error_code"] = -1;
                 a["error_reason"] = "certificate is not available";
                 a["verified"] = false;

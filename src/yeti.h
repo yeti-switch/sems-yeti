@@ -30,6 +30,17 @@ class Yeti
 
   public:
 
+    struct Counters {
+        AtomicCounter &identity_success;
+        AtomicCounter &identity_failed_parse;
+        AtomicCounter &identity_failed_verify_expired;
+        AtomicCounter &identity_failed_verify_signature;
+        AtomicCounter &identity_failed_x5u_not_trusted;
+        AtomicCounter &identity_failed_cert_invalid;
+        AtomicCounter &identity_failed_cert_not_available;
+        Counters();
+    } counters;
+
     Yeti(YetiBaseParams &params);
     ~Yeti();
 
