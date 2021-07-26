@@ -1,3 +1,12 @@
+sems-yeti (1.11.24) stable; urgency=medium
+
+  * explicit error_reason if x5u is not in trusted repositories
+  * improve logging on identity parse/verify errors
+  * add metric yeti_identity_headers_success 
+  * add metrics yeti_identity_headers_failed with specific reason labels
+
+ -- dev <dev@yeti-switch.org>  Tue, 27 Jul 2021 02:46:03 +0300
+
 sems-yeti (1.11.23) stable; urgency=medium
 
   * CdrWriter: fix add_groups_container() call
