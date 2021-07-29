@@ -641,7 +641,7 @@ int filterSdpOffer(SBCCallLeg *call,
 	DBG_SDP(sdp,"filterSdpOffer_in");
 
 	if(call_profile.rtprelay_enabled) {
-		normalizeSDP(sdp, false, "");
+		normalizeSDP(sdp, false, false);
 		call->normalizeSdpVersion(sdp.origin.sessV, sip_msg.cseq, true);
 	}
 

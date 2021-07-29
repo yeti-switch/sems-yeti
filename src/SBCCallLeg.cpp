@@ -2110,7 +2110,7 @@ void SBCCallLeg::updateLocalSdp(AmSdp &sdp)
 {
     // anonymize SDP if configured to do so (we need to have our local media IP,
     // not the media IP of our peer leg there)
-    normalizeSDP(sdp, true, RTPStream()->getLocalAddress());
+    normalizeSDP(sdp, true, true);
 
     // remember transcodable payload IDs
     //if (call_profile.transcoder.isActive()) savePayloadIDs(sdp);
@@ -3393,34 +3393,46 @@ static void replace_address(SdpConnection &c, const string &ip)
     }
 }
 
-static void alterHoldRequest(AmSdp &sdp, SBCCallProfile::HoldSettings::Activity a, const string &ip)
+static void zerifySdpConnectionAddress(SdpConnection &c)
 {
-    if (!ip.empty()) replace_address(sdp.conn, ip);
-    for (vector<SdpMedia>::iterator m = sdp.media.begin(); m != sdp.media.end(); ++m)
-    {
-        if (!ip.empty()) replace_address(m->conn, ip);
-        m->recv = (a == SBCCallProfile::HoldSettings::sendrecv || a == SBCCallProfile::HoldSettings::recvonly);
-        m->send = (a == SBCCallProfile::HoldSettings::sendrecv || a == SBCCallProfile::HoldSettings::sendonly);
+    static const string zero_ipv4("0.0.0.0");
+    static const string zero_ipv6("::");
+
+    if(c.address.empty())
+        return;
+
+    switch(c.addrType) {
+    case AT_V4:
+        c.address = zero_ipv4;
+        break;
+    case AT_V6:
+        c.address = zero_ipv6;
+        break;
+    default:
+        break;
+    }
+}
+
+static void alterHoldRequest(AmSdp &sdp, SBCCallProfile::HoldSettings::Activity a,
+                             bool zerify_connection_address  = false)
+{
+    if(zerify_connection_address) zerifySdpConnectionAddress(sdp.conn);
+
+    for(auto &m: sdp.media) {
+        if(zerify_connection_address) zerifySdpConnectionAddress(m.conn);
+
+        m.recv = (a == SBCCallProfile::HoldSettings::sendrecv ||
+                  a == SBCCallProfile::HoldSettings::recvonly);
+
+        m.send = (a == SBCCallProfile::HoldSettings::sendrecv ||
+                  a == SBCCallProfile::HoldSettings::sendonly);
     }
 }
 
 void SBCCallLeg::alterHoldRequestImpl(AmSdp &sdp)
 {
-    if (call_profile.hold_settings.mark_zero_connection(a_leg)) {
-        static const string zero("0.0.0.0");
-        ::alterHoldRequest(sdp, call_profile.hold_settings.activity(a_leg), zero);
-    } else {
-        if (getRtpRelayMode() == RTP_Direct) {
-            // we can not put our IP there if not relaying, using empty not to
-            // overwrite existing addresses
-            static const string empty;
-            ::alterHoldRequest(sdp, call_profile.hold_settings.activity(a_leg), empty);
-        } else {
-            // use public IP to be put into connection addresses (overwrite 0.0.0.0
-            // there)
-            ::alterHoldRequest(sdp, call_profile.hold_settings.activity(a_leg), RTPStream()->getLocalAddress());
-        }
-    }
+    ::alterHoldRequest(sdp, call_profile.hold_settings.activity(a_leg),
+                       call_profile.hold_settings.mark_zero_connection(a_leg));
 }
 
 void SBCCallLeg::alterHoldRequest(AmSdp &sdp)

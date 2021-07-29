@@ -41,6 +41,6 @@ int filterMedia(AmSdp& sdp, const vector<FilterEntry>& filter_list);
 
 /** normalize SDP, fixing some common issues and anonymize (IP addresses
  * replaced in such case by advertised_ip) */
-int normalizeSDP(AmSdp& sdp, bool anonymize_sdp, const string &advertised_ip);
+int normalizeSDP(AmSdp& sdp, bool anonymize_sdp, bool replace_origin_address);
 
 #endif
