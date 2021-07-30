@@ -1,3 +1,10 @@
+sems-yeti (1.11.25) stable; urgency=medium
+
+  * SBCCallLeg: remove RTPStream() calls
+    to avoid excess ports usage and AmRtpStream destroy racing
+
+ -- dev <dev@yeti-switch.org>  Fri, 30 Jul 2021 11:31:39 +0300
+
 sems-yeti (1.11.24) stable; urgency=medium
 
   * explicit error_reason if x5u is not in trusted repositories
