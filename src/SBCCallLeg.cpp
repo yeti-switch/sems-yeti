@@ -2604,7 +2604,6 @@ void SBCCallLeg::onIdentityReady()
                  global_tag = call_profile.global_tag;
              }
              cdr->update_init_aleg(getLocalTag(),global_tag,uac_req.callid);
-             cdr->update_with_sip_request(uac_req, yeti.config.aleg_cdr_headers);
 
              router.write_cdr(cdr,true);
          } else {
