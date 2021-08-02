@@ -2596,8 +2596,16 @@ void SBCCallLeg::onIdentityReady()
 
      ctx.call_profile = profile;
      if(router.check_and_refuse(profile,cdr,uac_req,ctx,true)) {
-         cdr->dump_level_id = 0; //override dump_level_id. we have no logging at this stage
          if(!call_ctx->SQLexception) { //avoid to write cdr on failed getprofile()
+             cdr->dump_level_id = 0; //override dump_level_id. we have no logging at this stage
+             if(call_profile.global_tag.empty()) {
+                 global_tag = getLocalTag();
+             } else {
+                 global_tag = call_profile.global_tag;
+             }
+             cdr->update_init_aleg(getLocalTag(),global_tag,uac_req.callid);
+             cdr->update_with_sip_request(uac_req, yeti.config.aleg_cdr_headers);
+
              router.write_cdr(cdr,true);
          } else {
              delete cdr;
