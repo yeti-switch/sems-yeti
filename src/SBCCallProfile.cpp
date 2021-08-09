@@ -397,7 +397,7 @@ bool SBCCallProfile::evaluate(ParamReplacerCtx& ctx,
 
 bool SBCCallProfile::evaluateOutboundInterface() {
   if (outbound_interface == "default") {
-    outbound_interface_value = 0;
+    outbound_interface_value = -1;
   } else {
     map<string,unsigned short>::const_iterator name_it =
       AmConfig.sip_if_names.find(outbound_interface);
