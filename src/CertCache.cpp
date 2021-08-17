@@ -48,6 +48,20 @@ int CertCache::configure(cfg_t *cfg)
     cert_cache_ttl = std::chrono::seconds(cfg_getint(cfg, opt_identity_certs_cache_ttl));
     db_refresh_interval = std::chrono::seconds(cfg_getint(cfg, opt_identity_db_refresh_interval));
 
+    if(cfg_size(cfg, opt_identity_certs_cache_failed_ttl)) {
+        cert_cache_failed_ttl =
+            std::chrono::seconds(cfg_getint(cfg, opt_identity_certs_cache_failed_ttl));
+    } else {
+        cert_cache_failed_ttl = cert_cache_ttl;
+    }
+
+    if(cfg_size(cfg, opt_identity_certs_cache_failed_verify_ttl)) {
+        cert_cache_failed_verify_ttl =
+            std::chrono::seconds(cfg_getint(cfg, opt_identity_certs_cache_failed_verify_ttl));
+    } else {
+        cert_cache_failed_verify_ttl = cert_cache_failed_ttl;
+    }
+
     if(cfg_size(cfg, opt_identity_http_destination)) {
         http_destination = cfg_getstr(cfg, opt_identity_http_destination);
     } else {
@@ -124,10 +138,9 @@ void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
         return;
     }
 
-    it->second.expire_time = std::chrono::system_clock::now() + cert_cache_ttl;
-
     auto &entry = it->second;
     entry.response_data = resp.data;
+    entry.validation_sucessfull = false;
     try {
         Botan::DataSource_Memory in(entry.response_data);
         while(!in.end_of_data()) {
@@ -161,6 +174,19 @@ void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
         entry.error_str = e.what();
         entry.error_code = e.error_code();
         entry.error_type = (int)e.error_type();
+    }
+
+    if(entry.state==CertCacheEntry::LOADED) {
+        if(entry.validation_sucessfull) {
+            entry.expire_time =
+                std::chrono::system_clock::now() + cert_cache_ttl;
+        } else {
+            entry.expire_time =
+                std::chrono::system_clock::now() + cert_cache_failed_verify_ttl;
+        }
+    } else {
+        entry.expire_time =
+            std::chrono::system_clock::now() + cert_cache_failed_ttl;
     }
 
     auto result = it->second.state==CertCacheEntry::LOADED ?

@@ -71,6 +71,8 @@ class CertCache
     int expires;
     string http_destination;
     std::chrono::seconds cert_cache_ttl;
+    std::chrono::seconds cert_cache_failed_ttl;
+    std::chrono::seconds cert_cache_failed_verify_ttl;
     std::chrono::seconds db_refresh_interval;
     YetiCfg &ycfg;
 
