@@ -649,8 +649,8 @@ string replaceParameters(const string& s,
 	} break;
 
 	default: {
-	  WARN("unknown replace pattern $%c%c\n",
-	       s[p], s[p+1]);
+	  WARN("unknown replace pattern $%c%c while replacing %s with value '%s'",
+	       s[p], s[p+1], r_type, s.c_str());
 	}; break;
 	};
 
