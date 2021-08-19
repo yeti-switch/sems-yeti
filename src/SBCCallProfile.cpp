@@ -367,20 +367,6 @@ bool SBCCallProfile::evaluate(ParamReplacerCtx& ctx,
 
   REPLACE_NONEMPTY_STR(append_headers);
 
-  if (auth_enabled) {
-    auth_credentials.user = ctx.replaceParameters(auth_credentials.user, 
-						  "auth_user", req);
-    auth_credentials.pwd = ctx.replaceParameters(auth_credentials.pwd, 
-						 "auth_pwd", req);
-  }
-  
-  if (auth_aleg_enabled) {
-    auth_aleg_credentials.user = ctx.replaceParameters(auth_aleg_credentials.user,
-						       "auth_aleg_user", req);
-    auth_aleg_credentials.pwd = ctx.replaceParameters(auth_aleg_credentials.pwd, 
-						      "auth_aleg_pwd", req);
-  }
-
   REPLACE_IFACE_SIP(outbound_interface, outbound_interface_value);
 
   if (!hold_settings.evaluate(ctx,req)) return false;
