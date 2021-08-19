@@ -1,3 +1,10 @@
+sems-yeti (1.11.29) stable; urgency=medium
+
+  * SBCCallProfile: remove placeholders processing in auth user/pwd
+  * ParamReplacer: verbose warning on unknown pattern
+
+ -- dev <dev@yeti-switch.org>  Thu, 19 Aug 2021 19:18:08 +0300
+
 sems-yeti (1.11.28) stable; urgency=medium
 
   * separate TTLs for non-verified and failed certs
