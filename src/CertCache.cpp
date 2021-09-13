@@ -6,6 +6,7 @@
 #include <botan/pk_keys.h>
 #include <botan/data_src.h>
 #include <botan/x509path.h>
+#include "botan/x509_ext.h"
 
 #include <chrono>
 
@@ -464,5 +465,35 @@ void CertCache::serialize_cert_to_amarg(const Botan::X509_Certificate &cert, AmA
     info_vector = cert.issuer_info("X509v3.AuthorityKeyIdentifier");
     if(!info_vector.empty()) {
         a["authority_key_identifier"] = *info_vector.begin();
+    }
+
+    if(const Botan::Cert_Extension::TNAuthList *tn_auth_list =
+       cert.v3_extensions().get_extension_object_as<Botan::Cert_Extension::TNAuthList>())
+    {
+        AmArg &tn_list = a["tn_auth_list"];
+        tn_list.assertArray();
+        for(const auto &e:  tn_auth_list->get_entries()) {
+            tn_list.push(AmArg());
+            auto &tn = tn_list.back();
+            tn.assertStruct();
+            switch(e.get_type()) {
+            case Botan::Cert_Extension::TNAuthList::TNEntry::TN_ServiceProviderCode:
+                tn["spc"] = e.getServiceProviderCode();
+                break;
+            case Botan::Cert_Extension::TNAuthList::TNEntry::TN_TelephoneNumberRange: {
+                auto &ranges = tn["range"];
+                ranges.assertArray();
+                for(auto &range : e.getTelephoneNumberRange()) {
+                    ranges.push(AmArg());
+                    auto &r = ranges.back();
+                    r["start"] = range.start;
+                    r["count"] = range.count;
+                }
+            } break;
+            case Botan::Cert_Extension::TNAuthList::TNEntry::TN_TelephoneNumber:
+                tn["one"] = e.getTelephoneNumber();
+                break;
+            }
+        }
     }
 }
