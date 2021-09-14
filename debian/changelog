@@ -1,3 +1,9 @@
+sems-yeti (1.11.30) stable; urgency=medium
+
+  * CertCache: show TNAuthList
+
+ -- dev <dev@yeti-switch.org>  Tue, 14 Sep 2021 11:01:21 +0300
+
 sems-yeti (1.11.29) stable; urgency=medium
 
   * SBCCallProfile: remove placeholders processing in auth user/pwd
