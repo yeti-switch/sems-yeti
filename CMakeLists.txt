@@ -22,7 +22,7 @@ list(APPEND CMAKE_C_FLAGS_DEBUG -D_DEBUG)
 
 add_definitions("-D__FILENAME__='\"yeti:$(subst ${CMAKE_CURRENT_SOURCE_DIR}/src/,,$(abspath $<))\"'")
 add_definitions(${SEMS_CFLAGS})
-add_definitions(-std=c++2a -Wno-deprecated)
+add_definitions(-std=c++2a -Wno-deprecated -g)
 
 execute_process(
 	COMMAND bash "-c" "head -n 1 changelog | sed -e 's/^[^(]*(\\([^)]*\\)).*/\\1/'"
