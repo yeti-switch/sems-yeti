@@ -156,7 +156,7 @@ void CdrWriter::postcdr(CdrBase* cdr )
 
 void CdrWriter::post_auth_log(CdrBase *cdr)
 {
-	auth_log_threadpool[cdr->cdr_born_time.tv_usec % config.poolsize]->postcdr(cdr);
+	auth_log_threadpool[cdr->cdr_born_time.tv_usec % config.auth_pool_size]->postcdr(cdr);
 }
 
 void CdrWriter::getConfig(AmArg &arg){
