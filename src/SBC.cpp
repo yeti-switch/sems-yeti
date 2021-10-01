@@ -88,9 +88,11 @@ void assertEndCRLF(string& s) {
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-SBCCallLeg* CallLegCreator::create(fake_logger *logger)
+SBCCallLeg* CallLegCreator::create(fake_logger *logger,
+                                   bool require_identity_parsing,
+                                   Auth::auth_id_type auth_result_id)
 {
-    return new SBCCallLeg(logger, new AmSipDialog());
+    return new SBCCallLeg(logger, require_identity_parsing, auth_result_id, new AmSipDialog());
 }
 
 SBCCallLeg* CallLegCreator::create(SBCCallLeg* caller)
@@ -145,7 +147,7 @@ int SBCFactory::onLoad()
 
 int SBCFactory::configure(const std::string& config)
 {
-    yeti.reset(Yeti::create_instance(YetiBaseParams(router,cdr_list,rctl)));
+    yeti.reset(Yeti::create_instance());
 
     if(yeti->configure(config))
         return -1;
@@ -188,7 +190,7 @@ void SBCFactory::send_auth_error_reply(
         static_cast<unsigned int>(ret[0].asInt()),
         ret[1].asCStr(),
         hdr + ret[2].asCStr());
-    router.log_auth(req,false,ret);
+    yeti->router.log_auth(req,false,ret);
 }
 
 void SBCFactory::send_and_log_auth_challenge(
@@ -200,7 +202,7 @@ void SBCFactory::send_and_log_auth_challenge(
     if(auth_feedback && auth_feedback_code) {
         hdrs = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
     }
-    router.send_and_log_auth_challenge(req,internal_reason, hdrs);
+    yeti->router.send_and_log_auth_challenge(req,internal_reason, hdrs);
 }
 
 AmSession* SBCFactory::onInvite(
@@ -214,12 +216,53 @@ AmSession* SBCFactory::onInvite(
     if(yeti->config.early_100_trying)
         answer_100_trying(req,early_trying_logger);
 
-    SBCCallLeg* leg = callLegCreator->create(early_trying_logger);
+    PROF_START(pre_auth);
+    int pre_auth_result = yeti->orig_pre_auth.onInvite(req);
+    PROF_END(pre_auth);
+    PROF_PRINT("orig pre auth", pre_auth);
+    DBG("pre auth result: %d", pre_auth_result);
+    if(!pre_auth_result) {
+        DBG("request rejected by origination pre auth");
+        AmSipDialog::reply_error(req, 403, "Forbidden");
+        dec_ref(early_trying_logger);
+        return nullptr;
+    }
+
+    Auth::auth_id_type auth_result_id = Auth::NO_AUTH;
+    if(pre_auth_result&OriginationPreAuth::RequireAuth) {
+        AmArg ret;
+        auth_result_id = yeti->router.check_request_auth(req,ret);
+        if(auth_result_id > 0) {
+            DBG("successfully authorized with id %d",auth_result_id);
+            yeti->router.log_auth(req,true,ret,auth_result_id);
+        } else if(auth_result_id < 0) {
+            DBG("auth error. reply with 401");
+            switch(-auth_result_id) {
+            case Auth::UAC_AUTH_ERROR:
+                send_auth_error_reply(req, ret, -auth_result_id);
+                break;
+            default:
+                send_and_log_auth_challenge(req,ret.asCStr(), -auth_result_id);
+                break;
+            }
+
+            dec_ref(early_trying_logger);
+            return nullptr;
+        }
+    }
+
+    SBCCallLeg* leg = callLegCreator->create(
+        early_trying_logger,
+        pre_auth_result&OriginationPreAuth::RequireIdentityParsing,
+        auth_result_id);
+
     if(!leg) {
         DBG("failed to create B2B leg");
         dec_ref(early_trying_logger);
         return nullptr;
     }
+
+    /* not functional here after DB routing was moved to the SBCCallLeg
 
     SBCCallProfile& call_profile = leg->getCallProfile();
 
@@ -236,7 +279,7 @@ AmSession* SBCFactory::onInvite(
             leg->setAuthHandler(h);
             DBG("uac auth enabled for caller session.\n");
         }
-    }
+    }*/
 
     return leg;
 }
@@ -253,7 +296,7 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
 
     if(registrar_enabled && req.method == SIP_METH_REGISTER) {
         AmArg ret;
-        Auth::auth_id_type auth_id = router.check_request_auth(req,ret);
+        Auth::auth_id_type auth_id = yeti->router.check_request_auth(req,ret);
 
         if(auth_id == Auth::NO_AUTH) {
             send_and_log_auth_challenge(req,"no Authorization header");
@@ -275,7 +318,7 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
         }
 
         DBG("REGISTER successfully authorized with id %d",auth_id);
-        router.log_auth(req,true,ret,auth_id);
+        yeti->router.log_auth(req,true,ret,auth_id);
         processAuthorizedRegister(req, auth_id);
         return;
     }

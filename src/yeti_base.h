@@ -6,6 +6,7 @@
 #include "hash/CdrList.h"
 #include "resources/ResourceControl.h"
 #include "CertCache.h"
+#include "OriginationPreAuth.h"
 #include "RegistrarRedisConnection.h"
 #include "cdr/CdrHeaders.h"
 #include "cfg/YetiCfg.h"
@@ -41,33 +42,15 @@ static const string YETI_QUEUE_NAME(MOD_NAME);
 
 #endif
 
-struct YetiBaseParams {
-    SqlRouter &router;
-    CdrList &cdr_list;
-    ResourceControl &rctl;
-
-    YetiBaseParams(
-        SqlRouter &router,
-        CdrList &cdr_list,
-        ResourceControl &rctl)
-      : router(router),
-        cdr_list(cdr_list),
-        rctl(rctl)
-    { }
-};
-
 struct YetiBase {
-    YetiBase(YetiBaseParams &params)
-      : router(params.router),
-        cdr_list(params.cdr_list),
-        rctl(params.rctl),
-        confuse_cfg(nullptr),
-        cert_cache(config)
+    YetiBase()
+      : confuse_cfg(nullptr),
+        orig_pre_auth(config)
     { }
 
-    SqlRouter &router;
-    CdrList &cdr_list;
-    ResourceControl &rctl;
+    SqlRouter router;
+    CdrList cdr_list;
+    ResourceControl rctl;
 
     YetiCfg config;
 
@@ -79,4 +62,5 @@ struct YetiBase {
     HttpSequencer http_sequencer;
     OptionsProberManager options_prober_manager;
     CertCache cert_cache;
+    OriginationPreAuth orig_pre_auth;
 };

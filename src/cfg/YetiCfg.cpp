@@ -61,6 +61,7 @@ int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
 {
     core_options_handling = cfg_getbool(cfg, opt_name_core_options_handling);
     pcap_memory_logger = cfg_getbool(cfg, opt_name_pcap_memory_logger);
+    db_refresh_interval = std::chrono::seconds(cfg_getint(cfg, opt_name_db_refresh_interval));
     auth_feedback = cfg_getbool(cfg, opt_name_auth_feedback);
     http_events_destination = cfg_getstr(cfg, opt_name_http_events_destination);
     aleg_cdr_headers = cfg_aleg_cdr_headers;

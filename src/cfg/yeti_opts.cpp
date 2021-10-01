@@ -19,13 +19,13 @@ char section_name_identity[] = "identity";
 
 char opt_name_core_options_handling[] = "core_options_handling";
 char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
+char opt_name_db_refresh_interval[] = "db_refresh_interval";
 
 char opt_identity_expires[] = "expires";
 char opt_identity_http_destination[] = "http_destination";
 char opt_identity_certs_cache_ttl[] = "certs_cache_ttl";
 char opt_identity_certs_cache_failed_ttl[] = "certs_cache_failed_ttl";
 char opt_identity_certs_cache_failed_verify_ttl[] = "certs_cache_failed_verify_ttl";
-char opt_identity_db_refresh_interval[] = "db_refresh_interval";
 
 char opt_func_name_header[] = "header";
 
@@ -141,7 +141,6 @@ cfg_opt_t identity_opts[] {
     CFG_INT(opt_identity_certs_cache_ttl, 86400,CFGF_NONE),
     CFG_INT(opt_identity_certs_cache_failed_ttl, 86400,CFGF_NONE),
     CFG_INT(opt_identity_certs_cache_failed_verify_ttl, 86400,CFGF_NONE),
-    CFG_INT(opt_identity_db_refresh_interval, 300 /* 5 min */,CFGF_NONE),
     CFG_END()
 };
 
@@ -164,6 +163,7 @@ cfg_opt_t yeti_opts[] = {
     CFG_SEC(section_name_legb_reply_cdr_headers,legb_reply_cdr_headers_opts, CFGF_NONE),
     CFG_BOOL(opt_name_core_options_handling, cfg_true, CFGF_NONE),
     CFG_BOOL(opt_name_pcap_memory_logger, cfg_false, CFGF_NONE),
+    CFG_INT(opt_name_db_refresh_interval, 300 /* 5 min */,CFGF_NONE),
     CFG_BOOL(opt_name_auth_feedback, cfg_false, CFGF_NONE),
     CFG_STR(opt_name_http_events_destination,"",CFGF_NONE),
 

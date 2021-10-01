@@ -186,6 +186,9 @@ void YetiRpc::init_rpc_tree()
 			method(show_cert_cache, "trusted_certificates", "show trusted certificates", showCertCacheTrustedCerts, "");
 			method(show_cert_cache, "trusted_repositories", "show trusted repositories", showCertCacheTrustedRepositories, "");
 
+		method(show, "trusted_balancers", "show trusted balancers list", showTrustedBalancers, "");
+		method(show, "ip_auth", "show ip auth list", showIPAuth, "");
+
 	/* request */
 	leaf(root,request,"request","modify commands");
 
@@ -1336,3 +1339,12 @@ void YetiRpc::showCertCacheTrustedRepositories(const AmArg& arg, AmArg& ret)
     cert_cache.ShowTrustedRepositories(ret);
 }
 
+void YetiRpc::showTrustedBalancers(const AmArg& arg, AmArg& ret)
+{
+    orig_pre_auth.ShowTrustedBalancers(ret);
+}
+
+void YetiRpc::showIPAuth(const AmArg& arg, AmArg& ret)
+{
+    orig_pre_auth.ShowIPAuth(ret);
+}

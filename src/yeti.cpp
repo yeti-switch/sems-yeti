@@ -27,6 +27,8 @@
 #include "cfg/yeti_opts.h"
 #include "cfg/cfg_helpers.h"
 
+#include "IPTree.h"
+
 #define EPOLL_MAX_EVENTS 2048
 
 #define DEFAULT_REDIS_HOST "127.0.0.1"
@@ -61,10 +63,10 @@ void cfg_reader_error(cfg_t *cfg, const char *fmt, va_list ap)
 
 Yeti* Yeti::_instance = nullptr;
 
-Yeti *Yeti::create_instance(YetiBaseParams params)
+Yeti *Yeti::create_instance()
 {
     if(!_instance)
-        _instance = new Yeti(params);
+        _instance = new Yeti();
     return _instance;
 }
 
@@ -88,11 +90,8 @@ Yeti::Counters::Counters()
         .addLabel("reason","cert_not_available"))
 {}
 
-Yeti::Yeti(YetiBaseParams &params)
-  : YetiBase(params),
-    YetiRadius(*this),
-    YetiRpc(*this),
-    AmEventFdQueue(this)
+Yeti::Yeti()
+  : AmEventFdQueue(this)
 {}
 
 
@@ -237,10 +236,13 @@ int Yeti::onLoad()
         }
     }
 
-    if(config.identity_enabled) {
-        cert_cache_timer.link(epoll_fd);
-        cert_cache_timer.set(1e6 /* 1 second */,true);
-    }
+    each_second_timer.link(epoll_fd);
+    each_second_timer.set(1e6 /* 1 second */,true);
+
+    db_cfg_reload_timer.link(epoll_fd);
+    db_cfg_reload_timer.set(
+        std::chrono::duration_cast<std::chrono::microseconds>(config.db_refresh_interval).count(),
+        true);
 
     http_sequencer.setHttpDestinationName(config.http_events_destination);
 
@@ -301,6 +303,9 @@ void Yeti::run()
 
     AmEventDispatcher::instance()->addEventQueue(YETI_QUEUE_NAME, this);
 
+    //load configurations from DB without waiting for timer
+    onDbCfgReloadTimer();
+
     stopped = false;
     do {
         //DBG("epoll_wait...");
@@ -322,9 +327,14 @@ void Yeti::run()
             if(f==keepalive_timer){
                 registrar_redis.on_keepalive_timer();
                 keepalive_timer.read();
-            } else if(f==cert_cache_timer) {
-                cert_cache.onTimer();
-                cert_cache_timer.read();
+            } else if(f==db_cfg_reload_timer) {
+                onDbCfgReloadTimer();
+                db_cfg_reload_timer.read();
+            } else if(f==each_second_timer) {
+                const auto now(std::chrono::system_clock::now());
+                if(config.identity_enabled)
+                    cert_cache.onTimer(now);
+                each_second_timer.read();
             } else if(f == -queue_fd()) {
                 clear_pending();
                 processEvents();
@@ -484,4 +494,21 @@ void Yeti::processRedisRpcAorLookupReply(RedisReplyEvent &e)
     ctx.result = e.result;
     DBG("ctx.cond: %p",&ctx.cond);
     ctx.cond.set(true);
+}
+
+void Yeti::onDbCfgReloadTimer() noexcept
+{
+    try {
+        pqxx::connection c(config.routing_db_master.conn_str());
+        c.set_variable("search_path",config.routing_schema+", public");
+
+        if(config.identity_enabled) {
+            cert_cache.reloadDatabaseSettings(c);
+        }
+        orig_pre_auth.reloadDatabaseSettings(c);
+    } catch(const pqxx::pqxx_exception &e){
+        ERROR("DB cfg reload pqxx_exception: %s ",e.base().what());
+    } catch(...) {
+        ERROR("DB cfg reload. unexpected exception");
+    }
 }

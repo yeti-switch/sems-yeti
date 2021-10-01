@@ -13,10 +13,8 @@ class YetiRpc
     virtual YetiRadius
 {
   public:
-    YetiRpc(YetiBase &base)
-      : YetiBase(base),
-        YetiRadius(base),
-        RpcTreeHandler<YetiRpc>(true)
+    YetiRpc()
+      : RpcTreeHandler<YetiRpc>(true)
     { }
 
     void invoke(const string& method, const AmArg& args, AmArg& ret);
@@ -154,4 +152,7 @@ class YetiRpc
     rpc_handler renewCertCacheEntries;
     rpc_handler showCertCacheTrustedCerts;
     rpc_handler showCertCacheTrustedRepositories;
+
+    rpc_handler showTrustedBalancers;
+    rpc_handler showIPAuth;
 };

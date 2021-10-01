@@ -11,6 +11,7 @@
 
 #include <botan/x509_ca.h>
 #include <botan/certstor.h>
+#include <pqxx/pqxx>
 
 #include <unordered_map>
 #include <regex>
@@ -73,8 +74,6 @@ class CertCache
     std::chrono::seconds cert_cache_ttl;
     std::chrono::seconds cert_cache_failed_ttl;
     std::chrono::seconds cert_cache_failed_verify_ttl;
-    std::chrono::seconds db_refresh_interval;
-    YetiCfg &ycfg;
 
     AmMutex mutex;
 
@@ -112,10 +111,9 @@ class CertCache
 
     bool isTrustedRepositoryUnsafe(const string &url);
     void renewCertEntry(HashType::value_type &entry);
-    void reloadDatabaseSettings() noexcept;
 
   public:
-    CertCache(YetiCfg & ycfg);
+    CertCache();
     ~CertCache();
 
     int configure(cfg_t *cfg);
@@ -135,7 +133,8 @@ class CertCache
     bool isTrustedRepository(const string& cert_url);
 
     void processHttpReply(const HttpGetResponseEvent& resp);
-    void onTimer();
+    void onTimer(const std::chrono::system_clock::time_point &now);
+    void reloadDatabaseSettings(pqxx::connection &c) noexcept;
 
     //rpc methods
     void ShowCerts(AmArg& ret, const std::chrono::system_clock::time_point &now);

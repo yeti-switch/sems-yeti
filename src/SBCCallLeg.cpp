@@ -170,6 +170,8 @@ void PayloadIdMapping::reset()
 // A leg constructor (from SBCDialog)
 SBCCallLeg::SBCCallLeg(
     fake_logger *early_logger,
+    bool require_identity_parsing,
+    Auth::auth_id_type auth_result_id,
     AmSipDialog* p_dlg,
     AmSipSubscription* p_subs)
   : CallLeg(p_dlg,p_subs),
@@ -180,6 +182,8 @@ SBCCallLeg::SBCCallLeg(
     sdp_session_answer_last_cseq(0),
     call_ctx(nullptr),
     early_trying_logger(early_logger),
+    auth_result_id(auth_result_id),
+    require_identity_parsing(require_identity_parsing),
     auth(nullptr),
     placeholders_hash(call_profile.placeholders_hash),
     logger(nullptr),
@@ -2372,6 +2376,7 @@ void SBCCallLeg::onInvite(const AmSipRequest& req)
 
     uac_req = req;
 
+    /* moved to SBCFactory::onInvite
     AmArg ret;
     auth_result_id = router.check_request_auth(req,ret);
     if(auth_result_id > 0) {
@@ -2392,10 +2397,10 @@ void SBCCallLeg::onInvite(const AmSipRequest& req)
         dlg->dropTransactions();
         setStopped();
         return;
-    }
+    } */
 
     //process Identity headers
-    if(yeti.config.identity_enabled) {
+    if(yeti.config.identity_enabled && require_identity_parsing) {
         static string identity_header_name("identity");
         size_t start_pos = 0;
         while (start_pos<req.hdrs.length()) {

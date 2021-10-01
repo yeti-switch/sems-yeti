@@ -19,13 +19,13 @@ extern char section_name_identity[];
 
 extern char opt_name_core_options_handling[];
 extern char opt_name_pcap_memory_logger[];
+extern char opt_name_db_refresh_interval[];
 
 extern char opt_identity_expires[];
 extern char opt_identity_http_destination[];
 extern char opt_identity_certs_cache_ttl[];
 extern char opt_identity_certs_cache_failed_ttl[];
 extern char opt_identity_certs_cache_failed_verify_ttl[];
-extern char opt_identity_db_refresh_interval[];
 
 extern char opt_func_name_header[];
 

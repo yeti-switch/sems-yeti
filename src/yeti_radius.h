@@ -9,8 +9,7 @@ class YetiRadius
   : virtual YetiBase
 {
   protected:
-    YetiRadius(YetiBase &base)
-      : YetiBase(base)
+    YetiRadius()
     { }
 
     int init_radius_module(AmConfigReader& cfg);

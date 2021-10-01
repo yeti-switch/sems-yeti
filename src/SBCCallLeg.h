@@ -87,6 +87,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   Auth::auth_id_type auth_result_id;;
   timeval call_start_time;
 
+  bool require_identity_parsing;
   set<string> awaited_identity_certs;
   vector<AmIdentity> identity_list;
 
@@ -198,10 +199,12 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   CdrList &cdr_list;
   ResourceControl &rctl;
 
-  SBCCallLeg(fake_logger *early_trying_logger, AmSipDialog* dlg=NULL, AmSipSubscription* p_subs=NULL);
+  SBCCallLeg(fake_logger *early_trying_logger,
+             bool require_identity_parsing,
+             Auth::auth_id_type auth_result_id,
+             AmSipDialog* dlg=NULL, AmSipSubscription* p_subs=NULL);
   SBCCallLeg(SBCCallLeg* caller,
-        AmSipDialog* dlg=NULL,
-        AmSipSubscription* p_subs=NULL);
+             AmSipDialog* dlg=NULL, AmSipSubscription* p_subs=NULL);
   ~SBCCallLeg();
 
   void process(AmEvent* ev);

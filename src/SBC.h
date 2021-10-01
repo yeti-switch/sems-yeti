@@ -53,7 +53,9 @@ using std::string;
 #define SBC_TIMER_ID_CALL_TIMERS_END     99
 
 struct CallLegCreator {
-  virtual SBCCallLeg* create(fake_logger *logger);
+  virtual SBCCallLeg* create(fake_logger *logger,
+                             bool require_identity_parsing,
+                             Auth::auth_id_type auth_result_id);
   virtual SBCCallLeg* create(SBCCallLeg* caller);
 };
 
@@ -62,11 +64,11 @@ class SBCFactory: public AmSessionFactory,
     public AmDynInvoke,
     public AmDynInvokeFactory
 {
-  auto_ptr<Yeti> yeti;
+  unique_ptr<Yeti> yeti;
 
-  SqlRouter router;
+  /*SqlRouter router;
   CdrList cdr_list;
-  ResourceControl rctl;
+  ResourceControl rctl;*/
 
   AmDynInvoke *yeti_invoke;
   bool registrar_enabled;

@@ -4,6 +4,7 @@
 #include "confuse.h"
 #include "AmConfigReader.h"
 #include "../db/DbConfig.h"
+#include <chrono>
 
 struct YetiCfg {
     int pop_id;
@@ -12,6 +13,7 @@ struct YetiCfg {
 
     string routing_schema;
     DbConfig routing_db_master;
+    std::chrono::seconds db_refresh_interval;
 
     string msg_logger_dir;
     string audio_recorder_dir;

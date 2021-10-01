@@ -26,8 +26,10 @@ class Yeti
     bool stopped;
     int epoll_fd;
     AmTimerFd keepalive_timer;
-    AmTimerFd cert_cache_timer;
+    AmTimerFd each_second_timer;
+    AmTimerFd db_cfg_reload_timer;
 
+    void onDbCfgReloadTimer() noexcept;
   public:
 
     struct Counters {
@@ -41,10 +43,10 @@ class Yeti
         Counters();
     } counters;
 
-    Yeti(YetiBaseParams &params);
+    Yeti();
     ~Yeti();
 
-    static Yeti* create_instance(YetiBaseParams params);
+    static Yeti* create_instance();
     static Yeti& instance();
 
     int onLoad();
@@ -59,4 +61,3 @@ class Yeti
     void processRedisRpcAorLookupReply(RedisReplyEvent &e);
     bool getCoreOptionsHandling() { return config.core_options_handling; }
 };
-

@@ -36,8 +36,7 @@ void CertCacheEntry::getInfo(AmArg &a, const std::
     }
 }
 
-CertCache::CertCache(YetiCfg & ycfg)
-  : ycfg(ycfg)
+CertCache::CertCache()
 {}
 
 CertCache::~CertCache()
@@ -47,7 +46,6 @@ int CertCache::configure(cfg_t *cfg)
 {
     expires = cfg_getint(cfg, opt_identity_expires);
     cert_cache_ttl = std::chrono::seconds(cfg_getint(cfg, opt_identity_certs_cache_ttl));
-    db_refresh_interval = std::chrono::seconds(cfg_getint(cfg, opt_identity_db_refresh_interval));
 
     if(cfg_size(cfg, opt_identity_certs_cache_failed_ttl)) {
         cert_cache_failed_ttl =
@@ -226,13 +224,10 @@ void CertCache::renewCertEntry(HashType::value_type &entry)
                         YETI_QUEUE_NAME)); //session_id
 }
 
-void CertCache::reloadDatabaseSettings() noexcept
+void CertCache::reloadDatabaseSettings(pqxx::connection &c) noexcept
 {
     //TODO: async DB request
     try {
-        pqxx::connection c(ycfg.routing_db_master.conn_str());
-        c.set_variable("search_path",ycfg.routing_schema+", public");
-
         pqxx::work t(c);
         auto r = t.exec("SELECT * FROM load_stir_shaken_trusted_certificates()");
 
@@ -292,15 +287,8 @@ void CertCache::reloadDatabaseSettings() noexcept
     }
 }
 
-void CertCache::onTimer()
+void CertCache::onTimer(const std::chrono::system_clock::time_point &now)
 {
-    const auto now(std::chrono::system_clock::now());
-
-    if(now > db_refresh_expire) {
-        reloadDatabaseSettings();
-        db_refresh_expire = now + db_refresh_interval;
-    }
-
     {
         AmLock lock(mutex);
         auto it = entries.begin();
