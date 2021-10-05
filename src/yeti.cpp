@@ -502,10 +502,15 @@ void Yeti::onDbCfgReloadTimer() noexcept
         pqxx::connection c(config.routing_db_master.conn_str());
         c.set_variable("search_path",config.routing_schema+", public");
 
+        {
+            pqxx::nontransaction t(c);
+            db_cfg_states.readFromDbReply(t.exec("SELECT * FROM check_states()"));
+        }
+
         if(config.identity_enabled) {
             cert_cache.reloadDatabaseSettings(c);
         }
-        orig_pre_auth.reloadDatabaseSettings(c);
+        orig_pre_auth.reloadDatabaseSettings(c, db_cfg_states);
     } catch(const pqxx::pqxx_exception &e){
         ERROR("DB cfg reload pqxx_exception: %s ",e.base().what());
     } catch(...) {

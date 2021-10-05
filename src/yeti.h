@@ -5,6 +5,7 @@
 #include "yeti_radius.h"
 #include "HttpSequencer.h"
 #include "CertCache.h"
+#include "DbConfigStates.h"
 
 #include <AmEventFdQueue.h>
 
@@ -30,6 +31,9 @@ class Yeti
     AmTimerFd db_cfg_reload_timer;
 
     void onDbCfgReloadTimer() noexcept;
+
+    DbConfigStates db_cfg_states;
+
   public:
 
     struct Counters {

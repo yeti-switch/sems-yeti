@@ -4,7 +4,9 @@
 #include <exception>
 
 OriginationPreAuth::OriginationPreAuth(YetiCfg &ycfg)
-  : ycfg(ycfg)
+  : ycfg(ycfg),
+    trusted_lb_state(0),
+    ip_auth_state(0)
 {}
 
 OriginationPreAuth::LoadBalancerData::LoadBalancerData(const pqxx::row &r)
@@ -44,32 +46,46 @@ OriginationPreAuth::IPAuthData::operator AmArg() const
     return a;
 }
 
-void OriginationPreAuth::reloadDatabaseSettings(pqxx::connection &c) noexcept
+void OriginationPreAuth::reloadDatabaseSettings(pqxx::connection &c,
+                                                const DbConfigStates &db_cfg_states) noexcept
 {
     //TODO: async DB request
     LoadBalancersContainer tmp_load_balancers;
     IPAuthDataContainer tmp_ip_auths;
     try {
-        pqxx::work t(c);
+        pqxx::nontransaction t(c);
 
-        auto r = t.exec("SELECT * FROM load_trusted_lb()");
-        for(const auto &row: r)
-            tmp_load_balancers.emplace_back(row);
+        if(db_cfg_states.trusted_lb > trusted_lb_state) {
+            auto r = t.exec("SELECT * FROM load_trusted_lb()");
+            for(const auto &row: r)
+                tmp_load_balancers.emplace_back(row);
+        }
 
-        r =  t.exec_params("SELECT * FROM load_ip_auth($1,$2)",
+        if(db_cfg_states.ip_auth > ip_auth_state) {
+            auto r =  t.exec_params("SELECT * FROM load_ip_auth($1,$2)",
                            AmConfig.node_id, ycfg.pop_id);
-        for(const auto &row: r)
-            tmp_ip_auths.emplace_back(row);
+            for(const auto &row: r)
+                tmp_ip_auths.emplace_back(row);
+        }
 
-        AmLock l(mutex);
+        {
+            AmLock l(mutex);
 
-        load_balancers.swap(tmp_load_balancers);
-        ip_auths.swap(tmp_ip_auths);
+            if(db_cfg_states.trusted_lb > trusted_lb_state)
+                load_balancers.swap(tmp_load_balancers);
 
-        subnets_tree.clear();
-        int idx = 0;
-        for(const auto &auth: ip_auths)
-            subnets_tree.addSubnet(auth.subnet, idx++);
+            if(db_cfg_states.ip_auth > ip_auth_state) {
+                ip_auths.swap(tmp_ip_auths);
+
+                subnets_tree.clear();
+                int idx = 0;
+                for(const auto &auth: ip_auths)
+                    subnets_tree.addSubnet(auth.subnet, idx++);
+            }
+        }
+
+        trusted_lb_state = db_cfg_states.trusted_lb;
+        ip_auth_state = db_cfg_states.ip_auth;
 
     } catch(const pqxx::pqxx_exception &e) {
         ERROR("OriginationPreAuth pqxx_exception: %s ",e.base().what());

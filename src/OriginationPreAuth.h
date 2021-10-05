@@ -2,6 +2,7 @@
 
 #include "cfg/YetiCfg.h"
 #include "IPTree.h"
+#include "DbConfigStates.h"
 
 #include <pqxx/pqxx>
 
@@ -34,7 +35,9 @@ class OriginationPreAuth final
     };
     using IPAuthDataContainer = vector<IPAuthData>;
 
+    unsigned long trusted_lb_state;
     LoadBalancersContainer load_balancers;
+    unsigned long ip_auth_state;
     IPAuthDataContainer ip_auths;
     AmMutex mutex;
     IPTree subnets_tree;
@@ -49,7 +52,8 @@ class OriginationPreAuth final
     };
 
     OriginationPreAuth(YetiCfg &cfg);
-    void reloadDatabaseSettings(pqxx::connection &c) noexcept;
+    void reloadDatabaseSettings(pqxx::connection &c,
+                                const DbConfigStates &db_cfg_states) noexcept;
 
     void ShowTrustedBalancers(AmArg& ret);
     void ShowIPAuth(AmArg& ret);

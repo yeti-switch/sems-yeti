@@ -228,7 +228,7 @@ void CertCache::reloadDatabaseSettings(pqxx::connection &c) noexcept
 {
     //TODO: async DB request
     try {
-        pqxx::work t(c);
+        pqxx::nontransaction t(c);
         auto r = t.exec("SELECT * FROM load_stir_shaken_trusted_certificates()");
 
         {
