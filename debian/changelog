@@ -1,3 +1,20 @@
+sems-yeti (1.11.31) stable; urgency=medium
+
+  * use single timer to reload DB settings for CertCache and OriginationPreAuth
+  * load trusted balancers by 'load_trusted_lb()' DB function
+  * load ip_auth entries by load_ip_auth(node_id,pop_id) DB function
+  * authorize incoming INVITE by source IP address using preloaded ip_auth entries
+  * challenge INVITE without Authorization with 401 on require_incoming_auth enabled
+  * move SIP auth to be performed before adding session to the session processor
+  * add 'db_refresh_interval' option for main section
+  * remove 'db_refresh_interval' option from 'identity' section
+  * add rpc method 'yeti.show.trusted_balancers'
+  * add rpc method 'yeti.show.ip_auth'
+  * CdrWriter: fix sefgault on auth_log writing
+  * use check_states() to detect entities update in DB
+
+ -- dev <dev@yeti-switch.org>  Tue, 05 Oct 2021 21:10:42 +0300
+
 sems-yeti (1.11.30) stable; urgency=medium
 
   * CertCache: show TNAuthList
