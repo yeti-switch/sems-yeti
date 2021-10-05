@@ -14,6 +14,7 @@ class Auth {
         UAC_AUTH_ERROR,
         NO_USERNAME,
         NO_CREDENTIALS,
+        NO_IP_AUTH          //rejected by OriginationPreAuth:onInvite()
     };
 
     using auth_id_type = int;

@@ -40,17 +40,19 @@ class OriginationPreAuth final
     IPTree subnets_tree;
 
   public:
+    struct Reply {
+        /*string orig_ip;
+        int orig_port;
+        int orig_proto;*/
+        bool require_incoming_auth;
+        bool require_identity_parsing;
+    };
+
     OriginationPreAuth(YetiCfg &cfg);
     void reloadDatabaseSettings(pqxx::connection &c) noexcept;
 
     void ShowTrustedBalancers(AmArg& ret);
     void ShowIPAuth(AmArg& ret);
 
-    enum MatchResultFlags {
-        NotMatched = 0,
-        Matched = 1 << 0,
-        RequireAuth = 1 << 1,
-        RequireIdentityParsing = 1 << 2
-    };
-    int onInvite(const AmSipRequest &req);
+    bool onInvite(const AmSipRequest &req, Reply &reply);
 };

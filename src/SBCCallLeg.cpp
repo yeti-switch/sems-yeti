@@ -170,7 +170,7 @@ void PayloadIdMapping::reset()
 // A leg constructor (from SBCDialog)
 SBCCallLeg::SBCCallLeg(
     fake_logger *early_logger,
-    bool require_identity_parsing,
+    OriginationPreAuth::Reply &ip_auth_data,
     Auth::auth_id_type auth_result_id,
     AmSipDialog* p_dlg,
     AmSipSubscription* p_subs)
@@ -182,8 +182,8 @@ SBCCallLeg::SBCCallLeg(
     sdp_session_answer_last_cseq(0),
     call_ctx(nullptr),
     early_trying_logger(early_logger),
+    ip_auth_data(ip_auth_data),
     auth_result_id(auth_result_id),
-    require_identity_parsing(require_identity_parsing),
     auth(nullptr),
     placeholders_hash(call_profile.placeholders_hash),
     logger(nullptr),
@@ -2376,31 +2376,8 @@ void SBCCallLeg::onInvite(const AmSipRequest& req)
 
     uac_req = req;
 
-    /* moved to SBCFactory::onInvite
-    AmArg ret;
-    auth_result_id = router.check_request_auth(req,ret);
-    if(auth_result_id > 0) {
-        DBG("successfully authorized with id %d",auth_result_id);
-        router.log_auth(req,true,ret,auth_result_id);
-    } else if(auth_result_id < 0) {
-        DBG("auth error. reply with 401");
-        switch(-auth_result_id) {
-        case Auth::UAC_AUTH_ERROR:
-            send_auth_error_reply(req, ret, -auth_result_id);
-            break;
-        default:
-            send_and_log_auth_challenge(req,ret.asCStr(), -auth_result_id);
-            break;
-        }
-
-        dlg->drop();
-        dlg->dropTransactions();
-        setStopped();
-        return;
-    } */
-
     //process Identity headers
-    if(yeti.config.identity_enabled && require_identity_parsing) {
+    if(yeti.config.identity_enabled && ip_auth_data.require_identity_parsing) {
         static string identity_header_name("identity");
         size_t start_pos = 0;
         while (start_pos<req.hdrs.length()) {
@@ -3783,24 +3760,6 @@ void SBCCallLeg::httpCallDisconnectedHook()
     }
 
     yeti.http_sequencer.processHook(HttpSequencer::CallDisconnected, getLocalTag(), serialized_http_data);
-}
-
-void SBCCallLeg::send_auth_error_reply(
-    const AmSipRequest& req,
-    AmArg &ret,
-    int auth_feedback_code)
-{
-    string hdr;
-    if(yeti.config.auth_feedback && auth_feedback_code) {
-        hdr = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
-    }
-    AmSipDialog::reply_error(
-        req,
-        static_cast<unsigned int>(ret[0].asInt()),
-        ret[1].asCStr(),
-        hdr + ret[2].asCStr());
-
-    router.log_auth(req,false,ret);
 }
 
 void SBCCallLeg::send_and_log_auth_challenge(

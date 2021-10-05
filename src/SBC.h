@@ -54,7 +54,7 @@ using std::string;
 
 struct CallLegCreator {
   virtual SBCCallLeg* create(fake_logger *logger,
-                             bool require_identity_parsing,
+                             OriginationPreAuth::Reply &ip_auth_data,
                              Auth::auth_id_type auth_result_id);
   virtual SBCCallLeg* create(SBCCallLeg* caller);
 };
@@ -70,6 +70,7 @@ class SBCFactory: public AmSessionFactory,
   CdrList cdr_list;
   ResourceControl rctl;*/
 
+  AmArg pre_auth_ret;
   AmDynInvoke *yeti_invoke;
   bool registrar_enabled;
   bool auth_feedback;

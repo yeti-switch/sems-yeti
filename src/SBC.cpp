@@ -89,10 +89,10 @@ void assertEndCRLF(string& s) {
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 SBCCallLeg* CallLegCreator::create(fake_logger *logger,
-                                   bool require_identity_parsing,
+                                   OriginationPreAuth::Reply &ip_auth_data,
                                    Auth::auth_id_type auth_result_id)
 {
-    return new SBCCallLeg(logger, require_identity_parsing, auth_result_id, new AmSipDialog());
+    return new SBCCallLeg(logger, ip_auth_data, auth_result_id, new AmSipDialog());
 }
 
 SBCCallLeg* CallLegCreator::create(SBCCallLeg* caller)
@@ -107,7 +107,12 @@ SBCFactory::SBCFactory(const string& _app_name)
     yeti_invoke(nullptr),
     core_options_handling(false),
     callLegCreator(new CallLegCreator())
-{ }
+{
+    pre_auth_ret[0] = 403;
+    pre_auth_ret[1] = "Forbidden";
+    pre_auth_ret[2] = "";
+    pre_auth_ret[3] = "IP auth";
+}
 
 SBCFactory::~SBCFactory() {
     yeti.reset();
@@ -210,6 +215,8 @@ AmSession* SBCFactory::onInvite(
     const string&,
     const map<string,string>&)
 {
+    OriginationPreAuth::Reply ip_auth_data;
+
     fake_logger *early_trying_logger = new fake_logger();
     inc_ref(early_trying_logger);
 
@@ -217,43 +224,50 @@ AmSession* SBCFactory::onInvite(
         answer_100_trying(req,early_trying_logger);
 
     PROF_START(pre_auth);
-    int pre_auth_result = yeti->orig_pre_auth.onInvite(req);
+    auto pre_auth_result = yeti->orig_pre_auth.onInvite(req, ip_auth_data);
     PROF_END(pre_auth);
     PROF_PRINT("orig pre auth", pre_auth);
+
     DBG("pre auth result: %d", pre_auth_result);
+
     if(!pre_auth_result) {
         DBG("request rejected by origination pre auth");
-        AmSipDialog::reply_error(req, 403, "Forbidden");
+        send_auth_error_reply(req, pre_auth_ret, Auth::NO_IP_AUTH);
         dec_ref(early_trying_logger);
         return nullptr;
     }
 
-    Auth::auth_id_type auth_result_id = Auth::NO_AUTH;
-    if(pre_auth_result&OriginationPreAuth::RequireAuth) {
-        AmArg ret;
-        auth_result_id = yeti->router.check_request_auth(req,ret);
-        if(auth_result_id > 0) {
-            DBG("successfully authorized with id %d",auth_result_id);
-            yeti->router.log_auth(req,true,ret,auth_result_id);
-        } else if(auth_result_id < 0) {
-            DBG("auth error. reply with 401");
-            switch(-auth_result_id) {
-            case Auth::UAC_AUTH_ERROR:
-                send_auth_error_reply(req, ret, -auth_result_id);
-                break;
-            default:
-                send_and_log_auth_challenge(req,ret.asCStr(), -auth_result_id);
-                break;
-            }
-
-            dec_ref(early_trying_logger);
-            return nullptr;
+    AmArg ret;
+    auto auth_result_id = yeti->router.check_request_auth(req,ret);
+    if(auth_result_id > 0) {
+        DBG("successfully authorized with id %d",auth_result_id);
+        yeti->router.log_auth(req,true,ret,auth_result_id);
+    } else if(auth_result_id < 0) {
+        DBG("auth error. reply with 401");
+        switch(-auth_result_id) {
+        case Auth::UAC_AUTH_ERROR:
+            send_auth_error_reply(req, ret, -auth_result_id);
+            break;
+        default:
+            send_and_log_auth_challenge(req,ret.asCStr(), -auth_result_id);
+            break;
         }
+
+        dec_ref(early_trying_logger);
+        return nullptr;
+
+    } else if(ip_auth_data.require_incoming_auth) { //Auth::NO_AUTH
+        DBG("SIP auth required. reply with 401");
+        static string no_auth_internal_reason("no Authorization header");
+        send_and_log_auth_challenge(req,no_auth_internal_reason);
+
+        dec_ref(early_trying_logger);
+        return nullptr;
     }
 
     SBCCallLeg* leg = callLegCreator->create(
         early_trying_logger,
-        pre_auth_result&OriginationPreAuth::RequireIdentityParsing,
+        ip_auth_data,
         auth_result_id);
 
     if(!leg) {

@@ -84,10 +84,10 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   fake_logger *early_trying_logger;
   std::queue< unique_ptr<B2BSipReplyEvent> > postponed_replies;
 
-  Auth::auth_id_type auth_result_id;;
   timeval call_start_time;
 
-  bool require_identity_parsing;
+  OriginationPreAuth::Reply ip_auth_data;
+  Auth::auth_id_type auth_result_id;
   set<string> awaited_identity_certs;
   vector<AmIdentity> identity_list;
 
@@ -188,7 +188,6 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void httpCallConnectedHook();
   void httpCallDisconnectedHook();
 
-  void send_auth_error_reply(const AmSipRequest& req, AmArg &ret, int auth_feedback_code);
   void send_and_log_auth_challenge(const AmSipRequest& req,
                                    const string &internal_reason,
                                    int auth_feedback_code = 0);
@@ -200,7 +199,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   ResourceControl &rctl;
 
   SBCCallLeg(fake_logger *early_trying_logger,
-             bool require_identity_parsing,
+             OriginationPreAuth::Reply &ip_auth_data,
              Auth::auth_id_type auth_result_id,
              AmSipDialog* dlg=NULL, AmSipSubscription* p_subs=NULL);
   SBCCallLeg(SBCCallLeg* caller,
