@@ -1,3 +1,9 @@
+sems-yeti (1.12.0) stable; urgency=medium
+
+  * add option 'ip_auth_reject_if_no_matched' (default: 'no')
+
+ -- dev <dev@yeti-switch.org>  Tue, 12 Oct 2021 12:27:58 +0300
+
 sems-yeti (1.11.31) stable; urgency=medium
 
   * use single timer to reload DB settings for CertCache and OriginationPreAuth
