@@ -21,6 +21,7 @@ struct YetiCfg {
     string log_dir;
     bool pcap_memory_logger;
     bool auth_feedback;
+    bool ip_auth_reject_if_no_matched;
     string http_events_destination;
 
     bool registrar_enabled;

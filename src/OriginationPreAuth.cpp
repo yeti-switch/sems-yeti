@@ -124,9 +124,6 @@ bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
 
     static string x_yeti_auth_hdr("X-YETI-AUTH");
 
-    string x_yeti_auth;
-    string orig_ip;
-
     size_t start_pos = 0;
     while (start_pos<req.hdrs.length()) {
         size_t name_end, val_begin, val_end, hdr_end;
@@ -140,16 +137,16 @@ bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
                           x_orig_ip_hdr.c_str(), name_end-start_pos))
         {
             //req.hdrs.substr(val_begin, val_end-val_begin);
-            if(orig_ip.empty()) {
+            if(reply.orig_ip.empty()) {
                 DBG("found first X-AUTH-IP hdr. checking for trusted balancer");
                 AmLock l(mutex);
                 for(const auto &lb : load_balancers) {
                     if(lb.signalling_ip==req.remote_ip) {
-                        orig_ip = req.hdrs.substr(val_begin, val_end-val_begin);
+                        reply.orig_ip = req.hdrs.substr(val_begin, val_end-val_begin);
                         DBG("remote IP %s matched with load balancer %lu/%s. "
                             "use X-AUTH-IP value %s as source IP",
                             req.remote_ip.data(), lb.id, lb.name.data(),
-                            orig_ip.data());
+                            reply.orig_ip.data());
                         break;
                     }
                 }
@@ -165,27 +162,27 @@ bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
         } else if(0==strncasecmp(req.hdrs.c_str() + start_pos,
                                  x_yeti_auth_hdr.c_str(), name_end-start_pos))
         {
-            if(x_yeti_auth.empty()) {
-                x_yeti_auth = req.hdrs.substr(val_begin, val_end-val_begin);
-                DBG("found first X-YETI-AUTH hdr with value: %s", x_yeti_auth.data());
+            if(reply.x_yeti_auth.empty()) {
+                reply.x_yeti_auth = req.hdrs.substr(val_begin, val_end-val_begin);
+                DBG("found first X-YETI-AUTH hdr with value: %s", reply.x_yeti_auth.data());
             }
         }
         start_pos = hdr_end;
     }
 
-    if(orig_ip.empty()) {
+    if(reply.orig_ip.empty()) {
         DBG("no X-AUTH-IP hdr or request was from not trusted balancer");
-        orig_ip = req.remote_ip;
+        reply.orig_ip = req.remote_ip;
         /*reply.orig_ip = req.remote_ip;
         reply.orig_port = req.remote_port;*/
     }
 
-    DBG("use address %s for matching", orig_ip.data());
+    DBG("use address %s for matching", reply.orig_ip.data());
 
     sockaddr_storage addr;
     memset(&addr,0,sizeof(sockaddr_storage));
-    if(!am_inet_pton(orig_ip.c_str(), &addr)) {
-        ERROR("failed to parse IP address: %s", orig_ip.data());
+    if(!am_inet_pton(reply.orig_ip.c_str(), &addr)) {
+        ERROR("failed to parse IP address: %s", reply.orig_ip.data());
         return false;
     }
 
@@ -193,7 +190,7 @@ bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
     AmLock l(mutex);
     subnets_tree.match(addr, match_result);
     if(match_result.empty()) {
-        DBG("no matching IP Auth entry for src ip: %s", orig_ip.data());
+        DBG("no matching IP Auth entry for src ip: %s", reply.orig_ip.data());
         return false;
     }
 
@@ -209,7 +206,7 @@ bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
         //check for x-yeti-auth
         DBG("check against matched auth: %s(%s)",
             auth.ip.data(), auth.x_yeti_auth.data());
-        if(auth.x_yeti_auth != x_yeti_auth) {
+        if(auth.x_yeti_auth != reply.x_yeti_auth) {
             continue;
         }
 
@@ -222,6 +219,10 @@ bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
 
         return true;
     }
+
+    /* keep old behavior for no matched failover */
+    reply.require_incoming_auth = false;
+    reply.require_identity_parsing = true;
 
     return false;
 }

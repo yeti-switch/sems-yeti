@@ -20,6 +20,7 @@ char section_name_identity[] = "identity";
 char opt_name_core_options_handling[] = "core_options_handling";
 char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
 char opt_name_db_refresh_interval[] = "db_refresh_interval";
+char opt_name_ip_auth_reject_if_no_matched[] = "ip_auth_reject_if_no_matched";
 
 char opt_identity_expires[] = "expires";
 char opt_identity_http_destination[] = "http_destination";
@@ -164,6 +165,7 @@ cfg_opt_t yeti_opts[] = {
     CFG_BOOL(opt_name_core_options_handling, cfg_true, CFGF_NONE),
     CFG_BOOL(opt_name_pcap_memory_logger, cfg_false, CFGF_NONE),
     CFG_INT(opt_name_db_refresh_interval, 300 /* 5 min */,CFGF_NONE),
+    CFG_BOOL(opt_name_ip_auth_reject_if_no_matched, cfg_false, CFGF_NONE),
     CFG_BOOL(opt_name_auth_feedback, cfg_false, CFGF_NONE),
     CFG_STR(opt_name_http_events_destination,"",CFGF_NONE),
 

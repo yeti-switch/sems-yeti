@@ -231,10 +231,20 @@ AmSession* SBCFactory::onInvite(
     DBG("pre auth result: %d", pre_auth_result);
 
     if(!pre_auth_result) {
-        DBG("request rejected by origination pre auth");
-        send_auth_error_reply(req, pre_auth_ret, Auth::NO_IP_AUTH);
-        dec_ref(early_trying_logger);
-        return nullptr;
+        DBG("INVITE %s from %s:%hu not matched by origination pre auth",
+            req.r_uri.data(), req.remote_ip.data(), req.remote_port);
+        if(yeti->config.ip_auth_reject_if_no_matched) {
+            send_auth_error_reply(req, pre_auth_ret, Auth::NO_IP_AUTH);
+            dec_ref(early_trying_logger);
+            return nullptr;
+        } else {
+            //yeti->router.log_auth(req,false,pre_auth_ret);
+            INFO("INVITE not matched by ip auth. "
+                 "ruri:%s,remote_endpoint:%s:%hu,orig_ip:%s,x_yeti_auth:'%s'",
+                 req.r_uri.data(), req.remote_ip.data(), req.remote_port,
+                 ip_auth_data.orig_ip.data(),
+                 ip_auth_data.x_yeti_auth.data());
+        }
     }
 
     AmArg ret;
