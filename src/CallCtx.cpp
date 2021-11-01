@@ -54,6 +54,8 @@ SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover
 {
 	DBG("%s()",FUNC_NAME);
 
+	AmLock l(*this);
+
 	auto next_profile = current_profile;
 	int attempts_counter = cdr->attempt_num;
 

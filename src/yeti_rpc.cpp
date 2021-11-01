@@ -543,7 +543,7 @@ void YetiRpc::GetCalls(const AmArg& args, AmArg& ret) {
 		if(!cdr_list.getCall(local_tag,ret,&router))
 			throw CallNotFoundException(local_tag);
 	} else {
-		cdr_list.getCalls(ret,calls_show_limit,&router);
+		cdr_list.getCalls(ret,&router);
 	}
 }
 
@@ -555,7 +555,7 @@ void YetiRpc::GetCallsFields(const AmArg &args, AmArg &ret){
 	}
 
 	try {
-		cdr_list.getCallsFields(ret,calls_show_limit,&router,args);
+		cdr_list.getCallsFields(ret,&router,args);
 	} catch(std::string &s){
 		throw AmSession::Exception(500,s);
 	}
@@ -689,50 +689,6 @@ void YetiRpc::DropCall(const AmArg& args, AmArg& ret){
 	ret = "Dropped from sessions container";
 }
 
-static void free_session_resource_handler(
-	const AmEventDispatcher::QueueEntry &entry,
-	void *arg)
-{
-	static const string ret_prefix("put resource handler: ");
-
-	SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q);
-	if(!leg) return;
-
-	auto &local_tag = leg->getLocalTag();
-
-	auto call_ctx = leg->getCallCtx();
-	if(!call_ctx) {
-		ERROR("no call_ctx for leg: %s", local_tag.data());
-		return;
-	}
-
-	call_ctx->lock();
-
-	SqlCallProfile *p = call_ctx->getCurrentProfile();
-	if(!p) {
-		ERROR("no current profile for leg: %s", local_tag.data());
-		call_ctx->unlock();
-		return;
-	}
-
-	auto &ret = *(AmArg *)arg;
-
-	if(p->resource_handler.empty()) {
-		call_ctx->unlock();
-		ret.push("empty resource handler");
-		return;
-	}
-
-	INFO("put resource_handler:'%s' for local_tag:'%s'",
-		p->resource_handler.data(), local_tag.data());
-
-	ret.push(ret_prefix + p->resource_handler);
-
-	leg->rctl.put(p->resource_handler);
-
-	call_ctx->unlock();
-}
-
 void YetiRpc::RemoveCall(const AmArg& args, AmArg& ret){
 	string local_tag;
 	handler_log();
@@ -745,7 +701,47 @@ void YetiRpc::RemoveCall(const AmArg& args, AmArg& ret){
 
 	ret.assertArray();
 
-	AmEventDispatcher::instance()->apply(local_tag, &free_session_resource_handler, &ret);
+	AmEventDispatcher::instance()->apply(
+		local_tag,
+		[&ret](const AmEventDispatcher::QueueEntry &entry)
+	{
+		static const string ret_prefix("put resource handler: ");
+		SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q);
+		if(!leg) return;
+
+		auto &local_tag = leg->getLocalTag();
+
+		auto call_ctx = leg->getCallCtx();
+		if(!call_ctx) {
+			ERROR("no call_ctx for leg: %s", local_tag.data());
+			return;
+		}
+
+		call_ctx->lock();
+
+		SqlCallProfile *p = call_ctx->getCurrentProfile();
+		if(!p) {
+			ERROR("no current profile for leg: %s", local_tag.data());
+			call_ctx->unlock();
+			return;
+		}
+
+		if(p->resource_handler.empty()) {
+			call_ctx->unlock();
+			ret.push("empty resource handler");
+			return;
+		}
+
+		INFO("put resource_handler:'%s' for local_tag:'%s'",
+			p->resource_handler.data(), local_tag.data());
+
+		ret.push(ret_prefix + p->resource_handler);
+
+		leg->rctl.put(p->resource_handler);
+
+		call_ctx->unlock();
+
+	});
 
 	if (AmSessionContainer::instance()->postEvent(
 		local_tag,
@@ -756,11 +752,11 @@ void YetiRpc::RemoveCall(const AmArg& args, AmArg& ret){
 		ret.push("not found in sessions container");
 	}
 
-	if(cdr_list.remove_by_local_tag(local_tag)) {
+	/*if(cdr_list.remove_by_local_tag(local_tag)) {
 		ret.push("removed from active calls container");
 	} else {
 		ret.push("not found in active calls container");
-	}
+	}*/
 }
 
 void YetiRpc::showVersion(const AmArg& args, AmArg& ret) {
@@ -895,62 +891,45 @@ void YetiRpc::showSessionsInfo(const AmArg& args, AmArg& ret){
 	handler_log();
 	ret.assertStruct();
 	if(!args.size()){
-		AmEventDispatcher::instance()->iterate(&dump_sessions_info,&ret);
+		AmEventDispatcher::instance()->iterate(
+			[&ret](const string &key,
+					const AmEventDispatcher::QueueEntry &entry)
+		{
+			if(SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q)) {
+				SBCCallLeg2AmArg(leg,ret[key]);
+			}
+		});
 	} else {
 		const string local_tag = args[0].asCStr();
 		AmArg &session_info = ret[local_tag];
+
 		AmEventDispatcher::instance()->apply(
 			local_tag,
-			&dump_session_info,
-			&session_info);
+			[&session_info](const AmEventDispatcher::QueueEntry &entry)
+		{
+			session_info.assertStruct();
+			if(SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q)) {
+				SBCCallLeg2AmArg(leg,session_info);
+			}
+		});
+
 		if(isArgStruct(session_info) &&
 			session_info.hasMember("other_id"))
 		{
 			const string other_local_tag = session_info["other_id"].asCStr();
 			AmArg &other_session_info = ret[other_local_tag];
+
 			AmEventDispatcher::instance()->apply(
 				other_local_tag,
-				&dump_session_info,
-				&other_session_info);
-
+				[&other_session_info](const AmEventDispatcher::QueueEntry &entry)
+			{
+					other_session_info.assertStruct();
+					if(SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q)) {
+						SBCCallLeg2AmArg(leg,other_session_info);
+					}
+			});
 		}
 	}
-}
-
-static void request_session_in_memory_logger_dump(
-	const AmEventDispatcher::QueueEntry &entry,
-	void *arg)
-{
-	SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q);
-	if(!leg) return; //skip not SBCCallLeg entries
-	AmArg &ret = *(AmArg *)arg;
-	if(!leg->getMemoryLoggerEnabled()) {
-		ret = "in-memory logger is not enabled for session";
-		return;
-	}
-
-	auto logger = dynamic_cast<in_memory_msg_logger *>(leg->getLogger());
-	if(!logger) {
-		ret = "logger is not set or has invalid type";
-		return;
-	}
-
-	string file_path = "/tmp/" + AmSession::getNewId() + ".pcap";
-
-	auto tmp_logger = new pcap_logger();
-	inc_ref(tmp_logger);
-
-	if(tmp_logger->open(file_path.data()) != 0) {
-		ret = "failed to open: " + file_path;
-		dec_ref(tmp_logger);
-		return;
-	}
-
-	logger->feed_to_logger(tmp_logger);
-
-	dec_ref(tmp_logger);
-
-	ret = "trace saved to: " + file_path;
 }
 
 void YetiRpc::requestSessionDump(const AmArg& args, AmArg& ret)
@@ -961,8 +940,38 @@ void YetiRpc::requestSessionDump(const AmArg& args, AmArg& ret)
 	const string local_tag = args[0].asCStr();
 	if(!AmEventDispatcher::instance()->apply(
 		local_tag,
-		&request_session_in_memory_logger_dump,
-		&ret))
+		[&ret](const AmEventDispatcher::QueueEntry &entry)
+		{
+			SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q);
+			if(!leg) return; //skip not SBCCallLeg entries
+			if(!leg->getMemoryLoggerEnabled()) {
+				ret = "in-memory logger is not enabled for session";
+				return;
+			}
+
+			auto logger = dynamic_cast<in_memory_msg_logger *>(leg->getLogger());
+			if(!logger) {
+				ret = "logger is not set or has invalid type";
+				return;
+			}
+
+			string file_path = "/tmp/" + AmSession::getNewId() + ".pcap";
+
+			auto tmp_logger = new pcap_logger();
+			inc_ref(tmp_logger);
+
+			if(tmp_logger->open(file_path.data()) != 0) {
+				ret = "failed to open: " + file_path;
+				dec_ref(tmp_logger);
+				return;
+			}
+
+			logger->feed_to_logger(tmp_logger);
+
+			dec_ref(tmp_logger);
+
+			ret = "trace saved to: " + file_path;
+		}))
 	{
 		ret = "session not found";
 	}

@@ -1,8 +1,10 @@
 #include "CdrList.h"
 #include "log.h"
 #include "../yeti.h"
+#include "../SBCCallLeg.h"
 #include "jsonArg.h"
 #include "AmSessionContainer.h"
+#include "AmEventDispatcher.h"
 #include "ampi/HttpClientAPI.h"
 
 #define SNAPSHOTS_PERIOD_DEFAULT 60
@@ -20,98 +22,67 @@ CdrList::CdrList()
 CdrList::~CdrList()
 { }
 
-int CdrList::insert(Cdr *cdr)
+void CdrList::onSessionFinalize(Cdr *cdr)
 {
-    if(!cdr) {
-        ERROR("%s() cdr = NULL",FUNC_NAME);
-        log_stacktrace(L_ERR);
-        return 1;
+    if(snapshots_buffering) {
+        AmLock l(*this);
+        postponed_active_calls.emplace(*cdr);
     }
-
-    DBG("insert(%p, %s)",cdr,cdr->local_tag.c_str());
-
-    AmLock l(*cdr);
-
-    lock();
-    auto i = emplace(cdr->local_tag,cdr);
-    unlock();
-
-    if(!i.second) {
-        ERROR("attempt to double insert cdr with local_tag '%s' "
-              "into active calls list. integrity threat",
-              cdr->local_tag.c_str());
-        log_stacktrace(L_ERR);
-        return 1;
-    }
-    cdr->inserted2list = true;
-    return 0;
-}
-
-bool CdrList::remove(Cdr *cdr)
-{
-    if(!cdr) {
-        WARN("nullptr passed as active call to remove");
-        return false;
-    }
-
-    DBG("remove(%p, %s)",cdr,cdr->local_tag.c_str());
-
-    AmLock cdr_lock(*cdr);
-
-    if(!cdr->inserted2list) {
-        DBG("attempt to remove active call with cleared inserted2list flag: %s",
-             cdr->local_tag.c_str());
-        return false;
-    }
-
-    AmLock l(*this);
-
-    if(erase(cdr->local_tag)) {
-        if(snapshots_buffering)
-            postponed_active_calls.emplace(*cdr);
-        cdr->inserted2list = false;
-        return true;
-    } else {
-        WARN("attempt to remove unknown active call: %s",
-             cdr->local_tag.c_str());
-    }
-
-    return false;
-}
-
-bool CdrList::remove_by_local_tag(const string &local_tag)
-{
-    AmLock l(*this);
-
-    if(erase(local_tag))
-        return true;
-
-    return false;
 }
 
 long int CdrList::getCallsCount()
 {
-    AmLock l(*this);
-    return size();
+    /*AmLock l(*this);
+    return size();*/
+
+    long int calls_count = 0;
+    AmEventDispatcher::instance()->iterate(
+        [&](const string &,
+            const AmEventDispatcher::QueueEntry &entry)
+    {
+        auto leg = dynamic_cast<SBCCallLeg *>(entry.q);
+        if(!leg) return;
+
+        if(!leg->isALeg()) return;
+
+        calls_count++;
+
+    });
+    return calls_count;
 }
 
 int CdrList::getCall(const string &local_tag,AmArg &call,const SqlRouter *router)
 {
     auto &gc = Yeti::instance().config;
     const get_calls_ctx ctx(AmConfig.node_id,gc.pop_id,router);
+    bool found = false;
 
-    AmLock l(*this);
+    if(!AmEventDispatcher::instance()->apply(local_tag,[&](const AmEventDispatcher::QueueEntry &entry)
+    {
+        auto leg = dynamic_cast<SBCCallLeg *>(entry.q);
+        if(!leg) return;
 
-    auto it = find(local_tag);
-    if(it == end()) return 0;
+        if(!leg->isALeg()) return;
 
-    cdr2arg(call,it->second,ctx);
-    return 1;
+        auto call_ctx = leg->getCallCtx();
+        if(!call_ctx) return;
+
+        AmLock l(*call_ctx);
+        if(call_ctx->cdr) {
+            found = true;
+            cdr2arg(call,call_ctx->cdr,ctx);
+        }
+    })) {
+        //session not found by local_tag
+        return 0;
+    }
+
+    if(found) return 1;
+    return 0;
 }
 
-void CdrList::getCalls(AmArg &calls,int limit,const SqlRouter *router)
+void CdrList::getCalls(AmArg &calls, const SqlRouter *router)
 {
-    int i = limit;
     auto &gc = Yeti::instance().config;
 
     const get_calls_ctx ctx(AmConfig.node_id,gc.pop_id,router);
@@ -120,28 +91,34 @@ void CdrList::getCalls(AmArg &calls,int limit,const SqlRouter *router)
 
     PROF_START(calls_serialization);
 
-    lock();
-    for(const auto &it: *this) {
-        if(!i--) {
-            ERROR("active calls serialization reached limit: %d. calls count: %zd",
-                  limit,size());
-            break;
+    AmEventDispatcher::instance()->iterate(
+        [&](const string &,
+            const AmEventDispatcher::QueueEntry &entry)
+    {
+        auto leg = dynamic_cast<SBCCallLeg *>(entry.q);
+        if(!leg) return;
+
+        if(!leg->isALeg()) return;
+
+        auto call_ctx = leg->getCallCtx();
+        if(!call_ctx) return;
+
+        AmLock l(*call_ctx);
+        if(call_ctx->cdr) {
+            calls.push(AmArg());
+            cdr2arg(calls.back(),call_ctx->cdr,ctx);
         }
-        calls.push(AmArg());
-        cdr2arg(calls.back(),it.second,ctx);
-    }
-    unlock();
+    });
 
     PROF_END(calls_serialization);
     PROF_PRINT("active calls serialization",calls_serialization);
 }
 
 void CdrList::getCallsFields(
-    AmArg &calls,int limit,
+    AmArg &calls,
     const SqlRouter *router, const AmArg &params)
 {
     calls.assertArray();
-    int i = limit;
     auto &gc = Yeti::instance().config;
 
     cmp_rules filter_rules;
@@ -155,19 +132,26 @@ void CdrList::getCallsFields(
 
     PROF_START(calls_serialization);
 
-    lock();
-    for(const auto &it: *this) {
-        if(!i--) {
-            ERROR("active calls serialization reached limit: %d. calls count: %zd",
-                  limit,size());
-            break;
+    AmEventDispatcher::instance()->iterate(
+        [&](const string &,
+            const AmEventDispatcher::QueueEntry &entry)
+    {
+        auto leg = dynamic_cast<SBCCallLeg *>(entry.q);
+        if(!leg) return;
+
+        if(!leg->isALeg()) return;
+
+        auto call_ctx = leg->getCallCtx();
+        if(!call_ctx) return;
+
+        AmLock l(*call_ctx);
+        if(call_ctx->cdr) {
+            if(apply_filter_rules(call_ctx->cdr,filter_rules)) {
+                calls.push(AmArg());
+                cdr2arg_filtered(calls.back(),call_ctx->cdr,ctx);
+            }
         }
-        if(apply_filter_rules(it.second,filter_rules)) {
-            calls.push(AmArg());
-            cdr2arg_filtered(calls.back(),it.second,ctx);
-        }
-    }
-    unlock();
+    });
 
     PROF_END(calls_serialization);
     PROF_PRINT("active calls serialization",calls_serialization);
@@ -367,21 +351,22 @@ void CdrList::onTimer()
     AmArg calls;
     calls.assertArray();
 
-    lock();
-
-    if(snapshots_buffering)
-        local_postponed_calls.swap(postponed_active_calls);
-
-    if(empty() &&
-       (!snapshots_buffering || local_postponed_calls.empty()))
-    {
-        unlock();
-        return;
-    }
-
     //serialize to AmArg
-    for(const auto &it: *this) {
-        Cdr &cdr = *(it.second);
+    AmEventDispatcher::instance()->iterate(
+        [&](const string &,
+            const AmEventDispatcher::QueueEntry &entry)
+    {
+        auto leg = dynamic_cast<SBCCallLeg *>(entry.q);
+        if(!leg) return;
+
+        if(!leg->isALeg()) return;
+
+        auto call_ctx = leg->getCallCtx();
+        if(!call_ctx) return;
+
+        AmLock l(*call_ctx);
+        if(!call_ctx->cdr) return;
+
         calls.push(AmArg());
         AmArg &call = calls.back();
 
@@ -394,18 +379,21 @@ void CdrList::onTimer()
             call["buffered"] = false;
 
         if(snapshots_fields_whitelist.empty()) {
-            cdr.snapshot_info(call,df);
+            call_ctx->cdr->snapshot_info(call,df);
             call[end_time_key] = snapshot_timestamp_str;
         } else {
-            cdr.snapshot_info_filtered(call,df,snapshots_fields_whitelist);
+            call_ctx->cdr->snapshot_info_filtered(call,df,snapshots_fields_whitelist);
             if(snapshots_fields_whitelist.count(end_time_key))
                 call[end_time_key] = snapshot_timestamp_str;
         }
-    }
-
-    unlock();
+    });
 
     if(snapshots_buffering) {
+        {
+            AmLock l(*this);
+            if(snapshots_buffering)
+                local_postponed_calls.swap(postponed_active_calls);
+        }
         while(!local_postponed_calls.empty()) {
             const Cdr &cdr = local_postponed_calls.front();
 

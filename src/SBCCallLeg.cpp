@@ -534,7 +534,6 @@ bool SBCCallLeg::chooseNextProfile(){
     }
 
     //write cdr and replace ctx pointer with new
-    cdr_list.remove(cdr);
     router.write_cdr(cdr,false);
     cdr = call_ctx->cdr;
 
@@ -1601,7 +1600,7 @@ void SBCCallLeg::onBeforeDestroy()
         if(nullptr!=p) rctl.put(p->resource_handler);
         Cdr *cdr = call_ctx->cdr;
         if(cdr) {
-            cdr_list.remove(cdr);
+            //cdr_list.remove(cdr);
             router.write_cdr(cdr,true);
         }
         call_ctx->unlock();
@@ -1610,6 +1609,18 @@ void SBCCallLeg::onBeforeDestroy()
         call_ctx->unlock();
     }
     call_ctx = nullptr;
+}
+
+void SBCCallLeg::finalize()
+{
+    DBG("%s(%p|%s,leg%s)",FUNC_NAME,
+        to_void(this),getLocalTag().c_str(),a_leg?"A":"B");
+    if(a_leg) {
+        with_cdr_for_read {
+            cdr_list.onSessionFinalize(cdr);
+        }
+    }
+    AmB2BSession::finalize();
 }
 
 UACAuthCred* SBCCallLeg::getCredentials()
@@ -2028,7 +2039,7 @@ void SBCCallLeg::onOtherBye(const AmSipRequest& req)
             with_cdr_for_write {
                 cdr->update_internal_reason(DisconnectByDST,"EarlyBye",500);
                 cdr->update_aleg_reason("Request terminated",487);
-                cdr_list.remove(cdr);
+                //cdr_list.remove(cdr);
                 router.write_cdr(cdr,true);
             }
         }
@@ -2697,7 +2708,7 @@ void SBCCallLeg::onIdentityReady()
 
 void SBCCallLeg::onRoutingReady()
 {
-    Cdr *cdr = call_ctx->cdr;
+    /*Cdr *cdr = call_ctx->cdr;
 
     if(0!=cdr_list.insert(cdr)){
         ERROR("onInitialInvite(): double insert into active calls list. integrity threat");
@@ -2705,7 +2716,7 @@ void SBCCallLeg::onRoutingReady()
             cdr->attempt_num,cdr->msg_logger_path.c_str());
         log_stacktrace(L_ERR);
         throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
-    }
+    }*/
 
     call_profile.sst_aleg_enabled = ctx.replaceParameters(
         call_profile.sst_aleg_enabled,
@@ -3264,12 +3275,12 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     DBG("%s() has new profile, so create new callee",FUNC_NAME);
     cdr = call_ctx->cdr;
 
-    if(0!=cdr_list.insert(cdr)){
+    /*if(0!=cdr_list.insert(cdr)){
         ERROR("onBLegRefused(): double insert into active calls list. integrity threat");
         ERROR("ctx: attempt = %d, cdr.logger_path = %s",
             cdr->attempt_num,cdr->msg_logger_path.c_str());
         return;
-    }
+    }*/
 
     AmSipRequest &req = *call_ctx->initial_invite;
     try {

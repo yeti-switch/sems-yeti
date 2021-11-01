@@ -12,8 +12,8 @@
 
 class CdrList
   : public AmThread,
-    private AmMutex,
-    private std::unordered_map<string, Cdr *>
+    private AmMutex/*,
+    private std::unordered_map<string, Cdr *>*/
 {
     int epoll_fd;
     bool snapshots_enabled;
@@ -63,13 +63,11 @@ class CdrList
     ~CdrList();
 
     long int getCallsCount();
-    void getCalls(AmArg &calls, int limit, const SqlRouter *router);
-    void getCallsFields(AmArg &calls, int limit,const SqlRouter *router, const AmArg &params);
+    void getCalls(AmArg &calls, const SqlRouter *router);
+    void getCallsFields(AmArg &calls, const SqlRouter *router, const AmArg &params);
     int getCall(const string &local_tag, AmArg &call, const SqlRouter *router);
 
-    int insert(Cdr *cdr);
-    bool remove(Cdr *cdr);
-    bool remove_by_local_tag(const string &local_tag);
+    void onSessionFinalize(Cdr *cdr);
 
     void getFields(AmArg &ret,SqlRouter *r);
     void validate_fields(const vector<string> &wanted_fields, const SqlRouter *router);

@@ -221,6 +221,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   virtual void onStart();
   virtual void onBeforeDestroy();
+  void finalize() override;
 
   //int filterSdp(AmMimeBody &body, const string &method);
   void connectCallee(const string& remote_party, const string& remote_uri,
