@@ -21,7 +21,7 @@ list(APPEND CMAKE_CXX_FLAGS_DEBUG -D_DEBUG)
 list(APPEND CMAKE_C_FLAGS_DEBUG -D_DEBUG)
 
 #add_definitions("-D__FILENAME__='\"yeti:$(subst ${CMAKE_CURRENT_SOURCE_DIR}/src/,,$(abspath $<))\"'")
-add_definitions("-ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}/src/=yeti: -D__FILENAME__=__FILE__")
+add_definitions("-fmacro-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}/src/=yeti: -D__FILENAME__=__FILE__")
 add_definitions(${SEMS_CFLAGS})
 add_definitions(-std=c++2a -Wno-deprecated -g)
 
