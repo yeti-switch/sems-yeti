@@ -1615,6 +1615,7 @@ void SBCCallLeg::finalize()
 {
     DBG("%s(%p|%s,leg%s)",FUNC_NAME,
         to_void(this),getLocalTag().c_str(),a_leg?"A":"B");
+    getCtx_void
     if(a_leg) {
         with_cdr_for_read {
             cdr_list.onSessionFinalize(cdr);
