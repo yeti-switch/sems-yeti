@@ -124,6 +124,10 @@ bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
 
     static string x_yeti_auth_hdr("X-YETI-AUTH");
 
+    /* keep old behavior for no matched failover */
+    reply.require_incoming_auth = false;
+    reply.require_identity_parsing = true;
+
     size_t start_pos = 0;
     while (start_pos<req.hdrs.length()) {
         size_t name_end, val_begin, val_end, hdr_end;
@@ -219,10 +223,6 @@ bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
 
         return true;
     }
-
-    /* keep old behavior for no matched failover */
-    reply.require_incoming_auth = false;
-    reply.require_identity_parsing = true;
 
     return false;
 }
