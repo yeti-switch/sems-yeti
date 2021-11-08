@@ -1,3 +1,9 @@
+sems-yeti (1.12.2) stable; urgency=medium
+
+  * apply mediaACLs from DB response
+ 
+ -- dev <dev@yeti-switch.org>  Mon, 08 Nov 2021 20:13:47 +0200
+
 sems-yeti (1.12.1) stable; urgency=medium
 
   * remove Cdrs saving in CdrList
