@@ -28,6 +28,29 @@ bool SqlCallProfile::skip(const pqxx::row &t){
 	return false;
 }
 
+static void readMediaAcl(const pqxx::row &t, const char key[], std::vector<AmSubnet> &acl)
+{
+	try {
+		const pqxx::field &f = t[key];
+		pqxx::array_parser p = f.as_array();
+		std::pair<pqxx::array_parser::juncture, std::string> pair;
+		do {
+			pair = p.get_next();
+			if(pair.first!=pqxx::array_parser::string_value)
+				continue;
+			AmSubnet subnet;
+			if(!subnet.parse(pair.second)) {
+				ERROR("failed to parse subnet '%s' for %s",
+					pair.second.data(), key);
+				continue;
+			}
+			acl.emplace_back(subnet);
+		} while(pair.first != pqxx::array_parser::done);
+	} catch(...) {
+		ERROR("field '%s' not exist in db response",key);
+	}
+}
+
 bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 	profile_file = "SQL";
 
@@ -304,6 +327,9 @@ bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 	assign_int_safe_silent(aleg_media_encryption_mode_id, "aleg_media_encryption_mode_id",0,0);
 	assign_int_safe_silent(bleg_media_encryption_mode_id, "bleg_media_encryption_mode_id",0,0);
 
+	readMediaAcl(t, "aleg_rtp_acl", aleg_rtp_acl);
+	readMediaAcl(t, "bleg_rtp_acl", bleg_rtp_acl);
+
 	DBG("Yeti: loaded SQL profile\n");
 
 	return true;
@@ -522,6 +548,9 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 		DBG("bleg_dtmf_recv_modes: %d",bleg_dtmf_recv_modes);
 		DBG("aleg_rtp_filter_inband_dtmf: %d",aleg_rtp_filter_inband_dtmf);
 		DBG("bleg_rtp_filter_inband_dtmf: %d",bleg_rtp_filter_inband_dtmf);
+
+		DBG("aleg_rtp_acl size: %zd", aleg_rtp_acl.size());
+		DBG("bleg_rtp_acl size: %zd", bleg_rtp_acl.size());
 
 		DBG("disable_early_media: '%s'",suppress_early_media?"yes":"no");
 		DBG("force_one_way_early_media '%s'",force_one_way_early_media?"yes":"no");

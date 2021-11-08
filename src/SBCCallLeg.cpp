@@ -1184,6 +1184,8 @@ void SBCCallLeg::applyAProfile()
         }
         // copy stats counters
         rtp_pegs = call_profile.aleg_rtp_counters;
+
+        setMediaAcl(call_profile.aleg_rtp_acl);
     }
 
     if(!call_profile.dlg_contact_params.empty())
@@ -1313,6 +1315,8 @@ void SBCCallLeg::applyBProfile()
 
         // copy stats counters
         rtp_pegs = call_profile.bleg_rtp_counters;
+
+        setMediaAcl(call_profile.bleg_rtp_acl);
     }
 
     // was read from caller but reading directly from profile now

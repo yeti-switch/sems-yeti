@@ -290,6 +290,9 @@ struct SBCCallProfile
   TransProt bleg_media_transport;
   bool  bleg_media_allow_zrtp;
 
+  std::vector<AmSubnet> aleg_rtp_acl;
+  std::vector<AmSubnet> bleg_rtp_acl;
+
   struct TranscoderSettings {
     enum { DTMFAlways, DTMFNever } dtmf_mode;
 
