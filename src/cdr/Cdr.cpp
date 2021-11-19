@@ -524,59 +524,111 @@ void serialize_MathStat(cJSON *j, MathStat<T> &s)
 
 void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::MediaStats &m)
 {
-#define serialize_math_stat(PREFIX, STAT) \
-    cJSON_AddNumberToObject(j, PREFIX "_min", STAT.min); \
-    cJSON_AddNumberToObject(j, PREFIX "_max", STAT.max); \
-    cJSON_AddNumberToObject(j, PREFIX "_mean", STAT.mean); \
-    cJSON_AddNumberToObject(j, PREFIX "_std", STAT.sd());
+#define serialize_math_stat(j, PREFIX, STAT) \
+    cJSON_AddNumberToObject(j, PREFIX "_min", STAT.min/1000); \
+    cJSON_AddNumberToObject(j, PREFIX "_max", STAT.max/1000); \
+    cJSON_AddNumberToObject(j, PREFIX "_mean", STAT.mean/1000); \
+    cJSON_AddNumberToObject(j, PREFIX "_std", STAT.sd()/1000);
 //    cJSON_AddNumberToObject(j, PREFIX "_var", STAT.variance());
 
     cJSON_AddStringToObject(j, "local_tag", local_tag.c_str());
 
     //common
-    serialize_math_stat("rtcp_rtt",m.rtt);
-    cJSON_AddStringToObject(j, "time_start",timeval2str_usec(m.time_start).c_str());
+    serialize_math_stat(j, "rtcp_rtt",m.rtt);
+    cJSON_AddStringToObject(j, "time_start", timeval2str_usec(m.time_start).c_str());
     cJSON_AddStringToObject(j, "time_end",timeval2str_usec(m.time_end).c_str());
+    cJSON_AddNumberToObject(j,"rx_out_of_buffer_errors",m.out_of_buffer_errors);
+    cJSON_AddNumberToObject(j,"rx_rtp_parse_errors",m.rtp_parse_errors);
+    cJSON_AddNumberToObject(j,"rx_dropped_packets",m.dropped);
+    cJSON *rx_arr = cJSON_CreateArray();
 
-    //RX common
-    cJSON_AddNumberToObject(j, "rx_ssrc",m.rx.ssrc);
-    cJSON_AddStringToObject(j, "remote_host",get_addr_str_sip(&m.rx.addr).c_str());
-    cJSON_AddNumberToObject(j, "remote_port",am_get_port(&m.rx.addr));
-    cJSON_AddNumberToObject(j, "rx_packets",m.rx.pkt);
-    cJSON_AddNumberToObject(j, "rx_bytes",m.rx.bytes);
-    cJSON_AddNumberToObject(j, "rx_total_lost",m.rx.total_lost);
-    cJSON_AddStringToObject(j, "rx_payloads_transcoded",
-        join_vector(m.rx.payloads_transcoded,',').c_str());
-    cJSON_AddStringToObject(j, "rx_payloads_relayed",
-        join_vector(m.rx.payloads_relayed,',').c_str());
+    for(auto& rx : m.rx) {
+        cJSON* rx_json = cJSON_CreateObject();
 
-    //RX
-    cJSON_AddNumberToObject(j,"rx_decode_errors",m.rx.decode_errors);
-    cJSON_AddNumberToObject(j,"rx_out_of_buffer_errors",m.rx.out_of_buffer_errors);
-    cJSON_AddNumberToObject(j,"rx_rtp_parse_errors",m.rx.rtp_parse_errors);
-    serialize_math_stat("rx_packet_delta",m.rx.delta);
-    serialize_math_stat("rx_packet_jitter",m.rx.jitter);
-    serialize_math_stat("rx_rtcp_jitter",m.rx.rtcp_jitter);
+        //RX common
+        cJSON_AddNumberToObject(rx_json, "rx_ssrc",rx.ssrc);
+        cJSON_AddStringToObject(rx_json, "remote_host",get_addr_str_sip(&rx.addr).c_str());
+        cJSON_AddNumberToObject(rx_json, "remote_port",am_get_port(&rx.addr));
+        cJSON_AddNumberToObject(rx_json, "rx_packets",rx.pkt);
+        cJSON_AddNumberToObject(rx_json, "rx_bytes",rx.bytes);
+        cJSON_AddNumberToObject(rx_json, "rx_total_lost",rx.total_lost);
+        cJSON_AddStringToObject(rx_json, "rx_payloads_transcoded",
+            join_vector(rx.payloads_transcoded,',').c_str());
+        cJSON_AddStringToObject(rx_json, "rx_payloads_relayed",
+            join_vector(rx.payloads_relayed,',').c_str());
+
+        //RX
+        cJSON_AddNumberToObject(rx_json,"rx_decode_errors",rx.decode_errors);
+        serialize_math_stat(rx_json, "rx_packet_delta",rx.delta);
+        serialize_math_stat(rx_json, "rx_packet_jitter",rx.jitter);
+        serialize_math_stat(rx_json, "rx_rtcp_jitter",rx.rtcp_jitter);
+        cJSON_AddItemToArray(rx_arr, rx_json);
+    }
+    cJSON_AddItemToObject(j, "rx", rx_arr);
 
     //TX common
+    cJSON_AddNumberToObject(j, "tx_packets",m.tx.pkt);
+    cJSON_AddNumberToObject(j, "tx_bytes",m.tx.bytes);
     cJSON_AddNumberToObject(j, "tx_ssrc",m.tx.ssrc);
     cJSON_AddStringToObject(j, "local_host",get_addr_str_sip(&m.tx.addr).c_str());
     cJSON_AddNumberToObject(j, "local_port",am_get_port(&m.tx.addr));
-    cJSON_AddNumberToObject(j, "tx_packets",m.rx.pkt);
-    cJSON_AddNumberToObject(j, "tx_bytes",m.rx.bytes);
     cJSON_AddNumberToObject(j, "tx_total_lost",m.tx.total_lost);
     cJSON_AddStringToObject(j, "tx_payloads_transcoded",
         join_vector(m.tx.payloads_transcoded,',').c_str());
     cJSON_AddStringToObject(j, "tx_payloads_relayed",
         join_vector(m.tx.payloads_relayed,',').c_str());
+    serialize_math_stat(j, "tx_rtcp_jitter",m.tx.jitter);
     //TX
-    serialize_math_stat("tx_rtcp_jitter",m.tx.jitter);
 
 #undef serialize_math_stat
 }
 
-char *Cdr::serialize_rtp_stats()
+char* Cdr::serialize_rtp_stats()
 {
+#define merge_payloads(input, output) \
+    for(auto& p : input) { \
+            if(std::find(output.begin(),output.end(), p) == output.end()) \
+                    output.push_back(p); \
+        }
+
+    vector<string> aleg_rx_payloads_transcoded, aleg_rx_payloads_relayed;
+    vector<string> aleg_tx_payloads_transcoded, aleg_tx_payloads_relayed;
+    vector<string> bleg_rx_payloads_transcoded, bleg_rx_payloads_relayed;
+    vector<string> bleg_tx_payloads_transcoded, bleg_tx_payloads_relayed;
+    int aleg_tx_bytes = 0, bleg_tx_bytes = 0;
+    int aleg_rx_bytes = 0, bleg_rx_bytes = 0;
+    int aleg_decode_errors = 0, bleg_decode_errors = 0;
+    int aleg_out_of_buffer_errors = 0, bleg_out_of_buffer_errors = 0;
+    int aleg_rtp_parse_errors = 0, bleg_rtp_parse_errors = 0;
+
+    for(auto& leg_media_stats : aleg_media_stats) {
+        aleg_tx_bytes += leg_media_stats.tx.bytes;
+        aleg_out_of_buffer_errors += leg_media_stats.out_of_buffer_errors;
+        aleg_rtp_parse_errors += leg_media_stats.rtp_parse_errors;
+        merge_payloads(leg_media_stats.tx.payloads_transcoded, aleg_tx_payloads_transcoded);
+        merge_payloads(leg_media_stats.tx.payloads_relayed, aleg_tx_payloads_relayed);
+        for(auto& rx : leg_media_stats.rx) {
+            merge_payloads(rx.payloads_transcoded, aleg_rx_payloads_transcoded);
+            merge_payloads(rx.payloads_relayed, aleg_rx_payloads_relayed);
+            aleg_decode_errors += rx.decode_errors;
+            aleg_rx_bytes += rx.bytes;
+        }
+    }
+
+    for(auto& leg_media_stats : bleg_media_stats) {
+        bleg_tx_bytes += leg_media_stats.tx.bytes;
+        bleg_out_of_buffer_errors += leg_media_stats.out_of_buffer_errors;
+        bleg_rtp_parse_errors += leg_media_stats.rtp_parse_errors;
+        merge_payloads(leg_media_stats.tx.payloads_transcoded, bleg_tx_payloads_transcoded);
+        merge_payloads(leg_media_stats.tx.payloads_relayed, bleg_tx_payloads_relayed);
+        for(auto& rx : leg_media_stats.rx) {
+            merge_payloads(rx.payloads_transcoded, bleg_rx_payloads_transcoded);
+            merge_payloads(rx.payloads_relayed, bleg_rx_payloads_relayed);
+            bleg_decode_errors += rx.decode_errors;
+            bleg_rx_bytes += rx.bytes;
+        }
+    }
+
 #define field_name fields[i++]
 #define add_str2json(value) cJSON_AddStringToObject(j,field_name,value)
 #define add_num2json(value) cJSON_AddNumberToObject(j,field_name,value)
@@ -613,42 +665,43 @@ char *Cdr::serialize_rtp_stats()
 
     //tx/rx uploads
     add_str2json(join_str_vector2(
-                    aleg_media_stats.rx.payloads_transcoded,
-                    aleg_media_stats.rx.payloads_relayed,","
+                    aleg_rx_payloads_transcoded,
+                    aleg_rx_payloads_relayed,","
                 ).c_str());
 
     add_str2json(join_str_vector2(
-                    aleg_media_stats.tx.payloads_transcoded,
-                    aleg_media_stats.tx.payloads_relayed,","
+                    aleg_tx_payloads_transcoded,
+                    aleg_tx_payloads_relayed,","
                 ).c_str());
 
     add_str2json(join_str_vector2(
-                    bleg_media_stats.rx.payloads_transcoded,
-                    bleg_media_stats.rx.payloads_relayed,","
+                    bleg_rx_payloads_transcoded,
+                    bleg_rx_payloads_relayed,","
                 ).c_str());
 
     add_str2json(join_str_vector2(
-                    bleg_media_stats.tx.payloads_transcoded,
-                    bleg_media_stats.tx.payloads_relayed,","
+                    bleg_tx_payloads_transcoded,
+                    bleg_tx_payloads_relayed,","
                 ).c_str());
 
     //tx/rx bytes
-    add_num2json(aleg_media_stats.rx.bytes);
-    add_num2json(aleg_media_stats.tx.bytes);
-    add_num2json(bleg_media_stats.rx.bytes);
-    add_num2json(bleg_media_stats.tx.bytes);
+    add_num2json(aleg_rx_bytes);
+    add_num2json(aleg_tx_bytes);
+    add_num2json(bleg_rx_bytes);
+    add_num2json(bleg_tx_bytes);
 
     //tx/rx rtp errors
-    add_num2json(aleg_media_stats.rx.decode_errors);
-    add_num2json(aleg_media_stats.rx.out_of_buffer_errors);
-    add_num2json(aleg_media_stats.rx.rtp_parse_errors);
-    add_num2json(bleg_media_stats.rx.decode_errors);
-    add_num2json(bleg_media_stats.rx.out_of_buffer_errors);
-    add_num2json(bleg_media_stats.rx.rtp_parse_errors);
+    add_num2json(aleg_decode_errors);
+    add_num2json(aleg_out_of_buffer_errors);
+    add_num2json(aleg_rtp_parse_errors);
+    add_num2json(bleg_decode_errors);
+    add_num2json(bleg_out_of_buffer_errors);
+    add_num2json(bleg_rtp_parse_errors);
 
     s = cJSON_PrintUnformatted(j);
     cJSON_Delete(j);
     return s;
+
 }
 
 char *Cdr::serialize_media_stats()
@@ -656,20 +709,24 @@ char *Cdr::serialize_media_stats()
     cJSON *j = nullptr, *i;
     char *s;
 
-    if(aleg_sdp_completed && timerisset(&aleg_media_stats.time_start))
+    if(aleg_sdp_completed)
     {
         if(!j) j = cJSON_CreateArray();
-        i = cJSON_CreateObject();
-        cJSON_AddItemToArray(j,i);
-        serialize_media_stats(i,local_tag,aleg_media_stats);
+        for(auto& leg_media_stats : aleg_media_stats) {
+            i = cJSON_CreateObject();
+            cJSON_AddItemToArray(j,i);
+            serialize_media_stats(i,local_tag,leg_media_stats);
+        }
     }
 
-    if(bleg_sdp_completed && timerisset(&bleg_media_stats.time_start))
+    if(bleg_sdp_completed)
     {
         if(!j) j = cJSON_CreateArray();
-        i = cJSON_CreateObject();
-        cJSON_AddItemToArray(j,i);
-        serialize_media_stats(i,bleg_local_tag,bleg_media_stats);
+        for(auto& leg_media_stats : bleg_media_stats) {
+            i = cJSON_CreateObject();
+            cJSON_AddItemToArray(j,i);
+            serialize_media_stats(i,bleg_local_tag,leg_media_stats);
+        }
     }
 
     if(!j) return strdup("[]");

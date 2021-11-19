@@ -3360,11 +3360,19 @@ void SBCCallLeg::onRTPStreamDestroy(AmRtpStream *stream) {
     AmLock call_ctx_lock(*call_ctx_mutex);
 
     if(!call_ctx) return;
+    AmRtpStream::MediaStats stats;
+    stream->getMediaStats(stats);
+    if(!timerisset(&stats.time_start)) return;
 
     with_cdr_for_read {
         if(cdr->writed) return;
-        if(a_leg) stream->getMediaStats(cdr->aleg_media_stats);
-        else stream->getMediaStats(cdr->bleg_media_stats);
+        if(a_leg) {
+            if(cdr->aleg_media_stats.size() < MAX_STREAM_STATS)
+                cdr->aleg_media_stats.push_back(stats);
+        } else {
+            if(cdr->bleg_media_stats.size() < MAX_STREAM_STATS)
+                cdr->bleg_media_stats.push_back(stats);
+        }
     }
 }
 

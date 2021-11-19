@@ -88,8 +88,8 @@ struct Cdr
 
     vector<AmArg> trusted_hdrs;
 
-    AmRtpStream::MediaStats aleg_media_stats;
-    AmRtpStream::MediaStats bleg_media_stats;
+    vector<AmRtpStream::MediaStats> aleg_media_stats;
+    vector<AmRtpStream::MediaStats> bleg_media_stats;
     bool aleg_sdp_completed;
     bool bleg_sdp_completed;
 
