@@ -189,6 +189,9 @@ void YetiRpc::init_rpc_tree()
 		method(show, "trusted_balancers", "show trusted balancers list", showTrustedBalancers, "");
 		method(show, "ip_auth", "show ip auth list", showIPAuth, "");
 
+		leaf(show,show_reload,"reload","db setting reload");
+			method(show_reload,"status","show db reloading status",showReloadStatus,"");
+
 	/* request */
 	leaf(root,request,"request","modify commands");
 
@@ -208,6 +211,7 @@ void YetiRpc::init_rpc_tree()
 
 			leaf(request_router,request_router_resources,"resources","resources actions configuration");
 				method(request_router_resources,"reload","reload resources",reloadResources,"");
+
 
 		leaf(request,request_registrations,"registrations","uac registrations");
 			method_arg(request_registrations,"reload","reload reqistrations preferences",reloadRegistrations,
@@ -279,6 +283,17 @@ void YetiRpc::init_rpc_tree()
 		leaf(request,request_cert_cache,"cert_cache","cert_cache");
 			method_arg(request_cert_cache, "clear", "", clearCertCacheEntries, "","<x5url>...", "clear certificates in cache");
 			method_arg(request_cert_cache, "renew", "", renewCertCacheEntries, "","<x5url>...", "renew certificates in cache");
+			leaf(request_cert_cache,request_cert_cache_trusted_certs,"trusted_certificates","Trusted Certificates");
+				method(request_cert_cache_trusted_certs,"reload","",requestCertCacheTrustedCertsReload,"");
+			leaf(request_cert_cache,request_cert_cache_trusted_repositories,"trusted_repositories","Trusted repositories");
+				method(request_cert_cache_trusted_repositories,"reload","",requestIPAuthReload,"");
+
+		leaf(request,request_ip_auth,"ip_auth","IP auth");
+			method(request_ip_auth,"reload","",requestIPAuthReload,"");
+
+		leaf(request,request_trusted_balancers,"trusted_balancers","trusted balancers");
+			method(request_trusted_balancers,"reload","",requestTrustedBalancersReload,"");
+
 	/* set */
 	leaf(root,lset,"set","set");
 		leaf(lset,set_system,"system","system commands");
@@ -1356,4 +1371,66 @@ void YetiRpc::showTrustedBalancers(const AmArg& arg, AmArg& ret)
 void YetiRpc::showIPAuth(const AmArg& arg, AmArg& ret)
 {
     orig_pre_auth.ShowIPAuth(ret);
+}
+
+void YetiRpc::requestCertCacheTrustedCertsReload(const AmArg&, AmArg& ret)
+{
+    pqxx::connection c(config.routing_db_master.conn_str());
+    c.set_variable("search_path",config.routing_schema+", public");
+    cert_cache.reloadDatabaseSettings(c, true, false);
+    ret = 0;
+}
+
+void YetiRpc::requestCertCacheTrustedRepositoriesReload(const AmArg&, AmArg& ret)
+{
+    pqxx::connection c(config.routing_db_master.conn_str());
+    c.set_variable("search_path",config.routing_schema+", public");
+    cert_cache.reloadDatabaseSettings(c, false, true);
+    ret = 0;
+}
+
+void YetiRpc::requestTrustedBalancersReload(const AmArg&, AmArg& ret)
+{
+    pqxx::connection c(config.routing_db_master.conn_str());
+    c.set_variable("search_path",config.routing_schema+", public");
+    orig_pre_auth.reloadDatabaseSettings(c, true, false);
+    ret = 0;
+}
+
+void YetiRpc::requestIPAuthReload(const AmArg&, AmArg& ret)
+{
+    pqxx::connection c(config.routing_db_master.conn_str());
+    c.set_variable("search_path",config.routing_schema+", public");
+    orig_pre_auth.reloadDatabaseSettings(c, false, true);
+    ret = 0;
+}
+
+static void fillReloadStatus(AmArg &a, unsigned long node_state, unsigned long db_state)
+{
+    a["node"] = node_state;
+    a["db"] = db_state;
+}
+
+void YetiRpc::showReloadStatus(const AmArg&, AmArg& ret)
+{
+    DbConfigStates new_db_cfg_states;
+    pqxx::connection c(config.routing_db_master.conn_str());
+    c.set_variable("search_path",config.routing_schema+", public");
+    {
+        pqxx::nontransaction t(c);
+        new_db_cfg_states.readFromDbReply(t.exec("SELECT * FROM check_states()"));
+    }
+
+    ret.assertStruct();
+#define fillStatusByName(field_name) \
+    fillReloadStatus(ret[#field_name],\
+                     db_cfg_states.field_name,\
+                     new_db_cfg_states.field_name)
+
+    fillStatusByName(trusted_lb);
+    fillStatusByName(ip_auth);
+    fillStatusByName(stir_shaken_trusted_certificates);
+    fillStatusByName(stir_shaken_trusted_repositories);
+
+#undef fillStatusByName
 }

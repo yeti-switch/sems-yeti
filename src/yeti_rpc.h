@@ -151,8 +151,14 @@ class YetiRpc
     rpc_handler clearCertCacheEntries;
     rpc_handler renewCertCacheEntries;
     rpc_handler showCertCacheTrustedCerts;
+    rpc_handler requestCertCacheTrustedCertsReload;
     rpc_handler showCertCacheTrustedRepositories;
+    rpc_handler requestCertCacheTrustedRepositoriesReload;
 
     rpc_handler showTrustedBalancers;
+    rpc_handler requestTrustedBalancersReload;
     rpc_handler showIPAuth;
+    rpc_handler requestIPAuthReload;
+
+    rpc_handler showReloadStatus;
 };

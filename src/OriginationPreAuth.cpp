@@ -4,9 +4,7 @@
 #include <exception>
 
 OriginationPreAuth::OriginationPreAuth(YetiCfg &ycfg)
-  : ycfg(ycfg),
-    trusted_lb_state(0),
-    ip_auth_state(0)
+  : ycfg(ycfg)
 {}
 
 OriginationPreAuth::LoadBalancerData::LoadBalancerData(const pqxx::row &r)
@@ -47,7 +45,8 @@ OriginationPreAuth::IPAuthData::operator AmArg() const
 }
 
 void OriginationPreAuth::reloadDatabaseSettings(pqxx::connection &c,
-                                                const DbConfigStates &db_cfg_states) noexcept
+                                                bool reload_load_balancers,
+                                                bool reload_ip_auth) noexcept
 {
     //TODO: async DB request
     LoadBalancersContainer tmp_load_balancers;
@@ -55,13 +54,13 @@ void OriginationPreAuth::reloadDatabaseSettings(pqxx::connection &c,
     try {
         pqxx::nontransaction t(c);
 
-        if(db_cfg_states.trusted_lb > trusted_lb_state) {
+        if(reload_load_balancers) {
             auto r = t.exec("SELECT * FROM load_trusted_lb()");
             for(const auto &row: r)
                 tmp_load_balancers.emplace_back(row);
         }
 
-        if(db_cfg_states.ip_auth > ip_auth_state) {
+        if(reload_ip_auth) {
             auto r =  t.exec_params("SELECT * FROM load_ip_auth($1,$2)",
                            AmConfig.node_id, ycfg.pop_id);
             for(const auto &row: r)
@@ -71,10 +70,10 @@ void OriginationPreAuth::reloadDatabaseSettings(pqxx::connection &c,
         {
             AmLock l(mutex);
 
-            if(db_cfg_states.trusted_lb > trusted_lb_state)
+            if(reload_load_balancers)
                 load_balancers.swap(tmp_load_balancers);
 
-            if(db_cfg_states.ip_auth > ip_auth_state) {
+            if(reload_ip_auth) {
                 ip_auths.swap(tmp_ip_auths);
 
                 subnets_tree.clear();
@@ -83,10 +82,6 @@ void OriginationPreAuth::reloadDatabaseSettings(pqxx::connection &c,
                     subnets_tree.addSubnet(auth.subnet, idx++);
             }
         }
-
-        trusted_lb_state = db_cfg_states.trusted_lb;
-        ip_auth_state = db_cfg_states.ip_auth;
-
     } catch(const pqxx::pqxx_exception &e) {
         ERROR("OriginationPreAuth pqxx_exception: %s ",e.base().what());
     } catch(...) {

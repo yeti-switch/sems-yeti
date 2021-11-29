@@ -6,6 +6,7 @@
 
 #include "db/DbConfig.h"
 #include "cfg/YetiCfg.h"
+#include "DbConfigStates.h"
 
 #include "confuse.h"
 
@@ -134,7 +135,9 @@ class CertCache
 
     void processHttpReply(const HttpGetResponseEvent& resp);
     void onTimer(const std::chrono::system_clock::time_point &now);
-    void reloadDatabaseSettings(pqxx::connection &c) noexcept;
+    void reloadDatabaseSettings(pqxx::connection &c,
+                                bool reload_trusted_cetificates,
+                                bool reload_trusted_repositories) noexcept;
 
     //rpc methods
     void ShowCerts(AmArg& ret, const std::chrono::system_clock::time_point &now);

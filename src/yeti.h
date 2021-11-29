@@ -32,8 +32,6 @@ class Yeti
 
     void onDbCfgReloadTimer() noexcept;
 
-    DbConfigStates db_cfg_states;
-
   public:
 
     struct Counters {

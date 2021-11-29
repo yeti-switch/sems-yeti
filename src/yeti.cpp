@@ -499,18 +499,25 @@ void Yeti::processRedisRpcAorLookupReply(RedisReplyEvent &e)
 void Yeti::onDbCfgReloadTimer() noexcept
 {
     try {
+        DbConfigStates new_db_cfg_states;
+
         pqxx::connection c(config.routing_db_master.conn_str());
         c.set_variable("search_path",config.routing_schema+", public");
 
         {
             pqxx::nontransaction t(c);
-            db_cfg_states.readFromDbReply(t.exec("SELECT * FROM check_states()"));
+            new_db_cfg_states.readFromDbReply(t.exec("SELECT * FROM check_states()"));
         }
 
         if(config.identity_enabled) {
-            cert_cache.reloadDatabaseSettings(c);
+            cert_cache.reloadDatabaseSettings(c,
+                new_db_cfg_states.stir_shaken_trusted_certificates > db_cfg_states.stir_shaken_trusted_certificates,
+                new_db_cfg_states.stir_shaken_trusted_repositories > db_cfg_states.stir_shaken_trusted_repositories);
         }
-        orig_pre_auth.reloadDatabaseSettings(c, db_cfg_states);
+        orig_pre_auth.reloadDatabaseSettings(c,
+            new_db_cfg_states.trusted_lb > db_cfg_states.trusted_lb,
+            new_db_cfg_states.ip_auth > db_cfg_states.ip_auth);
+        db_cfg_states = new_db_cfg_states;
     } catch(const pqxx::pqxx_exception &e){
         ERROR("DB cfg reload pqxx_exception: %s ",e.base().what());
     } catch(...) {

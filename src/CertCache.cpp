@@ -224,18 +224,19 @@ void CertCache::renewCertEntry(HashType::value_type &entry)
                         YETI_QUEUE_NAME)); //session_id
 }
 
-void CertCache::reloadDatabaseSettings(pqxx::connection &c) noexcept
+void CertCache::reloadDatabaseSettings(pqxx::connection &c,
+                                       bool reload_trusted_cetificates,
+                                       bool reload_trusted_repositories) noexcept
 {
     //TODO: async DB request
     try {
         pqxx::nontransaction t(c);
-        auto r = t.exec("SELECT * FROM load_stir_shaken_trusted_certificates()");
+        if(reload_trusted_cetificates) {
+            auto r = t.exec("SELECT * FROM load_stir_shaken_trusted_certificates()");
 
-        {
             AmLock l(mutex);
             trusted_certs.clear();
             trusted_certs_store = Botan::Certificate_Store_In_Memory();
-
             for(const auto &row: r) {
                 try {
                     trusted_certs.emplace_back(
@@ -262,10 +263,10 @@ void CertCache::reloadDatabaseSettings(pqxx::connection &c) noexcept
             }
         }
 
-        r = t.exec("SELECT * FROM load_stir_shaken_trusted_repositories()");
-        {
-            AmLock l(mutex);
+        if(reload_trusted_repositories) {
+            auto r = t.exec("SELECT * FROM load_stir_shaken_trusted_repositories()");
 
+            AmLock l(mutex);
             trusted_repositories.clear();
             for(const auto &row: r) {
                 try {

@@ -53,6 +53,7 @@ struct YetiBase {
     ResourceControl rctl;
 
     YetiCfg config;
+    DbConfigStates db_cfg_states;
 
     cfg_t *confuse_cfg;
     AmConfigReader cfg;
