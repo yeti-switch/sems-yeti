@@ -1,3 +1,14 @@
+sems-yeti (1.12.3) stable; urgency=medium
+
+  [add rpc commands to reload db-related entities]
+  * yeti.show.reload.status
+  * yeti.request.cert_cache.trusted_certificates.reload
+  * yeti.request.cert_cache.trusted_repositories.reload
+  * yeti.request.ip_auth.reload
+  * yeti.request.trusted_balancers.reload
+
+ -- dev <dev@yeti-switch.org>  Mon, 29 Nov 2021 22:29:54 +0200
+
 sems-yeti (1.12.2) stable; urgency=medium
 
   * apply mediaACLs from DB response
