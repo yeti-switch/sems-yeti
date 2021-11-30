@@ -43,8 +43,6 @@ class OriginationPreAuth final
   public:
     struct Reply {
         string orig_ip;
-        /*int orig_port;
-        int orig_proto;*/
         string x_yeti_auth;
         bool require_incoming_auth;
         bool require_identity_parsing;

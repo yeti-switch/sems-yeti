@@ -21,6 +21,7 @@ extern char opt_name_core_options_handling[];
 extern char opt_name_pcap_memory_logger[];
 extern char opt_name_db_refresh_interval[];
 extern char opt_name_ip_auth_reject_if_no_matched[];
+extern char opt_name_ip_auth_header[];
 
 extern char opt_identity_expires[];
 extern char opt_identity_http_destination[];

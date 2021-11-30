@@ -113,10 +113,6 @@ bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
      * and req.remote_ip within trusted load balancers list.
      * use req.remote_ip otherwise */
 
-    static string x_orig_ip_hdr("X-ORIG-IP");
-    /*static string x_orig_port_hdr("X-ORIG-PORT");
-    static string x_orig_proto_hdr("X-ORIG-PROTO");*/
-
     static string x_yeti_auth_hdr("X-YETI-AUTH");
 
     size_t start_pos = 0;
@@ -129,18 +125,20 @@ bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
             break;
         }
         if(0==strncasecmp(req.hdrs.c_str() + start_pos,
-                          x_orig_ip_hdr.c_str(), name_end-start_pos))
+                          ycfg.ip_auth_hdr.c_str(), name_end-start_pos))
         {
             //req.hdrs.substr(val_begin, val_end-val_begin);
             if(reply.orig_ip.empty()) {
-                DBG("found first X-AUTH-IP hdr. checking for trusted balancer");
+                DBG("found first %s hdr. checking for trusted balancer",
+                    ycfg.ip_auth_hdr.data());
                 AmLock l(mutex);
                 for(const auto &lb : load_balancers) {
                     if(lb.signalling_ip==req.remote_ip) {
                         reply.orig_ip = req.hdrs.substr(val_begin, val_end-val_begin);
                         DBG("remote IP %s matched with load balancer %lu/%s. "
-                            "use X-AUTH-IP value %s as source IP",
+                            "use %s value %s as source IP",
                             req.remote_ip.data(), lb.id, lb.name.data(),
+                            ycfg.ip_auth_hdr.data(),
                             reply.orig_ip.data());
                         break;
                     }
@@ -166,10 +164,9 @@ bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
     }
 
     if(reply.orig_ip.empty()) {
-        DBG("no X-AUTH-IP hdr or request was from not trusted balancer");
+        DBG("no %s hdr or request was from not trusted balancer",
+            ycfg.ip_auth_hdr.data());
         reply.orig_ip = req.remote_ip;
-        /*reply.orig_ip = req.remote_ip;
-        reply.orig_port = req.remote_port;*/
     }
 
     DBG("use address %s for matching", reply.orig_ip.data());

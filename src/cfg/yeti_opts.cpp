@@ -10,6 +10,8 @@
 #define YETI_SCTP_DEFAULT_HOST "127.0.0.1"
 #define YETI_SCTP_DEFAULT_PORT 4444
 
+#define IP_AUTH_DEFAULT_HEADER "X-ORIG-IP"
+
 char opt_name_auth_feedback[] = "enable_auth_feedback";
 char opt_name_http_events_destination[] = "http_events_destination";
 
@@ -21,6 +23,7 @@ char opt_name_core_options_handling[] = "core_options_handling";
 char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
 char opt_name_db_refresh_interval[] = "db_refresh_interval";
 char opt_name_ip_auth_reject_if_no_matched[] = "ip_auth_reject_if_no_matched";
+char opt_name_ip_auth_header[] = " ip_auth_header";
 
 char opt_identity_expires[] = "expires";
 char opt_identity_http_destination[] = "http_destination";
@@ -168,6 +171,7 @@ cfg_opt_t yeti_opts[] = {
     CFG_BOOL(opt_name_ip_auth_reject_if_no_matched, cfg_false, CFGF_NONE),
     CFG_BOOL(opt_name_auth_feedback, cfg_false, CFGF_NONE),
     CFG_STR(opt_name_http_events_destination,"",CFGF_NONE),
+    CFG_STR(opt_name_ip_auth_header,IP_AUTH_DEFAULT_HEADER,CFGF_NONE),
 
     CFG_END()
 };

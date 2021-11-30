@@ -64,6 +64,7 @@ int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
     db_refresh_interval = std::chrono::seconds(cfg_getint(cfg, opt_name_db_refresh_interval));
     auth_feedback = cfg_getbool(cfg, opt_name_auth_feedback);
     ip_auth_reject_if_no_matched = cfg_getbool(cfg, opt_name_ip_auth_reject_if_no_matched);
+    ip_auth_hdr = cfg_getstr(cfg, opt_name_ip_auth_header);
     http_events_destination = cfg_getstr(cfg, opt_name_http_events_destination);
     aleg_cdr_headers = cfg_aleg_cdr_headers;
     bleg_reply_cdr_headers = cfg_bleg_reply_cdr_headers;
