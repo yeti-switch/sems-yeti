@@ -23,7 +23,7 @@ char opt_name_core_options_handling[] = "core_options_handling";
 char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
 char opt_name_db_refresh_interval[] = "db_refresh_interval";
 char opt_name_ip_auth_reject_if_no_matched[] = "ip_auth_reject_if_no_matched";
-char opt_name_ip_auth_header[] = " ip_auth_header";
+char opt_name_ip_auth_header[] = "ip_auth_header";
 
 char opt_identity_expires[] = "expires";
 char opt_identity_http_destination[] = "http_destination";

@@ -1,3 +1,9 @@
+sems-yeti (1.12.5) stable; urgency=medium
+
+  * fix 'ip_auth_header' option parsing
+
+ -- dev <dev@yeti-switch.org>  Tue, 30 Nov 2021 16:26:24 +0200
+
 sems-yeti (1.12.4) stable; urgency=medium
 
   * add option 'ip_auth_header' with default 'X-ORIG-IP'
