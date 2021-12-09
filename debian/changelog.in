@@ -1,3 +1,9 @@
+sems-yeti (1.12.6) stable; urgency=medium
+
+  * fix CallCtx usage racing between SessionProcessor and JsonRPC threads
+
+ -- dev <dev@yeti-switch.org>  Thu, 09 Dec 2021 16:17:00 +0200
+
 sems-yeti (1.12.5) stable; urgency=medium
 
   * fix 'ip_auth_header' option parsing
