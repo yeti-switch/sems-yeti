@@ -22,9 +22,11 @@ class fake_logger: public msg_logger {
     int relog(msg_logger *logger);
 };
 
-struct CallCtx: public
-	::atomic_int, AmMutex
+struct CallCtx
 {
+	//instead of atomic_int. guarded by SBCCallLeg::call_ctx_mutex
+	unsigned int references;
+
 	Cdr *cdr;
 	list<SqlCallProfile> profiles;
 	list<SqlCallProfile>::iterator current_profile;
@@ -59,7 +61,4 @@ struct CallCtx: public
 
 	ResourceList &getCurrentResourceList();
 	int getOverrideId(bool aleg = true);
-
-	Cdr *getCdrSafeRead();
-	Cdr *getCdrSafeWrite();
 };

@@ -732,17 +732,15 @@ void YetiRpc::RemoveCall(const AmArg& args, AmArg& ret){
 			return;
 		}
 
-		call_ctx->lock();
-
 		SqlCallProfile *p = call_ctx->getCurrentProfile();
 		if(!p) {
 			ERROR("no current profile for leg: %s", local_tag.data());
-			call_ctx->unlock();
+			leg->putCallCtx();
 			return;
 		}
 
 		if(p->resource_handler.empty()) {
-			call_ctx->unlock();
+			leg->putCallCtx();
 			ret.push("empty resource handler");
 			return;
 		}
@@ -754,7 +752,7 @@ void YetiRpc::RemoveCall(const AmArg& args, AmArg& ret){
 
 		leg->rctl.put(p->resource_handler);
 
-		call_ctx->unlock();
+		leg->putCallCtx();
 
 	});
 
@@ -872,11 +870,10 @@ static void SBCCallLeg2AmArg(SBCCallLeg *leg, AmArg &s)
 	}
 
 	CallCtx *ctx = leg->getCallCtx();
-	if(ctx){
-		ctx->lock();
+	if(ctx) {
 		if(Cdr *cdr = ctx->cdr) cdr->info(s);
 		if(SqlCallProfile *profile = ctx->getCurrentProfile()) profile->info(s);
-		ctx->unlock();
+		leg->putCallCtx();
 	}
 }
 

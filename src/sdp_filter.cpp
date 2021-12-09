@@ -694,14 +694,19 @@ static void filterSdpAnswerMedia(
 	bool avoid_transcoding,
 	bool single_codec)
 {
+	int override_id = 0;
+	auto call_ctx = call->getCallCtxUnsafe();
+	if(call_ctx) {
+		override_id = call_ctx->getOverrideId();
+	}
+
 	if(negotiated_media.size()){
 		vector<SdpMedia> filtered_sdp_media;
 
 		if(!media.size()){
 			ERROR("processSdpAnswer() [%s] empty answer sdp",
 				  call->getLocalTag().c_str());
-			throw InternalException(DC_REPLY_SDP_EMPTY_ANSWER,
-									call->getCallCtx()->getOverrideId());
+			throw InternalException(DC_REPLY_SDP_EMPTY_ANSWER, override_id);
 		}
 
 		//check for streams count
@@ -718,14 +723,12 @@ static void filterSdpAnswerMedia(
 				if(media.size()!=audio_streams){
 					ERROR("processSdpAnswer()[%s] audio streams count not equal reply: %lu, saved: %u)",
 						  call->getLocalTag().c_str(),media.size(),audio_streams);
-					throw InternalException(DC_REPLY_SDP_STREAMS_COUNT,
-											call->getCallCtx()->getOverrideId());
+					throw InternalException(DC_REPLY_SDP_STREAMS_COUNT, override_id);
 				}
 			} else {
 				ERROR("processSdpAnswer()[%s] streams count not equal reply: %lu, saved: %lu)",
 					call->getLocalTag().c_str(),media.size(),negotiated_media.size());
-				throw InternalException(DC_REPLY_SDP_STREAMS_COUNT,
-										call->getCallCtx()->getOverrideId());
+				throw InternalException(DC_REPLY_SDP_STREAMS_COUNT, override_id);
 			}
 		}
 
@@ -758,8 +761,7 @@ static void filterSdpAnswerMedia(
 				ERROR("processSdpAnswer() [%s] streams types not matched idx = %d",
 					  call->getLocalTag().c_str(),stream_idx);
 				DBG_SDP_PAYLOAD(other_m.payloads,"other_m payload "+int2str(stream_idx));
-				throw InternalException(DC_REPLY_SDP_STREAMS_TYPES,
-										call->getCallCtx()->getOverrideId());
+				throw InternalException(DC_REPLY_SDP_STREAMS_TYPES, override_id);
 			}
 
 			if(m.type!=MT_AUDIO){
@@ -848,14 +850,19 @@ int processSdpAnswer(SBCCallLeg *call,
 	bool a_leg = call->isALeg();
 	SBCCallProfile &call_profile = call->getCallProfile();
 
+	int override_id = 0;
+	auto call_ctx = call->getCallCtxUnsafe();
+	if(call_ctx) {
+		override_id = call_ctx->getOverrideId();
+	}
+
 	DBG("processSdpAnswer() method = %s, a_leg = %d, answer_is_mandatory = %d\n",
 		method.c_str(),a_leg,answer_is_mandatory);
 
 	if(body.empty()) {
 		DBG("empty body");
 		if(answer_is_mandatory)
-			throw InternalException(DC_REPLY_SDP_EMPTY_ANSWER,
-									call->getCallCtx()->getOverrideId());
+			throw InternalException(DC_REPLY_SDP_EMPTY_ANSWER, override_id);
 		return 0;
 	}
 
@@ -863,8 +870,7 @@ int processSdpAnswer(SBCCallLeg *call,
 	if (!sdp_body) {
 		DBG("no SDP in body");
 		if(answer_is_mandatory)
-			throw InternalException(DC_REPLY_SDP_EMPTY_ANSWER,
-									call->getCallCtx()->getOverrideId());
+			throw InternalException(DC_REPLY_SDP_EMPTY_ANSWER, override_id);
 		return 0;
 	}
 
@@ -873,8 +879,7 @@ int processSdpAnswer(SBCCallLeg *call,
 	if (0 != res) {
 		ERROR("processSdpAnswer()[%s] SDP parsing failed during body filtering!",
 			call->getLocalTag().c_str());
-		throw InternalException(DC_REPLY_SDP_PARSING_FAILED,
-								call->getCallCtx()->getOverrideId());
+		throw InternalException(DC_REPLY_SDP_PARSING_FAILED, override_id);
 	}
 
 	DBG_SDP_MEDIA(negotiated_media,"processSdpAnswer_negotiated_media");

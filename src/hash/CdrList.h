@@ -53,8 +53,8 @@ class CdrList
             gettimeofday(&now,NULL);
         }
     };
-    void cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const;
-    void cdr2arg_filtered(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const;
+    void cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const noexcept;
+    void cdr2arg_filtered(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const noexcept;
 
     void parse_field(const AmArg &field);
 

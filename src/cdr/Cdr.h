@@ -18,8 +18,7 @@ enum UpdateAction {
     BLegInvite,
     Connect,
     BlegConnect,
-    End,
-    Write
+    End
 };
 
 enum DisconnectInitiator {
@@ -32,8 +31,7 @@ enum DisconnectInitiator {
 const char *DisconnectInitiator2Str(int initiator);
 
 struct Cdr
-  : public CdrBase,
-    public AmMutex
+  : public CdrBase
 {
     bool writed;
     bool is_last;

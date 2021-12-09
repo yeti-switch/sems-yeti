@@ -54,8 +54,6 @@ SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover
 {
 	DBG("%s()",FUNC_NAME);
 
-	AmLock l(*this);
-
 	auto next_profile = current_profile;
 	int attempts_counter = cdr->attempt_num;
 
@@ -136,29 +134,6 @@ ResourceList &CallCtx::getCurrentResourceList(){
 	return (*current_profile).rl;
 }
 
-Cdr *CallCtx::getCdrSafeWrite()
-{
-	Cdr *ret;
-	lock();
-	if(!cdr){
-		unlock();
-		return nullptr;
-	}
-	ret = cdr;
-	cdr = nullptr;
-	unlock();
-	return ret;
-}
-
-Cdr *CallCtx::getCdrSafeRead()
-{
-	Cdr *ret;
-	lock();
-	ret = cdr;
-	unlock();
-	return ret;
-}
-
 vector<SdpMedia> &CallCtx::get_self_negotiated_media(bool a_leg){
 	if(a_leg) return aleg_negotiated_media;
 	else return bleg_negotiated_media;
@@ -170,13 +145,14 @@ vector<SdpMedia> &CallCtx::get_other_negotiated_media(bool a_leg){
 }
 
 CallCtx::CallCtx(SqlRouter &router):
-	initial_invite(NULL),
+	references(0),
 	cdr(NULL),
+	initial_invite(NULL),
 	SQLexception(false),
+	on_hold(false),
+	bleg_early_media_muted(false),
 	ringing_timeout(false),
 	ringing_sent(false),
-	bleg_early_media_muted(false),
-	on_hold(false),
 	transfer_intermediate_state(false),
 	router(router)
 {

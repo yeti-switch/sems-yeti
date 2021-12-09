@@ -47,7 +47,6 @@ static const char *updateAction2str(UpdateAction act)
         case Connect: return "Connect";
         case BlegConnect: return "BlegConnect";
         case End: return "End";
-        case Write: return "Write";
         default: return "Unknown";
     }
 }
@@ -241,8 +240,6 @@ void Cdr::update_with_sip_reply(const AmSipReply &reply){
 
     if(writed) return;
 
-    AmLock l(*this);
-
     if(reply.code == 200 && trusted_hdrs_gw){ //try to fill trusted headers from 200 OK reply
         //TrustedHeaders::instance()->parse_reply_hdrs(reply,trusted_hdrs);
         bleg_reply_headers_amarg = Yeti::instance().config.bleg_reply_cdr_headers.serialize_headers(reply.hdrs);
@@ -287,8 +284,6 @@ void Cdr::update_init_aleg(
 {
     if(writed) return;
 
-    AmLock l(*this);
-
     local_tag = leg_local_tag;
     global_tag = leg_global_tag;
     orig_call_id = leg_orig_call_id;
@@ -299,7 +294,7 @@ void Cdr::update_init_bleg(
     const string &leg_local_tag)
 {
     if(writed) return;
-    AmLock l(*this);
+
     term_call_id = leg_term_call_id;
     bleg_local_tag = leg_local_tag;
 }
@@ -327,9 +322,6 @@ void Cdr::update_with_action(UpdateAction act)
     case End:
         if(end_time.tv_sec==start_time.tv_sec)
             gettimeofday(&end_time, NULL);
-        break;
-    case Write:
-        writed = true;
         break;
     }
 }
@@ -400,8 +392,6 @@ void Cdr::update_bleg_reason(string reason, int code)
 
     if(writed) return;
 
-    AmLock l(*this);
-
     if(bleg_reason_writed) return;
 
     disconnect_reason = reason;
@@ -416,8 +406,6 @@ void Cdr::update_aleg_reason(string reason, int code)
 
     if(writed) return;
 
-    AmLock l(*this);
-
     disconnect_rewrited_reason = reason;
     disconnect_rewrited_code = code;
     aleg_reason_writed = true;
@@ -429,8 +417,6 @@ void Cdr::update_internal_reason(DisconnectInitiator initiator,string reason, un
         this,FUNC_NAME,initiator,reason.c_str(),code,disconnect_initiator_writed);
 
     if(writed) return;
-
-    AmLock l(*this);
 
     update_with_action(End);
 
@@ -450,15 +436,12 @@ void Cdr::update_internal_reason(DisconnectInitiator initiator,string reason, un
 void Cdr::setSuppress(bool s)
 {
     if(writed) return;
-    AmLock l(*this);
     suppress = s;
 }
 
 void Cdr::refuse(const SBCCallProfile &profile)
 {
     if(writed) return;
-
-    AmLock l(*this);
 
     unsigned int refuse_with_code;
     string refuse_with = profile.refuse_with;
@@ -481,7 +464,6 @@ void Cdr::refuse(const SBCCallProfile &profile)
 void Cdr::refuse(int code, string reason)
 {
     if(writed) return;
-    AmLock l(*this);
 
     disconnect_code = code;
     disconnect_reason = reason;

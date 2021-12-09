@@ -67,11 +67,12 @@ int CdrList::getCall(const string &local_tag,AmArg &call,const SqlRouter *router
         auto call_ctx = leg->getCallCtx();
         if(!call_ctx) return;
 
-        AmLock l(*call_ctx);
         if(call_ctx->cdr) {
             found = true;
             cdr2arg(call,call_ctx->cdr,ctx);
         }
+
+        leg->putCallCtx();
     })) {
         //session not found by local_tag
         return 0;
@@ -103,11 +104,12 @@ void CdrList::getCalls(AmArg &calls, const SqlRouter *router)
         auto call_ctx = leg->getCallCtx();
         if(!call_ctx) return;
 
-        AmLock l(*call_ctx);
         if(call_ctx->cdr) {
             calls.push(AmArg());
             cdr2arg(calls.back(),call_ctx->cdr,ctx);
         }
+
+        leg->putCallCtx();
     });
 
     PROF_END(calls_serialization);
@@ -144,13 +146,14 @@ void CdrList::getCallsFields(
         auto call_ctx = leg->getCallCtx();
         if(!call_ctx) return;
 
-        AmLock l(*call_ctx);
         if(call_ctx->cdr) {
             if(apply_filter_rules(call_ctx->cdr,filter_rules)) {
                 calls.push(AmArg());
                 cdr2arg_filtered(calls.back(),call_ctx->cdr,ctx);
             }
         }
+
+        leg->putCallCtx();
     });
 
     PROF_END(calls_serialization);
@@ -364,8 +367,10 @@ void CdrList::onTimer()
         auto call_ctx = leg->getCallCtx();
         if(!call_ctx) return;
 
-        AmLock l(*call_ctx);
-        if(!call_ctx->cdr) return;
+        if(!call_ctx->cdr) {
+            leg->putCallCtx();
+            return;
+        }
 
         calls.push(AmArg());
         AmArg &call = calls.back();
@@ -386,6 +391,8 @@ void CdrList::onTimer()
             if(snapshots_fields_whitelist.count(end_time_key))
                 call[end_time_key] = snapshot_timestamp_str;
         }
+
+        leg->putCallCtx();
     });
 
     if(snapshots_buffering) {
@@ -441,7 +448,7 @@ void CdrList::onTimer()
     }
 }
 
-inline void CdrList::cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const
+inline void CdrList::cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const noexcept
 {
     #define add_field(val)\
         arg[#val] = cdr->val;
@@ -519,7 +526,7 @@ inline void CdrList::cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ct
     #undef add_field
 }
 
-inline void CdrList::cdr2arg_filtered(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const
+inline void CdrList::cdr2arg_filtered(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const noexcept
 {
     #define filter(val)\
         if(::find(wanted_fields.begin(),wanted_fields.end(),val)!=wanted_fields.end())
