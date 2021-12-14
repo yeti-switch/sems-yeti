@@ -1594,6 +1594,7 @@ void SBCCallLeg::onBeforeDestroy()
     DBG("%s(%p|%s,leg%s)",FUNC_NAME,
         to_void(this),getLocalTag().c_str(),a_leg?"A":"B");
 
+    AmLock call_ctx_lock(*call_ctx_mutex);
     if(!call_ctx) {
         DBG("no call_ctx in onBeforeDestroy. return");
         return;
@@ -1626,11 +1627,12 @@ void SBCCallLeg::finalize()
     DBG("%s(%p|%s,leg%s)",FUNC_NAME,
         to_void(this),getLocalTag().c_str(),a_leg?"A":"B");
 
-    AmLock call_ctx_lock(*call_ctx_mutex);
-
-    if(a_leg && call_ctx) {
-        with_cdr_for_read {
-            cdr_list.onSessionFinalize(cdr);
+    if(a_leg) {
+        AmLock call_ctx_lock(*call_ctx_mutex);
+        if(call_ctx) {
+            with_cdr_for_read {
+                cdr_list.onSessionFinalize(cdr);
+            }
         }
     }
     AmB2BSession::finalize();
