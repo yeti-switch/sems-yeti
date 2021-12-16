@@ -1,3 +1,9 @@
+sems-yeti (1.12.9) stable; urgency=medium
+
+  * remove call_ctx_mutex locking in SBCCallLeg::process() to fix deadlocks on postEvent()
+
+ -- dev <dev@yeti-switch.org>  Thu, 16 Dec 2021 20:21:36 +0200
+
 sems-yeti (1.12.8) stable; urgency=medium
 
   * SBCCallLeg: fix lock ordering on session finalization
