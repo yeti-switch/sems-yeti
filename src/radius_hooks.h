@@ -4,7 +4,7 @@
 #include "cdr/Cdr.h"
 #include "yeti.h"
 
-static inline bool radius_auth(SBCCallLeg *call, const Cdr &cdr, SBCCallProfile &call_profile, const AmSipRequest &req){
+static inline void radius_auth(SBCCallLeg *call, const Cdr &cdr, SBCCallProfile &call_profile, const AmSipRequest &req){
 	PlaceholdersHash &v = call->getPlaceholders();
 	const string &local_tag = call->getLocalTag();
 
@@ -22,6 +22,12 @@ static inline bool radius_auth(SBCCallLeg *call, const Cdr &cdr, SBCCallProfile 
 
 	v["aleg_local_ip"] = cdr.legA_local_ip;
 	v["aleg_local_port"] = int2str(cdr.legA_local_port);
+}
+
+static inline bool radius_auth_post_event(SBCCallLeg *call, SBCCallProfile &call_profile)
+{
+	PlaceholdersHash &v = call->getPlaceholders();
+	const string &local_tag = call->getLocalTag();
 
 	if(call_profile.radius_profile_id){
 		DBG("post auth event to the radius module with profile id: %d",
@@ -41,11 +47,26 @@ static inline void radius_accounting_start(SBCCallLeg *call, const Cdr &cdr, SBC
 	PlaceholdersHash &v = call->getPlaceholders();
 
 	if(call->isALeg()) {
-
 		v["time_connect"] = timeval2str(cdr.connect_time);
 		v["time_connect_float"] = timeval2str_usec(cdr.connect_time);
 		v["time_connect_int"] = long2str(cdr.connect_time.tv_sec);
+	} else { //bleg
+		v["time_connect"] = timeval2str(cdr.bleg_connect_time);
+		v["time_connect_float"] = timeval2str_usec(cdr.bleg_connect_time);
+		v["time_connect_int"] = long2str(cdr.bleg_connect_time.tv_sec);
 
+		v["bleg_remote_ip"] = cdr.legB_remote_ip;
+		v["bleg_remote_port"] = int2str(cdr.legB_remote_port);
+		v["bleg_local_ip"] = cdr.legB_local_ip;
+		v["bleg_local_port"] = int2str(cdr.legB_local_port);
+	}
+}
+
+static inline void radius_accounting_start_post_event_set_timers(SBCCallLeg *call, SBCCallProfile &call_profile)
+{
+	PlaceholdersHash &v = call->getPlaceholders();
+
+	if(call->isALeg()) {
 		if(call_profile.aleg_radius_acc_rules.enable_start_accounting)
 		{
 			DBG("[%s] post acc_start event to the radius module with profile id: %d",
@@ -66,17 +87,6 @@ static inline void radius_accounting_start(SBCCallLeg *call, const Cdr &cdr, SBC
 				call_profile.aleg_radius_acc_rules.interim_accounting_interval);
 		}
 	} else { //bleg
-
-		v["time_connect"] = timeval2str(cdr.bleg_connect_time);
-		v["time_connect_float"] = timeval2str_usec(cdr.bleg_connect_time);
-		v["time_connect_int"] = long2str(cdr.bleg_connect_time.tv_sec);
-
-		v["bleg_remote_ip"] = cdr.legB_remote_ip;
-		v["bleg_remote_port"] = int2str(cdr.legB_remote_port);
-		v["bleg_local_ip"] = cdr.legB_local_ip;
-		v["bleg_local_port"] = int2str(cdr.legB_local_port);
-
-
 		if(call_profile.bleg_radius_acc_rules.enable_start_accounting)
 		{
 			DBG("[%s] post acc_start event to the radius module with profile id: %d",
@@ -99,9 +109,9 @@ static inline void radius_accounting_start(SBCCallLeg *call, const Cdr &cdr, SBC
 	}
 }
 
+
 static inline void radius_accounting_interim(SBCCallLeg *call, const Cdr &cdr)
 {
-	int profile_id, interval;
 	const struct timeval *leg_connect_time;
 	timeval duration, now;
 
@@ -109,12 +119,8 @@ static inline void radius_accounting_interim(SBCCallLeg *call, const Cdr &cdr)
 	PlaceholdersHash &v = call->getPlaceholders();
 
 	if(call->isALeg()){
-		profile_id = call_profile.aleg_radius_acc_profile_id;
-		interval = call_profile.aleg_radius_acc_rules.interim_accounting_interval;
 		leg_connect_time = &cdr.connect_time;
 	} else {
-		profile_id = call_profile.bleg_radius_acc_profile_id;
-		interval = call_profile.bleg_radius_acc_rules.interim_accounting_interval;
 		leg_connect_time = &cdr.bleg_connect_time;
 	}
 
@@ -126,6 +132,21 @@ static inline void radius_accounting_interim(SBCCallLeg *call, const Cdr &cdr)
 	} else {
 		v["call_duration_float"] = "0.0";
 		v["call_duration_int"] = "0";
+	}
+}
+
+static inline void radius_accounting_interim_post_event_set_timer(SBCCallLeg *call)
+{
+	int profile_id, interval;
+	SBCCallProfile &call_profile = call->getCallProfile();
+	PlaceholdersHash &v = call->getPlaceholders();
+
+	if(call->isALeg()){
+		profile_id = call_profile.aleg_radius_acc_profile_id;
+		interval = call_profile.aleg_radius_acc_rules.interim_accounting_interval;
+	} else {
+		profile_id = call_profile.bleg_radius_acc_profile_id;
+		interval = call_profile.bleg_radius_acc_rules.interim_accounting_interval;
 	}
 
 	DBG("[%s] post acc_interim event to the radius module with profile id: %d",
@@ -151,12 +172,11 @@ static inline void radius_accounting_stop(SBCCallLeg *call, const Cdr &cdr)
 	SBCCallProfile &call_profile = call->getCallProfile();
 	PlaceholdersHash &v = call->getPlaceholders();
 
-	if(call->isALeg()){
+	if(call->isALeg()) {
 
 		if(!call_profile.aleg_radius_acc_rules.enable_stop_accounting)
 			return;
 
-		profile_id = call_profile.aleg_radius_acc_profile_id;
 		leg_connect_time = &cdr.connect_time;
 
 		v["leg_disconnect_code"] = int2str(cdr.disconnect_rewrited_code);
@@ -167,7 +187,6 @@ static inline void radius_accounting_stop(SBCCallLeg *call, const Cdr &cdr)
 		if(!call_profile.bleg_radius_acc_rules.enable_stop_accounting)
 			return;
 
-		profile_id = call_profile.bleg_radius_acc_profile_id;
 		leg_connect_time = &cdr.bleg_connect_time;
 
 		v["leg_disconnect_code"] = int2str(cdr.disconnect_code);
@@ -190,6 +209,23 @@ static inline void radius_accounting_stop(SBCCallLeg *call, const Cdr &cdr)
 	v["time_end"] = timeval2str(now);
 	v["time_end_float"] = timeval2str_usec(now);
 	v["time_end_int"] = long2str(now.tv_sec);
+}
+
+static inline void radius_accounting_stop_post_event(SBCCallLeg *call)
+{
+	int profile_id;
+	PlaceholdersHash &v = call->getPlaceholders();
+	SBCCallProfile &call_profile = call->getCallProfile();
+
+	if(call->isALeg()) {
+		if(!call_profile.aleg_radius_acc_rules.enable_stop_accounting)
+			return;
+		profile_id = call_profile.aleg_radius_acc_profile_id;
+	} else {
+		if(!call_profile.bleg_radius_acc_rules.enable_stop_accounting)
+			return;
+		profile_id = call_profile.bleg_radius_acc_profile_id;
+	}
 
 	DBG("[%s] post acc_stop event to the radius module with profile id: %d",
 		call->getLocalTag().c_str(), profile_id);
