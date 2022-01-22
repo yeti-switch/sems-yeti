@@ -1374,6 +1374,7 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
             AmSipRequest &req = req_ev->req;
             if(req.method==SIP_METH_BYE) {
                 DBG("relayEvent(%p) reply 200 OK for leg without call_ctx and other_id",to_void(this));
+                call_ctx_lock.release();
                 dlg->reply(req,200,"OK");
                 delete ev;
                 return 0;
@@ -1718,6 +1719,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
             && ((a_leg && !call_profile.aleg_relay_options)
                 || (!a_leg && !call_profile.bleg_relay_options)))
         {
+            call_ctx_lock.release();
             dlg->reply(req, 200, "OK", nullptr, "", SIP_FLAGS_VERBATIM);
             return;
         } else if(req.method == SIP_METH_UPDATE
@@ -1726,6 +1728,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
         {
             const AmMimeBody* sdp_body = req.body.hasContentType(SIP_APPLICATION_SDP);
             if(!sdp_body){
+                call_ctx_lock.release();
                 DBG("got UPDATE without body. local processing enabled. generate 200OK without SDP");
                 AmSipRequest upd_req(req);
                 processLocalRequest(upd_req);
@@ -1735,6 +1738,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
             AmSdp sdp;
             int res = sdp.parse(reinterpret_cast<const char *>(sdp_body->getPayload()));
             if(0 != res) {
+                call_ctx_lock.release();
                 DBG("SDP parsing failed: %d. respond with 488\n",res);
                 dlg->reply(req,488,"Not Acceptable Here");
                 return;
@@ -1751,20 +1755,24 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
                     a_leg ? call_profile.aleg_single_codec : call_profile.bleg_single_codec
                 );
                 if (res != 0) {
+                    call_ctx_lock.release();
                     dlg->reply(req,488,"Not Acceptable Here");
                     return;
                 }
             } catch(InternalException &e){
+                call_ctx_lock.release();
                 dlg->reply(req,e.response_code,e.response_reason);
                 return;
             }
 
+            call_ctx_lock.release();
             processLocalRequest(upd_req);
             return;
         } else if(req.method == SIP_METH_PRACK
                   && ((a_leg && !call_profile.aleg_relay_prack)
                       || (!a_leg && !call_profile.bleg_relay_prack)))
         {
+            call_ctx_lock.release();
             dlg->reply(req,200, "OK", nullptr, "", SIP_FLAGS_VERBATIM);
             return;
         } else if(req.method == SIP_METH_INVITE)
@@ -1778,6 +1786,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
 
             const AmMimeBody* sdp_body = req.body.hasContentType(SIP_APPLICATION_SDP);
             if(!sdp_body){
+                call_ctx_lock.release();
                 DBG("got reINVITE without body. local processing enabled. generate 200OK with SDP offer");
                 DBG("replying 100 Trying to INVITE to be processed locally");
                 dlg->reply(req, 100, SIP_REPLY_TRYING);
@@ -1789,6 +1798,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
             AmSdp sdp;
             int res = sdp.parse(reinterpret_cast<const char *>(sdp_body->getPayload()));
             if(0 != res) {
+                call_ctx_lock.release();
                 DBG("replying 100 Trying to INVITE to be processed locally");
                 dlg->reply(req, 100, SIP_REPLY_TRYING);
                 DBG("SDP parsing failed: %d. respond with 488\n",res);
@@ -1829,27 +1839,33 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
                     a_leg ? call_profile.aleg_single_codec : call_profile.bleg_single_codec
                 );
                 if (res != 0) {
+                    call_ctx_lock.release();
                     dlg->reply(req,488,"Not Acceptable Here");
                     return;
                 }
             } catch(InternalException &e){
+                call_ctx_lock.release();
                 dlg->reply(req,e.response_code,e.response_reason);
                 return;
             }
 
+            call_ctx_lock.release();
             processLocalRequest(inv_req);
             return;
         } else if(req.method==SIP_METH_REFER) {
             if(a_leg) {
+                call_ctx_lock.release();
                 dlg->reply(req,603,"Refer is not allowed for Aleg");
                 return;
             }
             if(getOtherId().empty()) {
+                call_ctx_lock.release();
                 dlg->reply(req,603,"Refer is not possible at this stage");
                 return;
             }
 
             if(call_profile.bleg_max_transfers <= 0) {
+                call_ctx_lock.release();
                 dlg->reply(req,603,"Refer is not allowed");
                 return;
             }
@@ -1859,6 +1875,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
                 true);
 
             if(refer_to.empty()) {
+                call_ctx_lock.release();
                 dlg->reply(req,400,"Refer-To header missing");
                 return;
             }
@@ -1869,6 +1886,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
                 &refer_to_ptr,static_cast<int>(refer_to.length())))
             {
                 DBG("failed to parse Refer-To header: %s",refer_to.c_str());
+                call_ctx_lock.release();
                 dlg->reply(req,400,"Invalid Refer-To header");
                 return;
             }
@@ -1898,7 +1916,6 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
 
         if(a_leg){
             if(req.method==SIP_METH_CANCEL){
-                getCtx_chained;
                 with_cdr_for_read {
                     cdr->update_internal_reason(DisconnectByORG,"Request terminated (Cancel)",487);
                 }
@@ -1954,12 +1971,13 @@ void SBCCallLeg::onSipReply(const AmSipRequest& req, const AmSipReply& reply,
     }
 
     if(!a_leg) {
-        AmLock call_ctx_lock(*call_ctx_mutex);
+        AmControlledLock call_ctx_lock(*call_ctx_mutex);
         if(call_ctx ) {
             if(call_ctx->transfer_intermediate_state &&
                reply.cseq_method==SIP_METH_INVITE)
             {
                 if(reply.code >= 200 && reply.code < 300) {
+                    call_ctx_lock.release();
                     dlg->send_200_ack(reply.cseq);
                 }
             } else {
@@ -2095,8 +2113,8 @@ void SBCCallLeg::onBye(const AmSipRequest& req)
             } else {
                 DBG("generate reply for early BYE on Bleg and force leg termination");
                 cdr->update_bleg_reason("EarlyBye",200);
-                dlg->reply(req,200,"OK");
                 call_ctx_lock.release();
+                dlg->reply(req,200,"OK");
                 terminateLeg();
                 return;
             }
