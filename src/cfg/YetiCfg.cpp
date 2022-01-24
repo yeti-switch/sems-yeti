@@ -157,6 +157,7 @@ void YetiCfg::serialize_to_amconfig(cfg_t *y, AmConfigReader &out)
 		add2hash(c,"registrar_enabled","enabled",out);
 		add2hash(c,"registrar_expires_min","expires_min",out);
 		add2hash(c,"registrar_expires_max","expires_max",out);
+		add2hash(c,"registrar_expires_default","expires_default",out);
 			c = cfg_getsec(c, "redis");
 			add2hash(c,"registrar_redis_host","host",out);
 			add2hash(c,"registrar_redis_port","port",out);

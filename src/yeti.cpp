@@ -35,6 +35,8 @@
 #define DEFAULT_REDIS_PORT 6379
 #define DEFAULT_REGISTRAR_KEEPALIVE_INTERVAL 60
 
+#define DEFAULT_REGISTRAR_EXPIRES 1800
+
 #define YETI_SIGNATURE "yeti-switch"
 #define YETI_AGENT_SIGNATURE YETI_SIGNATURE " " YETI_VERSION
 
@@ -280,6 +282,22 @@ int Yeti::configure_registrar()
 
     config.registrar_expires_max = cfg.getParameterInt("registrar_expires_max");
     DBG("registrar_expires_max: %d", config.registrar_expires_max);
+
+    config.registrar_expires_default =
+        cfg.getParameterInt("registrar_expires_default", DEFAULT_REGISTRAR_EXPIRES);
+    DBG("registrar_expires_default: %d", config.registrar_expires_default);
+
+    if(config.registrar_expires_default > config.registrar_expires_max) {
+        ERROR("registrar error. default expires %d is gt max value %d",
+              config.registrar_expires_default, config.registrar_expires_max);
+        return -1;
+    }
+
+    if(config.registrar_expires_default < config.registrar_expires_min) {
+        ERROR("registrar error. default expires %d is lt min value %d",
+              config.registrar_expires_default, config.registrar_expires_min);
+        return -1;
+    }
 
     if(0!=registrar_redis.init(
         config.registrar_redis_host,

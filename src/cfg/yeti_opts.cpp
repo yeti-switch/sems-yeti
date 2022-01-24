@@ -119,6 +119,7 @@ cfg_opt_t sig_yeti_registrar_opts[] = {
     DCFG_BOOL(enabled),
     DCFG_INT(expires_min),
     DCFG_INT(expires_max),
+    DCFG_INT(expires_default),
     DCFG_SEC(redis,sig_yeti_registrar_redis_opts,CFGF_NONE),
     CFG_END()
 };
