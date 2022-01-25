@@ -1,3 +1,9 @@
+sems-yeti (1.12.11) stable; urgency=medium
+
+  * add parameter registrar.expires_default
+
+ -- dev <dev@yeti-switch.org>  Tue, 25 Jan 2022 11:57:08 +0200
+
 sems-yeti (1.12.10) stable; urgency=medium
 
   * fix deadlock in SBCCallLeg
