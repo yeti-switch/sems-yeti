@@ -1,3 +1,11 @@
+sems-yeti (1.12.12) stable; urgency=medium
+
+  [SBCCallLeg]
+  * fix deadlock on b2b mute/unmute
+  * add locking for dtmf processing
+
+ -- dev <dev@yeti-switch.org>  Fri, 28 Jan 2022 16:54:42 +0200
+
 sems-yeti (1.12.11) stable; urgency=medium
 
   * add parameter registrar.expires_default
