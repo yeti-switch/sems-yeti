@@ -28,8 +28,8 @@ static const string YETI_QUEUE_NAME(MOD_NAME);
 
 #if YETI_ENABLE_PROFILING
 
-#define PROF_START(var) timeval prof_start_ ## var; gettimeofday(&prof_start_ ## var,NULL);
-#define PROF_END(var) timeval prof_end_ ## var; gettimeofday(&prof_end_ ## var,NULL);
+#define PROF_START(var) timeval prof_start_ ## var; gettimeofday(&prof_start_ ## var,nullptr);
+#define PROF_END(var) timeval prof_end_ ## var; gettimeofday(&prof_end_ ## var,nullptr);
 #define PROF_DIFF(var) timeval prof_diff_ ## var; timersub(&prof_end_ ## var,&prof_start_ ## var,&prof_diff_ ## var);
 #define PROF_PRINT(descr,var) PROF_DIFF(var); DBG("PROFILING: " descr " took %s",timeval2str_usec(prof_diff_ ## var).c_str());
 
