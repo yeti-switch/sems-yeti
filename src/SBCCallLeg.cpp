@@ -2153,6 +2153,7 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
         a_leg ? 'A': 'B',
         e->event(), e->duration(), e->event_id);
 
+    AmControlledLock call_ctx_lock(*call_ctx_mutex);
     getCtx_void;
 
     int rx_proto = 0;
@@ -2202,6 +2203,7 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
         AmB2BMedia *ms = getMediaSession();
         if(ms) {
             DBG("sending DTMF (%i;%i)\n", e->event(), e->duration());
+            call_ctx_lock.release();
             ms->sendDtmf(!a_leg,
                 e->event(),static_cast<unsigned int>(e->duration()));
         }
@@ -2209,11 +2211,13 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
     case DTMF_TX_MODE_INFO_DTMF_RELAY:
         DBG("send mode INFO/application/dtmf-relay choosen for dtmf event for leg %p",
             to_void(this));
+        call_ctx_lock.release();
         relayEvent(new yeti_dtmf::DtmfInfoSendEventDtmfRelay(e));
         break;
     case DTMF_TX_MODE_INFO_DTMF:
         DBG("send mode INFO/application/dtmf choosen for dtmf event for leg %p",
             to_void(this));
+        call_ctx_lock.release();
         relayEvent(new yeti_dtmf::DtmfInfoSendEventDtmf(e));
         break;
     default:
@@ -3222,54 +3226,59 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
 {
     string reason;
 
-    AmControlledLock call_ctx_lock(*call_ctx_mutex);
-    getCtx_void;
-
     SBCCallLeg::CallStatus status = getCallStatus();
     int internal_disconnect_code = 0;
 
     DBG("Yeti::onStateChange(%p|%s) a_leg = %d",
         to_void(this),getLocalTag().c_str(),a_leg);
 
-    switch(status){
-    case CallLeg::Ringing: {
-        if(!a_leg) {
-            if(call_profile.ringing_timeout > 0)
-                setTimer(YETI_RINGING_TIMEOUT_TIMER,call_profile.ringing_timeout);
-        } else {
-            if(call_profile.fake_ringing_timeout)
-                removeTimer(YETI_FAKE_RINGING_TIMER);
-            if(call_profile.force_one_way_early_media) {
-                DBG("force one-way audio for early media (mute legB)");
-                AmB2BMedia *m = getMediaSession();
-                if(m) {
-                    m->mute(false);
-                    call_ctx->bleg_early_media_muted = true;
+    {
+        AmControlledLock call_ctx_lock(*call_ctx_mutex);
+        switch(status) {
+        case CallLeg::Ringing: {
+            if(!a_leg) {
+                if(call_profile.ringing_timeout > 0)
+                    setTimer(YETI_RINGING_TIMEOUT_TIMER,call_profile.ringing_timeout);
+            } else {
+                if(call_profile.fake_ringing_timeout)
+                    removeTimer(YETI_FAKE_RINGING_TIMER);
+                if(call_profile.force_one_way_early_media && call_ctx) {
+                    DBG("force one-way audio for early media (mute legB)");
+                    AmB2BMedia *m = getMediaSession();
+                    if(m) {
+                        call_ctx->bleg_early_media_muted = true;
+                        call_ctx_lock.release();
+                        m->mute(false);
+                    }
                 }
             }
-        }
-    } break;
-    case CallLeg::Connected:
-        if(!a_leg) {
-            removeTimer(YETI_RINGING_TIMEOUT_TIMER);
-        } else {
-            if(call_profile.fake_ringing_timeout)
+        } break;
+        case CallLeg::Connected:
+            if(!a_leg) {
+                removeTimer(YETI_RINGING_TIMEOUT_TIMER);
+            } else {
+                if(call_profile.fake_ringing_timeout)
+                    removeTimer(YETI_FAKE_RINGING_TIMER);
+                if(call_ctx && call_ctx->bleg_early_media_muted) {
+                    AmB2BMedia *m = getMediaSession();
+                    if(m) {
+                        call_ctx_lock.release();
+                        m->unmute(false);
+                    }
+                }
+            } break;
+        case CallLeg::Disconnected:
+            removeTimer(YETI_RADIUS_INTERIM_TIMER);
+            if(a_leg && call_profile.fake_ringing_timeout) {
                 removeTimer(YETI_FAKE_RINGING_TIMER);
-            if(call_ctx->bleg_early_media_muted) {
-                AmB2BMedia *m = getMediaSession();
-                if(m) m->unmute(false);
-            }
+            } break;
+        default:
+            break;
         }
-        break;
-    case CallLeg::Disconnected:
-        removeTimer(YETI_RADIUS_INTERIM_TIMER);
-        if(a_leg && call_profile.fake_ringing_timeout) {
-            removeTimer(YETI_FAKE_RINGING_TIMER);
-        }
-        break;
-    default:
-        break;
     }
+
+    AmControlledLock call_ctx_lock(*call_ctx_mutex);
+    getCtx_void;
 
     switch(cause.reason){
         case CallLeg::StatusChangeCause::SipReply:
