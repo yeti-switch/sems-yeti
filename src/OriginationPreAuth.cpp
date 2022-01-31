@@ -113,6 +113,10 @@ bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
      * and req.remote_ip within trusted load balancers list.
      * use req.remote_ip otherwise */
 
+    /* keep old behavior for no matched failover */
+    reply.require_incoming_auth = false;
+    reply.require_identity_parsing = true;
+
     static string x_yeti_auth_hdr("X-YETI-AUTH");
 
     size_t start_pos = 0;
@@ -211,10 +215,6 @@ bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
 
         return true;
     }
-
-    /* keep old behavior for no matched failover */
-    reply.require_incoming_auth = false;
-    reply.require_identity_parsing = true;
 
     return false;
 }
