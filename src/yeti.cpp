@@ -287,7 +287,7 @@ int Yeti::configure_registrar()
         cfg.getParameterInt("registrar_expires_default", DEFAULT_REGISTRAR_EXPIRES);
     DBG("registrar_expires_default: %d", config.registrar_expires_default);
 
-    if(config.registrar_expires_default > config.registrar_expires_max) {
+    if(config.registrar_expires_max && config.registrar_expires_default > config.registrar_expires_max) {
         ERROR("registrar error. default expires %d is gt max value %d",
               config.registrar_expires_default, config.registrar_expires_max);
         return -1;
