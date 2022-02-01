@@ -3286,7 +3286,9 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
                 reason = "SipReply. code = "+int2str(cause.param.reply->code);
                 switch(cause.param.reply->code){
                 case 408:
-                    internal_disconnect_code = DC_TRANSACTION_TIMEOUT;
+                    if(cause.param.reply->local_reply) {
+                        internal_disconnect_code = DC_TRANSACTION_TIMEOUT;
+                    }
                     break;
                 case 487:
                     if(call_ctx->isRingingTimeout()){
