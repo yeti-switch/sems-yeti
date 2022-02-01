@@ -1,3 +1,10 @@
+sems-yeti (1.12.14) stable; urgency=medium
+
+  * fix disconnect initiator for remote 408 replies
+  * registrar: fix expires_default validation
+
+ -- dev <dev@yeti-switch.org>  Tue, 01 Feb 2022 20:26:06 +0200
+
 sems-yeti (1.12.13) stable; urgency=medium
 
   * OriginationPreAuth: fix old behavior for disabled reject for no matched adresses
