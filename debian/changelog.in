@@ -1,3 +1,9 @@
+sems-yeti (1.12.15) stable; urgency=medium
+
+  * Auth: detailed codes from uac_auth on auth errors
+
+ -- dev <dev@yeti-switch.org>  Fri, 11 Feb 2022 21:28:27 +0200
+
 sems-yeti (1.12.14) stable; urgency=medium
 
   * fix disconnect initiator for remote 408 replies
