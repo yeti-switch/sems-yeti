@@ -253,19 +253,17 @@ AmSession* SBCFactory::onInvite(
         DBG("successfully authorized with id %d",auth_result_id);
         yeti->router.log_auth(req,true,ret,auth_result_id);
     } else if(auth_result_id < 0) {
-        DBG("auth error. reply with 401");
-        switch(-auth_result_id) {
-        case Auth::UAC_AUTH_ERROR:
-            send_auth_error_reply(req, ret, -auth_result_id);
-            break;
-        default:
-            send_and_log_auth_challenge(req,ret.asCStr(), -auth_result_id);
-            break;
+        auto auth_result_id_negated = -auth_result_id;
+
+        DBG("auth error %d. reply with 401", auth_result_id);
+        if(auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
+            send_auth_error_reply(req, ret, auth_result_id_negated);
+        } else {
+            send_and_log_auth_challenge(req,ret.asCStr(), auth_result_id_negated);
         }
 
         dec_ref(early_trying_logger);
         return nullptr;
-
     } else if(ip_auth_data.require_incoming_auth) { //Auth::NO_AUTH
         DBG("SIP auth required. reply with 401");
         static string no_auth_internal_reason("no Authorization header");
@@ -328,15 +326,13 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
         }
 
         if(auth_id < 0) {
-            switch(-auth_id) {
-            case Auth::UAC_AUTH_ERROR:
+            auto auth_result_id_negated = -auth_id;
+            if(auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
                 DBG("REGISTER auth error. reply with 401");
-                send_auth_error_reply(req, ret, -auth_id);
-                break;
-            default:
+                send_auth_error_reply(req, ret, auth_result_id_negated);
+            } else {
                 DBG("REGISTER no auth. reply 401 with challenge");
-                send_and_log_auth_challenge(req,ret.asCStr(), -auth_id);
-                break;
+                send_and_log_auth_challenge(req,ret.asCStr(), auth_result_id_negated);
             }
             return;
         }

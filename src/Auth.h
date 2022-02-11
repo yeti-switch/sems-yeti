@@ -10,11 +10,12 @@
 class Auth {
   public:
     enum error_type {
-        NO_AUTH = 0,
-        UAC_AUTH_ERROR,
-        NO_USERNAME,
-        NO_CREDENTIALS,
-        NO_IP_AUTH          //rejected by OriginationPreAuth:onInvite()
+        NO_AUTH =        0,
+        //UAC_AUTH_ERROR was here with value 1
+        NO_USERNAME =    2,
+        NO_CREDENTIALS = 3,
+        NO_IP_AUTH =     4,  //rejected by OriginationPreAuth:onInvite()
+        UAC_AUTH_ERROR = 10
     };
 
     using auth_id_type = int;

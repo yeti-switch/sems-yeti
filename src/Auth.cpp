@@ -165,7 +165,8 @@ Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req,  AmArg &ret
         }
     }
 
-    return -UAC_AUTH_ERROR;
+    //see ampi/UACAuthAPI.h: UACAuthErrorCodes
+    return -(UAC_AUTH_ERROR + ret[4].asInt()); //add uac_auth internal_code
 }
 
 void Auth::send_auth_challenge(const AmSipRequest &req, const string &hdrs)
