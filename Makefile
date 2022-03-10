@@ -5,7 +5,7 @@ all:
 
 debian/changelog: debian/changelog.in
 	cp debian/changelog.in debian/changelog
-	sed -i -E '1s/([0-9.]+)/\1core$(SEMS_MINOR_VERSION)/' debian/changelog
+	sed -i -E '1s/([0-9]+\.[0-9]+\.[0-9a-z]+)/\1core$(SEMS_MINOR_VERSION)/' debian/changelog
 
 deb: debian/changelog
 	@echo build package with sems minor version: $(SEMS_MINOR_VERSION)
