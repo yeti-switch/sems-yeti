@@ -25,22 +25,18 @@ add_definitions("-fmacro-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}/src/=yeti: -D__F
 add_definitions(${SEMS_CFLAGS})
 add_definitions(-std=c++2a -Wno-deprecated -g)
 
-execute_process(
-	COMMAND bash "-c" "head -n 1 changelog | sed -e 's/^[^(]*(\\([^)]*\\)).*/\\1/'"
-	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/debian
-	OUTPUT_VARIABLE PKG_VERSION
-	OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-message(STATUS "pkg version: " ${PKG_VERSION})
+if(EXISTS ${CMAKE_SOURCE_DIR}/debian/changelog)
+    file(STRINGS ${CMAKE_SOURCE_DIR}/debian/changelog CHANGELOG_LINE LIMIT_COUNT 1)
+    string(REGEX REPLACE "^[^(]*\\(([0-9]+)\\.([0-9]+)\\.([0-9a-z]+)\\).*" "\\1.\\2.\\3" BUILD_VERSION ${CHANGELOG_LINE})
+    set(YETI_MAJOR_VERSION ${CMAKE_MATCH_1})
+    set(YETI_MINOR_VERSION ${CMAKE_MATCH_2})
+    set(YETI_PATCH_VERSION ${CMAKE_MATCH_3})
+    set(SEMS_VERSION ${BUILD_VERSION})
 
-execute_process(
-	COMMAND ${GIT_EXECUTABLE} describe HEAD --tags
-	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-	OUTPUT_VARIABLE TAG_VERSION
-	OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-message(STATUS "git tags: " ${TAG_VERSION})
-set(BUILD_VERSION ${TAG_VERSION})
+    message(STATUS "Version from changelog: " ${SEMS_VERSION})
+else(EXISTS ${CMAKE_SOURCE_DIR}/debian/changelog)
+    message(FATAL_ERROR "debian/changelog not found")
+endif(EXISTS ${CMAKE_SOURCE_DIR}/debian/changelog)
 
 execute_process(
 	COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
@@ -64,11 +60,6 @@ execute_process(
 	ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 message(STATUS "build user: " ${BUILD_USER})
-
-string(REGEX REPLACE "[-\\.]" ";" TAG_VERSION_LIST ${TAG_VERSION})
-list(GET TAG_VERSION_LIST 0 YETI_MAJOR_VERSION)
-list(GET TAG_VERSION_LIST 1 YETI_MINOR_VERSION)
-list(GET TAG_VERSION_LIST 2 YETI_PATCH_VERSION)
 
 #sources
 configure_file(${CMAKE_SOURCE_DIR}/src/yeti_version.h.cmake ${CMAKE_SOURCE_DIR}/src/yeti_version.h)
