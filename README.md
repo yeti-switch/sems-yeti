@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/yeti-switch/sems-yeti/actions/workflows/build.yml)](https://github.com/yeti-switch/sems-yeti/actions/workflows/build.yml/badge.svg)
+[![Build Status](https://github.com/yeti-switch/sems-yeti/actions/workflows/build.yml/badge.svg)](https://github.com/yeti-switch/sems-yeti/actions/workflows/build.yml)
 # sems-yeti
 
 sems-yeti is a part of project [Yeti]
