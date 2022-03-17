@@ -4,6 +4,7 @@
 #include "AmThread.h"
 #include <pqxx/pqxx>
 #include "../yeti.h"
+#include "../cfg/yeti_opts.h"
 #include "../alarms.h"
 #include "../yeti_version.h"
 #include "AuthCdr.h"
@@ -80,9 +81,24 @@ CdrWriter::CdrWriter()
 CdrWriter::~CdrWriter()
 { }
 
-int CdrWriter::configure(CdrWriterCfg& cfg)
+int CdrWriter::configure(cfg_t *confuse_cfg, AmConfigReader& cfg)
 {
-	config=cfg;
+    if(config.cfg2CdrThCfg(cfg)) {
+        INFO("Cdr writer pool config loading error");
+        return 1;
+    }
+
+    INFO("Cdr writer pool config loaded");
+
+    auth_config = config;
+    if(cfg_t* cdr_section = cfg_getsec(confuse_cfg, "cdr")) {
+        if(cfg_size(cdr_section, "auth_pool_size"))
+            auth_config.pool_size = cfg_getint(cdr_section, "auth_pool_size");
+        if(cfg_size(cdr_section, "auth_batch_size"))
+            auth_config.batch_size = cfg_getint(cdr_section, "auth_batch_size");
+        if(cfg_size(cdr_section, "auth_batch_timeout"))
+            auth_config.batch_timeout = cfg_getint(cdr_section, "auth_batch_timeout")/1000;
+    }
 
 	//show all query args
 	int param_num = 1;
@@ -115,16 +131,19 @@ int CdrWriter::configure(CdrWriterCfg& cfg)
 
 void CdrWriter::start()
 {
-	DBG("CdrWriter::start: Starting %d async DB threads",config.poolsize*2);
-	for(unsigned int i=0;i<config.poolsize;i++) {
+	DBG("CdrWriter::start: Starting %d async DB threads",
+		config.pool_size + auth_config.pool_size);
+
+	for(unsigned int i=0;i<config.pool_size;i++) {
 		CdrThread* th = new CdrThread("cdr");
 		th->configure(config);
 		th->start();
 		cdrthreadpool.emplace_back(th);
 	}
-	for(unsigned int i=0;i<config.auth_pool_size;i++) {
+
+	for(unsigned int i=0;i<auth_config.pool_size;i++) {
 		CdrThread* th = new CdrThread("auth");
-		th->configure(config);
+		th->configure(auth_config);
 		th->start();
 		auth_log_threadpool.emplace_back(th);
 	}
@@ -151,12 +170,12 @@ void CdrWriter::postcdr(CdrBase* cdr )
 		delete cdr;
 		return;
 	}
-	cdrthreadpool[cdr->cdr_born_time.tv_usec % config.poolsize]->postcdr(cdr);
+	cdrthreadpool[cdr->cdr_born_time.tv_usec % config.pool_size]->postcdr(cdr);
 }
 
 void CdrWriter::post_auth_log(CdrBase *cdr)
 {
-	auth_log_threadpool[cdr->cdr_born_time.tv_usec % config.auth_pool_size]->postcdr(cdr);
+	auth_log_threadpool[cdr->cdr_born_time.tv_usec % auth_config.pool_size]->postcdr(cdr);
 }
 
 void CdrWriter::getConfig(AmArg &arg){
@@ -166,8 +185,15 @@ void CdrWriter::getConfig(AmArg &arg){
 	arg["failover_requeue"] = config.failover_requeue;
 	arg["check_interval"] = config.check_interval;
 	arg["retry_interval"] = config.retry_interval;
+
 	arg["batch_timeout"] = config.batch_timeout;
 	arg["batch_size"] = config.batch_size;
+	arg["pool_size"] = config.pool_size;
+
+	arg["auth_batch_timeout"] = auth_config.batch_timeout;
+	arg["auth_batch_size"] = auth_config.batch_size;
+	arg["auth_pool_size"] = auth_config.pool_size;
+
 	arg["paused"] = paused;
 
 	int param_num = 1;
@@ -224,10 +250,11 @@ void CdrWriter::closeFiles(){
 	}
 }
 
-void CdrWriter::getStats(AmArg &arg){
-	arg["name"] = config.name;
-	arg["poolsize"]= (int)config.poolsize;
-	arg["auth_poolsize"]= (int)config.auth_pool_size;
+void CdrWriter::getStats(AmArg &arg)
+{
+	arg["pool_size"]= (int)config.pool_size;
+	arg["auth_poolsize"]= (int)auth_config.pool_size;
+
 	AmArg &cdr_threads = arg["cdr_threads"];
 	AmArg &auth_log_threads = arg["auth_log_threads"];
 	for(auto &t: cdrthreadpool) {
@@ -889,10 +916,18 @@ int CdrThread::writecdrtofile(cdr_queue_t &cdr_queue) {
 #undef quote
 }
 
-int CdrThreadCfg::cfg2CdrThCfg(AmConfigReader& cfg, string& prefix){
-	string suffix="master"+prefix;
-	string cdr_file_dir = prefix+"_dir";
-	string cdr_file_completed_dir = prefix+"_completed_dir";
+int CdrThreadCfg::cfg2CdrThCfg(AmConfigReader& cfg)
+{
+
+	pool_size=cfg.getParameterInt("cdr_pool_size",10);
+	check_interval = cfg.getParameterInt("cdr_check_interval",DEFAULT_CHECK_INTERVAL_MSEC)/1000;
+	retry_interval = check_interval;
+	batch_timeout = cfg.getParameterInt("cdr_batch_timeout",DEFAULT_BATCH_TIMEOUT_MSEC)/1000;
+	batch_size = cfg.getParameterInt("cdr_batch_size",DEFAULT_BATCH_SIZE);
+	failover_to_slave = cfg.getParameterInt("cdr_failover_to_slave",1);
+
+	string cdr_file_dir = "cdr_dir";
+	string cdr_file_completed_dir = "cdr_completed_dir";
 
 	failover_requeue = cfg.getParameterInt("failover_requeue",0);
 
@@ -931,19 +966,8 @@ int CdrThreadCfg::cfg2CdrThCfg(AmConfigReader& cfg, string& prefix){
 		remove(completed_dir_test_file.str().c_str());
 	}
 
-	masterdb.cfg2dbcfg(cfg,suffix);
-	suffix="slave"+prefix;
-	slavedb.cfg2dbcfg(cfg,suffix);
+	masterdb.cfg2dbcfg(cfg,"mastercdr");
+	slavedb.cfg2dbcfg(cfg,"slavecdr");
 
 	return 0;
-}
-
-int CdrWriterCfg::cfg2CdrWrCfg(AmConfigReader& cfg){
-	poolsize=cfg.getParameterInt(name+"_pool_size",10);
-	check_interval = cfg.getParameterInt("cdr_check_interval",DEFAULT_CHECK_INTERVAL_MSEC)/1000;
-	retry_interval = check_interval;
-	batch_timeout = cfg.getParameterInt("cdr_batch_timeout",DEFAULT_BATCH_TIMEOUT_MSEC)/1000;
-	batch_size = cfg.getParameterInt("cdr_batch_size",DEFAULT_BATCH_SIZE);
-	failover_to_slave = cfg.getParameterInt("cdr_failover_to_slave",1);
-	return cfg2CdrThCfg(cfg,name);
 }

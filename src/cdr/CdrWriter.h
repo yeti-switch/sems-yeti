@@ -39,6 +39,7 @@ class cdr_writer_connection
 
 struct CdrThreadCfg
 {
+    unsigned int pool_size;
     bool failover_to_slave;
     bool failover_to_file;
     bool failover_requeue;
@@ -53,16 +54,7 @@ struct CdrThreadCfg
     DynFieldsT dyn_fields;
     vector<UsedHeaderField> used_header_fields;
     string db_schema;
-    int cfg2CdrThCfg(AmConfigReader& cfg,string& prefix);
-};
-
-struct CdrWriterCfg
-  : public CdrThreadCfg
-{
-    unsigned int poolsize;
-    unsigned int auth_pool_size;
-    string name;
-    int cfg2CdrWrCfg(AmConfigReader& cfg);
+    int cfg2CdrThCfg(AmConfigReader& cfg);
 };
 
 class CdrThread
@@ -139,9 +131,8 @@ class CdrThread
 };
 
 class CdrWriter {
-    vector<unique_ptr<CdrThread>> cdrthreadpool;
-    vector<unique_ptr<CdrThread>> auth_log_threadpool;
-    CdrWriterCfg config;
+    vector<unique_ptr<CdrThread>> cdrthreadpool, auth_log_threadpool;
+    CdrThreadCfg config, auth_config;
     bool paused;
   public:
     void closeFiles();
@@ -194,11 +185,13 @@ class CdrWriter {
     void showRetryQueues(AmArg &arg);
     void postcdr(CdrBase* cdr);
     void post_auth_log(CdrBase *cdr);
-    int configure(CdrWriterCfg& cfg);
+    int configure(cfg_t *confuse_cfg, AmConfigReader& cfg);
     void start();
     void stop();
     void setPaused(bool p);
     void setRetryInterval(int retry_interval);
+
+    CdrThreadCfg &getConfig() { return config; }
 
     CdrWriter();
     ~CdrWriter();

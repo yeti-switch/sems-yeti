@@ -20,6 +20,13 @@
 
 #include "AmSession.h"
 
+#define GET_VARIABLE(var)\
+    if(!cfg.hasParameter(#var)){\
+        ERROR("missed parameter '"#var"'");\
+        return 1;\
+    }\
+    var = cfg.getParameter(#var);
+
 const static_field profile_static_fields[] = {
     { "node_id", "integer" },
     { "pop_id", "integer" },
@@ -213,15 +220,7 @@ try {
 }
 
 int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg){
-    CdrWriterCfg cdrconfig;
     PgConnectionPoolCfg masterpoolcfg,slavepoolcfg;
-
-#define GET_VARIABLE(var)\
-    if(!cfg.hasParameter(#var)){\
-        ERROR("missed parameter '"#var"'");\
-        return 1;\
-    }\
-    var = cfg.getParameter(#var);
 
     routing_schema = Yeti::instance().config.routing_schema;
     GET_VARIABLE(routing_function);
@@ -230,8 +229,6 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg){
     GET_VARIABLE(writecdr_function);
     authlog_function = cfg.getParameter("authlog_function","write_auth_log");
 
-#undef GET_VARIABLE
-
     if(0==db_configure(cfg)){
         INFO("SqlRouter::db_configure: config successfuly readed");
     } else {
@@ -239,26 +236,15 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg){
         return 1;
     }
 
-    cdrconfig.name="cdr";
-    if (0==cdrconfig.cfg2CdrWrCfg(cfg)){
-        cdrconfig.prepared_queries = cdr_prepared_queries;
-        cdrconfig.dyn_fields  = dyn_fields;
-        cdrconfig.db_schema = writecdr_schema;
-        cdrconfig.used_header_fields = used_header_fields;
+    cdr_writer = new CdrWriter();
+    auto &cdrconfig = cdr_writer->getConfig();
+    cdrconfig.prepared_queries = cdr_prepared_queries;
+    cdrconfig.dyn_fields  = dyn_fields;
+    cdrconfig.db_schema = writecdr_schema;
+    cdrconfig.used_header_fields = used_header_fields;
 
-        cfg_t* cdr_section = cfg_getsec(confuse_cfg, "cdr");
-        if(cdr_section) {
-            if(cfg_size(cdr_section, "auth_pool_size")) {
-                cdrconfig.auth_pool_size = cfg_getint(cdr_section, "auth_pool_size");
-            } else {
-                //use pool_size value
-                cdrconfig.auth_pool_size = cdrconfig.poolsize;
-            }
-        }
-
-        INFO("Cdr writer pool config loaded");
-    } else {
-        INFO("Cdr writer pool config loading error");
+    if (cdr_writer->configure(confuse_cfg, cfg)) {
+        ERROR("Cdr writer pool configuration error.");
         return 1;
     }
 
@@ -296,12 +282,6 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg){
         WARN("Slave SQLThread configured\n");
     } else {
         WARN("Slave SQLThread disabled\n");
-    }
-
-    cdr_writer = new CdrWriter();
-    if (cdr_writer->configure(cdrconfig)){
-        ERROR("Cdr writer pool configuration error.");
-        return 1;
     }
 
     return 0;
