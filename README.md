@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/yeti-switch/sems-yeti.svg?branch=master)](https://travis-ci.org/yeti-switch/sems-yeti.svg?branch=master)
+[![Build Status](https://github.com/yeti-switch/sems-yeti/actions/workflows/build.yml)](https://github.com/yeti-switch/sems-yeti/actions/workflows/build.yml/badge.svg)
 # sems-yeti
 
 sems-yeti is a part of project [Yeti]
