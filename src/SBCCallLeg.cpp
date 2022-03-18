@@ -484,11 +484,10 @@ void SBCCallLeg::processResourcesAndSdp()
 
     call_ctx->bleg_negotiated_media = call_ctx->bleg_initial_offer.media;
 
-    if(cdr->time_limit){
+    if(profile->time_limit) {
         DBG("%s() save timer %d with timeout %d",FUNC_NAME,
-            YETI_CALL_DURATION_TIMER,
-            cdr->time_limit);
-        saveCallTimer(YETI_CALL_DURATION_TIMER,cdr->time_limit);
+            YETI_CALL_DURATION_TIMER, profile->time_limit);
+        saveCallTimer(YETI_CALL_DURATION_TIMER,profile->time_limit);
     }
 
     if(!call_profile.append_headers.empty()){
@@ -3378,6 +3377,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     }
 
     removeTimer(YETI_FAKE_RINGING_TIMER);
+    clearCallTimer(YETI_CALL_DURATION_TIMER);
 
     cdr->update_with_sip_reply(reply);
     cdr->update_bleg_reason(reply.reason,static_cast<int>(reply.code));
@@ -3412,6 +3412,13 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     if(!chooseNextProfile()) {
         DBG("%s() no new profile, just finish as usual",FUNC_NAME);
         return;
+    }
+
+    auto profile = call_ctx->getCurrentProfile();
+    if(profile->time_limit) {
+        DBG("%s() save timer %d with timeout %d",FUNC_NAME,
+            YETI_CALL_DURATION_TIMER, profile->time_limit);
+        saveCallTimer(YETI_CALL_DURATION_TIMER,profile->time_limit);
     }
 
     DBG("%s() has new profile, so create new callee",FUNC_NAME);
