@@ -1,3 +1,8 @@
+sems-yeti (1.12.16) stable; urgency=medium
+  * add options cdr.auth_batch_size, cdr.auth_batch_timeout
+  * fix call duration limit on rerouting
+ -- dev <dev@yeti-switch.org>  Thu, 24 Mar 2022 10:56:13 +0200
+
 sems-yeti (1.12.15) stable; urgency=medium
 
   * Auth: detailed codes from uac_auth on auth errors
