@@ -20,6 +20,9 @@
 #undef cJSON_AddNumberToObject
 #endif
 
+#define timeriseq(a,b) \
+    (((a).tv_sec == (b).tv_sec) && ((a).tv_usec == (b).tv_usec))
+
 template <typename T>
 void cJSON_AddNumberToObject(cJSON *object,const char *name,T n) {
     //if(fabs((double)n-(int)n)<=DBL_EPSILON) {
@@ -314,13 +317,18 @@ void Cdr::update_with_action(UpdateAction act)
             gettimeofday(&bleg_invite_time, NULL);
         break;
     case Connect:
-        gettimeofday(&connect_time, NULL);
+        if(timeriseq(start_time,end_time)) {
+            gettimeofday(&connect_time, NULL);
+        } else {
+            WARN("%s: attempt to set connect_time after the end_time",
+                  local_tag.data());
+        }
         break;
     case BlegConnect:
         gettimeofday(&bleg_connect_time, NULL);
         break;
     case End:
-        if(end_time.tv_sec==start_time.tv_sec)
+        if(timeriseq(start_time,end_time))
             gettimeofday(&end_time, NULL);
         break;
     }
