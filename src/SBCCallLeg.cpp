@@ -2227,9 +2227,7 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
 
 void SBCCallLeg::updateLocalSdp(AmSdp &sdp)
 {
-    // anonymize SDP if configured to do so (we need to have our local media IP,
-    // not the media IP of our peer leg there)
-    normalizeSDP(sdp, true, true);
+    anonymizeSDP(sdp);
 
     // remember transcodable payload IDs
     //if (call_profile.transcoder.isActive()) savePayloadIDs(sdp);

@@ -641,7 +641,7 @@ int filterSdpOffer(SBCCallLeg *call,
 	DBG_SDP(sdp,"filterSdpOffer_in");
 
 	if(call_profile.rtprelay_enabled) {
-		normalizeSDP(sdp, false, false);
+		normalizeSDP(sdp);
 		call->normalizeSdpVersion(sdp.origin.sessV, sip_msg.cseq, true);
 	}
 
@@ -886,7 +886,7 @@ int processSdpAnswer(SBCCallLeg *call,
 	DBG_SDP_MEDIA(sdp.media,"processSdpAnswer_in");
 
 	if(call_profile.rtprelay_enabled) {
-		normalizeSDP(sdp, false, ""); // anonymization is done in the other leg to use correct IP address
+		normalizeSDP(sdp);
 		call->normalizeSdpVersion(sdp.origin.sessV, sip_msg.cseq, false);
 
 		filterSdpAnswerMedia(

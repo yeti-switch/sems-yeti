@@ -213,21 +213,25 @@ int filterSDPalines(AmSdp& sdp, const vector<FilterEntry>& filter_list) {
   return 0;
 }
 
-int normalizeSDP(AmSdp& sdp, bool anonymize_sdp, bool replace_origin_address) {
-  for (std::vector<SdpMedia>::iterator m_it=
-	 sdp.media.begin(); m_it != sdp.media.end(); m_it++) {
-    if (m_it->type != MT_AUDIO && m_it->type != MT_VIDEO)
-      continue;
+int normalizeSDP(AmSdp& sdp)
+{
+    for(auto &m : sdp.media) {
+        if (m.type != MT_AUDIO && m.type != MT_VIDEO)
+            continue;
 
-    // fill missing encoding names (a= lines)
-    fix_missing_encodings(*m_it);
+        // fill missing encoding names (a= lines)
+        fix_missing_encodings(m);
 
-    // fix incomplete silenceSupp attributes (see RFC3108)
-    // (only media level - RFC3108 4.)
-    fix_incomplete_silencesupp(*m_it);
-  }
+        // fix incomplete silenceSupp attributes (see RFC3108)
+        // (only media level - RFC3108 4.)
+        fix_incomplete_silencesupp(m);
+    }
 
-  if (anonymize_sdp) {
+    return 0;
+}
+
+int anonymizeSDP(AmSdp& sdp)
+{
     // Clear s-Line in SDP:
     sdp.sessionName = AmConfig.sdp_session_name;
     // Clear u-Line in SDP:
@@ -235,12 +239,9 @@ int normalizeSDP(AmSdp& sdp, bool anonymize_sdp, bool replace_origin_address) {
     // Clear origin user
     sdp.origin.user = AmConfig.sdp_origin;
 
-    if(replace_origin_address) {
-        sdp.origin.conn = sdp.conn;
-    }
-  }
+    /* AmSdp::print() will get value for origin address
+     * from session or media level connetction line */
+    sdp.origin.conn.address.clear();
 
-  return 0;
+    return 0;
 }
-
-
