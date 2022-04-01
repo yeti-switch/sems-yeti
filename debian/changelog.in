@@ -1,3 +1,8 @@
+sems-yeti (1.12.17) stable; urgency=medium
+  * fix SDP origin anonymization
+  * cdr: check end_time on connect_time update
+ -- dev <dev@yeti-switch.org>  Fri, 01 Apr 2022 22:24:13 +0300
+
 sems-yeti (1.12.16) stable; urgency=medium
   * add options cdr.auth_batch_size, cdr.auth_batch_timeout
   * fix call duration limit on rerouting
