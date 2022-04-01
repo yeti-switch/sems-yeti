@@ -240,7 +240,7 @@ int anonymizeSDP(AmSdp& sdp)
     sdp.origin.user = AmConfig.sdp_origin;
 
     /* AmSdp::print() will get value for origin address
-     * from session or media level connetction line */
+     * from session or media level connection line */
     sdp.origin.conn.address.clear();
 
     return 0;
