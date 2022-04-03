@@ -1,3 +1,7 @@
+sems-yeti (1.12.18) stable; urgency=medium
+  * force SDP normalization on updateLocalSDP
+ -- dev <dev@yeti-switch.org>  Sun, 03 Apr 2022 19:31:16 +0300
+
 sems-yeti (1.12.17) stable; urgency=medium
   * fix SDP origin anonymization
   * cdr: check end_time on connect_time update
