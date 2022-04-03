@@ -2227,6 +2227,7 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
 
 void SBCCallLeg::updateLocalSdp(AmSdp &sdp)
 {
+    normalizeSDP(sdp);
     anonymizeSDP(sdp);
 
     // remember transcodable payload IDs
