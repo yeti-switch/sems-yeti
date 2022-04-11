@@ -100,6 +100,14 @@ Yeti::Yeti()
 Yeti::~Yeti()
 {
     stop(true);
+
+    if(confuse_cfg)
+        cfg_free(confuse_cfg);
+
+    CodecsGroups::dispose();
+    CodesTranslator::dispose();
+    Sensors::dispose();
+    Registration::dispose();
 }
 
 int Yeti::configure(const std::string& config_buf)

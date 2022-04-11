@@ -13,6 +13,11 @@ Registration* Registration::instance(){
 	return _instance;
 }
 
+void Registration::dispose() {
+	if(_instance)
+		delete _instance;
+}
+
 Registration::Registration() { }
 
 Registration::~Registration(){ }

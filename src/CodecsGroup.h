@@ -45,6 +45,7 @@ class CodecsGroups {
 			_instance = new CodecsGroups();
 		return _instance;
 	}
+	static void dispose() { if(_instance) delete _instance; }
 
 	int configure(AmConfigReader &cfg);
 	void configure_db(AmConfigReader &cfg);

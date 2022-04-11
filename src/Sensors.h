@@ -56,6 +56,7 @@ class _Sensors {
   public:
 	_Sensors();
 	~_Sensors();
+	void dispose() {}
 
 	msg_sensor *getSensor(int id);
 
