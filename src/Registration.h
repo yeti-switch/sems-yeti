@@ -19,6 +19,7 @@ public:
 	Registration();
 	~Registration();
 	static Registration* instance();
+	static void dispose();
 
 	void configure_db(AmConfigReader &cfg);
 	int load_registrations();

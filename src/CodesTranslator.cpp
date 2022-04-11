@@ -33,6 +33,11 @@ CodesTranslator* CodesTranslator::instance()
 	return _instance;
 }
 
+void CodesTranslator::dispose() {
+	if(_instance)
+		delete _instance;
+}
+
 int CodesTranslator::configure(AmConfigReader &cfg){
 	db_schema = Yeti::instance().config.routing_schema;
 	configure_db(cfg);

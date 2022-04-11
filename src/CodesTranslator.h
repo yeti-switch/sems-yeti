@@ -135,6 +135,7 @@ class CodesTranslator {
 	CodesTranslator();
 	~CodesTranslator();
 	static CodesTranslator* instance();
+	static void dispose();
 
 	int configure(AmConfigReader &cfg);
 	void configure_db(AmConfigReader &cfg);
