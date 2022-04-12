@@ -14,6 +14,13 @@
 #define REDIS_REQUEST_EVENT_ID 0
 #define REDIS_REPLY_EVENT_ID 1
 
+template <typename T>
+inline unsigned int len_in_chars(T s)
+{
+    if(s == 0) return 1;
+    return static_cast<unsigned int>(log10(s) + 1);
+}
+
 struct RedisScript
   : AmObject
 {
@@ -28,13 +35,6 @@ struct RedisScript
 
     int load(const string &script_path,  int reply_type_id);
 };
-
-template <typename T>
-inline unsigned int len_in_chars(T s)
-{
-    if(s == 0) return 1;
-    return static_cast<unsigned int>(log10(s) + 1);
-}
 
 struct RedisRequestEvent
   : public AmEvent
@@ -72,6 +72,26 @@ struct RedisRequestEvent
     virtual ~RedisRequestEvent();
 };
 
+class RedisConnection;
+
+struct RedisReplyCtx {
+    RedisConnection *c;
+
+    bool persistent_ctx;
+    string src_id;
+    std::unique_ptr<AmObject> user_data;
+    int user_type_id;
+
+    RedisReplyCtx(RedisConnection *c, RedisRequestEvent &r)
+      : c(c),
+        persistent_ctx(r.persistent_ctx),
+        src_id(std::move(r.src_id)),
+        user_data(std::move(r.user_data)),
+        user_type_id(r.user_type_id)
+    {}
+    //~RedisReplyCtx() { CLASS_DBG("~RedisReplyCtx()"); }
+};
+
 struct RedisReplyEvent
   : public AmEvent
 {
@@ -88,7 +108,7 @@ struct RedisReplyEvent
     std::unique_ptr<AmObject> user_data;
     int user_type_id;
 
-    RedisReplyEvent(redisReply *reply, RedisRequestEvent &request);
+    RedisReplyEvent(redisReply *reply, RedisReplyCtx &ctx);
     RedisReplyEvent(result_type result, RedisRequestEvent &request);
     virtual ~RedisReplyEvent();
 };
@@ -98,17 +118,6 @@ class RedisConnection
     public AmEventFdQueue,
     public AmEventHandler
 {
-  public:
-
-  struct redisReplyCtx {
-      RedisRequestEvent r;
-      RedisConnection *c;
-      redisReplyCtx(RedisConnection *c, RedisRequestEvent &&r)
-        :  r(std::move(r)), c(c)
-      {}
-      //~redisReplyCtx() { CLASS_DBG("~redisReplyCtx"); }
-  };
-
   private:
     int epoll_fd;
     int redis_fd;
@@ -126,7 +135,7 @@ class RedisConnection
     AmTimerFd reconnect_timer;
     bool connected;
 
-    std::list<redisReplyCtx *> persistent_reply_contexts;
+    std::list<RedisReplyCtx *> persistent_reply_contexts;
 
     int init_async_context();
 
@@ -154,7 +163,7 @@ class RedisConnection
     redisConnectCallback connectCallback;
     redisDisconnectCallback disconnectCallback;
 
-    void on_redis_reply(RedisRequestEvent &request, redisReply *reply);
+    void on_redis_reply(RedisReplyCtx &ctx, redisReply *reply);
 
     int add_event(int flag);
     int del_event(int flag);
@@ -217,4 +226,3 @@ static inline bool postRedisRequestFmt(const string &queue_name,
                             true, persistent_ctx,
                             user_data,user_type_id);
 }
-
