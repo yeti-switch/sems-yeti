@@ -345,13 +345,13 @@ void CdrThread::getStats(AmArg &arg){
 void CdrThread::get_queue_len(StatCounterInterface::iterate_func_type f)
 {
 	AmLock l(queue_mut);
-	f(queue.size(), 0, labels);
+	f(queue.size(), /*0,*/ labels);
 }
 
 void CdrThread::get_retry_queue_len(StatCounterInterface::iterate_func_type f)
 {
 	AmLock l(queue_mut);
-	f(retry_queue.size(), 0, labels);
+	f(retry_queue.size(), /*0,*/ labels);
 }
 
 void CdrThread::showOpenedFiles(AmArg &arg){
