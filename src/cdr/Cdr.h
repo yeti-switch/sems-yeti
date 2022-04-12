@@ -32,6 +32,9 @@ const char *DisconnectInitiator2Str(int initiator);
 
 struct Cdr
   : public CdrBase
+#ifdef OBJECTS_COUNTER
+  , ObjCounter(Cdr)
+#endif
 {
     bool writed;
     bool is_last;

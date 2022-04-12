@@ -21,6 +21,7 @@
 #include "AmEventDispatcher.h"
 #include "ampi/SctpBusAPI.h"
 #include "sip/resolver.h"
+#include "ObjectsCounter.h"
 
 #include "RedisConnection.h"
 
@@ -160,6 +161,13 @@ static void apply_yeti_signatures()
     AmLcConfig::instance().applySignature(YETI_AGENT_SIGNATURE);
 }
 
+static void init_counters()
+{
+    ObjCounterInit(Cdr);
+    ObjCounterInit(AuthCdr);
+    ObjCounterInit(SqlCallProfile);
+}
+
 int Yeti::onLoad()
 {
     start_time = time(nullptr);
@@ -167,6 +175,7 @@ int Yeti::onLoad()
     cfg.dump();
 
     init_rpc();
+    init_counters();
     apply_yeti_signatures();
 
     if((epoll_fd = epoll_create(10)) == -1) {
