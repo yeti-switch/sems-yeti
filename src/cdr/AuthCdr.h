@@ -11,6 +11,9 @@ extern const std::vector<static_field> auth_log_static_fields;
 
 class AuthCdr
   : public CdrBase
+#ifdef OBJECTS_COUNTER
+  , ObjCounter(AuthCdr)
+#endif
 {
     timeval request_time;
     int transport_proto_id;

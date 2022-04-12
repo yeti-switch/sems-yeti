@@ -20,6 +20,9 @@ using std::string;
 
 struct SqlCallProfile
 	: public SBCCallProfile
+#ifdef OBJECTS_COUNTER
+  , ObjCounter(SqlCallProfile)
+#endif
 {
 	int time_limit;
 	int disconnect_code_id;
