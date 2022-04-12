@@ -68,10 +68,10 @@ RedisRequestEvent::~RedisRequestEvent()
     }
 }
 
-RedisReplyEvent::RedisReplyEvent(redisReply *reply, RedisRequestEvent &request)
+RedisReplyEvent::RedisReplyEvent(redisReply *reply, RedisReplyCtx &ctx)
   : AmEvent(REDIS_REPLY_EVENT_ID),
-    user_data(std::move(request.user_data)),
-    user_type_id(request.user_type_id)
+    user_data(std::move(ctx.user_data)),
+    user_type_id(ctx.user_type_id)
 {
     if(!reply) {
         result = IOError;
@@ -380,12 +380,12 @@ void RedisConnection::process(AmEvent* ev)
 
 static void redis_request_cb_static(redisAsyncContext *, void *r, void *privdata)
 {
-    RedisConnection::redisReplyCtx *ctx = static_cast<RedisConnection::redisReplyCtx *>(privdata);
-    ctx->c->on_redis_reply(ctx->r, static_cast<redisReply *>(r));
-    if(!ctx->r.persistent_ctx) delete ctx;
+    RedisReplyCtx *ctx = static_cast<RedisReplyCtx *>(privdata);
+    ctx->c->on_redis_reply(*ctx, static_cast<redisReply *>(r));
+    if(!ctx->persistent_ctx) delete ctx;
 }
 
-void RedisConnection::on_redis_reply(RedisRequestEvent &request, redisReply *reply)
+void RedisConnection::on_redis_reply(RedisReplyCtx &ctx, redisReply *reply)
 {
     //DBG("got reply from redis for cmd: %s",request.cmd.c_str());
 
@@ -398,8 +398,8 @@ void RedisConnection::on_redis_reply(RedisRequestEvent &request, redisReply *rep
     }
 
     AmSessionContainer::instance()->postEvent(
-        request.src_id,
-        new RedisReplyEvent(reply,request));
+        ctx.src_id,
+        new RedisReplyEvent(reply,ctx));
 }
 
 void RedisConnection::process_request_event(RedisRequestEvent &event)
@@ -407,20 +407,26 @@ void RedisConnection::process_request_event(RedisRequestEvent &event)
     //DBG("process_request_event: %s",event.cmd.c_str());
     if(connected) {
         if(!event.src_id.empty()) {
-            auto ctx = new redisReplyCtx(this,std::move(event));
+            if(event.user_data && event.persistent_ctx) {
+                ERROR("%s:%d user_data is not allowed for persistent context. clear it",
+                    event.src_id.data(), event.user_type_id);
+                event.user_data.reset();
+            }
+
+            auto ctx = new RedisReplyCtx(this,event);
             if(REDIS_OK!=redisAsyncFormattedCommand(
                 async_context,
                 &redis_request_cb_static, ctx,
-                ctx->r.cmd.get(),ctx->r.cmd_size))
+                event.cmd.get(),event.cmd_size))
             {
                 AmSessionContainer::instance()->postEvent(
-                    ctx->r.src_id,
-                    new RedisReplyEvent(RedisReplyEvent::FailedToSend,ctx->r));
+                    ctx->src_id,
+                    new RedisReplyEvent(RedisReplyEvent::FailedToSend,event));
                 delete ctx;
                 return;
             }
             //set reply ctx for persistent contexts
-            if(ctx->r.persistent_ctx) {
+            if(ctx->persistent_ctx) {
                 persistent_reply_contexts.push_back(ctx);
             }
         } else {
