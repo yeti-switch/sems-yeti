@@ -4,7 +4,7 @@
 #include "ampi/HttpClientAPI.h"
 
 #include <string>
-#include <map>
+#include <unordered_map>
 
 class HttpSequencer {
 
@@ -17,16 +17,18 @@ class HttpSequencer {
 
     struct sequencer_state_t {
         sequencer_stage_t stage;
+        bool invalidated;
 
         AmArg connected_data;
         AmArg disconnected_data;
 
         sequencer_state_t(sequencer_stage_t initial_stage)
-          : stage(initial_stage)
+          : stage(initial_stage),
+            invalidated(false)
         {}
     };
 
-    using states_t = map<string, sequencer_state_t>;
+    using states_t = std::unordered_map<string, sequencer_state_t>;
     states_t states;
     AmMutex states_mutex;
 
@@ -37,6 +39,8 @@ class HttpSequencer {
     bool postHttpRequestNoReply(const AmArg &data);
 
   public:
+    HttpSequencer();
+
     enum call_stage_type_t {
         CallStarted = 0,
         CallConnected,
@@ -48,4 +52,5 @@ class HttpSequencer {
 
     void processHook(call_stage_type_t type, const string &local_tag, const AmArg &data);
     void processHttpReply(const HttpPostResponseEvent &reply);
+    void cleanup(const string &local_tag);
 };

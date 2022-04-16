@@ -1632,6 +1632,11 @@ void SBCCallLeg::onBeforeDestroy()
     DBG("%s(%p|%s,leg%s)",FUNC_NAME,
         to_void(this),getLocalTag().c_str(),a_leg?"A":"B");
 
+    if(a_leg) {
+        //ensure we will destroy sequencer state on missed hooks
+        yeti.http_sequencer.cleanup(getLocalTag());
+    }
+
     AmLock call_ctx_lock(*call_ctx_mutex);
     if(!call_ctx) {
         DBG("no call_ctx in onBeforeDestroy. return");

@@ -3,6 +3,12 @@
 #include "jsonArg.h"
 #include "yeti_base.h"
 
+HttpSequencer::HttpSequencer()
+{
+    if(AmConfig.session_limit)
+        states.reserve(AmConfig.session_limit);
+}
+
 bool HttpSequencer::postHttpRequest(const string &token, const AmArg &data)
 {
     if(!AmSessionContainer::instance()->postEvent(
@@ -146,11 +152,21 @@ void HttpSequencer::processHttpReply(const HttpPostResponseEvent &reply)
             return;
         }
 
+        if(it->second.invalidated) {
+            states.erase(it);
+            return;
+        }
+
         it->second.stage = StartedHookReplyReceived;
         break;
     case ConnectedHookIsQueued:
         if(!isArgUndef(it->second.disconnected_data)) {
             postHttpRequestNoReply(it->second.disconnected_data);
+            states.erase(it);
+            return;
+        }
+
+        if(it->second.invalidated) {
             states.erase(it);
             return;
         }
@@ -162,4 +178,26 @@ void HttpSequencer::processHttpReply(const HttpPostResponseEvent &reply)
               it->second.stage, it->first.data());
         break;
     } //switch(it->second.stage)
+}
+
+void HttpSequencer::cleanup(const string &local_tag)
+{
+    AmLock l(states_mutex);
+
+     auto it = states.find(local_tag);
+     if(it == states.end())
+        return;
+
+     switch(it->second.stage) {
+     case StartedHookIsQueued:
+     case ConnectedHookIsQueued:
+         //hint got processHttpReply to erase state on no more data to send
+         it->second.invalidated = true;
+         break;
+     case StartedHookReplyReceived:
+     case ConnectedHookReplyReceived:
+         //sequencer waits for new hooks but they will never be executed
+         states.erase(it);
+         break;
+     }
 }
