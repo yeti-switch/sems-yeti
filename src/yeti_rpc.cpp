@@ -1367,7 +1367,7 @@ void YetiRpc::showTrustedBalancers(const AmArg& arg, AmArg& ret)
 
 void YetiRpc::showIPAuth(const AmArg& arg, AmArg& ret)
 {
-    orig_pre_auth.ShowIPAuth(ret);
+    orig_pre_auth.ShowIPAuth(arg, ret);
 }
 
 void YetiRpc::requestCertCacheTrustedCertsReload(const AmArg&, AmArg& ret)

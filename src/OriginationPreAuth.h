@@ -54,7 +54,7 @@ class OriginationPreAuth final
                                 bool reload_ip_auth) noexcept;
 
     void ShowTrustedBalancers(AmArg& ret);
-    void ShowIPAuth(AmArg& ret);
+    void ShowIPAuth(const AmArg &arg, AmArg& ret);
 
     bool onInvite(const AmSipRequest &req, Reply &reply);
 };

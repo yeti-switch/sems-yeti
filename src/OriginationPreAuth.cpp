@@ -97,12 +97,29 @@ void OriginationPreAuth::ShowTrustedBalancers(AmArg& ret)
         ret.push(lb);
 }
 
-void OriginationPreAuth::ShowIPAuth(AmArg& ret)
+void OriginationPreAuth::ShowIPAuth(const AmArg &arg, AmArg& ret)
 {
     auto &entries = ret["entries"];
+    entries.assertArray();
+
     AmLock lock(mutex);
-    for(const auto &ip_auth : ip_auths)
-        entries.push(ip_auth);
+
+    if(0==arg.size()) {
+        for(const auto &ip_auth : ip_auths)
+            entries.push(ip_auth);
+    } else {
+        arg.assertArrayFmt("s");
+        string ip = arg[0].asCStr();
+        sockaddr_storage addr;
+        memset(&addr,0,sizeof(sockaddr_storage));
+        if(!am_inet_pton(arg[0].asCStr(), &addr))
+            return;
+        IPTree::MatchResult match_result;
+        subnets_tree.match(addr, match_result);
+        for(const auto &m : match_result) {
+            entries.push(ip_auths[m]);
+        }
+    }
     //ret["tree"] = subnets_tree;
 }
 
