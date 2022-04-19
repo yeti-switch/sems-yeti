@@ -6,6 +6,7 @@
 
 #include <pqxx/pqxx>
 #include <unordered_map>
+#include <confuse.h>
 
 class Auth {
   public:
@@ -23,6 +24,8 @@ class Auth {
   private:
     AmDynInvoke *uac_auth;
     std::string realm;
+    bool skip_logging_invite_challenge;
+    bool skip_logging_invite_success;
 
     struct cred {
         auth_id_type id;
@@ -42,6 +45,7 @@ class Auth {
 
   protected:
 
+    int auth_configure(cfg_t* cfg);
     int auth_init(AmConfigReader& cfg, pqxx::nontransaction &t);
 
     /**
@@ -68,5 +72,8 @@ class Auth {
     *         <0 on error
     */
     auth_id_type check_request_auth(const AmSipRequest &req, AmArg &ret);
+
+    bool is_skip_logging_invite_challenge() { return skip_logging_invite_challenge; }
+    bool is_skip_logging_invite_success() { return skip_logging_invite_success; }
 };
 

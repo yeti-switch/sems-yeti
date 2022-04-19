@@ -57,7 +57,7 @@ public:
       AmArg &ret,
       Auth::auth_id_type auth_id = 0);
   void send_and_log_auth_challenge(const AmSipRequest &req, const string &internal_reason,
-                                   const string &hdrs);
+                                   const string &hdrs, bool post_auth_log);
   void dump_config();
   void closeCdrFiles();
   void getStats(AmArg &arg);

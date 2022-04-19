@@ -48,7 +48,35 @@ void Auth::CredentialsContainer::add(
 
 Auth::Auth()
   : uac_auth(nullptr)
+  , skip_logging_invite_challenge(false)
+  , skip_logging_invite_success(false)
 {}
+
+int Auth::auth_configure(cfg_t* cfg)
+{
+    char* realm_ = cfg_getstr(cfg, "realm");
+    if(!realm_ || strlen(realm_) == 0) {
+        //use hostname as realm if not configured
+        char hostname[MAX_HOSTNAME_LEN];
+        if(-1==gethostname(hostname,MAX_HOSTNAME_LEN)) {
+            if(ENAMETOOLONG==errno)
+                hostname[MAX_HOSTNAME_LEN-1] = 0;
+        }
+        realm = hostname;
+    } else {
+        realm = realm_;
+    }
+
+    if(cfg_size(cfg, "skip_logging_invite_success"))
+        skip_logging_invite_success = cfg_getbool(cfg, "skip_logging_invite_success");
+
+    if(cfg_size(cfg, "skip_logging_invite_challenge"))
+        skip_logging_invite_challenge = cfg_getbool(cfg, "skip_logging_invite_challenge");
+
+    DBG("auth_init: configured to use realm: '%s', skip_logging_invite_success: %s, skip_logging_invite_challenge: %s",
+        realm.c_str(), skip_logging_invite_success ? "true" : "false", skip_logging_invite_challenge ? "true" : "false");
+    return 0;
+}
 
 int Auth::auth_init(AmConfigReader& cfg, pqxx::nontransaction &t)
 {
@@ -68,18 +96,6 @@ int Auth::auth_init(AmConfigReader& cfg, pqxx::nontransaction &t)
         ERROR("failed to load credentials");
         return -1;
     }
-
-    realm = cfg.getParameter("auth_realm");
-    if(realm.empty()) {
-        //use hostname as realm if not configured
-        char hostname[MAX_HOSTNAME_LEN];
-        if(-1==gethostname(hostname,MAX_HOSTNAME_LEN)) {
-            if(ENAMETOOLONG==errno)
-                hostname[MAX_HOSTNAME_LEN-1] = 0;
-        }
-        realm = hostname;
-    }
-    DBG("auth_init: configured to use realm: '%s'",realm.c_str());
 
     return 0;
 }

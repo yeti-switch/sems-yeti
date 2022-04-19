@@ -206,6 +206,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   void send_and_log_auth_challenge(const AmSipRequest& req,
                                    const string &internal_reason,
+                                   bool post_auth_log,
                                    int auth_feedback_code = Auth::NO_AUTH);
 
  public:

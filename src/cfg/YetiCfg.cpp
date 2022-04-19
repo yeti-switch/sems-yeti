@@ -175,8 +175,4 @@ void YetiCfg::serialize_to_amconfig(cfg_t *y, AmConfigReader &out)
 				add2hash(c,"active_calls_clickhouse_queue","queue",out);
 				add2hash(c,"active_calls_clickhouse_buffering","buffering",out);
 				add2hash(c,"active_calls_clickhouse_allowed_fields","allowed_fields",out);
-
-		//auth
-		c = cfg_getsec(y,"auth");
-			add2hash(c,"auth_realm","realm",out);
 }

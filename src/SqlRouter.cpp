@@ -229,6 +229,13 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg){
     GET_VARIABLE(writecdr_function);
     authlog_function = cfg.getParameter("authlog_function","write_auth_log");
 
+    cfg_t *auth = cfg_getsec(confuse_cfg, "auth");
+    if(!auth || 0==auth_configure(auth)) {
+        INFO("SqlRouter::auth_configure: config successfuly readed");
+    } else {
+        INFO("SqlRouter::auth_configure: config read error");
+    }
+
     if(0==db_configure(cfg)){
         INFO("SqlRouter::db_configure: config successfuly readed");
     } else {
@@ -594,13 +601,14 @@ void SqlRouter::log_auth(
 void SqlRouter::send_and_log_auth_challenge(
     const AmSipRequest &req,
     const string &internal_reason,
-    const string &hdrs)
+    const string &hdrs, bool post_auth_log)
 {
     Auth::send_auth_challenge(req, hdrs);
-    cdr_writer->post_auth_log(
-        new AuthCdr(
-            req,used_header_fields, false,
-            401, "Unauthorized", internal_reason, 0));
+    if(post_auth_log)
+        cdr_writer->post_auth_log(
+            new AuthCdr(
+                req,used_header_fields, false,
+                401, "Unauthorized", internal_reason, 0));
 }
 
 void SqlRouter::dump_config()

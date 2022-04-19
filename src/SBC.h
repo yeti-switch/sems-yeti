@@ -86,6 +86,7 @@ class SBCFactory: public AmSessionFactory,
   void send_auth_error_reply(const AmSipRequest& req, AmArg &ret, int auth_feedback_code);
   void send_and_log_auth_challenge(const AmSipRequest& req,
                                    const string &internal_reason,
+                                   bool post_auth_log,
                                    int auth_feedback_code = 0);
 
  public:

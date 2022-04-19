@@ -201,13 +201,14 @@ void SBCFactory::send_auth_error_reply(
 void SBCFactory::send_and_log_auth_challenge(
     const AmSipRequest& req,
     const string &internal_reason,
+    bool post_auth_log,
     int auth_feedback_code)
 {
     string hdrs;
     if(auth_feedback && auth_feedback_code) {
         hdrs = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
     }
-    yeti->router.send_and_log_auth_challenge(req,internal_reason, hdrs);
+    yeti->router.send_and_log_auth_challenge(req,internal_reason, hdrs, post_auth_log);
 }
 
 AmSession* SBCFactory::onInvite(
@@ -251,7 +252,8 @@ AmSession* SBCFactory::onInvite(
     auto auth_result_id = yeti->router.check_request_auth(req,ret);
     if(auth_result_id > 0) {
         DBG("successfully authorized with id %d",auth_result_id);
-        yeti->router.log_auth(req,true,ret,auth_result_id);
+        if(!yeti->router.is_skip_logging_invite_success())
+            yeti->router.log_auth(req,true,ret,auth_result_id);
     } else if(auth_result_id < 0) {
         auto auth_result_id_negated = -auth_result_id;
 
@@ -259,7 +261,7 @@ AmSession* SBCFactory::onInvite(
         if(auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
             send_auth_error_reply(req, ret, auth_result_id_negated);
         } else {
-            send_and_log_auth_challenge(req,ret.asCStr(), auth_result_id_negated);
+            send_and_log_auth_challenge(req,ret.asCStr(), true, auth_result_id_negated);
         }
 
         dec_ref(early_trying_logger);
@@ -267,8 +269,9 @@ AmSession* SBCFactory::onInvite(
     } else if(ip_auth_data.require_incoming_auth) { //Auth::NO_AUTH
         DBG("SIP auth required. reply with 401");
         static string no_auth_internal_reason("no Authorization header");
-        send_and_log_auth_challenge(req,no_auth_internal_reason);
-
+        send_and_log_auth_challenge(
+            req,no_auth_internal_reason,
+            !yeti->router.is_skip_logging_invite_challenge());
         dec_ref(early_trying_logger);
         return nullptr;
     }
@@ -321,7 +324,7 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
         Auth::auth_id_type auth_id = yeti->router.check_request_auth(req,ret);
 
         if(auth_id == Auth::NO_AUTH) {
-            send_and_log_auth_challenge(req,"no Authorization header");
+            send_and_log_auth_challenge(req,"no Authorization header", true);
             return;
         }
 
@@ -332,7 +335,7 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
                 send_auth_error_reply(req, ret, auth_result_id_negated);
             } else {
                 DBG("REGISTER no auth. reply 401 with challenge");
-                send_and_log_auth_challenge(req,ret.asCStr(), auth_result_id_negated);
+                send_and_log_auth_challenge(req,ret.asCStr(), true, auth_result_id_negated);
             }
             return;
         }

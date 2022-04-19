@@ -2688,10 +2688,11 @@ void SBCCallLeg::onIdentityReady()
 
         if(auth_result_id <= 0) {
             DBG("auth required for not authorized request. send auth challenge");
-            send_and_log_auth_challenge(uac_req,"no Authorization header");
+            send_and_log_auth_challenge(uac_req,"no Authorization header", !router.is_skip_logging_invite_challenge());
         } else {
             ERROR("got callprofile with auth_required "
-                "for already authorized request. reply internal error");
+                  "for already authorized request. reply internal error. i:%s",
+                  dlg->getCallid().data());
             AmSipDialog::reply_error(uac_req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
 
@@ -3937,11 +3938,12 @@ void SBCCallLeg::httpCallDisconnectedHook()
 void SBCCallLeg::send_and_log_auth_challenge(
     const AmSipRequest& req,
     const string &internal_reason,
+    bool post_auth_log,
     int auth_feedback_code)
 {
     string hdrs;
     if(yeti.config.auth_feedback && auth_feedback_code) {
         hdrs = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
     }
-    router.send_and_log_auth_challenge(req,internal_reason, hdrs);
+    router.send_and_log_auth_challenge(req,internal_reason, hdrs, post_auth_log);
 }

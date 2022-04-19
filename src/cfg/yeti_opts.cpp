@@ -129,6 +129,8 @@ cfg_opt_t sig_yeti_registrar_opts[] = {
 //auth
 cfg_opt_t sig_yeti_auth_opts[] = {
     DCFG_STR(realm),
+    DCFG_BOOL(skip_logging_invite_challenge),
+    DCFG_BOOL(skip_logging_invite_success),
     CFG_END()
 };
 
