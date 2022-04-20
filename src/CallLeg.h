@@ -98,25 +98,27 @@ class CallLeg: public AmB2BSession
 	//unsigned int inv_tt; //INVITE request SIP transaction timeout
 	sip_timers_override inv_timers_override;
 
-    /** information needed in A leg for a B leg */
-    struct OtherLegInfo {
-      /** local tag of the B leg */
-      string id;
+    class AmB2BMediaPtr {
+        AmB2BMedia *m;
+      public:
+        AmB2BMediaPtr() = delete;
+        AmB2BMediaPtr(AmB2BMediaPtr const &) = delete;
+        AmB2BMediaPtr(AmB2BMediaPtr const &&) = delete;
 
-      /** once the B leg gets connected to the A leg A leg starts to use its
-       * corresponding media_session created when the B leg is added to the list
-       * of B legs */
-      AmB2BMedia *media_session;
+        AmB2BMediaPtr(AmB2BMedia *m)
+          : m(m)
+        {
+            if(m) m->addReference();
+        }
 
-      void releaseMediaSession() {
-	if (media_session) {
-	  media_session->releaseReference();
-	  media_session = NULL;
-	}
-      }
+        ~AmB2BMediaPtr() {
+            if(m) m->releaseReference();
+        }
+
+        operator AmB2BMedia *() const { return m; }
     };
 
-	bool allow_1xx_without_to_tag;
+    bool allow_1xx_without_to_tag;
 
     /** List of legs which can be connected to this leg, it is valid for A leg until first
      * 2xx response which moves the A leg to Connected state and terminates all
@@ -125,7 +127,7 @@ class CallLeg: public AmB2BSession
      * Please note that the A/B role may change during the call leg life. For
      * example when a B leg is parked and then 'rings back on timer' it becomes
      * A leg, i.e. it creates new B leg(s) for itself. */
-    std::vector<OtherLegInfo> other_legs;
+    std::map<std::string, AmB2BMediaPtr> other_legs;
 
     bool on_hold; // remote is on hold
     AmSdp non_hold_sdp;

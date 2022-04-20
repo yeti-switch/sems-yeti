@@ -125,9 +125,9 @@ CallLeg::~CallLeg()
 {
   // do necessary cleanup (might be needed if the call leg is destroyed other
   // way then expected)
-  for (vector<OtherLegInfo>::iterator i = other_legs.begin(); i != other_legs.end(); ++i) {
+  /*for (vector<OtherLegInfo>::iterator i = other_legs.begin(); i != other_legs.end(); ++i) {
     i->releaseMediaSession();
-  }
+  }*/
 }
 
 void CallLeg::terminateOtherLeg()
@@ -142,13 +142,7 @@ void CallLeg::terminateOtherLeg()
   AmB2BSession::terminateOtherLeg();
 
   // remove this one from the list of other legs
-  for (vector<OtherLegInfo>::iterator i = other_legs.begin(); i != other_legs.end(); ++i) {
-    if (i->id == getOtherId()) {
-      i->releaseMediaSession();
-      other_legs.erase(i);
-      break;
-    }
-  }
+  other_legs.erase(getOtherId());
 
   // FIXME: call disconnect if connected (to put remote on hold)?
   if (getCallStatus() != Disconnected) updateCallStatus(Disconnected); // no B legs should be remaining
@@ -156,23 +150,18 @@ void CallLeg::terminateOtherLeg()
 
 void CallLeg::terminateNotConnectedLegs()
 {
-  bool found = false;
-  OtherLegInfo b;
+    auto it = other_legs.begin();
+    while(it != other_legs.end()) {
+        if(it->first == getOtherId()) {
+            ++it;
+            continue;
+        }
 
-  for (vector<OtherLegInfo>::iterator i = other_legs.begin(); i != other_legs.end(); ++i) {
-    if (i->id != getOtherId()) {
-      i->releaseMediaSession();
-      AmSessionContainer::instance()->postEvent(i->id, new B2BEvent(B2BTerminateLeg));
-    }
-    else {
-      found = true; // other_id is there
-      b = *i;
-    }
-  }
+        AmSessionContainer::instance()->postEvent(
+            it->first, new B2BEvent(B2BTerminateLeg));
 
-  // quick hack to remove all terminated entries from the list
-  other_legs.clear();
-  if (found) other_legs.push_back(b);
+        it = other_legs.erase(it);
+    }
 }
 
 void CallLeg::removeOtherLeg(const string &id)
@@ -180,13 +169,7 @@ void CallLeg::removeOtherLeg(const string &id)
   if (getOtherId() == id) AmB2BSession::clear_other();
 
   // remove the call leg from list of B legs
-  for (vector<OtherLegInfo>::iterator i = other_legs.begin(); i != other_legs.end(); ++i) {
-    if (i->id == id) {
-      i->releaseMediaSession();
-      other_legs.erase(i);
-      break;
-    }
-  }
+  other_legs.erase(id);
 
   /*if (terminate) AmSessionContainer::instance()->postEvent(id, new B2BEvent(B2BTerminateLeg));*/
 }
@@ -284,35 +267,36 @@ bool CallLeg::setOther(const string &id, bool forward)
     if (getOtherId() == id)
         return true; // already set (needed when processing 2xx after 1xx)
 
-    for (vector<OtherLegInfo>::iterator i = other_legs.begin(); i != other_legs.end(); ++i)
-    {
-        if (i->id != id) continue;
-
-        setOtherId(id);
-
-        if(!getMediaSession()) {
-            setMediaSession(i->media_session);
-            if (i->media_session) {
-                TRACE("connecting media session: %s to %s\n",
-                      dlg->getLocalTag().c_str(), getOtherId().c_str());
-                i->media_session->changeSession(a_leg, this);
-            } else {
-                if (rtp_relay_mode != AmB2BSession::RTP_Direct)
-                    setRtpRelayMode(AmB2BSession::RTP_Direct);
-            }
-        }
-
-        if (forward && dlg->getOAState() == AmOfferAnswer::OA_Completed) {
-            // reset OA state to offer_recived if already completed to accept new
-            // B leg's SDP
-            dlg->setOAState(AmOfferAnswer::OA_OfferRecved);
-        }
-
-        set_sip_relay_only(true); // relay only from now on
-        return true;
+    auto it = other_legs.find(id);
+    if(it == other_legs.end()) {
+        ERROR("%s is not in the list of other leg IDs!\n", id.c_str());
+        return false;
     }
-    ERROR("%s is not in the list of other leg IDs!\n", id.c_str());
-    return false; // something wrong?
+
+    setOtherId(id);
+
+    if(!getMediaSession()) {
+        AmB2BMedia *m = it->second;
+        setMediaSession(m);
+        if(m) {
+            TRACE("connecting media session: %s to %s\n",
+                  dlg->getLocalTag().c_str(), getOtherId().c_str());
+            m->changeSession(a_leg, this);
+        } else {
+            if(rtp_relay_mode != AmB2BSession::RTP_Direct)
+                setRtpRelayMode(AmB2BSession::RTP_Direct);
+        }
+    }
+
+    if (forward && dlg->getOAState() == AmOfferAnswer::OA_Completed) {
+        // reset OA state to offer_recived if already completed to accept new
+        // B leg's SDP
+        dlg->setOAState(AmOfferAnswer::OA_OfferRecved);
+    }
+
+    set_sip_relay_only(true); // relay only from now on
+
+    return true;
 }
 
 void CallLeg::b2bInitial1xx(AmSipReply& reply, bool forward)
@@ -371,9 +355,6 @@ void CallLeg::b2bInitial2xx(AmSipReply& reply, bool forward)
   // terminate all other legs than the connected one (determined by other_id)
   terminateNotConnectedLegs();
 
-  // connect media with the other leg if RTP relay is enabled
-  if (!other_legs.empty())
-    other_legs.begin()->releaseMediaSession(); // remove reference hold by OtherLegInfo
   other_legs.clear(); // no need to remember the connected leg here
 
   onCallConnected(reply);
@@ -1030,12 +1011,11 @@ void CallLeg::addNewCallee(
     CallLeg *callee, ConnectLegEvent *e,
     AmB2BSession::RTPRelayMode mode)
 {
-    OtherLegInfo b;
-    b.id = callee->getLocalTag();
+    AmB2BMedia *m = nullptr;
 
     callee->setRtpRelayMode(mode);
     if (mode != RTP_Direct) {
-        AmB2BMedia *m = getMediaSession();
+        m = getMediaSession();
         if(!m) {
             // do not initialise the media session with A leg to avoid unnecessary A leg
             // RTP stream creation in every B leg's media session
@@ -1044,6 +1024,7 @@ void CallLeg::addNewCallee(
             } else {
                 m = new AmB2BMedia(callee, NULL);
             }
+            //setMediaSession(m);
             DBG("created b2b media session: %p",m);
         } else {
             DBG("reuse b2b media session: %p",m);
@@ -1051,15 +1032,9 @@ void CallLeg::addNewCallee(
         }
 
         callee->setMediaSession(m);
-
-        m->addReference();
-        b.media_session = m;
-
-    } else {
-        b.media_session = NULL;
     }
 
-    other_legs.push_back(b);
+    other_legs.emplace(callee->getLocalTag(), m);
 
     if (AmConfig.log_sessions) {
         TRACE("Starting B2B callee session %s\n",
@@ -1067,7 +1042,7 @@ void CallLeg::addNewCallee(
     }
 
     AmSipDialog* callee_dlg = callee->dlg;
-    MONITORING_LOG4(b.id.c_str(),
+    MONITORING_LOG4(callee->getLocalTag().c_str(),
         "dir",  "out",
         "from", callee_dlg->getLocalParty().c_str(),
         "to",   callee_dlg->getRemoteParty().c_str(),
@@ -1076,7 +1051,7 @@ void CallLeg::addNewCallee(
     callee->start();
 
     AmSessionContainer* sess_cont = AmSessionContainer::instance();
-    sess_cont->addSession(b.id, callee);
+    sess_cont->addSession(callee->getLocalTag(), callee);
 
     // generate connect event to the newly added leg
     // Warning: correct callee's role must be already set (in constructor or so)
@@ -1086,7 +1061,7 @@ void CallLeg::addNewCallee(
     // used because it would just overwrite already set things. Note that in many
     // classes derived from AmB2BCaller[Callee]Session was a lot of things set
     // explicitly)
-    AmSessionContainer::instance()->postEvent(b.id, e);
+    AmSessionContainer::instance()->postEvent(callee->getLocalTag(), e);
 
     if (call_status == Disconnected)
         updateCallStatus(NoReply);
