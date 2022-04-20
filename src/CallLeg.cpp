@@ -1024,68 +1024,70 @@ int CallLeg::writeStreams(unsigned long long ts, unsigned char *buffer) {
   return AmB2BSession::writeStreams(ts, buffer);
 }
 
-void CallLeg::addNewCallee(CallLeg *callee, ConnectLegEvent *e,
-			   AmB2BSession::RTPRelayMode mode)
+void CallLeg::addNewCallee(
+    CallLeg *callee, ConnectLegEvent *e,
+    AmB2BSession::RTPRelayMode mode)
 {
-  OtherLegInfo b;
-  b.id = callee->getLocalTag();
+    OtherLegInfo b;
+    b.id = callee->getLocalTag();
 
-  callee->setRtpRelayMode(mode);
-  if (mode != RTP_Direct) {
-    AmB2BMedia *m = getMediaSession();
-    if(!m) {
-      // do not initialise the media session with A leg to avoid unnecessary A leg
-      // RTP stream creation in every B leg's media session
-      if (a_leg) {
-        m = new AmB2BMedia(NULL, callee);
-      } else {
-        m = new AmB2BMedia(callee, NULL);
-      }
-      DBG("created b2b media session: %p",m);
+    callee->setRtpRelayMode(mode);
+    if (mode != RTP_Direct) {
+        AmB2BMedia *m = getMediaSession();
+        if(!m) {
+            // do not initialise the media session with A leg to avoid unnecessary A leg
+            // RTP stream creation in every B leg's media session
+            if (a_leg) {
+                m = new AmB2BMedia(NULL, callee);
+            } else {
+                m = new AmB2BMedia(callee, NULL);
+            }
+            DBG("created b2b media session: %p",m);
+        } else {
+            DBG("reuse b2b media session: %p",m);
+            m->changeSession(!a_leg,callee);
+        }
+
+        callee->setMediaSession(m);
+
+        m->addReference();
+        b.media_session = m;
+
     } else {
-      DBG("reuse b2b media session: %p",m);
-      m->changeSession(!a_leg,callee);
+        b.media_session = NULL;
     }
 
-    callee->setMediaSession(m);
+    other_legs.push_back(b);
 
-    m->addReference();
-    b.media_session = m;
+    if (AmConfig.log_sessions) {
+        TRACE("Starting B2B callee session %s\n",
+            callee->getLocalTag().c_str()/*, invite_req.cmd.c_str()*/);
+    }
 
-  } else {
-    b.media_session = NULL;
-  }
+    AmSipDialog* callee_dlg = callee->dlg;
+    MONITORING_LOG4(b.id.c_str(),
+        "dir",  "out",
+        "from", callee_dlg->getLocalParty().c_str(),
+        "to",   callee_dlg->getRemoteParty().c_str(),
+        "ruri", callee_dlg->getRemoteUri().c_str());
 
-  other_legs.push_back(b);
+    callee->start();
 
-  if (AmConfig.log_sessions) {
-    TRACE("Starting B2B callee session %s\n",
-          callee->getLocalTag().c_str()/*, invite_req.cmd.c_str()*/);
-  }
+    AmSessionContainer* sess_cont = AmSessionContainer::instance();
+    sess_cont->addSession(b.id, callee);
 
-  AmSipDialog* callee_dlg = callee->dlg;
-  MONITORING_LOG4(b.id.c_str(),
-		  "dir",  "out",
-		  "from", callee_dlg->getLocalParty().c_str(),
-		  "to",   callee_dlg->getRemoteParty().c_str(),
-		  "ruri", callee_dlg->getRemoteUri().c_str());
+    // generate connect event to the newly added leg
+    // Warning: correct callee's role must be already set (in constructor or so)
+    TRACE("relaying connect leg event to the new leg\n");
+    // other stuff than relayed INVITE should be set directly when creating callee
+    // (remote_uri, remote_party is not propagated and thus B2BConnectEvent is not
+    // used because it would just overwrite already set things. Note that in many
+    // classes derived from AmB2BCaller[Callee]Session was a lot of things set
+    // explicitly)
+    AmSessionContainer::instance()->postEvent(b.id, e);
 
-  callee->start();
-
-  AmSessionContainer* sess_cont = AmSessionContainer::instance();
-  sess_cont->addSession(b.id, callee);
-
-  // generate connect event to the newly added leg
-  // Warning: correct callee's role must be already set (in constructor or so)
-  TRACE("relaying connect leg event to the new leg\n");
-  // other stuff than relayed INVITE should be set directly when creating callee
-  // (remote_uri, remote_party is not propagated and thus B2BConnectEvent is not
-  // used because it would just overwrite already set things. Note that in many
-  // classes derived from AmB2BCaller[Callee]Session was a lot of things set
-  // explicitly)
-  AmSessionContainer::instance()->postEvent(b.id, e);
-
-  if (call_status == Disconnected) updateCallStatus(NoReply);
+    if (call_status == Disconnected)
+        updateCallStatus(NoReply);
 }
 
 void CallLeg::setCallStatus(CallStatus new_status)
@@ -1117,6 +1119,7 @@ void CallLeg::updateCallStatus(CallStatus new_status, const StatusChangeCause &c
   onCallStatusChange(cause);
 }
 
+#if 0
 void CallLeg::addExistingCallee(const string &session_tag, ReconnectLegEvent *ev)
 {
   // add existing session as our B leg
@@ -1229,6 +1232,7 @@ void CallLeg::replaceExistingLeg(const string &session_tag, const string &hdrs)
   other_legs.push_back(b);
   if (call_status == Disconnected) updateCallStatus(NoReply); // we are something like connected to another leg
 }
+#endif
 
 void CallLeg::queueReinvite(const string& hdrs, const AmMimeBody& body, bool establishing,
 			    bool relayed_invite, unsigned int r_cseq) {

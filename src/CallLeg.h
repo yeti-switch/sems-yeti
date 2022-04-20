@@ -180,7 +180,10 @@ class CallLeg: public AmB2BSession
     virtual void onCallFailed(CallFailureReason reason, const AmSipReply *reply) { }
 
     /** add newly created callee with prepared ConnectLegEvent */
-    void addNewCallee(CallLeg *callee, ConnectLegEvent *e) { addNewCallee(callee, e, rtp_relay_mode); }
+    void addNewCallee(CallLeg *callee, ConnectLegEvent *e)
+    {
+        addNewCallee(callee, e, rtp_relay_mode);
+    }
 
     /** add a newly created calee with prepared ConnectLegEvent and forced RTP
      * relay mode (this is a hack to work around allowed temporary changes of
@@ -189,7 +192,7 @@ class CallLeg: public AmB2BSession
      * Relay mode change */
     void addNewCallee(CallLeg *callee, ConnectLegEvent *e, AmB2BSession::RTPRelayMode mode);
 
-    void addExistingCallee(const string &session_tag, ReconnectLegEvent *e);
+    //void addExistingCallee(const string &session_tag, ReconnectLegEvent *e);
 
     /** Clears other leg, eventually removes it from the list of other legs if
      * it is there. It neither updates call state nor sip_relay_only flag! */
@@ -322,26 +325,29 @@ class CallLeg: public AmB2BSession
 
 
     /** add given call leg as our B leg */
-    void addCallee(CallLeg *callee, const AmSipRequest &relayed_invite) { addNewCallee(callee, new ConnectLegEvent(relayed_invite)); }
+    void addCallee(CallLeg *callee, const AmSipRequest &relayed_invite)
+    {
+        addNewCallee(callee, new ConnectLegEvent(relayed_invite));
+    }
 
     /** add given already existing session as our B leg */
-    void addCallee(const string &session_tag, const AmSipRequest &relayed_invite);
+    /*void addCallee(const string &session_tag, const AmSipRequest &relayed_invite);
     void addCallee(const string &session_tag, const string &hdrs)
-      { addExistingCallee(session_tag, new ReconnectLegEvent(a_leg ? ReconnectLegEvent::B : ReconnectLegEvent::A, getLocalTag(), hdrs, established_body)); }
+      { addExistingCallee(session_tag, new ReconnectLegEvent(a_leg ? ReconnectLegEvent::B : ReconnectLegEvent::A, getLocalTag(), hdrs, established_body)); }*/
 
     /** add given call leg as our B leg (only stored SDP is used, we don't need
      * to have INVITE request.
      * Can be used in A leg and B leg as well.
      * Additional headers may be specified - these are used in outgoing INVITE
      * to the callee's destination. */
-    void addCallee(CallLeg *callee, const string &hdrs);
+    //void addCallee(CallLeg *callee, const string &hdrs);
 //    void addCallee(CallLeg *callee, const string &hdrs, AmB2BSession::RTPRelayMode mode) { addNewCallee(callee, new ConnectLegEvent(hdrs, established_body), mode); }
 
 
     /** Replace given already existing session in a B2B call. We become new
      * A leg there regardless if we are replacing original A or B leg. */
-    void replaceExistingLeg(const string &session_tag, const AmSipRequest &relayed_invite);
-    void replaceExistingLeg(const string &session_tag, const string &hdrs);
+    /*void replaceExistingLeg(const string &session_tag, const AmSipRequest &relayed_invite);
+    void replaceExistingLeg(const string &session_tag, const string &hdrs);*/
 
     /** generate debug information into log with overall call leg status */
     void debug();
