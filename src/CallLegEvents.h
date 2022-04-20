@@ -94,6 +94,7 @@ struct ReliableB2BEvent: public B2BEvent
     virtual ~ReliableB2BEvent();
 };
 
+#if 0
 struct ReconnectLegEvent: public ReliableB2BEvent
 {
   AmMimeBody body;
@@ -135,8 +136,9 @@ struct ReconnectLegEvent: public ReliableB2BEvent
 
     virtual ~ReconnectLegEvent() { if (media) media->releaseReference(); }
 };
+#endif
 
-
+#if 0
 /** Call leg receiving ReplaceLegEvent should replace itself with call leg from
  * the event parameters. (it terminates itself and forwards ReconnectLegEvent to
  * the call leg identified by other_id) */
@@ -176,6 +178,7 @@ struct DisconnectLegEvent: public B2BEvent
     put_remote_on_hold(_put_remote_on_hold),
     preserve_media_session(_preserve_media_session) { }
 };
+#endif
 
 /* we don't need to have 'reliable event' for this because we are always
  * connected to CallLeg, right? */

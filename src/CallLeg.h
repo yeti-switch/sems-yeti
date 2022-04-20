@@ -145,9 +145,9 @@ class CallLeg: public AmB2BSession
     // overriden, override onB2BEvent instead!
     void onB2BReply(B2BSipReplyEvent *e);
     void onB2BConnect(ConnectLegEvent *e);
-    void onB2BReconnect(ReconnectLegEvent *e);
+    /*void onB2BReconnect(ReconnectLegEvent *e);
     void onB2BReplace(ReplaceLegEvent *e);
-    void onB2BReplaceInProgress(ReplaceInProgressEvent *e);
+    void onB2BReplaceInProgress(ReplaceInProgressEvent *e);*/
     void b2bInitial2xx(AmSipReply& reply, bool forward);
     void b2bInitialErr(AmSipReply& reply, bool forward);
 
@@ -304,7 +304,7 @@ class CallLeg: public AmB2BSession
      *
      * The other leg is not affected by disconnect - it is neither terminated
      * nor informed about the peer disconnection. */
-    virtual void disconnect(bool hold_remote, bool preserve_media_session = false);
+    //virtual void disconnect(bool hold_remote, bool preserve_media_session = false);
 
     /** Terminate the whole B2B call (if there is no other leg only this one is
      * stopped). */

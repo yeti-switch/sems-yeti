@@ -204,7 +204,7 @@ void CallLeg::onB2BEvent(B2BEvent* ev)
       onB2BConnect(dynamic_cast<ConnectLegEvent*>(ev));
       break;
 
-    case ReconnectLeg:
+    /*case ReconnectLeg:
       onB2BReconnect(dynamic_cast<ReconnectLegEvent*>(ev));
       break;
 
@@ -221,7 +221,7 @@ void CallLeg::onB2BEvent(B2BEvent* ev)
         DisconnectLegEvent *dle = dynamic_cast<DisconnectLegEvent*>(ev);
         if (dle) disconnect(dle->put_remote_on_hold, dle->preserve_media_session);
       }
-      break;
+      break;*/
 
     case ResumeHeld:
       {
@@ -556,6 +556,7 @@ void CallLeg::onB2BConnect(ConnectLegEvent* co_ev)
   est_invite_cseq = dlg->cseq - 1;
 }
 
+#if 0
 void CallLeg::onB2BReconnect(ReconnectLegEvent* ev)
 {
   if (!ev) {
@@ -694,6 +695,7 @@ void CallLeg::disconnect(bool hold_remote, bool preserve_media_session)
     putOnHold();
   }
 }
+#endif
 
 static void sdp2body(const AmSdp &sdp, AmMimeBody &body)
 {
