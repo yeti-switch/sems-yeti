@@ -198,8 +198,8 @@ class CallLeg: public AmB2BSession
      * it is there. It neither updates call state nor sip_relay_only flag! */
     virtual void clear_other();
 
-    void changeRtpMode(RTPRelayMode new_mode, AmB2BMedia *new_media);
-    void changeOtherLegsRtpMode(RTPRelayMode new_mode);
+    /*void changeRtpMode(RTPRelayMode new_mode, AmB2BMedia *new_media);
+    void changeOtherLegsRtpMode(RTPRelayMode new_mode);*/
 
     // offer-answer handling
     void adjustOffer(AmSdp &sdp);
@@ -289,7 +289,7 @@ class CallLeg: public AmB2BSession
      * AmB2BMedia will be valid after them!
      *
      * TODO: add parameter to trigger reINVITE */
-    void changeRtpMode(RTPRelayMode new_mode);
+    //void changeRtpMode(RTPRelayMode new_mode);
 
     virtual void updateLocalSdp(AmSdp &sdp);
 

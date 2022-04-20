@@ -4,11 +4,11 @@
 // TODO: global event numbering
 enum {
   ConnectLeg = B2BDtmfEvent + 16,
-  ReconnectLeg,
+  /*ReconnectLeg,
   ReplaceLeg,
   ReplaceInProgress,
   DisconnectLeg,
-  ChangeRtpModeEventId,
+  ChangeRtpModeEventId,*/
   ResumeHeld,
   B2BRefer,
   B2BNotify
@@ -178,7 +178,6 @@ struct DisconnectLegEvent: public B2BEvent
     put_remote_on_hold(_put_remote_on_hold),
     preserve_media_session(_preserve_media_session) { }
 };
-#endif
 
 /* we don't need to have 'reliable event' for this because we are always
  * connected to CallLeg, right? */
@@ -193,6 +192,7 @@ struct ChangeRtpModeEvent: public B2BEvent
 
     virtual ~ChangeRtpModeEvent() { if (media) media->releaseReference(); }
 };
+#endif
 
 struct ResumeHeldEvent: public B2BEvent
 {

@@ -291,7 +291,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   // media interface must be accessible from CC modules
   AmB2BMedia *getMediaSession() { return AmB2BSession::getMediaSession(); }
   virtual void updateLocalSdp(AmSdp &sdp);
-  void changeRtpMode(RTPRelayMode new_mode) { CallLeg::changeRtpMode(new_mode); }
+  //void changeRtpMode(RTPRelayMode new_mode) { CallLeg::changeRtpMode(new_mode); }
 
   bool reinvite(const AmSdp &sdp, unsigned &request_cseq);
 

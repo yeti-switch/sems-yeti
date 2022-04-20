@@ -230,12 +230,12 @@ void CallLeg::onB2BEvent(B2BEvent* ev)
       }
       break;
 
-    case ChangeRtpModeEventId:
+    /*case ChangeRtpModeEventId:
       {
         ChangeRtpModeEvent *e = dynamic_cast<ChangeRtpModeEvent*>(ev);
         if (e) changeRtpMode(e->new_mode, e->media);
       }
-      break;
+      break;*/
 
     case B2BSipRequest:
       if (!sip_relay_only) {
@@ -1260,6 +1260,7 @@ void CallLeg::stopCall(const StatusChangeCause &cause) {
   terminateLeg();
 }
 
+#if 0
 void CallLeg::changeRtpMode(RTPRelayMode new_mode)
 {
   if (new_mode == rtp_relay_mode) return; // requested mode is set already
@@ -1399,6 +1400,7 @@ void CallLeg::changeOtherLegsRtpMode(RTPRelayMode new_mode)
     AmSessionContainer::instance()->postEvent(i->id, new ChangeRtpModeEvent(new_mode, i->media_session));
   }
 }
+#endif
 
 void CallLeg::acceptPendingInvite(AmSipRequest *invite)
 {
