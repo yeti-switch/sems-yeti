@@ -555,7 +555,7 @@ void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::
 
         //RX common
         cJSON_AddNumberToObject(rx_json, "rx_ssrc",rx.ssrc);
-        cJSON_AddStringToObject(rx_json, "remote_host",get_addr_str_sip(&rx.addr).c_str());
+        cJSON_AddStringToObject(rx_json, "remote_host",get_addr_str(&rx.addr).c_str());
         cJSON_AddNumberToObject(rx_json, "remote_port",am_get_port(&rx.addr));
         cJSON_AddNumberToObject(rx_json, "rx_packets",rx.pkt);
         cJSON_AddNumberToObject(rx_json, "rx_bytes",rx.bytes);
@@ -578,7 +578,7 @@ void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::
     cJSON_AddNumberToObject(j, "tx_packets",m.tx.pkt);
     cJSON_AddNumberToObject(j, "tx_bytes",m.tx.bytes);
     cJSON_AddNumberToObject(j, "tx_ssrc",m.tx.ssrc);
-    cJSON_AddStringToObject(j, "local_host",get_addr_str_sip(&m.tx.addr).c_str());
+    cJSON_AddStringToObject(j, "local_host",get_addr_str(&m.tx.addr).c_str());
     cJSON_AddNumberToObject(j, "local_port",am_get_port(&m.tx.addr));
     cJSON_AddNumberToObject(j, "tx_total_lost",m.tx.total_lost);
     cJSON_AddStringToObject(j, "tx_payloads_transcoded",
