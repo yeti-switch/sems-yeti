@@ -1,3 +1,7 @@
+sems-yeti (1.12.24) stable; urgency=medium
+  * Cdr: fix addr serialization for IPv6 in media stats
+ -- dev <dev@yeti-switch.org>  Thu, 28 Apr 2022 15:13:23 +0300
+
 sems-yeti (1.12.23) stable; urgency=medium
   * add options to skip execess AuthLog writing
     - yeti.auth.skip_logging_invite_challenge
