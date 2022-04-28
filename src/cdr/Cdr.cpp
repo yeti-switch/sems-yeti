@@ -16,28 +16,8 @@
 
 #define DTMF_EVENTS_MAX 50
 
-#ifdef cJSON_AddNumberToObject
-#undef cJSON_AddNumberToObject
-#endif
-
 #define timeriseq(a,b) \
     (((a).tv_sec == (b).tv_sec) && ((a).tv_usec == (b).tv_usec))
-
-template <typename T>
-void cJSON_AddNumberToObject(cJSON *object,const char *name,T n) {
-    //if(fabs((double)n-(int)n)<=DBL_EPSILON) {
-    if(std::is_integral<T>::value) {
-        if(n > INT_MAX) {
-            cJSON_AddItemToObject(object, name, cJSON_CreateNumber(INT_MAX));
-            return;
-        }
-        if(std::is_signed<T>::value && n < INT_MIN) {
-            cJSON_AddItemToObject(object, name, cJSON_CreateNumber(INT_MIN));
-            return;
-        }
-    }
-    cJSON_AddItemToObject(object, name, cJSON_CreateNumber(static_cast<double>(n)));
-}
 
 static string user_agent_hdr(SIP_HDR_USER_AGENT);
 static string server_hdr(SIP_HDR_SERVER);
@@ -521,15 +501,6 @@ inline string join_vector(const vector<string> &v, char delim)
     return ss.str();
 }
 
-template <typename T>
-void serialize_MathStat(cJSON *j, MathStat<T> &s)
-{
-    cJSON_AddNumberToObject(j, "min", s.min);
-    cJSON_AddNumberToObject(j, "max", s.max);
-    cJSON_AddNumberToObject(j, "mean", s.mean);
-    cJSON_AddNumberToObject(j, "var", s.variance());
-}
-
 void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::MediaStats &m)
 {
 #define serialize_math_stat(j, PREFIX, STAT) \
@@ -537,7 +508,6 @@ void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::
     cJSON_AddNumberToObject(j, PREFIX "_max", STAT.max/1000); \
     cJSON_AddNumberToObject(j, PREFIX "_mean", STAT.mean/1000); \
     cJSON_AddNumberToObject(j, PREFIX "_std", STAT.sd()/1000);
-//    cJSON_AddNumberToObject(j, PREFIX "_var", STAT.variance());
 
     cJSON_AddStringToObject(j, "local_tag", local_tag.c_str());
 
@@ -553,7 +523,8 @@ void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::
     for(auto& rx : m.rx) {
         cJSON* rx_json = cJSON_CreateObject();
 
-        //RX common
+        //RX
+        ERROR("rx_ssrc: %u", rx.ssrc);
         cJSON_AddNumberToObject(rx_json, "rx_ssrc",rx.ssrc);
         cJSON_AddStringToObject(rx_json, "remote_host",get_addr_str(&rx.addr).c_str());
         cJSON_AddNumberToObject(rx_json, "remote_port",am_get_port(&rx.addr));
@@ -565,7 +536,6 @@ void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::
         cJSON_AddStringToObject(rx_json, "rx_payloads_relayed",
             join_vector(rx.payloads_relayed,',').c_str());
 
-        //RX
         cJSON_AddNumberToObject(rx_json,"rx_decode_errors",rx.decode_errors);
         serialize_math_stat(rx_json, "rx_packet_delta",rx.delta);
         serialize_math_stat(rx_json, "rx_packet_jitter",rx.jitter);
@@ -574,7 +544,7 @@ void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::
     }
     cJSON_AddItemToObject(j, "rx", rx_arr);
 
-    //TX common
+    //TX
     cJSON_AddNumberToObject(j, "tx_packets",m.tx.pkt);
     cJSON_AddNumberToObject(j, "tx_bytes",m.tx.bytes);
     cJSON_AddNumberToObject(j, "tx_ssrc",m.tx.ssrc);
@@ -586,7 +556,6 @@ void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::
     cJSON_AddStringToObject(j, "tx_payloads_relayed",
         join_vector(m.tx.payloads_relayed,',').c_str());
     serialize_math_stat(j, "tx_rtcp_jitter",m.tx.jitter);
-    //TX
 
 #undef serialize_math_stat
 }
