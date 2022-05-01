@@ -504,10 +504,10 @@ inline string join_vector(const vector<string> &v, char delim)
 void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::MediaStats &m)
 {
 #define serialize_math_stat(j, PREFIX, STAT) \
-    cJSON_AddNumberToObject(j, PREFIX "_min", STAT.min/1000); \
-    cJSON_AddNumberToObject(j, PREFIX "_max", STAT.max/1000); \
-    cJSON_AddNumberToObject(j, PREFIX "_mean", STAT.mean/1000); \
-    cJSON_AddNumberToObject(j, PREFIX "_std", STAT.sd()/1000);
+    cJSON_AddNumberToObject(j, PREFIX "_min", STAT.min/1000.0); \
+    cJSON_AddNumberToObject(j, PREFIX "_max", STAT.max/1000.0); \
+    cJSON_AddNumberToObject(j, PREFIX "_mean", STAT.mean/1000.0); \
+    cJSON_AddNumberToObject(j, PREFIX "_std", STAT.sd()/1000.0);
 
     cJSON_AddStringToObject(j, "local_tag", local_tag.c_str());
 
