@@ -1,3 +1,7 @@
+sems-yeti (1.12.27) stable; urgency=medium
+  * Cdr: rm dbg ssrc logging
+ -- dev <dev@yeti-switch.org>  Mon, 02 May 2022 11:54:28 +0300
+
 sems-yeti (1.12.26) stable; urgency=medium
   * Cdr: use float precision for all RTCP MathStat values
  -- dev <dev@yeti-switch.org>  Sun, 01 May 2022 10:53:07 +0300
