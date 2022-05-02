@@ -524,7 +524,6 @@ void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::
         cJSON* rx_json = cJSON_CreateObject();
 
         //RX
-        ERROR("rx_ssrc: %u", rx.ssrc);
         cJSON_AddNumberToObject(rx_json, "rx_ssrc",rx.ssrc);
         cJSON_AddStringToObject(rx_json, "remote_host",get_addr_str(&rx.addr).c_str());
         cJSON_AddNumberToObject(rx_json, "remote_port",am_get_port(&rx.addr));
