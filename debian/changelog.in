@@ -1,3 +1,8 @@
+sems-yeti (1.12.28) stable; urgency=medium
+  * Cdr media stats: add counters rtcp_sr/rr_sent_recv
+  * Cdr media stats: use null for uninitialized metrics
+ -- dev <dev@yeti-switch.org>  Wed, 04 May 2022 21:00:18 +0300
+
 sems-yeti (1.12.27) stable; urgency=medium
   * Cdr: rm dbg ssrc logging
  -- dev <dev@yeti-switch.org>  Mon, 02 May 2022 11:54:28 +0300
