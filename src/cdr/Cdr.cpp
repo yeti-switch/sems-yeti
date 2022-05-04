@@ -504,20 +504,35 @@ inline string join_vector(const vector<string> &v, char delim)
 void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::MediaStats &m)
 {
 #define serialize_math_stat(j, PREFIX, STAT) \
-    cJSON_AddNumberToObject(j, PREFIX "_min", STAT.min/1000.0); \
-    cJSON_AddNumberToObject(j, PREFIX "_max", STAT.max/1000.0); \
-    cJSON_AddNumberToObject(j, PREFIX "_mean", STAT.mean/1000.0); \
-    cJSON_AddNumberToObject(j, PREFIX "_std", STAT.sd()/1000.0);
+    if(STAT.n) { \
+        cJSON_AddNumberToObject(j, PREFIX "_min", STAT.min/1000.0); \
+        cJSON_AddNumberToObject(j, PREFIX "_max", STAT.max/1000.0); \
+        cJSON_AddNumberToObject(j, PREFIX "_mean", STAT.mean/1000.0); \
+        cJSON_AddNumberToObject(j, PREFIX "_std", STAT.sd()/1000.0); \
+    } else { \
+        cJSON_AddNullToObject(j, PREFIX "_min"); \
+        cJSON_AddNullToObject(j, PREFIX "_max"); \
+        cJSON_AddNullToObject(j, PREFIX "_mean"); \
+        cJSON_AddNullToObject(j, PREFIX "_std"); \
+    }
 
     cJSON_AddStringToObject(j, "local_tag", local_tag.c_str());
 
     //common
     serialize_math_stat(j, "rtcp_rtt",m.rtt);
+
     cJSON_AddStringToObject(j, "time_start", timeval2str_usec(m.time_start).c_str());
     cJSON_AddStringToObject(j, "time_end",timeval2str_usec(m.time_end).c_str());
+
     cJSON_AddNumberToObject(j,"rx_out_of_buffer_errors",m.out_of_buffer_errors);
     cJSON_AddNumberToObject(j,"rx_rtp_parse_errors",m.rtp_parse_errors);
     cJSON_AddNumberToObject(j,"rx_dropped_packets",m.dropped);
+
+    cJSON_AddNumberToObject(j,"rtcp_rr_sent",m.rtcp_rr_sent);
+    cJSON_AddNumberToObject(j,"rtcp_rr_recv",m.rtcp_rr_recv);
+    cJSON_AddNumberToObject(j,"rtcp_sr_sent",m.rtcp_sr_sent);
+    cJSON_AddNumberToObject(j,"rtcp_sr_recv",m.rtcp_sr_recv);
+
     cJSON *rx_arr = cJSON_CreateArray();
 
     for(auto& rx : m.rx) {
@@ -549,11 +564,18 @@ void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::
     cJSON_AddNumberToObject(j, "tx_ssrc",m.tx.ssrc);
     cJSON_AddStringToObject(j, "local_host",get_addr_str(&m.tx.addr).c_str());
     cJSON_AddNumberToObject(j, "local_port",am_get_port(&m.tx.addr));
-    cJSON_AddNumberToObject(j, "tx_total_lost",m.tx.total_lost);
+
+    if(m.rtcp_rr_recv) {
+        cJSON_AddNumberToObject(j, "tx_total_lost",m.tx.total_lost);
+    } else {
+        cJSON_AddNullToObject(j,"tx_total_lost");
+    }
+
     cJSON_AddStringToObject(j, "tx_payloads_transcoded",
         join_vector(m.tx.payloads_transcoded,',').c_str());
     cJSON_AddStringToObject(j, "tx_payloads_relayed",
         join_vector(m.tx.payloads_relayed,',').c_str());
+
     serialize_math_stat(j, "tx_rtcp_jitter",m.tx.jitter);
 
 #undef serialize_math_stat
