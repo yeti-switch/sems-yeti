@@ -1,3 +1,7 @@
+sems-yeti (1.12.29) stable; urgency=medium
+  * fix SBCCallLeg::onException() deadlock
+ -- dev <dev@yeti-switch.org>  Sun, 08 May 2022 23:38:02 +0300
+
 sems-yeti (1.12.28) stable; urgency=medium
   * Cdr media stats: add counters rtcp_sr/rr_sent_recv
   * Cdr media stats: use null for uninitialized metrics
