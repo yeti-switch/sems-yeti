@@ -10,6 +10,8 @@
 #include "AuthCdr.h"
 #include "AmUtils.h"
 
+//#define DISABLE_CDRS_WRITING
+
 //affect on precision check_interval and batch_timeout handling precision
 #define QUEUE_RUN_TIMEOUT_MSEC 1000
 #define DEFAULT_CHECK_INTERVAL_MSEC 5000
@@ -166,6 +168,10 @@ void CdrWriter::stop()
 
 void CdrWriter::postcdr(CdrBase* cdr )
 {
+#ifdef DISABLE_CDRS_WRITING
+	delete cdr;
+	return;
+#endif
 	if(cdr->suppress){
 		delete cdr;
 		return;

@@ -550,6 +550,7 @@ int SBCCallProfile::apply_common_fields(ParamReplacerCtx& ctx,
   return 0;
 }
 
+#if 0
 int SBCCallProfile::refuse(ParamReplacerCtx& ctx, const AmSipRequest& req) const
 {
   string m_refuse_with = ctx.replaceParameters(refuse_with, "refuse_with", req);
@@ -578,6 +579,7 @@ int SBCCallProfile::refuse(ParamReplacerCtx& ctx, const AmSipRequest& req) const
 
   return 0;
 }
+#endif
 
 /** removes headers with empty values from headers list separated by "\r\n" */
 static string remove_empty_headers(const string& s, const char* field_name)

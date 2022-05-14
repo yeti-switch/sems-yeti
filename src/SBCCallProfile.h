@@ -108,7 +108,7 @@ typedef map<unsigned int, ReplyCodeReasonPair> ReplyTranslationMap;
 struct SBCCallProfile
   : public AmObject {
   string md5hash;
-  string profile_file;
+  //string profile_file;
 
   string ruri;       /* updated if set */
   string ruri_host;  /* updated if set */
@@ -414,7 +414,9 @@ struct SBCCallProfile
   bool operator==(const SBCCallProfile& rhs) const;
   string print() const;
 
+#if 0
   int refuse(ParamReplacerCtx& ctx, const AmSipRequest& req) const;
+#endif
 
   int apply_a_routing(ParamReplacerCtx& ctx,
 		      const AmSipRequest& req,

@@ -341,20 +341,50 @@ void SqlRouter::getprofiles(
 	UsageCounterHelper u(active_requests);
 
 	hits.inc();
-	gettimeofday(&start_time,NULL);
+	gettimeofday(&start_time,nullptr);
 
-	while (getprofile_fail&&pool) {
+	while (getprofile_fail && pool) {
 	try {
 		conn = pool->getActiveConnection();
-		if(conn!=NULL){
-			_getprofiles(ctx.profiles,req,conn,auth_id,identity_data);
+		if(conn!=nullptr) {
+
+			auto rows = db_get_call_profiles_rows(
+				req,conn,auth_id,identity_data);
+
 			pool->returnConnection(conn);
+
+			for(const auto &r : rows) {
+				if(SqlCallProfile::skip(r))
+					continue;
+
+				ctx.profiles.emplace_back();
+				SqlCallProfile& p = ctx.profiles.back();
+
+				//read profile
+				try{
+					if(!p.readFromTuple(r,dyn_fields))
+						throw GetProfileException(FC_READ_FROM_TUPLE_FAILED,false);
+				} catch(pqxx::pqxx_exception &e) {
+					ERROR("SQL exception while reading from profile tuple: %s.",e.base().what());
+					throw GetProfileException(FC_READ_FROM_TUPLE_FAILED,false);
+				}
+
+				if(!p.eval()) {
+					throw GetProfileException(FC_EVALUATION_FAILED,false);
+				}
+
+				//p.infoPrint(dyn_fields);
+			}
+
+			if(ctx.profiles.empty())
+				throw GetProfileException(FC_DB_EMPTY_RESPONSE,false);
+
 			getprofile_fail = false;
 		} else {
 			DBG("Cant get active connection on %s",pool->pool_name.c_str());
 			refuse_code = FC_GET_ACTIVE_CONNECTION;
 		}
-	} catch(GetProfileException &e){
+	} catch(GetProfileException &e) {
 		DBG("GetProfile exception on %s SQLThread: fatal = %d code  = '%d'",
 			pool->pool_name.c_str(),
 			e.fatal,e.code);
@@ -388,8 +418,7 @@ void SqlRouter::getprofiles(
 	return;
 }
 
-void SqlRouter::_getprofiles(
-	list<SqlCallProfile> &profiles,
+pqxx::result SqlRouter::db_get_call_profiles_rows(
 	const AmSipRequest &req,
 	pqxx::connection* conn,
 	Auth::auth_id_type auth_id,
@@ -483,6 +512,8 @@ void SqlRouter::_getprofiles(
 		}
 	}
 
+#undef invoc_field
+
 	try {
 		PROF_START(sql_query);
 		r = invoc.exec();
@@ -506,37 +537,7 @@ void SqlRouter::_getprofiles(
 	if (r.size()==0)
 		throw GetProfileException(FC_DB_EMPTY_RESPONSE,false);
 
-	pqxx::result::const_iterator rit = r.begin();
-	for(;rit != r.end();++rit){
-		const pqxx::row &t = (*rit);
-		if(SqlCallProfile::skip(t)){
-			continue;
-		}
-
-		profiles.emplace_back();
-		SqlCallProfile& profile = profiles.back();
-
-		//read profile
-		try{
-			if(!profile.readFromTuple(t,dyn_fields)){
-				throw GetProfileException(FC_READ_FROM_TUPLE_FAILED,false);
-			}
-		} catch(pqxx::pqxx_exception &e){
-			ERROR("SQL exception while reading from profile tuple: %s.",e.base().what());
-			throw GetProfileException(FC_READ_FROM_TUPLE_FAILED,false);
-		}
-
-		//evaluate it
-		if(!profile.eval()){
-			throw GetProfileException(FC_EVALUATION_FAILED,false);
-		}
-		profile.infoPrint(dyn_fields);
-	}
-
-	if(profiles.empty()){
-		throw GetProfileException(FC_DB_EMPTY_RESPONSE,false);
-	}
-#undef invoc_field
+	return r;
 }
 
 void SqlRouter::dbg_get_profiles(AmArg &fields_values){

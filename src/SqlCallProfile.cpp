@@ -52,13 +52,40 @@ static void readMediaAcl(const pqxx::row &t, const char key[], std::vector<AmSub
 }
 
 bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
-	profile_file = "SQL";
+	//profile_file = "SQL";
 
-	for(const auto &f: t) {
-		placeholders_hash[f.name()] = f.c_str();
-	}
+	//common fields both for routing and refusing profiles
 
 	assign_str(ruri,"ruri");
+	assign_str(outbound_proxy,"outbound_proxy");
+	assign_str(resources,"resources");
+	assign_str(append_headers,"append_headers");
+
+	assign_int(time_limit,"time_limit",0);
+	assign_int(aleg_override_id,"aleg_policy_id",0);
+
+	assign_bool_safe(trusted_hdrs_gw,"trusted_hdrs_gw",false,false);
+	assign_bool_safe_silent(record_audio,"record_audio",false,false);
+
+	assign_int(dump_level_id,"dump_level_id",0);
+	dump_level_id |= AmConfig.dump_level;
+	log_rtp = dump_level_id&LOG_RTP_MASK;
+	log_sip = dump_level_id&LOG_SIP_MASK;
+
+	if(!readDynFields(t,df)) return false;
+
+	if(Yeti::instance().config.use_radius){
+		for(const auto &f: t) {
+			placeholders_hash[f.name()] = f.c_str();
+		}
+	}
+
+	assign_int(disconnect_code_id,"disconnect_code_id",0);
+	if(0 != disconnect_code_id)
+		return true; //skip excess fields reading for refusing profile
+
+	//fields fore the routing profiles only
+
 	assign_str(from,"from");
 	assign_str(to,"to");
 
@@ -197,7 +224,6 @@ bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 		reply_translations[from_code] = make_pair(to_code, to_reply.substr(s_pos));
 	}
 
-	assign_str(append_headers,"append_headers");
 	assign_str(append_headers_req,"append_headers_req");
 	assign_str(aleg_append_headers_req,"aleg_append_headers_req");
 	assign_str_safe(aleg_append_headers_reply,"aleg_append_headers_reply","");
@@ -213,19 +239,9 @@ bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 	assign_str(aleg_outbound_interface,"aleg_outbound_interface");
 
 	if (!readCodecPrefs(t)) return false;
-	if(!readDynFields(t,df)) return false;
-
-	assign_int(dump_level_id,"dump_level_id",0);
-    dump_level_id |= AmConfig.dump_level;
-	log_rtp = dump_level_id&LOG_RTP_MASK;
-	log_sip = dump_level_id&LOG_SIP_MASK;
-
-	assign_int(time_limit,"time_limit",0);
-	assign_str(resources,"resources");
 
 	assign_int(disconnect_code_id,"disconnect_code_id",0);
 
-	assign_int(aleg_override_id,"aleg_policy_id",0);
 	assign_int(bleg_override_id,"bleg_policy_id",0);
 
 	assign_int_safe(ringing_timeout,"ringing_timeout",0,0);
@@ -263,8 +279,6 @@ bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 	assign_bool_safe(bleg_relay_hold,"bleg_relay_hold",true,true);
 
 	assign_bool_safe(relay_timestamp_aligning,"rtp_relay_timestamp_aligning",false,false);
-
-	assign_bool_safe(trusted_hdrs_gw,"trusted_hdrs_gw",false,false);
 
 	assign_bool_safe(allow_1xx_without_to_tag,"allow_1xx_wo2tag",false,false);
 
@@ -307,8 +321,6 @@ bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 	assign_int_safe_silent(radius_profile_id,"radius_auth_profile_id",0,0);
 	assign_int_safe_silent(aleg_radius_acc_profile_id,"aleg_radius_acc_profile_id",0,0);
 	assign_int_safe_silent(bleg_radius_acc_profile_id,"bleg_radius_acc_profile_id",0,0);
-
-	assign_bool_safe_silent(record_audio,"record_audio",false,false);
 
 	assign_int_safe_silent(bleg_transport_id,"bleg_transport_protocol_id",0,0);
 	assign_int_safe_silent(outbound_proxy_transport_id,"bleg_outbound_proxy_transport_protocol_id",0,0);
@@ -866,19 +878,23 @@ bool SqlCallProfile::eval_protocol_priority()
 	return false;
 }
 
-bool SqlCallProfile::eval(){
+bool SqlCallProfile::eval()
+{
 	if(!outbound_interface.empty())
 		if(!evaluateOutboundInterface())
 			return false;
+
 	if(0!=disconnect_code_id){
-		DBG("skip resources parsing for refusing profile");
+		DBG("skip evals for refusing profile");
 		return true;
 	}
-	return eval_transport_ids() &&
-		   eval_protocol_priority() &&
-		   eval_resources() &&
-		   eval_radius() &&
-		   eval_media_encryption();
+
+	return
+		eval_transport_ids() &&
+		eval_protocol_priority() &&
+		eval_resources() &&
+		eval_radius() &&
+		eval_media_encryption();
 }
 
 SqlCallProfile *SqlCallProfile::copy(){

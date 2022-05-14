@@ -90,8 +90,7 @@ private:
   DbConfig dbc;
   int db_configure(AmConfigReader &cfg);
 
-  void _getprofiles(
-    list<SqlCallProfile> &profiles,
+  pqxx::result db_get_call_profiles_rows(
     const AmSipRequest&,
     pqxx::connection*,
     Auth::auth_id_type auth_id,
