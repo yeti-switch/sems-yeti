@@ -1,3 +1,7 @@
+sems-yeti (1.12.30) stable; urgency=medium
+  * optimize call profiles retrieving
+ -- dev <dev@yeti-switch.org>  Tue, 17 May 2022 14:19:34 +0300
+
 sems-yeti (1.12.29) stable; urgency=medium
   * fix SBCCallLeg::onException() deadlock
  -- dev <dev@yeti-switch.org>  Sun, 08 May 2022 23:38:02 +0300
