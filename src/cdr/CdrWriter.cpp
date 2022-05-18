@@ -6,7 +6,7 @@
 #include "../yeti.h"
 #include "../cfg/yeti_opts.h"
 #include "../alarms.h"
-#include "../yeti_version.h"
+#include "yeti_version.h"
 #include "AuthCdr.h"
 #include "AmUtils.h"
 

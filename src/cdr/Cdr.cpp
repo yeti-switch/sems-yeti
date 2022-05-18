@@ -6,7 +6,7 @@
 #include "jsonArg.h"
 #include "sip/defs.h"
 #include "sems.h"
-#include "../yeti_version.h"
+#include "yeti_version.h"
 #include "../RTPParameters.h"
 #include "../yeti.h"
 

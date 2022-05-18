@@ -2,10 +2,11 @@
 
 #include <AmThread.h>
 #include <sems.h>
+#include <yeti_version.h>
+
 #include "CdrFilter.h"
 #include "../cdr/Cdr.h"
 #include "../SqlRouter.h"
-#include "../yeti_version.h"
 
 #include <unordered_set>
 #include <unordered_map>
