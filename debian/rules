@@ -3,6 +3,7 @@
 #export DH_VERBOSE=1
 
 BUILD_DIR=build
+DEB_BUILD_OPTIONS:=$(DEB_BUILD_OPTIONS) reproducible=-fixfilepath
 
 dh_args=--buildsystem=cmake --builddirectory=$(BUILD_DIR) --parallel
 %:

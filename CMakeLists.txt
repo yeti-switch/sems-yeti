@@ -20,8 +20,6 @@ find_package(SEMS REQUIRED)
 list(APPEND CMAKE_CXX_FLAGS_DEBUG -D_DEBUG)
 list(APPEND CMAKE_C_FLAGS_DEBUG -D_DEBUG)
 
-#add_definitions("-D__FILENAME__='\"yeti:$(subst ${CMAKE_CURRENT_SOURCE_DIR}/src/,,$(abspath $<))\"'")
-add_definitions("-fmacro-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}/src/=yeti: -D__FILENAME__=__FILE__")
 add_definitions(${SEMS_CFLAGS})
 add_definitions(-std=c++2a -Wno-deprecated -g)
 
@@ -61,19 +59,5 @@ execute_process(
 )
 message(STATUS "build user: " ${BUILD_USER})
 
-#sources
-configure_file(${CMAKE_SOURCE_DIR}/src/yeti_version.h.cmake ${CMAKE_SOURCE_DIR}/src/yeti_version.h)
-
-set(yeti_config_files "")
-set(yeti_config_dist_files yeti)
-
-set(sems_module_name yeti)
-
-file(GLOB_RECURSE yeti_SRCS "src/*.cpp")
-
-include_directories(${HIREDIS_INCLUDE_DIR} ${PQXX_INCLUDE_DIRECTORIES} ${SEMS_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
-set(sems_module_libs ${HIREDIS_LIBRARIES} ${PQXX_LIBRARIES} ${SEMS_LIBRARIES})
-
-include(${SEMS_CMAKE_DIR}/module.rules.txt)
-
+add_subdirectory(src)
 add_subdirectory(etc)
