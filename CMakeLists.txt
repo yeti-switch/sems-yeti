@@ -17,8 +17,8 @@ find_package(SEMS REQUIRED)
 list(APPEND CMAKE_CXX_FLAGS_DEBUG -D_DEBUG)
 list(APPEND CMAKE_C_FLAGS_DEBUG -D_DEBUG)
 
-add_definitions(${SEMS_CFLAGS})
-add_definitions(-std=c++2a -Wno-deprecated -g)
+add_compile_options(${SEMS_CFLAGS})
+add_compile_options(-std=c++2a -Wno-deprecated -g)
 
 if(EXISTS ${CMAKE_SOURCE_DIR}/debian/changelog)
     file(STRINGS ${CMAKE_SOURCE_DIR}/debian/changelog CHANGELOG_LINE LIMIT_COUNT 1)
