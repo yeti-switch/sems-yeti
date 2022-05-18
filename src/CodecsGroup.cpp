@@ -77,7 +77,7 @@ bool CodecsGroupEntry::add_codec(string c, string sdp_params, int dyn_payload_id
 	int payload_id = plugin->getDynPayload(p.encoding_name, p.clock_rate, 0);
 	amci_payload_t* payload = plugin->payload(payload_id);
 	if(!payload) {
-		ERROR("Ignoring unknown payload: %s/%i\n",
+		ERROR("Ignoring unknown payload: %s/%i",
 			p.encoding_name.c_str(), p.clock_rate);
 #ifdef ERROR_ON_UNKNOWN_CODECS
 		return false;

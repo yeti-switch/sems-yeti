@@ -278,7 +278,7 @@ void CdrList::run()
     do {
         ret = epoll_wait(epoll_fd, events, EPOLL_MAX_EVENTS, -1);
         if(ret == -1 && errno != EINTR){
-            ERROR("epoll_wait: %s\n",strerror(errno));
+            ERROR("epoll_wait: %s",strerror(errno));
         }
         if(ret < 1)
             continue;

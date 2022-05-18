@@ -12,11 +12,11 @@ PgConnection::PgConnection(const string &opts):
 	exceptions(0)
 {
 	timerclear(&access_time);
-	//DBG("PgConnection::PgConnection() this = [%p]\n",this);
+	//DBG("PgConnection::PgConnection() this = [%p]",this);
 }
 
 PgConnection::~PgConnection(){
-	//DBG("PgConnection::~PgConnection() this = [%p]\n",this);
+	//DBG("PgConnection::~PgConnection() this = [%p]",this);
 }
 
 PgConnectionPool::PgConnectionPool(bool slave):
@@ -35,7 +35,7 @@ PgConnectionPool::PgConnectionPool(bool slave):
 }
 
 PgConnectionPool::~PgConnectionPool(){
-	DBG("PgCP thread stopping\n");
+	DBG("PgCP thread stopping");
 }
 
 int PgConnectionPoolCfg::cfg2PgCfg(AmConfigReader& cfg){
@@ -138,7 +138,7 @@ void PgConnectionPool::returnConnection(PgConnection* c,conn_stat stat){
 		connections_mut.unlock();
 
 		have_active_connection.set(true);
-		//DBG("%s: Now %zd active connections\n",pool_name.c_str(),active_size);
+		//DBG("%s: Now %zd active connections",pool_name.c_str(),active_size);
 	} else {
 		delete c;
 		connections_mut.lock();
@@ -148,7 +148,7 @@ void PgConnectionPool::returnConnection(PgConnection* c,conn_stat stat){
 		connections_mut.unlock();
 		try_connect.set(true);
 
-		DBG("%s: Now %u inactive connections\n",pool_name.c_str(), inactive_size);
+		DBG("%s: Now %u inactive connections",pool_name.c_str(), inactive_size);
 	}
 }
 
@@ -179,15 +179,15 @@ PgConnection* PgConnectionPool::getActiveConnection(){
 			connections_mut.unlock();
 
 			if (all_inactive) {
-				DBG("%s: all connections inactive - returning NO connection\n",pool_name.c_str());
+				DBG("%s: all connections inactive - returning NO connection",pool_name.c_str());
 				return NULL;
 			}
 
 			// wait until a connection is back
-			DBG("%s: waiting for an active connection to return, max_wait = %d\n",
+			DBG("%s: waiting for an active connection to return, max_wait = %d",
 				pool_name.c_str(), cfg.max_wait);
 			if (!have_active_connection.wait_for_to(cfg.max_wait)) {
-				WARN("%s: timeout waiting for an active connection (waited %ums)\n",pool_name.c_str(), cfg.max_wait);
+				WARN("%s: timeout waiting for an active connection (waited %ums)",pool_name.c_str(), cfg.max_wait);
 				break;
 			}
 		} else {
@@ -209,7 +209,7 @@ PgConnection* PgConnectionPool::getActiveConnection(){
 				//now is another point in current measurement interval
 				tpi++;
 			}
-			DBG("%s: got active connection [%p]\n",pool_name.c_str(), res);
+			DBG("%s: got active connection [%p]",pool_name.c_str(), res);
 		}
 	}
 
@@ -221,7 +221,7 @@ void PgConnectionPool::run(){
 	bool succ;
 	string what;
 
-	DBG("PgCP %s thread starting\n",pool_name.c_str());
+	DBG("PgCP %s thread starting",pool_name.c_str());
 	setThreadName("yeti-pg-cp");
 
 	SET_ALARM(slave ? alarms::MGMT_DB_CONN_SLAVE : alarms::MGMT_DB_CONN,failed_connections,true);
@@ -375,7 +375,7 @@ void PgConnectionPool::run(){
 }
 
 void PgConnectionPool::on_stop(){
-	DBG("PgCP %s thread stopping\n",pool_name.c_str());
+	DBG("PgCP %s thread stopping",pool_name.c_str());
 	gotostop=true;
 	try_connect.set(true);
 

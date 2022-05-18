@@ -18,7 +18,7 @@ cdr_headers_t cfg_bleg_reply_cdr_headers;
 int add_aleg_cdr_header(cfg_t */*cfg*/, cfg_opt_t */*opt*/, int argc, const char **argv)
 {
     if(argc != 2) {
-        ERROR("header(%s,%s): unexpected option args count.\n"
+        ERROR("header(%s,%s): unexpected option args count."
               "expected format: header(header_name, string|array)",
               argv[0],argv[1]);
         return 1;
@@ -32,7 +32,7 @@ int add_aleg_cdr_header(cfg_t */*cfg*/, cfg_opt_t */*opt*/, int argc, const char
 int add_bleg_reply_cdr_header(cfg_t */*cfg*/, cfg_opt_t */*opt*/, int argc, const char **argv)
 {
     if(argc != 2) {
-        ERROR("header(%s,%s): unexpected option args count.\n"
+        ERROR("header(%s,%s): unexpected option args count."
               "expected format: header(header_name, string|array)",
               argv[0],argv[1]);
         return 1;

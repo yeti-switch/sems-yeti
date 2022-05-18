@@ -31,7 +31,7 @@ bool RegexMapper::mapRegex(const string& mapping_name, const char* test_s,
   std::map<string, RegexMappingVector>::iterator it=regex_mappings.find(mapping_name);
   if (it == regex_mappings.end()) {
     unlock();
-    ERROR("regex mapping '%s' is not loaded!\n", mapping_name.c_str());
+    ERROR("regex mapping '%s' is not loaded!", mapping_name.c_str());
     return false;
   }
 

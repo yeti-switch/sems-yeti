@@ -102,10 +102,10 @@ void SqlRouter::stop()
 int SqlRouter::start()
 {
     master_pool->start();
-    WARN("Master SQLThread started\n");
+    WARN("Master SQLThread started");
     if (1==failover_to_slave) {
         slave_pool->start();
-        WARN("Slave SQLThread started\n");
+        WARN("Slave SQLThread started");
     }
     cdr_writer->start();
     return 0;
@@ -280,15 +280,15 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg){
     master_pool->set_config(masterpoolcfg);
     master_pool->add_connections(masterpoolcfg.size);
     master_pool->dump_config();
-    WARN("Master SQLThread configured\n");
+    WARN("Master SQLThread configured");
     if (1==failover_to_slave){
         slave_pool= new PgConnectionPool(true);
         slave_pool->set_config(slavepoolcfg);
         slave_pool->add_connections(slavepoolcfg.size);
         slave_pool->dump_config();
-        WARN("Slave SQLThread configured\n");
+        WARN("Slave SQLThread configured");
     } else {
-        WARN("Slave SQLThread disabled\n");
+        WARN("Slave SQLThread disabled");
     }
 
     return 0;

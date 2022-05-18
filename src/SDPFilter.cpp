@@ -58,7 +58,7 @@ int filterSDP(AmSdp& sdp, const vector<FilterEntry>& filter_list) {
 	bool is_filtered =  (sdpfilter == Whitelist) ^
 	  (sdpfilter_list.find(c) != sdpfilter_list.end());
 
-	// DBG("%s (%s) is_filtered: %s\n", p_it->encoding_name.c_str(), c.c_str(), 
+	// DBG("%s (%s) is_filtered: %s", p_it->encoding_name.c_str(), c.c_str(), 
 	// 	  is_filtered?"true":"false");
 
 	if (!is_filtered)
@@ -77,7 +77,7 @@ int filterSDP(AmSdp& sdp, const vector<FilterEntry>& filter_list) {
     }
     if ((!media_line_left) && media_line_filtered_out) {
       // no filter adds new payloads, we can safely return error
-      DBG("all streams were marked as inactive\n");
+      DBG("all streams were marked as inactive");
       return -488;
     }
   }
@@ -89,7 +89,7 @@ int filterMedia(AmSdp& sdp, const vector<FilterEntry>& filter_list)
 {
   unsigned filtered_out = 0;
 
-  DBG("filtering media types\n");
+  DBG("filtering media types");
   for (vector<FilterEntry>::const_iterator i = filter_list.begin(); i !=filter_list.end(); ++i) {
 
     const FilterType& filter = i->filter_type;
@@ -101,7 +101,7 @@ int filterMedia(AmSdp& sdp, const vector<FilterEntry>& filter_list)
       if (m->port == 0) continue; // already inactive
 
       string type(SdpMedia::type2str(m->type));
-      DBG("checking whether to filter out '%s'\n", type.c_str());
+      DBG("checking whether to filter out '%s'", type.c_str());
 
       bool is_filtered = (filter == Whitelist) ^ (media_list.find(type) != media_list.end());
       if (is_filtered) {
@@ -114,7 +114,7 @@ int filterMedia(AmSdp& sdp, const vector<FilterEntry>& filter_list)
   if (filtered_out > 0 && filtered_out == sdp.media.size()) {
     // we filtered out all media lines (if there was an inactive stream before
     // it was probably intendend)
-    DBG("all streams were marked as inactive\n");
+    DBG("all streams were marked as inactive");
     return -488;
   }
 
@@ -137,7 +137,7 @@ void fix_missing_encodings(SdpMedia& m) {
     if (IANA_RTP_PAYLOADS[p.payload_type].channels > 1)
       p.encoding_param = IANA_RTP_PAYLOADS[p.payload_type].channels;
 
-    DBG("named SDP payload type %d with %s/%d%s\n",
+    DBG("named SDP payload type %d with %s/%d%s",
 	p.payload_type, IANA_RTP_PAYLOADS[p.payload_type].payload_name,
 	IANA_RTP_PAYLOADS[p.payload_type].clock_rate,
 	IANA_RTP_PAYLOADS[p.payload_type].channels > 1 ?
@@ -154,7 +154,7 @@ void fix_incomplete_silencesupp(SdpMedia& m) {
 	string val_before = a_it->value;
 	for (int i=parts.size();i<5;i++)
 	  a_it->value += " -";
-	DBG("fixed SDP attribute silenceSupp:'%s' -> '%s'\n",
+	DBG("fixed SDP attribute silenceSupp:'%s' -> '%s'",
 	    val_before.c_str(), a_it->value.c_str());
       }
     }
@@ -176,7 +176,7 @@ std::vector<SdpAttribute> filterSDPAttributes(std::vector<SdpAttribute> attribut
     bool is_filtered =  (sdpalinesfilter == Whitelist) ^
       (sdpalinesfilter_list.find(c) != sdpalinesfilter_list.end());
 
-    DBG("%s (%s) is_filtered: %s\n", a_it->attribute.c_str(), c.c_str(), 
+    DBG("%s (%s) is_filtered: %s", a_it->attribute.c_str(), c.c_str(), 
      	  is_filtered?"true":"false");
  
     // If it is not filtered, just add it to the list:

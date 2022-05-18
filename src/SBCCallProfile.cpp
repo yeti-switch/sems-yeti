@@ -59,7 +59,7 @@ void PlaceholdersHash::update(const PlaceholdersHash &h)
 
 #define REPLACE_STR(what) do {			  \
     what = ctx.replaceParameters(what, #what, req);	\
-    DBG(#what " = '%s'\n", what.c_str());		\
+    DBG(#what " = '%s'", what.c_str());		\
   } while(0)
 
 #define REPLACE_NONEMPTY_STR(what) do {		\
@@ -73,10 +73,10 @@ void PlaceholdersHash::update(const PlaceholdersHash &h)
       what = ctx.replaceParameters(what, #what, req);	\
       unsigned int num;					\
       if (str2i(what, num)) {				   \
-	ERROR(#what " '%s' not understood\n", what.c_str());	\
+	ERROR(#what " '%s' not understood", what.c_str());	\
 	return false;						\
       }								\
-      DBG(#what " = '%s'\n", what.c_str());			\
+      DBG(#what " = '%s'", what.c_str());			\
       dst_num = num;						\
     }								\
   } while(0)
@@ -86,18 +86,18 @@ void PlaceholdersHash::update(const PlaceholdersHash &h)
       what = ctx.replaceParameters(what, #what, req);	\
       if (!what.empty()) {				\
 	if (!str2bool(what, dst_value)) {			\
-	  ERROR(#what " '%s' not understood\n", what.c_str());	\
+	  ERROR(#what " '%s' not understood", what.c_str());	\
 	  return false;						\
 	}							\
       }								\
-      DBG(#what " = '%s'\n", dst_value ? "yes" : "no");		\
+      DBG(#what " = '%s'", dst_value ? "yes" : "no");		\
     }								\
   } while(0)
 
 #define REPLACE_IFACE_RTP(what, iface) do {				\
     if (!what.empty()) {						\
       what = ctx.replaceParameters(what, #what, req);			\
-      DBG("set " #what " to '%s'\n", what.c_str());			\
+      DBG("set " #what " to '%s'", what.c_str());			\
       if (!what.empty()) {						\
 	EVALUATE_IFACE_RTP(what, iface);				\
       }									\
@@ -124,7 +124,7 @@ void PlaceholdersHash::update(const PlaceholdersHash &h)
 #define REPLACE_IFACE_SIP(what, iface) do {		\
     if (!what.empty()) {			    \
       what = ctx.replaceParameters(what, #what, req);	\
-      DBG("set " #what " to '%s'\n", what.c_str());	\
+      DBG("set " #what " to '%s'", what.c_str());	\
       if (!what.empty()) {				\
 	if (what == "default") iface = 0;		\
 	else {								\
@@ -276,7 +276,7 @@ string SBCCallProfile::print() const {
   AmSdp sdp;
   int res = sdp.parse((const char *)body->getPayload());
   if (res != 0) {
-    DBG("SDP parsing failed!\n");
+    DBG("SDP parsing failed!");
     return default_value;
   }
   
@@ -453,7 +453,7 @@ int SBCCallProfile::apply_a_routing(ParamReplacerCtx& ctx,
     string aleg_nh = ctx.replaceParameters(aleg_next_hop, 
 					   "aleg_next_hop", req);
 
-    DBG("set next hop ip to '%s'\n", aleg_nh.c_str());
+    DBG("set next hop ip to '%s'", aleg_nh.c_str());
     dlg.setNextHop(aleg_nh);
   }
   else {
@@ -493,7 +493,7 @@ int SBCCallProfile::apply_b_routing(ParamReplacerCtx& ctx,
 
     string nh = ctx.replaceParameters(next_hop, "next_hop", req);
 
-    DBG("set next hop to '%s' (1st_req=%s,fixed=%s)\n",
+    DBG("set next hop to '%s' (1st_req=%s,fixed=%s)",
 	nh.c_str(), next_hop_1st_req?"true":"false",
 	next_hop_fixed?"true":"false");
     dlg.setNextHop(nh);
@@ -525,7 +525,7 @@ int SBCCallProfile::apply_common_fields(ParamReplacerCtx& ctx,
 
     ctx.ruri_parser.uri = req.r_uri;
     if (!ctx.ruri_parser.parse_uri()) {
-      WARN("Error parsing R-URI '%s'\n", ctx.ruri_parser.uri.c_str());
+      WARN("Error parsing R-URI '%s'", ctx.ruri_parser.uri.c_str());
       return -1;
     }
     else {
@@ -555,7 +555,7 @@ int SBCCallProfile::refuse(ParamReplacerCtx& ctx, const AmSipRequest& req) const
 {
   string m_refuse_with = ctx.replaceParameters(refuse_with, "refuse_with", req);
   if (m_refuse_with.empty()) {
-    ERROR("refuse_with empty after replacing (was '%s' in profile %s)\n",
+    ERROR("refuse_with empty after replacing (was '%s' in profile %s)",
 	  refuse_with.c_str(), profile_file.c_str());
     return -1;
   }
@@ -564,7 +564,7 @@ int SBCCallProfile::refuse(ParamReplacerCtx& ctx, const AmSipRequest& req) const
   unsigned int refuse_with_code;
   if (spos == string::npos || spos == m_refuse_with.size() ||
       str2i(m_refuse_with.substr(0, spos), refuse_with_code)) {
-    ERROR("invalid refuse_with '%s'->'%s' in  %s. Expected <code> <reason>\n",
+    ERROR("invalid refuse_with '%s'->'%s' in  %s. Expected <code> <reason>",
 	  refuse_with.c_str(), m_refuse_with.c_str(), profile_file.c_str());
     return -1;
   }
@@ -574,7 +574,7 @@ int SBCCallProfile::refuse(ParamReplacerCtx& ctx, const AmSipRequest& req) const
   //TODO: hdrs = remove_empty_headers(hdrs);
   if (hdrs.size()>2) assertEndCRLF(hdrs);
 
-  DBG("refusing call with %u %s\n", refuse_with_code, refuse_with_reason.c_str());
+  DBG("refusing call with %u %s", refuse_with_code, refuse_with_reason.c_str());
   AmSipDialog::reply_error(req, refuse_with_code, refuse_with_reason, hdrs);
 
   return 0;
@@ -599,13 +599,13 @@ static string remove_empty_headers(const string& s, const char* field_name)
 
     if (col && hdr.find_first_not_of(": \r\n", col) == string::npos) {
       // remove empty header
-      DBG("%s: Ignored empty header: %s\n", field_name, res.substr(start, len).c_str());
+      DBG("%s: Ignored empty header: %s", field_name, res.substr(start, len).c_str());
       res.erase(start, len);
       // start remains the same
     }
     else {
       if (string::npos == col)
-        DBG("%s: Malformed append header: %s\n", field_name, hdr.c_str());
+        DBG("%s: Malformed append header: %s", field_name, hdr.c_str());
       start = end + 1;
     }
   } while (end != string::npos && start < res.size());
@@ -670,7 +670,7 @@ static bool read(const std::string &src, vector<SdpPayload> &codecs)
     int payload_id = plugin->getDynPayload(p.encoding_name, p.clock_rate, 0);
     amci_payload_t* payload = plugin->payload(payload_id);
     if(!payload) {
-      ERROR("Ignoring unknown payload found in call profile: %s/%i\n",
+      ERROR("Ignoring unknown payload found in call profile: %s/%i",
 	    p.encoding_name.c_str(), p.clock_rate);
     }
     else {
@@ -697,18 +697,18 @@ static bool read(const std::string &src, vector<SdpPayload> &codecs)
   if (src == never) { transcoder_mode = Never; return true; }
   if (src == on_missing_compatible) { transcoder_mode = OnMissingCompatible; return true; }
   if (src.empty()) { transcoder_mode = Never; return true; } // like default value
-  ERROR("unknown value of enable_transcoder option: %s\n", src.c_str());
+  ERROR("unknown value of enable_transcoder option: %s", src.c_str());
 
   return false;
 }*/
 
 void SBCCallProfile::TranscoderSettings::infoPrint() const
 {
-  //DBG("transcoder audio codecs: %s\n", audio_codecs_str.c_str());
-  //DBG("callee codec capabilities: %s\n", callee_codec_capabilities_str.c_str());
-  //DBG("enable transcoder: %s\n", transcoder_mode_str.c_str());
-  //DBG("norelay audio codecs: %s\n", audio_codecs_norelay_str.c_str());
-  //DBG("norelay audio codecs (aleg): %s\n", audio_codecs_norelay_aleg_str.c_str());
+  //DBG("transcoder audio codecs: %s", audio_codecs_str.c_str());
+  //DBG("callee codec capabilities: %s", callee_codec_capabilities_str.c_str());
+  //DBG("enable transcoder: %s", transcoder_mode_str.c_str());
+  //DBG("norelay audio codecs: %s", audio_codecs_norelay_str.c_str());
+  //DBG("norelay audio codecs (aleg): %s", audio_codecs_norelay_aleg_str.c_str());
 }
 
 bool SBCCallProfile::TranscoderSettings::readConfig(AmConfigReader &cfg)
@@ -760,7 +760,7 @@ string SBCCallProfile::TranscoderSettings::print() const
 bool SBCCallProfile::TranscoderSettings::evaluate(ParamReplacerCtx& ctx,
 						  const AmSipRequest& req)
 {
-  DBG("transcoder is %s\n", enabled ? "enabled": "disabled");
+  DBG("transcoder is %s", enabled ? "enabled": "disabled");
   return true;
 }
 
@@ -854,7 +854,7 @@ bool SBCCallProfile::HoldSettings::HoldParams::setActivity(const string &s)
   else if (s == "recvonly") activity = recvonly;
   else if (s == "inactive") activity = inactive;
   else {
-    ERROR("unsupported hold stream activity: %s\n", s.c_str());
+    ERROR("unsupported hold stream activity: %s", s.c_str());
     return false;
   }
 

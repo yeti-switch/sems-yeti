@@ -68,7 +68,7 @@ bool readFilter(AmConfigReader& cfg, const char* cfg_key_filter, const char* cfg
     FilterEntry hf;
     hf.filter_type = String2FilterType(filter.c_str());
     if (Undefined == hf.filter_type) {
-	ERROR("invalid %s mode '%s'\n", cfg_key_filter, filter.c_str());
+	ERROR("invalid %s mode '%s'", cfg_key_filter, filter.c_str());
 	return false;
     }
 
@@ -169,7 +169,7 @@ int skip_header(const std::string& hdr, size_t start_pos,
 		break;
 
 	    default:
-		DBG("Missing ':' after header name\n");
+		DBG("Missing ':' after header name");
 		return MALFORMED_SIP_MSG;
 	    }
 	    break;
@@ -194,7 +194,7 @@ int inplaceHeaderFilter(string& hdrs, const vector<FilterEntry>& filter_list) {
     if (!hdrs.length() || ! filter_list.size())
 	return 0;
 
-    DBG("applying %zd header filters\n", filter_list.size());
+    DBG("applying %zd header filters", filter_list.size());
 
     for (vector<FilterEntry>::const_iterator fe =
 	     filter_list.begin(); fe != filter_list.end(); fe++) {
@@ -223,7 +223,7 @@ int inplaceHeaderFilter(string& hdrs, const vector<FilterEntry>& filter_list) {
 		erase = headerfilter_list.find(hdr_name)!=headerfilter_list.end();
 	    }
 	    if (erase) {
-		DBG("erasing header '%s' by %s\n", hdr_name.c_str(), FilterType2String(f_type));
+		DBG("erasing header '%s' by %s", hdr_name.c_str(), FilterType2String(f_type));
 		hdrs.erase(start_pos, hdr_end-start_pos);
 	    } else {
 		start_pos = hdr_end;
@@ -283,7 +283,7 @@ int inplaceHeaderPatternFilter(string& hdrs, const vector<FilterEntry>& filter_l
 	if (!hdrs.length() || !filter_list.size())
 		return 0;
 
-	DBG("applying %zd header pattern filters\n", filter_list.size());
+	DBG("applying %zd header pattern filters", filter_list.size());
 
 	for (vector<FilterEntry>::const_iterator fe =
 		 filter_list.begin(); fe != filter_list.end(); fe++)
@@ -315,7 +315,7 @@ int inplaceHeaderPatternFilter(string& hdrs, const vector<FilterEntry>& filter_l
 				erase = matchListPattern(hdr_name,headerfilter_list);
 			}
 			if (erase) {
-				DBG("erasing header '%s' by %s\n", hdr_name.c_str(), FilterType2String(f_type));
+				DBG("erasing header '%s' by %s", hdr_name.c_str(), FilterType2String(f_type));
 				hdrs.erase(start_pos, hdr_end-start_pos);
 			} else {
 				start_pos = hdr_end;

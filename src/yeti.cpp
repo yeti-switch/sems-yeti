@@ -349,7 +349,7 @@ void Yeti::run()
         //DBG("epoll_wait = %d",ret);
 
         if(ret == -1 && errno != EINTR){
-            ERROR("epoll_wait: %s\n",strerror(errno));
+            ERROR("epoll_wait: %s",strerror(errno));
         }
 
         if(ret < 1)

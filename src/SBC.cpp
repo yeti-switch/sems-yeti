@@ -121,7 +121,7 @@ SBCFactory::~SBCFactory() {
 int SBCFactory::onLoad()
 {
     if(yeti->onLoad()) {
-        ERROR("yeti configuration error\n");
+        ERROR("yeti configuration error");
         yeti->stop();
         return -1;
     }
@@ -137,10 +137,10 @@ int SBCFactory::onLoad()
     }
 
     core_options_handling = yeti->getCoreOptionsHandling();
-    DBG("OPTIONS messages handled by the core: %s\n", core_options_handling?"yes":"no");
+    DBG("OPTIONS messages handled by the core: %s", core_options_handling?"yes":"no");
 
     if (!AmPlugIn::registerApplication(MOD_NAME, this)) {
-        ERROR("registering " MOD_NAME " application\n");
+        ERROR("registering " MOD_NAME " application");
         return -1;
     }
 
@@ -176,7 +176,7 @@ inline void answer_100_trying(const AmSipRequest &req, fake_logger *logger)
     AmLcConfig::instance().addSignatureHdr(reply);
 
     if(SipCtrlInterface::send(reply,string(""),logger,nullptr)) {
-        ERROR("Could not send early 100 Trying. call-id=%s, cseq = %i\n",
+        ERROR("Could not send early 100 Trying. call-id=%s, cseq = %i",
               req.callid.c_str(),req.cseq);
     }
 }
@@ -296,13 +296,13 @@ AmSession* SBCFactory::onInvite(
         AmSessionEventHandlerFactory* uac_auth_f =
             AmPlugIn::instance()->getFactory4Seh("uac_auth");
         if (nullptr == uac_auth_f)  {
-            INFO("uac_auth module not loaded. uac auth for caller session NOT enabled.\n");
+            INFO("uac_auth module not loaded. uac auth for caller session NOT enabled.");
         } else {
             AmSessionEventHandler* h = uac_auth_f->getHandler(leg);
             // we cannot use the generic AmSessionEventHandler hooks,
             // because the hooks don't work in AmB2BSession
             leg->setAuthHandler(h);
-            DBG("uac auth enabled for caller session.\n");
+            DBG("uac auth enabled for caller session.");
         }
     }*/
 
@@ -311,10 +311,10 @@ AmSession* SBCFactory::onInvite(
 
 void SBCFactory::onOoDRequest(const AmSipRequest& req)
 {
-    DBG("processing message %s %s\n", req.method.c_str(), req.r_uri.c_str());
+    DBG("processing message %s %s", req.method.c_str(), req.r_uri.c_str());
 
     if (core_options_handling && req.method == SIP_METH_OPTIONS) {
-        DBG("processing OPTIONS in core\n");
+        DBG("processing OPTIONS in core");
         AmSessionFactory::onOoDRequest(req);
         return;
     }
@@ -378,11 +378,11 @@ void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_i
         }
         AmUriParser contact_uri;
         if (!contact_uri.parse_contact(c2stlstr(c), 0, end)) {
-            DBG("error parsing contact: '%.*s'\n",c.len, c.s);
+            DBG("error parsing contact: '%.*s'",c.len, c.s);
             AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
             return;
         } else {
-            DBG("successfully parsed contact %s@%s\n",
+            DBG("successfully parsed contact %s@%s",
             contact_uri.uri_user.c_str(),
             contact_uri.uri_host.c_str());
             contacts.push_back(contact_uri);

@@ -63,7 +63,7 @@ CallLeg::CallLeg(const CallLeg* caller, AmSipDialog* p_dlg, AmSipSubscription* p
 
   // enable OA for the purpose of hold request detection
   if (dlg) dlg->setOAEnabled(true);
-  else WARN("can't enable OA!\n");
+  else WARN("can't enable OA!");
 
   // code below taken from createCalleeSession
 
@@ -78,7 +78,7 @@ CallLeg::CallLeg(const CallLeg* caller, AmSipDialog* p_dlg, AmSipSubscription* p
   dlg->setRemoteUri(caller_dlg->getLocalUri());
 
 /*  if (AmConfig::LogSessions) {
-    INFO("Starting B2B callee session %s\n",
+    INFO("Starting B2B callee session %s",
 	 getLocalTag().c_str());
   }
 
@@ -118,7 +118,7 @@ CallLeg::CallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
 
   // enable OA for the purpose of hold request detection
   if (dlg) dlg->setOAEnabled(true);
-  else WARN("can't enable OA!\n");
+  else WARN("can't enable OA!");
 }
     
 CallLeg::~CallLeg()
@@ -133,7 +133,7 @@ CallLeg::~CallLeg()
 void CallLeg::terminateOtherLeg()
 {
   if (call_status != Connected) {
-    DBG("trying to terminate other leg in %s state -> terminating the others as well\n", callStatus2str(call_status));
+    DBG("trying to terminate other leg in %s state -> terminating the others as well", callStatus2str(call_status));
     // FIXME: may happen when for example reply forward fails, do we want to terminate
     // all other legs in such case?
     terminateNotConnectedLegs(); // terminates all except the one identified by other_id
@@ -242,7 +242,7 @@ int CallLeg::relaySipReply(AmSipReply &reply)
   std::map<int,AmSipRequest>::iterator t_req = recvd_req.find(reply.cseq);
 
   if (t_req == recvd_req.end()) {
-    ERROR("%s: Request with CSeq %u not found in recvd_req for %u reply.\n",
+    ERROR("%s: Request with CSeq %u not found in recvd_req for %u reply.",
           getLocalTag().c_str(),reply.cseq,reply.code);
     return 0; // ignore?
   }
@@ -269,7 +269,7 @@ bool CallLeg::setOther(const string &id, bool forward)
 
     auto it = other_legs.find(id);
     if(it == other_legs.end()) {
-        ERROR("%s is not in the list of other leg IDs!\n", id.c_str());
+        ERROR("%s is not in the list of other leg IDs!", id.c_str());
         return false;
     }
 
@@ -337,7 +337,7 @@ void CallLeg::b2bInitial1xx(AmSipReply& reply, bool forward)
     else {
       // in Ringing state but the reply comes from another B leg than
       // previous 1xx reply => do not relay or process other way
-      DBG("1xx reply received in %s state from another B leg, ignoring\n", callStatus2str(call_status));
+      DBG("1xx reply received in %s state from another B leg, ignoring", callStatus2str(call_status));
     }
   }
 }
@@ -346,11 +346,11 @@ void CallLeg::b2bInitial2xx(AmSipReply& reply, bool forward)
 {
   if (!setOther(reply.from_tag, forward)) {
     // ignore reply which comes from non-our-peer leg?
-    DBG("2xx reply received from unknown B leg, ignoring\n");
+    DBG("2xx reply received from unknown B leg, ignoring");
     return;
   }
 
-  DBG("setting call status to connected with leg %s\n", getOtherId().c_str());
+  DBG("setting call status to connected with leg %s", getOtherId().c_str());
 
   // terminate all other legs than the connected one (determined by other_id)
   terminateNotConnectedLegs();
@@ -383,11 +383,11 @@ void CallLeg::b2bInitialErr(AmSipReply& reply, bool forward)
   if (getCallStatus() == Ringing && getOtherId() != reply.from_tag) {
     removeOtherLeg(reply.from_tag); // we don't care about this leg any more
     onBLegRefused(reply); // new B leg(s) may be added
-    DBG("dropping non-ok reply, it is not from current peer\n");
+    DBG("dropping non-ok reply, it is not from current peer");
     return;
   }
 
-  DBG("clean-up after non-ok reply (reply: %d, status %s, other: %s)\n", 
+  DBG("clean-up after non-ok reply (reply: %d, status %s, other: %s)", 
       reply.code, callStatus2str(getCallStatus()),
       getOtherId().c_str());
   removeOtherLeg(reply.from_tag); // we don't care about this leg any more
@@ -413,7 +413,7 @@ void CallLeg::b2bInitialErr(AmSipReply& reply, bool forward)
 void CallLeg::onB2BReply(B2BSipReplyEvent *ev)
 {
   if (!ev) {
-    ERROR("BUG: invalid argument given\n");
+    ERROR("BUG: invalid argument given");
     return;
   }
 
@@ -449,7 +449,7 @@ void CallLeg::onB2BReply(B2BSipReplyEvent *ev)
     {
         if(reply.code < 300) {
             if(!setOther(reply.from_tag, false)) {
-                DBG("2xx reply received from unknown B leg\n");
+                DBG("2xx reply received from unknown B leg");
             }
         } else {
             b2bConnectedErr(reply);
@@ -466,7 +466,7 @@ void CallLeg::onB2BReply(B2BSipReplyEvent *ev)
     }
 
     // handle replies to other requests than the initial one
-    DBG("handling reply via AmB2BSession\n");
+    DBG("handling reply via AmB2BSession");
     AmB2BSession::onB2BEvent(ev);
   }
 }
@@ -475,12 +475,12 @@ void CallLeg::onB2BReply(B2BSipReplyEvent *ev)
 void CallLeg::onB2BConnect(ConnectLegEvent* co_ev)
 {
   if (!co_ev) {
-    ERROR("BUG: invalid argument given\n");
+    ERROR("BUG: invalid argument given");
     return;
   }
 
   if (call_status != Disconnected) {
-    ERROR("BUG: ConnectLegEvent received in %s state\n", callStatus2str(call_status));
+    ERROR("BUG: ConnectLegEvent received in %s state", callStatus2str(call_status));
     return;
   }
 
@@ -511,7 +511,7 @@ void CallLeg::onB2BConnect(ConnectLegEvent* co_ev)
       NULL, //target_set_override
       redirects_allowed);
   if (res < 0) {
-    DBG("sending INVITE failed, relaying back error reply\n");
+    DBG("sending INVITE failed, relaying back error reply");
     relayError(SIP_METH_INVITE, co_ev->r_cseq, true, res);
 
     stopCall(StatusChangeCause::InternalError);
@@ -541,7 +541,7 @@ void CallLeg::onB2BConnect(ConnectLegEvent* co_ev)
 void CallLeg::onB2BReconnect(ReconnectLegEvent* ev)
 {
   if (!ev) {
-    ERROR("BUG: invalid argument given\n");
+    ERROR("BUG: invalid argument given");
     return;
   }
   TRACE("handling ReconnectLegEvent, other: %s, connect to %s\n", 
@@ -590,14 +590,14 @@ void CallLeg::onB2BReconnect(ReconnectLegEvent* ev)
 void CallLeg::onB2BReplace(ReplaceLegEvent *e)
 {
   if (!e) {
-    ERROR("BUG: invalid argument given\n");
+    ERROR("BUG: invalid argument given");
     return;
   }
   e->markAsProcessed();
 
   ReconnectLegEvent *reconnect = e->getReconnectEvent();
   if (!reconnect) {
-    ERROR("BUG: invalid ReconnectLegEvent\n");
+    ERROR("BUG: invalid ReconnectLegEvent");
     return;
   }
 
@@ -608,7 +608,7 @@ void CallLeg::onB2BReplace(ReplaceLegEvent *e)
   if (id.empty()) {
     // try it with the first B leg?
     if (other_legs.empty()) {
-      ERROR("BUG: there is no B leg to connect our replacement to\n");
+      ERROR("BUG: there is no B leg to connect our replacement to");
       return;
     }
     id = other_legs[0].id;
@@ -645,12 +645,12 @@ void CallLeg::disconnect(bool hold_remote, bool preserve_media_session)
   switch (call_status) {
     case Disconnecting:
     case Disconnected:
-      DBG("trying to disconnect already disconnected (or disconnecting) call leg\n");
+      DBG("trying to disconnect already disconnected (or disconnecting) call leg");
       return;
 
     case NoReply:
     case Ringing:
-      WARN("%s: trying to disconnect in not connected state, terminating not connected legs in advance (was it intended?)\n",
+      WARN("%s: trying to disconnect in not connected state, terminating not connected legs in advance (was it intended?)",
            getLocalTag().c_str());
       terminateNotConnectedLegs();
       // do not break, continue with following state handling!
@@ -705,10 +705,10 @@ void CallLeg::putOnHold()
   sdp2body(sdp, body);
   if (dlg->getUACInvTransPending()) {
     // there is pending INVITE, add reinvite to waiting requests
-    DBG("INVITE pending, queueing hold Re-Invite\n");
+    DBG("INVITE pending, queueing hold Re-Invite");
     queueReinvite("", body);
   } else if (dlg->reinvite("", &body, SIP_FLAGS_VERBATIM) != 0) {
-    ERROR("re-INVITE failed\n");
+    ERROR("re-INVITE failed");
     offerRejected();
   }
   //else hold_request_cseq = dlg->cseq - 1;
@@ -727,7 +727,7 @@ void CallLeg::resumeHeld(/*bool send_reinvite*/)
     AmSdp sdp;
     createResumeRequest(sdp);
     if (sdp.media.empty()) {
-      ERROR("invalid un-hold SDP, can't unhold\n");
+      ERROR("invalid un-hold SDP, can't unhold");
       offerRejected();
       return;
     }
@@ -737,10 +737,10 @@ void CallLeg::resumeHeld(/*bool send_reinvite*/)
     sdp2body(sdp, body);
     if (dlg->getUACInvTransPending()) {
       // there is a pending INVITE, add reinvite to waiting requests
-      DBG("INVITE pending, queueing un-hold Re-Invite\n");
+      DBG("INVITE pending, queueing un-hold Re-Invite");
       queueReinvite("", body);
     } else if (dlg->reinvite("", &body, SIP_FLAGS_VERBATIM) != 0) {
-      ERROR("re-INVITE failed\n");
+      ERROR("re-INVITE failed");
       offerRejected();
     }
     //else hold_request_cseq = dlg->cseq - 1;
@@ -752,12 +752,12 @@ void CallLeg::resumeHeld(/*bool send_reinvite*/)
 
 void CallLeg::holdAccepted()
 {
-  DBG("hold accepted on %c leg\n", a_leg?'B':'A');
+  DBG("hold accepted on %c leg", a_leg?'B':'A');
   if (call_status == Disconnecting) updateCallStatus(Disconnected);
   on_hold = true;
   AmB2BMedia *ms = getMediaSession();
   if (ms) {
-    DBG("holdAccepted - mute %c leg\n", a_leg?'B':'A');
+    DBG("holdAccepted - mute %c leg", a_leg?'B':'A');
     ms->mute(!a_leg); // mute the stream in other (!) leg
   }
 }
@@ -772,7 +772,7 @@ void CallLeg::resumeAccepted()
   on_hold = false;
   AmB2BMedia *ms = getMediaSession();
   if (ms) ms->unmute(!a_leg); // unmute the stream in other (!) leg
-  DBG("%s: resuming held, unmuting media session %p(%s)\n", getLocalTag().c_str(), ms, !a_leg ? "A" : "B");
+  DBG("%s: resuming held, unmuting media session %p(%s)", getLocalTag().c_str(), ms, !a_leg ? "A" : "B");
 }
 
 // was for caller only
@@ -862,7 +862,7 @@ void CallLeg::onSipReply(const AmSipRequest& req, const AmSipReply& reply, AmSip
 
 #if 0
   if ((oa.hold != OA::PreserveHoldStatus) && (!relayed_request)) {
-    INFO("locally generated hold/resume request replied, not handling by B2B\n");
+    INFO("locally generated hold/resume request replied, not handling by B2B");
     // local hold/resume request replied, we don't want to relay this reply to the other leg!
     // => do the necessary stuff here (copy & paste from AmB2BSession::onSipReply)
     if (reply.code < 300) {
@@ -944,7 +944,7 @@ void CallLeg::onRemoteDisappeared(const AmSipReply& reply)
     // only in case we are really connected
     // (called on timeout or 481 from the remote)
 
-    DBG("remote unreachable, ending B2BUA call\n");
+    DBG("remote unreachable, ending B2BUA call");
     // FIXME: shouldn't be cleared in AmB2BSession as well?
     clearRtpReceiverRelay(); 
     AmB2BSession::onRemoteDisappeared(reply); // terminates the other leg
@@ -1117,7 +1117,7 @@ void CallLeg::addExistingCallee(const string &session_tag, ReconnectLegEvent *ev
   // TODO: what about the RTP relay and other settings? send them as well?
   if (!AmSessionContainer::instance()->postEvent(session_tag, ev)) {
     // session doesn't exist - can't connect
-    INFO("the B leg to connect to (%s) doesn't exist\n", session_tag.c_str());
+    INFO("the B leg to connect to (%s) doesn't exist", session_tag.c_str());
     if (b.media_session) {
       b.media_session->releaseReference();
       b.media_session = NULL; // ptr may not be valid any more
@@ -1167,7 +1167,7 @@ void CallLeg::replaceExistingLeg(const string &session_tag, const AmSipRequest &
   // TODO: what about the RTP relay and other settings? send them as well?
   if (!AmSessionContainer::instance()->postEvent(session_tag, ev)) {
     // session doesn't exist - can't connect
-    INFO("the call leg to be replaced (%s) doesn't exist\n", session_tag.c_str());
+    INFO("the call leg to be replaced (%s) doesn't exist", session_tag.c_str());
     if (b.media_session) {
       b.media_session->releaseReference();
       b.media_session = NULL;
@@ -1198,7 +1198,7 @@ void CallLeg::replaceExistingLeg(const string &session_tag, const string &hdrs)
   // TODO: what about the RTP relay and other settings? send them as well?
   if (!AmSessionContainer::instance()->postEvent(session_tag, ev)) {
     // session doesn't exist - can't connect
-    INFO("the call leg to be replaced (%s) doesn't exist\n", session_tag.c_str());
+    INFO("the call leg to be replaced (%s) doesn't exist", session_tag.c_str());
     if (b.media_session) {
       b.media_session->releaseReference();
       b.media_session = NULL;
@@ -1285,7 +1285,7 @@ void CallLeg::changeRtpMode(RTPRelayMode new_mode)
     case AmOfferAnswer::OA_OfferSent:
       TRACE("changing RTP mode after offer was sent: reINVITE needed\n");
       // TODO: plan a reINVITE
-      ERROR("not implemented\n");
+      ERROR("not implemented");
       break;
 
     case AmOfferAnswer::OA_OfferRecved:
@@ -1341,7 +1341,7 @@ void CallLeg::changeRtpMode(RTPRelayMode new_mode, AmB2BMedia *new_media)
     case AmOfferAnswer::OA_OfferSent:
       TRACE("changing RTP mode/media session after offer was sent: reINVITE needed\n");
       // TODO: plan a reINVITE
-      ERROR("%s: not implemented\n", getLocalTag().c_str());
+      ERROR("%s: not implemented", getLocalTag().c_str());
       break;
 
     case AmOfferAnswer::OA_OfferRecved:
@@ -1433,11 +1433,11 @@ void CallLeg::reinvite(const string &hdrs, const AmMimeBody &body, bool relayed,
 
   if (res < 0) {
     if (relayed) {
-      DBG("sending re-INVITE failed, relaying back error reply\n");
+      DBG("sending re-INVITE failed, relaying back error reply");
       relayError(SIP_METH_INVITE, r_cseq, true, res);
     }
 
-    DBG("sending re-INVITE failed, terminating the call\n");
+    DBG("sending re-INVITE failed, terminating the call");
     stopCall(StatusChangeCause::InternalError);
     return;
   }
@@ -1530,7 +1530,7 @@ void CallLeg::createResumeRequest(AmSdp &sdp)
   if (!non_hold_sdp.media.empty()) sdp = non_hold_sdp;
   else {
     // no stored non-hold SDP
-    ERROR("no stored non-hold SDP, but local resume requested\n");
+    ERROR("no stored non-hold SDP, but local resume requested");
     // TODO: try to use established_body here and mark properly
 
     // if no established body exist
@@ -1542,11 +1542,11 @@ void CallLeg::createResumeRequest(AmSdp &sdp)
 void CallLeg::debug()
 {
   DBG("call leg: %s", getLocalTag().c_str());
-  DBG("\tother: %s\n", getOtherId().c_str());
-  DBG("\tstatus: %s\n", callStatus2str(getCallStatus()));
-  DBG("\tRTP relay mode: %d\n", rtp_relay_mode);
-  DBG("\ton hold: %s\n", on_hold ? "yes" : "no");
-  DBG("\toffer/answer status: %d, hold: %d\n", dlg->getOAState(), hold);
+  DBG("\tother: %s", getOtherId().c_str());
+  DBG("\tstatus: %s", callStatus2str(getCallStatus()));
+  DBG("\tRTP relay mode: %d", rtp_relay_mode);
+  DBG("\ton hold: %s", on_hold ? "yes" : "no");
+  DBG("\toffer/answer status: %d, hold: %d", dlg->getOAState(), hold);
 
   AmB2BMedia *ms = getMediaSession();
   if (ms) ms->debug();

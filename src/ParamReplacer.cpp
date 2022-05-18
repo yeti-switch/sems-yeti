@@ -141,7 +141,7 @@ int replaceParsedParam(const string& s, size_t p,
       size_t skip_p = p+3;
       for (;skip_p<s.length() && s[skip_p] != ')';skip_p++) { }
       if (skip_p==s.length()) {
-	WARN("Error parsing $%cP() param replacement (unclosed brackets)\n",s[p]);
+	WARN("Error parsing $%cP() param replacement (unclosed brackets)",s[p]);
 	break;
       }
       string param_name = s.substr(p+3,skip_p-p-3);
@@ -185,7 +185,7 @@ int replaceParsedParam(const string& s, size_t p,
   //   if (it != parsed.params.end())
   //     res+=it->second;
   // } break;
-  default: WARN("unknown replace pattern $%c%c\n",
+  default: WARN("unknown replace pattern $%c%c",
 		s[p], s[p+1]); break;
   };
 
@@ -257,7 +257,7 @@ string replaceParameters(const string& s,
 	  if (from_parser.uri.empty()) {
 	    from_parser.uri = req.from;
 	    if (!from_parser.parse_uri()) {
-	      WARN("Error parsing From URI '%s'\n", req.from.c_str());
+	      WARN("Error parsing From URI '%s'", req.from.c_str());
 	      break;
 	    }
 	  }
@@ -284,7 +284,7 @@ string replaceParameters(const string& s,
 	  if (to_parser.uri.empty()) {
 	    to_parser.uri = req.to;
 	    if (!to_parser.parse_uri()) {
-	      WARN("Error parsing To URI '%s'\n", req.to.c_str());
+	      WARN("Error parsing To URI '%s'", req.to.c_str());
 	      break;
 	    }
 	  }
@@ -306,7 +306,7 @@ string replaceParameters(const string& s,
 	  if (ruri_parser.uri.empty()) {
 	    ruri_parser.uri = req.r_uri;
 	    if (!ruri_parser.parse_uri()) {
-	      WARN("Error parsing R-URI '%s'\n", req.r_uri.c_str());
+	      WARN("Error parsing R-URI '%s'", req.r_uri.c_str());
 	      break;
 	    }
 	  }
@@ -318,12 +318,12 @@ string replaceParameters(const string& s,
 	    res += req.callid;
 	    break;
 	  }
-	  WARN("unknown replacement $c%c\n", s[p+1]);
+	  WARN("unknown replacement $c%c", s[p+1]);
 	}; break;
 
 	case 's': { // source (remote)
 	  if (s.length() < p+1) {
-	    WARN("unknown replacement $s\n");
+	    WARN("unknown replacement $s");
 	    break;
 	  }
 
@@ -335,12 +335,12 @@ string replaceParameters(const string& s,
 	    break;
 	  }
 
-	  WARN("unknown replacement $s%c\n", s[p+1]);
+	  WARN("unknown replacement $s%c", s[p+1]);
 	}; break;
 
 	case 'd': { // destination (remote UAS)
 	  if (s.length() < p+1) {
-	    WARN("unknown replacement $s\n");
+	    WARN("unknown replacement $s");
 	    break;
 	  }
 
@@ -348,13 +348,13 @@ string replaceParameters(const string& s,
 	    cstring _next_hop = stl2cstr(call_profile->next_hop);
 	    list<sip_destination> dest_list;
 	    if(parse_next_hop(_next_hop,dest_list)) {
-	      WARN("parse_next_hop %.*s failed\n",
+	      WARN("parse_next_hop %.*s failed",
 		   _next_hop.len, _next_hop.s);
 	      break;
 	    }
 
 	    if(dest_list.size() == 0) {
-	      WARN("next-hop is not empty, but the resulting destination list is\n");
+	      WARN("next-hop is not empty, but the resulting destination list is");
 	      break;
 	    }
 
@@ -366,14 +366,14 @@ string replaceParameters(const string& s,
 	      res += int2str(dest.port);
 	      break;
 	    }
-	    WARN("unknown replacement $d%c\n", s[p+1]);
+	    WARN("unknown replacement $d%c", s[p+1]);
 	    break;
 	  }
 
 	  if (ruri_parser.uri.empty()) {
 	    ruri_parser.uri = req.r_uri;
 	    if (!ruri_parser.parse_uri()) {
-	      WARN("Error parsing R-URI '%s'\n", req.r_uri.c_str());
+	      WARN("Error parsing R-URI '%s'", req.r_uri.c_str());
 	      break;
 	    }
 	  }
@@ -386,12 +386,12 @@ string replaceParameters(const string& s,
 	    break;
 	  }
 
-	  WARN("unknown replacement $d%c\n", s[p+1]);
+	  WARN("unknown replacement $d%c", s[p+1]);
 	}; break;
 
 	case 'R': { // received (local)
 	  if (s.length() < p+1) {
-	    WARN("unknown replacement $R\n");
+	    WARN("unknown replacement $R");
 	    break;
 	  }
 
@@ -416,12 +416,12 @@ string replaceParameters(const string& s,
         }
 	    break;
 	  }
-	  WARN("unknown replacement $R%c\n", s[p+1]);
+	  WARN("unknown replacement $R%c", s[p+1]);
 	}; break;
 
 	case 'O': { // outbound (after route)
 		if (s.length() < p+1) {
-			WARN("unknown replacement $O\n");
+			WARN("unknown replacement $O");
 			break;
 		}
 		if (s[p+1] == 'i') { // $Oi outbound IP address
@@ -435,7 +435,7 @@ string replaceParameters(const string& s,
             res += AmConfig.sip_ifs[outbound_interface].proto_info[0]->getHost();
 			break;
 		}
-		WARN("unknown replacement $O%c\n", s[p+1]);
+		WARN("unknown replacement $O%c", s[p+1]);
 	}; break;
 
 #define case_HDR(pv_char, pv_name, hdr_name)				\
@@ -448,7 +448,7 @@ string replaceParameters(const string& s,
 	    }								\
 									\
 	    if (!uri_parser.parse_uri()) {				\
-	      WARN("Error parsing " pv_name " URI '%s'\n", uri_parser.uri.c_str()); \
+	      WARN("Error parsing " pv_name " URI '%s'", uri_parser.uri.c_str()); \
 	      break;							\
 	    }								\
 	    if (s[p+1] == 'i') {					\
@@ -465,22 +465,22 @@ string replaceParameters(const string& s,
 
 	case 'P': { // app-params
 	  if (s[p+1] != '(') {
-	    WARN("Error parsing P param replacement (missing '(')\n");
+	    WARN("Error parsing P param replacement (missing '(')");
 	    break;
 	  }
 	  if (s.length()<p+3) {
-	    WARN("Error parsing P param replacement (short string)\n");
+	    WARN("Error parsing P param replacement (short string)");
 	    break;
 	  }
 
 	  size_t skip_p = p+2;
 	  for (;skip_p<s.length() && s[skip_p] != ')';skip_p++) { }
 	  if (skip_p==s.length()) {
-	    WARN("Error parsing P param replacement (unclosed brackets)\n");
+	    WARN("Error parsing P param replacement (unclosed brackets)");
 	    break;
 	  }
 	  string param_name = s.substr(p+2, skip_p-p-2);
-	  // DBG("param_name = '%s' (skip-p - p = %d)\n", param_name.c_str(), skip_p-p);
+	  // DBG("param_name = '%s' (skip-p - p = %d)", param_name.c_str(), skip_p-p);
 	  res += get_header_keyvalue(app_param, param_name);
 	  skip_chars = skip_p-p;
 	} break;
@@ -489,24 +489,24 @@ string replaceParameters(const string& s,
 	  size_t name_offset = 2;
 	  if (s[p+1] != '(') {
 	    if (s[p+2] != '(') {
-	      WARN("Error parsing H header replacement (missing '(')\n");
+	      WARN("Error parsing H header replacement (missing '(')");
 	      break;
 	    }
 	    name_offset = 3;
 	  }
 	  if (s.length()<name_offset+1) {
-	    WARN("Error parsing H header replacement (short string)\n");
+	    WARN("Error parsing H header replacement (short string)");
 	    break;
 	  }
 
 	  size_t skip_p = p+name_offset;
 	  for (;skip_p<s.length() && s[skip_p] != ')';skip_p++) { }
 	  if (skip_p==s.length()) {
-	    WARN("Error parsing H header replacement (unclosed brackets)\n");
+	    WARN("Error parsing H header replacement (unclosed brackets)");
 	    break;
 	  }
 	  string hdr_name = s.substr(p+name_offset, skip_p-p-name_offset);
-	  // DBG("param_name = '%s' (skip-p - p = %d)\n", param_name.c_str(), skip_p-p);
+	  // DBG("param_name = '%s' (skip-p - p = %d)", param_name.c_str(), skip_p-p);
 	  if (name_offset == 2) {
 	    // full header
 	    res += getHeader(used_hdrs, hdr_name);
@@ -520,7 +520,7 @@ string replaceParameters(const string& s,
 	    }
 
 	    if (!uri_parser.parse_uri()) {
-	      WARN("Error parsing header %s URI '%s'\n",
+	      WARN("Error parsing header %s URI '%s'",
 		   hdr_name.c_str(), uri_parser.uri.c_str());
 	      break;
 	    }
@@ -532,19 +532,19 @@ string replaceParameters(const string& s,
 
 	case '_': { // modify
 	  if (s.length()<p+4) { // $_O()
-	    WARN("Error parsing $_ modifier replacement (short string)\n");
+	    WARN("Error parsing $_ modifier replacement (short string)");
 	    break;
 	  }
 
 	  char operation = s[p+1];
 	  if (operation != 'U' && operation != 'l'
 	      && operation != 's' && operation != '5') {
-	    WARN("Error parsing $_%c string modifier: unknown operator '%c'\n",
+	    WARN("Error parsing $_%c string modifier: unknown operator '%c'",
 		 operation, operation);
 	  }
 
 	  if (s[p+2] != '(') {
-	    WARN("Error parsing $U upcase replacement (missing '(')\n");
+	    WARN("Error parsing $U upcase replacement (missing '(')");
 	    break;
 	  }
 
@@ -552,7 +552,7 @@ string replaceParameters(const string& s,
 	  skip_p = skip_to_end_of_brackets(s, skip_p);
 
 	  if (skip_p==s.length()) {
-	    WARN("Error parsing $_ modifier (unclosed brackets)\n");
+	    WARN("Error parsing $_ modifier (unclosed brackets)");
 	    skip_chars = skip_p-p;
 	    break;
 	  }
@@ -591,7 +591,7 @@ string replaceParameters(const string& s,
 	    {
 	      int r_max;
 	      if (!str2int(br_str, r_max)){
-		WARN("Error parsing $_r(%s) for random value, returning 0\n", br_str.c_str());
+		WARN("Error parsing $_r(%s) for random value, returning 0", br_str.c_str());
 		br_str_replaced = "0";
 	      } else {
 		br_str_replaced = int2str(rand()%r_max);
@@ -600,11 +600,11 @@ string replaceParameters(const string& s,
 	    break;
 
 	  default:
-	    WARN("Error parsing $_%c string modifier: unknown operator '%c'\n",
+	    WARN("Error parsing $_%c string modifier: unknown operator '%c'",
 		 operation, operation);
 	    break;
 	  }
-	  DBG("applied operator '%c': '%s' => '%s'\n", operation,
+	  DBG("applied operator '%c': '%s' => '%s'", operation,
 	      br_str.c_str(), br_str_replaced.c_str());
 	  res+=br_str_replaced;
 
@@ -617,11 +617,11 @@ string replaceParameters(const string& s,
 
 	case '#': { // URL encoding
 	  if (s[p+1] != '(') {
-	    WARN("Error parsing $# URL encoding (missing '(')\n");
+	    WARN("Error parsing $# URL encoding (missing '(')");
 	    break;
 	  }
 	  if (s.length()<p+3) {
-	    WARN("Error parsing $# URL encoding (short string)\n");
+	    WARN("Error parsing $# URL encoding (short string)");
 	    break;
 	  }
 
@@ -629,7 +629,7 @@ string replaceParameters(const string& s,
 	  skip_p = skip_to_end_of_brackets(s, skip_p);
 
 	  if (skip_p==s.length()) {
-	    WARN("Error parsing $# URL encoding (unclosed brackets)\n");
+	    WARN("Error parsing $# URL encoding (unclosed brackets)");
 	    skip_chars = skip_p-p;
 	    break;
 	  }
@@ -664,7 +664,7 @@ string replaceParameters(const string& s,
   }
 
   if (is_replaced) {
-    DBG("%s pattern replace: '%s' -> '%s'\n", r_type, s.c_str(), res.c_str());
+    DBG("%s pattern replace: '%s' -> '%s'", r_type, s.c_str(), res.c_str());
   }
   return res;
 }

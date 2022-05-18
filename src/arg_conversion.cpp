@@ -113,7 +113,7 @@ static bool string2arg(const char *&src, int &len, AmArg &dst)
       return true;
 
     default:
-      DBG("unknown label '%c'\n", src[0]);
+      DBG("unknown label '%c'", src[0]);
       return false;
   }
 }
@@ -143,8 +143,8 @@ string arg2username(const AmArg &a)
   }
 
   string json_vars = arg2json(a);
-  DBG("encoding variables: '%s'\n", json_vars.c_str());
-  DBG("encoded variables: '%s'\n", res.c_str());
+  DBG("encoding variables: '%s'", json_vars.c_str());
+  DBG("encoded variables: '%s'", res.c_str());
 
   return res;
 }
@@ -158,22 +158,22 @@ bool username2arg(const string &src, AmArg &dst)
     if (pos + 2 >= encoded.size()) return false;
     unsigned int c;
     if (reverse_hex2int(string() + encoded[pos + 2] + encoded[pos + 1], c)) {
-      DBG("%c%c does not convert from hex\n", encoded[pos + 1], encoded[pos + 2]);
+      DBG("%c%c does not convert from hex", encoded[pos + 1], encoded[pos + 2]);
       return false;
     }
     encoded.replace(pos, 3, 1, c);
     pos = encoded.find(ESCAPE_CHAR, pos + 1);
   }
 
-  DBG("encoded variables: '%s'\n", encoded.c_str());
+  DBG("encoded variables: '%s'", encoded.c_str());
 
   const char *s = encoded.c_str();
   int len = encoded.size();
   bool res = string2arg(s, len, dst);
   if (res) {
     string json_vars = arg2json(dst);
-    DBG("decoded variables: '%s'\n", json_vars.c_str());
+    DBG("decoded variables: '%s'", json_vars.c_str());
   }
-  else DBG("decoding failed\n");
+  else DBG("decoding failed");
   return res;
 }

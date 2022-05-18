@@ -38,7 +38,7 @@ int AmMimeBody2Sdp(const AmMimeBody &body,AmSdp &sdp){
 	if(!sdp_body) return -1;
 	int res = sdp.parse((const char *)sdp_body->getPayload());
 	if(0 != res) {
-		DBG("%s() SDP parsing failed: %d\n",FUNC_NAME,res);
+		DBG("%s() SDP parsing failed: %d",FUNC_NAME,res);
 		return res;
 	}
 	return 0;
@@ -419,7 +419,7 @@ int filter_arrange_SDP(AmSdp& sdp,
 	DBG_SDP(sdp,"filter_arrange_SDP_out");
 
 	if ((!media_line_left) && media_line_filtered_out) {
-		DBG("all streams were marked as inactive\n");
+		DBG("all streams were marked as inactive");
 		return FC_CODECS_NOT_MATCHED;
 	}
 	return 0;
@@ -520,7 +520,7 @@ int processSdpOffer(SBCCallLeg *call,
 	AmSdp sdp;
 	int res = sdp.parse((const char *)sdp_body->getPayload());
 	if (0 != res) {
-		DBG("SDP parsing failed during body filtering!\n");
+		DBG("SDP parsing failed during body filtering!");
 		return DC_REPLY_SDP_PARSING_FAILED;
 	}
 
@@ -616,7 +616,7 @@ int filterSdpOffer(SBCCallLeg *call,
 					 AmSdp *out_sdp)
 {
 	bool a_leg = call->isALeg();
-	DBG("filterSdpOffer() a_leg = %d method = %s\n",a_leg,method.c_str());
+	DBG("filterSdpOffer() a_leg = %d method = %s",a_leg,method.c_str());
 	if(body.empty()) return 0;
 
 	AmMimeBody* sdp_body = body.hasContentType(SIP_APPLICATION_SDP);
@@ -634,7 +634,7 @@ int filterSdpOffer(SBCCallLeg *call,
 	AmSdp sdp;
 	int res = sdp.parse((const char *)sdp_body->getPayload());
 	if (0 != res) {
-		ERROR("filterSdpOffer() SDP parsing failed during body filtering!\n");
+		ERROR("filterSdpOffer() SDP parsing failed during body filtering!");
 		return DC_REPLY_SDP_PARSING_FAILED;
 	}
 
@@ -856,7 +856,7 @@ int processSdpAnswer(SBCCallLeg *call,
 		override_id = call_ctx->getOverrideId();
 	}
 
-	DBG("processSdpAnswer() method = %s, a_leg = %d, answer_is_mandatory = %d\n",
+	DBG("processSdpAnswer() method = %s, a_leg = %d, answer_is_mandatory = %d",
 		method.c_str(),a_leg,answer_is_mandatory);
 
 	if(body.empty()) {
