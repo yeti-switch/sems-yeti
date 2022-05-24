@@ -321,91 +321,6 @@ void YetiRpc::init_rpc_tree()
 #undef leaf_method_arg
 }
 
-void YetiRpc::process_rpc_cmds(const AmArg cmds, const string& method, const AmArg& args, AmArg& ret){
-	const char *list_method = "_list";
-	//DBG("process_rpc_cmds(%p,%s,...)",&cmds,method.c_str());
-	if(method==list_method){
-		ret.assertArray();
-		switch(cmds.getType()){
-			case AmArg::Struct: {
-				AmArg::ValueStruct::const_iterator it = cmds.begin();
-				for(;it!=cmds.end();++it){
-					const AmArg &am_e = it->second;
-					rpc_entry *e = reinterpret_cast<rpc_entry *>(am_e.asObject());
-					AmArg f;
-					f.push(it->first);
-					f.push(e->leaf_descr);
-					ret.push(f);
-				}
-			} break;
-
-			case AmArg::AObject: {
-				rpc_entry *e = reinterpret_cast<rpc_entry *>(cmds.asObject());
-				if(!e->func_descr.empty()&&(!e->arg.empty()||e->hasLeafs())){
-					AmArg f;
-					f.push("[Enter]");
-					f.push(e->func_descr);
-					ret.push(f);
-				}
-				if(!e->arg.empty()){
-					AmArg f;
-					f.push(e->arg);
-					f.push(e->arg_descr);
-					ret.push(f);
-				}
-				if(e->hasLeafs()){
-					const AmArg &l = e->leaves;
-					AmArg::ValueStruct::const_iterator it = l.begin();
-					for(;it!=l.end();++it){
-						const AmArg &am_e = it->second;
-						rpc_entry *e = reinterpret_cast<rpc_entry *>(am_e.asObject());
-						AmArg f;
-						f.push(it->first);
-						f.push(e->leaf_descr);
-						ret.push(f);
-					}
-				}
-			} break;
-
-			default:
-				throw AmArg::TypeMismatchException();
-		}
-		return;
-	}
-
-	if(cmds.hasMember(method)){
-		const AmArg &l = cmds[method];
-		if(l.getType()!=AmArg::AObject)
-			throw AmArg::TypeMismatchException();
-
-		rpc_entry *e = reinterpret_cast<rpc_entry *>(l.asObject());
-		if(args.size()>0){
-			if(e->hasLeaf(args[0].asCStr())){
-				AmArg nargs = args,sub_method;
-				nargs.pop(sub_method);
-				process_rpc_cmds(e->leaves,sub_method.asCStr(),nargs,ret);
-				return;
-			} else if(args[0]==list_method){
-				AmArg nargs = args,sub_method;
-				nargs.pop(sub_method);
-				process_rpc_cmds(l,sub_method.asCStr(),nargs,ret);
-				return;
-			}
-		}
-		if(e->isMethod()){
-			if(args.size()&&strcmp(args.back().asCStr(),list_method)==0){
-				if(!e->hasLeafs()&&e->arg.empty())
-					ret.assertArray();
-				return;
-			}
-			(this->*(e->handler))(args,ret);
-			return;
-		}
-		throw AmDynInvoke::NotImplemented("missed arg");
-	}
-	throw AmDynInvoke::NotImplemented("no matches with methods tree");
-}
-
 void YetiRpc::invoke(const string& method, const AmArg& args, AmArg& ret)
 {
 	DBG("Yeti: %s(%s)", method.c_str(), AmArg::print(args).c_str());
@@ -469,10 +384,7 @@ void YetiRpc::invoke(const string& method, const AmArg& args, AmArg& ret)
 		//ret.push(AmArg("set"));*/
 	} else {
 		RpcTreeHandler::invoke(method,args,ret);
-		//process_rpc_cmds(rpc_cmds,method,args,ret);
-	}/* else {
-		throw AmDynInvoke::NotImplemented(method);
-	}*/
+	}
 }
 
 /****************************************
@@ -1248,11 +1160,6 @@ DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdown,requestShutdownNormal);
 DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdownImmediate,requestShutdownImmediate);
 DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdownGraceful,requestShutdownGraceful);
 DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdownCancel,requestShutdownCancel);
-
-bool YetiRpc::aor_lookup_reply::parse(const RedisReplyEvent &e)
-{
-	return false;
-}
 
 void YetiRpc::showAors(const AmArg& arg, AmArg& ret)
 {

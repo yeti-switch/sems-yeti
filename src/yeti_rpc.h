@@ -19,39 +19,11 @@ class YetiRpc
 
     void invoke(const string& method, const AmArg& args, AmArg& ret);
 
-    typedef void rpc_handler(const AmArg& args, AmArg& ret);
-
   protected:
     int calls_show_limit;
     void init_rpc_tree();
 
-    struct aor_lookup_reply {
-        /*struct aor_data {
-            string contact;
-            int expires;
-            string path;
-            string user_agent;
-            aor_data(
-                const char *contact,
-                int expires,
-                const char *path,
-                const char *user_agent)
-              : contact(contact),
-                expires(expires),
-                path(path),
-                user_agent(user_agent)
-            {}
-        }*/
-        //std::map<int, std::list<aor_data> > aors;
-        //return false on errors
-        bool parse(const RedisReplyEvent &e);
-    };
-
   private:
-    AmArg rpc_cmds;
-
-    void process_rpc_cmds(const AmArg cmds_tree, const string& method, const AmArg& args, AmArg& ret);
-
     bool check_event_id(int event_id, AmArg &ret);
     bool assert_event_id(const AmArg &args,AmArg &ret);
 
