@@ -1048,6 +1048,7 @@ void CallLeg::addNewCallee(
         "to",   callee_dlg->getRemoteParty().c_str(),
         "ruri", callee_dlg->getRemoteUri().c_str());
 
+    callee->start_on_same_thread = true;
     callee->start();
 
     AmSessionContainer* sess_cont = AmSessionContainer::instance();
