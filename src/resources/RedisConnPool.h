@@ -4,7 +4,7 @@
 #include "AmConfigReader.h"
 #include "AmThread.h"
 #include "AmArg.h"
-#include "hiredis/hiredis.h"
+#include "../RedisInstance.h"
 #include <list>
 
 using namespace std;

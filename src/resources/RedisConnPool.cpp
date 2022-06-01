@@ -58,12 +58,12 @@ void RedisConnPool::run(){
 		while(active_count < pool_size){
 			timeval timeout = { REDIS_CONN_TIMEOUT, 0 };
 			if(_cfg.socket.empty()){
-				ctx = redisConnectWithTimeout(_cfg.server.c_str(),_cfg.port,timeout);
+				ctx = redis::redisConnectWithTimeout(_cfg.server.c_str(),_cfg.port,timeout);
 			} else {
-				ctx = redisConnectUnixWithTimeout(_cfg.socket.c_str(),timeout);
+				ctx = redis::redisConnectUnixWithTimeout(_cfg.socket.c_str(),timeout);
 			}
-			if(ctx != NULL && ctx->err){
-				redisFree(ctx);
+			if(ctx != NULL && redis::redisGetErrorNumber(ctx)){
+				redis::redisFree(ctx);
 				if(_cfg.socket.empty()){
 					ERROR("[%p] failed conn for %s redis pool <host = %s:%d>",
 						  this,
@@ -139,7 +139,7 @@ void RedisConnPool::on_stop(){
 		while(!active_ctxs.empty()){
 			ctx = active_ctxs.front();
 			active_ctxs.pop_front();
-			redisFree(ctx);
+			redis::redisFree(ctx);
 		}
 	conn_mtx.unlock();
 
@@ -147,7 +147,7 @@ void RedisConnPool::on_stop(){
 		while(!failed_ctxs.empty()){
 			ctx = failed_ctxs.front();
 			failed_ctxs.pop_front();
-			redisFree(ctx);
+			redis::redisFree(ctx);
 		}
 	conn_mtx.unlock();
 
@@ -245,19 +245,19 @@ bool RedisConnPool::reconnect(redisContext *&ctx){
 	DBG("[%p] %s(%p)",this,FUNC_NAME,ctx);
 
 	if(ctx!=NULL){
-		redisFree(ctx);
+		redis::redisFree(ctx);
 		ctx = NULL;
 	}
 
 	timeval timeout = { REDIS_CONN_TIMEOUT, 0 };
 	if(_cfg.socket.empty()){
-		ctx = redisConnectWithTimeout(_cfg.server.c_str(),_cfg.port,timeout);
+		ctx = redis::redisConnectWithTimeout(_cfg.server.c_str(),_cfg.port,timeout);
 	} else {
-		ctx = redisConnectUnixWithTimeout(_cfg.socket.c_str(),timeout);
+		ctx = redis::redisConnectUnixWithTimeout(_cfg.socket.c_str(),timeout);
 	}
-	if (ctx != NULL && ctx->err) {
-		ERROR("[%p] %s() can't connect: %d <%s>",this,FUNC_NAME,ctx->err,ctx->errstr);
-		redisFree(ctx);
+	if (ctx != NULL && redis::redisGetErrorNumber(ctx)) {
+		ERROR("[%p] %s() can't connect: %d <%s>",this,FUNC_NAME,redis::redisGetErrorNumber(ctx),redis::redisGetError(ctx));
+		redis::redisFree(ctx);
 		ctx = NULL;
 		return false;
 	}

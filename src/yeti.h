@@ -76,4 +76,5 @@ class Yeti
     void processRedisRegisterReply(RedisReplyEvent &e);
     void processRedisRpcAorLookupReply(RedisReplyEvent &e);
     bool getCoreOptionsHandling() { return config.core_options_handling; }
+    bool isAllComponentInited();
 };

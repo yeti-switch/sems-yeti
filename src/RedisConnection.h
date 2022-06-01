@@ -5,8 +5,7 @@
 #include <AmSessionContainer.h>
 #include <AmArg.h>
 
-#include <hiredis/hiredis.h>
-#include <hiredis/async.h>
+#include "RedisInstance.h"
 
 #include <memory>
 #include <cmath>
@@ -195,7 +194,7 @@ static inline bool postRedisRequestFmt(const string &queue_name,
 
     va_list args;
     va_start(args, fmt);
-    ret = redisvFormatCommand(&cmd, fmt, args);
+    ret = redis::redisvFormatCommand(&cmd, fmt, args);
     va_end(args);
     if(ret <= 0)
         return false;
@@ -215,7 +214,7 @@ static inline bool postRedisRequestFmt(const string &queue_name,
 
     va_list args;
     va_start(args, fmt);
-    ret = redisvFormatCommand(&cmd, fmt, args);
+    ret = redis::redisvFormatCommand(&cmd, fmt, args);
     va_end(args);
 
     if(ret <= 0)

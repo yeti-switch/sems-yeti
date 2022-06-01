@@ -5,7 +5,10 @@ set(yeti_config_dist_files yeti)
 
 set(sems_module_name yeti)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
 file(GLOB_RECURSE yeti_SRCS "*.cpp")
+file(GLOB yeti_UNIT_SRCS "../unit_tests/*.cpp")
 
 include_directories(${HIREDIS_INCLUDE_DIR} ${SEMS_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
 set(sems_module_libs ${HIREDIS_LIBRARIES} ${SEMS_LIBRARIES})

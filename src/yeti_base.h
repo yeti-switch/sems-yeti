@@ -46,13 +46,27 @@ bool yeti_routing_db_query(const string &query, const string &token);
 
 #endif
 
+class YetiComponentInited : public AmEvent
+{
+public:
+    enum ComponentType
+    {
+        Resource = 0,
+        MaxType
+    } type;
+    YetiComponentInited(ComponentType type) : AmEvent(0), type(type) {}
+};
+
 struct YetiBase {
     YetiBase()
       : configuration_finished(false),
         confuse_cfg(nullptr),
         orig_pre_auth(config)
-    { }
+    { 
+        memset(component_inited, 0, sizeof(bool)*YetiComponentInited::MaxType); 
+    }
 
+    bool component_inited[YetiComponentInited::MaxType];
     SqlRouter router;
     CdrList cdr_list;
     ResourceControl rctl;

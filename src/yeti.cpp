@@ -172,6 +172,7 @@ static void init_counters()
 
 int Yeti::onLoad()
 {
+    makeRedisInstance(false);
     start_time = time(nullptr);
 
     cfg.dump();
@@ -479,6 +480,9 @@ void Yeti::process(AmEvent *ev)
             sync_db.db_reply_condition.set(sync_db::DB_REPLY_TIMEOUT);
         }
     } else 
+    ON_EVENT_TYPE(YetiComponentInited) {
+        component_inited[e->type] = true;
+    } else
     ON_EVENT_TYPE(AmSystemEvent) {
         if(e->sys_event==AmSystemEvent::ServerShutdown) {
             DBG("got shutdown event");
@@ -585,6 +589,14 @@ void Yeti::processRedisRpcAorLookupReply(RedisReplyEvent &e)
     ctx.result = e.result;
     DBG("ctx.cond: %p",&ctx.cond);
     ctx.cond.set(true);
+}
+
+bool Yeti::isAllComponentInited()
+{
+    for(int i = 0; i < YetiComponentInited::MaxType; i++) {
+        if(!component_inited[i]) return false;
+    }
+    return true;
 }
 
 void Yeti::initCfgTimerMappings()
