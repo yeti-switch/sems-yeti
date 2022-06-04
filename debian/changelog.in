@@ -1,3 +1,8 @@
+sems-yeti (1.12.34) stable; urgency=medium
+  * libsems 1.86.0
+  * bind A/B leg sessions for the same call to the same session processor thread
+ -- dev <dev@yeti-switch.org>  Sat, 04 Jun 2022 21:41:50 +0300
+
 sems-yeti (1.12.33) stable; urgency=medium
   * libsems 1.85.0
  -- dev <dev@yeti-switch.org>  Wed, 25 May 2022 13:35:07 +0300
