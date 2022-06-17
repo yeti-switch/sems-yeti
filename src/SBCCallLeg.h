@@ -242,8 +242,9 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   //int filterSdp(AmMimeBody &body, const string &method);
   void connectCallee(const string& remote_party, const string& remote_uri,
-			 const string &from, const AmSipRequest &original_invite,
-			 const AmSipRequest &invite_req);
+    const string &from, const AmSipRequest &original_invite,
+    const AmSipRequest &invite_req,
+    AmSipDialog *p_dlg);
   void applyAProfile();
   int applySSTCfg(AmConfigReader& sst_cfg, const AmSipRequest* p_req);
 
@@ -260,12 +261,14 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   // SBC interface usable from CC modules
 
-  void setLocalParty(const string &party, const string &uri) { 
-    dlg->setLocalParty(party); dlg->setLocalUri(uri);
+  void setLocalParty(const string &party, const string &uri) {
+    dlg->setLocalParty(party); //From
+    dlg->setLocalUri(uri);     //Contact
   }
 
-  void setRemoteParty(const string &party, const string &uri) { 
-    dlg->setRemoteParty(party); dlg->setRemoteUri(uri);
+  void setRemoteParty(const string &party, const string &uri) {
+    dlg->setRemoteParty(party); //To
+    dlg->setRemoteUri(uri);     //R-URI
   }
 
   SBCCallProfile &getCallProfile() { return call_profile; }

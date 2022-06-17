@@ -56,7 +56,7 @@ struct CallLegCreator {
   virtual SBCCallLeg* create(fake_logger *logger,
                              OriginationPreAuth::Reply &ip_auth_data,
                              Auth::auth_id_type auth_result_id);
-  virtual SBCCallLeg* create(SBCCallLeg* caller);
+  virtual SBCCallLeg* create(SBCCallLeg* caller, AmSipDialog* dlg);
 };
 
 class SBCFactory: public AmSessionFactory,

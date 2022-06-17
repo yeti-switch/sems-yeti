@@ -95,9 +95,9 @@ SBCCallLeg* CallLegCreator::create(fake_logger *logger,
     return new SBCCallLeg(logger, ip_auth_data, auth_result_id, new AmSipDialog());
 }
 
-SBCCallLeg* CallLegCreator::create(SBCCallLeg* caller)
+SBCCallLeg* CallLegCreator::create(SBCCallLeg* caller, AmSipDialog* dlg)
 {
-    return new SBCCallLeg(caller);
+    return new SBCCallLeg(caller, dlg);
 }
 
 SBCFactory::SBCFactory(const string& _app_name)

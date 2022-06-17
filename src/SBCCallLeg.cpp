@@ -634,16 +634,23 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
         throw AmSession::Exception(400,"Failed to parse R-URI");
     }
 
+    unique_ptr<AmSipDialog> callee_dlg(new AmSipDialog());
+
+    if(!call_profile.evaluate_routing(ctx, orig_req, *callee_dlg)) {
+        ERROR("call profile routing evaluation failed");
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+
     if (!call_profile.evaluate(ctx, orig_req)) {
         ERROR("call profile evaluation failed");
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
+
     if(!call_profile.append_headers.empty()){
         replace(call_profile.append_headers,"%global_tag",getGlobalTag());
     }
 
-    string to, from;
-
+/* moved to SBCCallProfile::evaluate_routing()
     string ruri = call_profile.ruri.empty() ? uac_req.r_uri : call_profile.ruri;
 
     ctx.ruri_parser.uri = ruri;
@@ -657,17 +664,17 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
         ctx.ruri_parser.uri_host = call_profile.ruri_host;
         ruri = ctx.ruri_parser.uri_str();
     }
+*/
+    ruri = ctx.ruri_parser.uri; //set by SBCCallProfile::evaluate_routing()
+    from = call_profile.from.empty() ? orig_req.from : call_profile.from;
+    to = call_profile.to.empty() ? orig_req.to : call_profile.to;
 
     AmUriParser from_uri, to_uri;
-
-    from = call_profile.from.empty() ? orig_req.from : call_profile.from;
-    //from_uri.uri = call_profile.from.empty() ? orig_req.from : call_profile.from;
     if(!from_uri.parse_nameaddr(from)) {
         DBG("Error parsing From-URI '%s'",from.c_str());
         throw AmSession::Exception(400,"Failed to parse From-URI");
     }
 
-    to = call_profile.to.empty() ? orig_req.to : call_profile.to;
     if(!to_uri.parse_nameaddr(to)) {
         DBG("Error parsing To-URI '%s'",to.c_str());
         throw AmSession::Exception(400,"Failed to parse To-URI");
@@ -731,7 +738,9 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
         throw AmSession::Exception(488, SIP_REPLY_NOT_ACCEPTABLE_HERE);
     }
 
-    connectCallee(to, ruri, from, orig_req, invite_req);
+    connectCallee(to, ruri, from,
+                  orig_req, invite_req,
+                  callee_dlg.release());
 
     return false;
 }
@@ -1287,11 +1296,12 @@ void SBCCallLeg::applyBProfile()
         }
     }
 
+/* moved to SBCCallProfile::evaluate_routing()
+
     if (!call_profile.outbound_proxy.empty()) {
         dlg->outbound_proxy = call_profile.outbound_proxy;
         dlg->force_outbound_proxy = call_profile.force_outbound_proxy;
     }
-
     if(!call_profile.route.empty()) {
         DBG("set route to: %s",call_profile.route.c_str());
         dlg->setRouteSet(call_profile.route);
@@ -1314,6 +1324,9 @@ void SBCCallLeg::applyBProfile()
         dlg->resetOutboundIf();
         dlg->setOutboundInterfaceName(call_profile.outbound_interface);
     }
+
+    dlg->setResolvePriority(static_cast<int>(call_profile.bleg_protocol_priority_id));
+*/
 
     // was read from caller but reading directly from profile now
     if (call_profile.rtprelay_enabled) {
@@ -1353,8 +1366,6 @@ void SBCCallLeg::applyBProfile()
 
     if(!call_profile.bleg_dlg_contact_params.empty())
         dlg->setContactParams(call_profile.bleg_dlg_contact_params);
-
-    dlg->setResolvePriority(static_cast<int>(call_profile.bleg_protocol_priority_id));
 
     setInviteTransactionTimeout(call_profile.inv_transaction_timeout);
     setInviteRetransmitTimeout(call_profile.inv_srv_failover_timeout);
@@ -2845,11 +2856,19 @@ void SBCCallLeg::onRoutingReady()
         }
     }
 
+    unique_ptr<AmSipDialog> callee_dlg(new AmSipDialog());
+
+    if(!call_profile.evaluate_routing(ctx, aleg_modified_req, *callee_dlg)) {
+        ERROR("call profile routing evaluation failed");
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+
     if (!call_profile.evaluate(ctx, aleg_modified_req)) {
         ERROR("call profile evaluation failed");
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
+/* moved to SBCCallProfile::evaluate_routing()
     AmUriParser uac_ruri;
     uac_ruri.uri = uac_req.r_uri;
     if(!uac_ruri.parse_uri()) {
@@ -2869,7 +2888,8 @@ void SBCCallLeg::onRoutingReady()
         ctx.ruri_parser.uri_host = call_profile.ruri_host;
         ruri = ctx.ruri_parser.uri_str();
     }
-
+*/
+    ruri = ctx.ruri_parser.uri; //set by SBCCallProfile::evaluate_routing()
     from = call_profile.from.empty() ? aleg_modified_req.from : call_profile.from;
     to = call_profile.to.empty() ? aleg_modified_req.to : call_profile.to;
 
@@ -2903,7 +2923,7 @@ void SBCCallLeg::onRoutingReady()
     if(a_leg && call_profile.keep_vias)
         modified_req.hdrs = modified_req.vias + modified_req.hdrs;
 
-      est_invite_cseq = uac_req.cseq;
+    est_invite_cseq = uac_req.cseq;
 
     removeHeader(modified_req.hdrs,PARAM_HDR);
     removeHeader(modified_req.hdrs,"P-App-Name");
@@ -2952,7 +2972,10 @@ void SBCCallLeg::onRoutingReady()
 
     if (getCallStatus() == Disconnected) {
         // no CC module connected a callee yet
-        connectCallee(to, ruri, from, aleg_modified_req, modified_req); // connect to the B leg(s) using modified request
+        // connect to the B leg(s) using modified request
+        connectCallee(to, ruri, from,
+                      aleg_modified_req, modified_req,
+                      callee_dlg.release());
     }
 }
 
@@ -3124,9 +3147,11 @@ void SBCCallLeg::connectCallee(
     const string& remote_uri,
     const string &from,
     const AmSipRequest &,
-    const AmSipRequest &invite)
+    const AmSipRequest &invite,
+    AmSipDialog *p_dlg)
 {
-    SBCCallLeg* callee_session = SBCFactory::instance()->getCallLegCreator()->create(this);
+    SBCCallLeg* callee_session =
+        SBCFactory::instance()->getCallLegCreator()->create(this, p_dlg);
 
     callee_session->setLocalParty(from, from);
     callee_session->setRemoteParty(remote_party, remote_uri);
@@ -3877,7 +3902,17 @@ void SBCCallLeg::onOtherRefer(const B2BReferEvent &refer)
     to = refer.referred_to;
 
     call_ctx_lock.release();
-    connectCallee(to, ruri, from, aleg_modified_req, modified_req);
+
+    unique_ptr<AmSipDialog> callee_dlg(new AmSipDialog());
+
+    if(!call_profile.apply_b_routing(ruri, *callee_dlg)) {
+        ERROR("%s failed to apply B routing after REFER", getLocalTag().data());
+        throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+
+    connectCallee(to, ruri, from,
+                  aleg_modified_req, modified_req,
+                  callee_dlg.release());
 }
 
 void SBCCallLeg::sendReferNotify(int code, string &reason)

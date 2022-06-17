@@ -422,17 +422,19 @@ struct SBCCallProfile
 		      const AmSipRequest& req,
 		      AmBasicSipDialog& dlg) const;
   
-  int apply_b_routing(ParamReplacerCtx& ctx,
-		      const AmSipRequest& req,
-		      AmBasicSipDialog& dlg) const;
+  bool apply_b_routing(const string &ruri,
+                       AmBasicSipDialog& dlg) const;
 
   int apply_common_fields(ParamReplacerCtx& ctx,
 			  AmSipRequest& req) const;
 
   bool evaluateOutboundInterface();
 
-  bool evaluate(ParamReplacerCtx& ctx,
-		const AmSipRequest& req);
+  bool evaluate_routing(ParamReplacerCtx& ctx,
+                        const AmSipRequest& req,
+                        AmSipDialog &dlg);
+
+  bool evaluate(ParamReplacerCtx& ctx, const AmSipRequest& req);
 
   bool evaluateRTPRelayInterface();
   bool evaluateRTPRelayAlegInterface();

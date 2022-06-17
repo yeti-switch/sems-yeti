@@ -325,25 +325,63 @@ void SBCCallProfile::eval_sst_config(ParamReplacerCtx& ctx,
   }
 }
 
-bool SBCCallProfile::evaluate(ParamReplacerCtx& ctx,
-			      const AmSipRequest& req)
+bool SBCCallProfile::evaluate_routing(
+    ParamReplacerCtx& ctx,
+    const AmSipRequest& req,
+    AmSipDialog &dlg)
 {
-  REPLACE_NONEMPTY_STR(ruri);
-  REPLACE_NONEMPTY_STR(ruri_host);
+    REPLACE_NONEMPTY_STR(ruri);
+    REPLACE_NONEMPTY_STR(ruri_host);
+
+    REPLACE_NONEMPTY_STR(outbound_proxy);
+    REPLACE_NONEMPTY_STR(next_hop);
+
+    //apply routing-related values to dlg
+
+    ctx.ruri_parser.uri = ruri.empty() ? req.r_uri : ruri;
+    if(!ctx.ruri_parser.parse_uri()) {
+        if(!ruri.empty()) {
+            ERROR("Error parsing profile R-URI '%s'", ctx.ruri_parser.uri.data());
+            throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+        } else {
+            DBG("Error parsing request R-URI '%s'",ctx.ruri_parser.uri.data());
+            throw AmSession::Exception(400,"Failed to parse R-URI");
+        }
+    }
+
+    if(!ruri_host.empty()) {
+        ctx.ruri_parser.uri_port.clear();
+        ctx.ruri_parser.uri_host = ruri_host;
+        ctx.ruri_parser.uri = ctx.ruri_parser.uri_str();
+    }
+
+    if(!apply_b_routing(ctx.ruri_parser.uri, dlg))
+        return false;
+
+    //get outbound interface address
+    int oif = dlg.getOutboundIf();
+    const auto &pi = AmConfig.
+        sip_ifs[static_cast<size_t>(oif)].
+        proto_info[static_cast<size_t>(dlg.getOutboundProtoId())];
+
+    ctx.outbound_interface_host = pi->getHost();
+
+    return true;
+}
+
+bool SBCCallProfile::evaluate(ParamReplacerCtx& ctx, const AmSipRequest& req)
+{
   REPLACE_NONEMPTY_STR(to);
   REPLACE_NONEMPTY_STR(callid);
 
   REPLACE_NONEMPTY_STR(dlg_contact_params);
   REPLACE_NONEMPTY_STR(bleg_dlg_contact_params);
 
-  REPLACE_NONEMPTY_STR(outbound_proxy);
-  REPLACE_NONEMPTY_STR(next_hop);
-
   fix_append_hdrs(ctx, req);
 
   /*
    * must be evaluated after outbound_proxy & next_hop
-   * because they are determineoutbound inteface
+   * because they are determine outbound inteface
    */
   REPLACE_NONEMPTY_STR(from); //must be evaluated after outbound_proxy
 
@@ -477,40 +515,42 @@ int SBCCallProfile::apply_a_routing(ParamReplacerCtx& ctx,
   return 0;
 }
 
-int SBCCallProfile::apply_b_routing(ParamReplacerCtx& ctx,
-				    const AmSipRequest& req,
-				    AmBasicSipDialog& dlg) const
+bool SBCCallProfile::apply_b_routing(
+    const string &ruri,
+    AmBasicSipDialog& dlg) const
 {
-  if (!outbound_interface.empty()) {
-    string oi = 
-      ctx.replaceParameters(outbound_interface, "outbound_interface", req);
+    dlg.setRemoteUri(ruri);
 
-    if(apply_outbound_interface(oi,dlg) < 0)
-      return -1;
-  }
+    if (!outbound_proxy.empty()) {
+        dlg.outbound_proxy = outbound_proxy;
+        dlg.force_outbound_proxy = force_outbound_proxy;
+    }
 
-  if (!next_hop.empty()) {
+    if(!route.empty()) {
+        DBG("set route to: %s",route.c_str());
+        dlg.setRouteSet(route);
+    }
 
-    string nh = ctx.replaceParameters(next_hop, "next_hop", req);
+    if (!next_hop.empty()) {
+        DBG("set next hop to '%s' (1st_req=%s,fixed=%s)",
+            next_hop.c_str(), next_hop_1st_req?"true":"false",
+            next_hop_fixed?"true":"false");
+        dlg.setNextHop(next_hop);
+        dlg.setNextHop1stReq(next_hop_1st_req);
+        dlg.setNextHopFixed(next_hop_fixed);
+    }
 
-    DBG("set next hop to '%s' (1st_req=%s,fixed=%s)",
-	nh.c_str(), next_hop_1st_req?"true":"false",
-	next_hop_fixed?"true":"false");
-    dlg.setNextHop(nh);
-    dlg.setNextHop1stReq(next_hop_1st_req);
-    dlg.setNextHopFixed(next_hop_fixed);
-  }
+    DBG("patch_ruri_next_hop = %i",patch_ruri_next_hop);
+    dlg.setPatchRURINextHop(patch_ruri_next_hop);
 
-  DBG("patch_ruri_next_hop = %i",patch_ruri_next_hop);
-  dlg.setPatchRURINextHop(patch_ruri_next_hop);
+    if (outbound_interface_value >= 0) {
+        dlg.resetOutboundIf();
+        dlg.setOutboundInterfaceName(outbound_interface);
+    }
 
-  if (!outbound_proxy.empty()) {
-    string op = ctx.replaceParameters(outbound_proxy, "outbound_proxy", req);
-    dlg.outbound_proxy = op;
-    dlg.force_outbound_proxy = force_outbound_proxy;
-  }
+    dlg.setResolvePriority(static_cast<int>(bleg_protocol_priority_id));
 
-  return 0;
+    return true;
 }
 
 int SBCCallProfile::apply_common_fields(ParamReplacerCtx& ctx,

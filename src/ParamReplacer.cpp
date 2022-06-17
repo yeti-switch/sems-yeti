@@ -37,87 +37,6 @@
 #include <algorithm>
 #include <stdlib.h>
 
-/*
- * reimplements AmBasicSipDialog::getOutboundIf() to provide
- * ability for replaces related to outbound interface
- */
-int getOutboundInterface(const string &next_hop,
-                         const string &outbound_proxy,bool force_outbound_proxy,
-                         const string &route,
-                         const string &ruri)
-{
-
-    if(AmConfig.sip_ifs.size() == 1) {
-        return 0;
-    }
-
-    // Destination priority:
-    // 1. next_hop
-    // 2. outbound_proxy (if 1st req or force_outbound_proxy)
-    // 3. first route
-    // 4. remote URI
-
-    string dest_uri;
-    string dest_ip;
-    string local_ip;
-    multimap<string,unsigned short>::iterator if_it;
-
-    list<sip_destination> ip_list;
-    if(!next_hop.empty() &&
-       !parse_next_hop(stl2cstr(next_hop),ip_list) &&
-       !ip_list.empty())
-    {
-        dest_ip = c2stlstr(ip_list.front().host);
-    } else if(!outbound_proxy.empty() && force_outbound_proxy) {
-      dest_uri = outbound_proxy;
-    } else if(!route.empty()) {
-        // parse first route
-        sip_header fr;
-        fr.value = stl2cstr(route);
-        sip_uri* route_uri = get_first_route_uri(&fr);
-        if(!route_uri){
-            ERROR("Could not parse route route='%s'",route.c_str());
-            goto error;
-        }
-
-        dest_ip = c2stlstr(route_uri->host);
-    } else {
-        dest_uri = ruri;
-    }
-
-    if(dest_uri.empty() && dest_ip.empty()) {
-        ERROR("No destination found");
-        goto error;
-    }
-
-    if(!dest_uri.empty()) {
-        sip_uri d_uri;
-        if(parse_uri(&d_uri,dest_uri.c_str(),dest_uri.length()) < 0) {
-            ERROR("Could not parse destination URI dest_uri='%s'",dest_uri.c_str());
-            goto error;
-        }
-        dest_ip = c2stlstr(d_uri.host);
-    }
-
-    if(get_local_addr_for_dest(dest_ip,local_ip,IPv4_only) < 0) {
-        ERROR("No local address for dest '%s'",dest_ip.c_str());
-        goto error;
-    }
-
-    if_it = AmConfig.local_sip_ip2if.find(local_ip);
-    if(if_it == AmConfig.local_sip_ip2if.end()) {
-        ERROR("Could not find a local interface for resolved local IP local_ip='%s'",
-              local_ip.c_str());
-        goto error;
-    }
-
-    return if_it->second;
-
-   error:
-    WARN("Error while computing outbound interface: default interface will be used instead.");
-    return 0;
-}
-
 int replaceParsedParam(const string& s, size_t p,
 			const AmUriParser& parsed, string& res) {
   int skip_chars=1;
@@ -201,6 +120,7 @@ string replaceParameters(const string& s,
 			 const AmSipRequest& req,
 			 const SBCCallProfile* call_profile,
 			 const string& app_param,
+			 const string& outbound_interface_host,
 			 AmUriParser& ruri_parser, 
 			 AmUriParser& from_parser,
 			 AmUriParser& to_parser,
@@ -425,14 +345,14 @@ string replaceParameters(const string& s,
 			break;
 		}
 		if (s[p+1] == 'i') { // $Oi outbound IP address
-			if(outbound_interface == -1)
-				outbound_interface = getOutboundInterface(call_profile->next_hop,
-														  call_profile->outbound_proxy,
-														  call_profile->force_outbound_proxy,
-														  req.route,
-														  call_profile->ruri);
-            //TODO: use smth like req.local_proto to get correct public_ip
-            res += AmConfig.sip_ifs[outbound_interface].proto_info[0]->getHost();
+			if(!outbound_interface_host.empty()) {
+				/*DBG("replace $Oi with '%s' in %s (%s)",
+					outbound_interface_host.data(), r_type, s.data());*/
+				res += outbound_interface_host;
+			} else {
+				ERROR("$Oi is used in %s (%s) before outbound interface resolved",
+					r_type, s.data());
+			}
 			break;
 		}
 		WARN("unknown replacement $O%c", s[p+1]);
@@ -560,7 +480,7 @@ string replaceParameters(const string& s,
 	  string br_str = s.substr(p+3, skip_p-p-3);
 	  string br_str_replaced = 
 	    replaceParameters(br_str, "$_*(...)",
-			      req, call_profile, app_param,
+			      req, call_profile, app_param, outbound_interface_host,
 			      ruri_parser, from_parser, to_parser,
 			      rebuild_ruri, rebuild_from, rebuild_to);
 
@@ -637,7 +557,7 @@ string replaceParameters(const string& s,
 	  string expr_str = s.substr(p+2, skip_p-p-2);
 	  string expr_replaced = 
 	    replaceParameters(expr_str, r_type, req,
-			      call_profile, app_param, 
+			      call_profile, app_param, outbound_interface_host,
 			      ruri_parser, from_parser, to_parser,
 			      rebuild_ruri, rebuild_from, rebuild_to);
 
