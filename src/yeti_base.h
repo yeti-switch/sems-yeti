@@ -18,6 +18,10 @@
 #include "log.h"
 
 static const string YETI_QUEUE_NAME(MOD_NAME);
+extern const string yeti_routing_pg_worker;
+extern const string yeti_cdr_pg_worker;
+extern const string yeti_auth_log_pg_worker;
+bool yeti_routing_db_query(const string &query, const string &token);
 
 #define YETI_ENABLE_PROFILING 1
 
@@ -44,7 +48,8 @@ static const string YETI_QUEUE_NAME(MOD_NAME);
 
 struct YetiBase {
     YetiBase()
-      : confuse_cfg(nullptr),
+      : configuration_finished(false),
+        confuse_cfg(nullptr),
         orig_pre_auth(config)
     { }
 
@@ -52,8 +57,11 @@ struct YetiBase {
     CdrList cdr_list;
     ResourceControl rctl;
 
+    bool configuration_finished;
+
     YetiCfg config;
-    DbConfigStates db_cfg_states;
+    AmArg db_cfg_states;
+    //DbConfigStates db_cfg_states;
 
     cfg_t *confuse_cfg;
     AmConfigReader cfg;
@@ -64,4 +72,19 @@ struct YetiBase {
     OptionsProberManager options_prober_manager;
     CertCache cert_cache;
     OriginationPreAuth orig_pre_auth;
+
+    //fields to provide synchronous configuration for DB-related entities
+    struct sync_db {
+        enum DbReplyResult {
+            DB_REPLY_WAITING = 0,
+            DB_REPLY_RESULT,
+            DB_REPLY_ERROR,
+            DB_REPLY_TIMEOUT
+        };
+        AmCondition<DbReplyResult> db_reply_condition;
+        string db_reply_token;
+        AmArg db_reply_result;
+
+        int exec_query(const string &query, const string &token);
+    } sync_db;
 };

@@ -4,8 +4,6 @@
 #include "IPTree.h"
 #include "DbConfigStates.h"
 
-#include <pqxx/pqxx>
-
 #include <chrono>
 #include <cstdint>
 
@@ -18,7 +16,7 @@ class OriginationPreAuth final
         string name;
         string signalling_ip;
 
-        LoadBalancerData(const pqxx::row &r);
+        LoadBalancerData(const AmArg &r);
         operator AmArg() const;
     };
     using LoadBalancersContainer = vector<LoadBalancerData>;
@@ -30,7 +28,7 @@ class OriginationPreAuth final
         bool require_incoming_auth;
         bool require_identity_parsing;
 
-        IPAuthData(const pqxx::row &r);
+        IPAuthData(const AmArg &r);
         operator AmArg() const;
     };
     using IPAuthDataContainer = vector<IPAuthData>;
@@ -49,9 +47,8 @@ class OriginationPreAuth final
     };
 
     OriginationPreAuth(YetiCfg &cfg);
-    void reloadDatabaseSettings(pqxx::connection &c,
-                                bool reload_load_balancers,
-                                bool reload_ip_auth) noexcept;
+    void reloadLoadBalancers(const AmArg &data);
+    void reloadLoadIPAuth(const AmArg &data);
 
     void ShowTrustedBalancers(AmArg& ret);
     void ShowIPAuth(const AmArg &arg, AmArg& ret);

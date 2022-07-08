@@ -7,6 +7,8 @@
 #include "sdp_filter.h"
 #include "sip/parse_via.h"
 #include "sip/resolver.h"
+#include "db/DbHelpers.h"
+#include "jsonArg.h"
 
 SqlCallProfile::SqlCallProfile():
 	aleg_override_id(0),
@@ -15,125 +17,125 @@ SqlCallProfile::SqlCallProfile():
 
 SqlCallProfile::~SqlCallProfile(){ }
 
-bool SqlCallProfile::skip(const pqxx::row &t){
-	try {
-		if(t["ruri"].is_null()){
-			DBG("callprofile skip condition matched: row 'ruri' field is NULL");
-			return true;
-		}
-	} catch(...) {
-		DBG("callprofile skip condition matched: row has no 'ruri' field");
-		return true;
-	}
-	return false;
-}
-
-static void readMediaAcl(const pqxx::row &t, const char key[], std::vector<AmSubnet> &acl)
+static void readMediaAcl(const AmArg &t, const char key[], std::vector<AmSubnet> &acl)
 {
-	try {
-		const pqxx::field &f = t[key];
-		pqxx::array_parser p = f.as_array();
-		std::pair<pqxx::array_parser::juncture, std::string> pair;
-		do {
-			pair = p.get_next();
-			if(pair.first!=pqxx::array_parser::string_value)
-				continue;
-			AmSubnet subnet;
-			if(!subnet.parse(pair.second)) {
-				ERROR("failed to parse subnet '%s' for %s",
-					pair.second.data(), key);
-				continue;
-			}
-			acl.emplace_back(subnet);
-		} while(pair.first != pqxx::array_parser::done);
-	} catch(...) {
-		ERROR("field '%s' not exist in db response",key);
+	if(!t.hasMember(key))
+		return;
+
+	AmArg &v = t[key];
+	if(!isArgArray(v)) {
+		ERROR("expected array by the key: %s", key);
+		return;
+	}
+	for(size_t i = 0; i < v.size(); i++) {
+		AmArg &a = v[i];
+		if(!isArgCStr(a)) {
+			ERROR("skip unexpected array entry: %s", AmArg::print(a));
+			continue;
+		}
+		AmSubnet subnet;
+		if(!subnet.parse(a.asCStr())) {
+			ERROR("failed to parse subnet '%s' for %s",
+				a.asCStr(), key);
+			continue;
+		}
+		acl.emplace_back(subnet);
 	}
 }
 
-bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
-	//profile_file = "SQL";
-
+bool SqlCallProfile::readFromTuple(const AmArg &t,const DynFieldsT &df){
 	//common fields both for routing and refusing profiles
 
-	assign_str(ruri,"ruri");
-	assign_str(outbound_proxy,"outbound_proxy");
-	assign_str(resources,"resources");
-	assign_str(append_headers,"append_headers");
+	ruri = DbAmArg_hash_get_str(t, "ruri");
+	outbound_proxy = DbAmArg_hash_get_str(t, "outbound_proxy");
+	resources = DbAmArg_hash_get_str(t, "resources");
+	append_headers = DbAmArg_hash_get_str(t, "append_headers");
 
-	assign_int(time_limit,"time_limit",0);
-	assign_int(aleg_override_id,"aleg_policy_id",0);
+	time_limit = DbAmArg_hash_get_int(t,"time_limit",0);
+	aleg_override_id = DbAmArg_hash_get_int(t,"aleg_policy_id",0);
 
-	assign_bool_safe(trusted_hdrs_gw,"trusted_hdrs_gw",false,false);
-	assign_bool_safe_silent(record_audio,"record_audio",false,false);
+	trusted_hdrs_gw = DbAmArg_hash_get_bool(t, "trusted_hdrs_gw", false);
+	record_audio = DbAmArg_hash_get_bool(t, "record_audio", false);
 
-	assign_int(dump_level_id,"dump_level_id",0);
+	dump_level_id = DbAmArg_hash_get_int(t,"dump_level_id",0);
 	dump_level_id |= AmConfig.dump_level;
 	log_rtp = dump_level_id&LOG_RTP_MASK;
 	log_sip = dump_level_id&LOG_SIP_MASK;
 
-	if(!readDynFields(t,df)) return false;
+	if(!readDynFields(t,df)) {
+		ERROR("failed to read dynamic fields");
+		return false;
+	}
 
 	if(Yeti::instance().config.use_radius){
 		for(const auto &f: t) {
-			placeholders_hash[f.name()] = f.c_str();
+			placeholders_hash[f.first] = arg2json(f.second);
 		}
 	}
 
-	assign_int(disconnect_code_id,"disconnect_code_id",0);
+	disconnect_code_id = DbAmArg_hash_get_int(t,"disconnect_code_id",0);
 	if(0 != disconnect_code_id)
 		return true; //skip excess fields reading for refusing profile
 
 	//fields fore the routing profiles only
 
-	assign_str(from,"from");
-	assign_str(to,"to");
+	from = DbAmArg_hash_get_str(t, "from");
+	to = DbAmArg_hash_get_str(t, "to");
+	callid = DbAmArg_hash_get_str(t, "call_id");
 
-	assign_str(callid,"call_id");
+	dlg_nat_handling = DbAmArg_hash_get_bool(t, "dlg_nat_handling", false);
 
-	assign_bool(dlg_nat_handling,"dlg_nat_handling",false);
+	force_outbound_proxy = DbAmArg_hash_get_bool(t, "force_outbound_proxy", false);
+	outbound_proxy = DbAmArg_hash_get_str(t, "outbound_proxy");
 
-	assign_bool(force_outbound_proxy,"force_outbound_proxy",false);
-	assign_str(outbound_proxy,"outbound_proxy");
+	aleg_force_outbound_proxy = DbAmArg_hash_get_bool(t, "aleg_force_outbound_proxy", false);
+	aleg_outbound_proxy = DbAmArg_hash_get_str(t, "aleg_outbound_proxy");
 
-	assign_bool(aleg_force_outbound_proxy,"aleg_force_outbound_proxy",false);
-	assign_str(aleg_outbound_proxy,"aleg_outbound_proxy");
+	next_hop = DbAmArg_hash_get_str(t, "next_hop");
+	next_hop_1st_req = DbAmArg_hash_get_bool(t, "next_hop_1st_req", false);
+	patch_ruri_next_hop = DbAmArg_hash_get_bool(t, "patch_ruri_next_hop", false);
+	aleg_next_hop = DbAmArg_hash_get_str(t, "aleg_next_hop");
 
-	assign_str(next_hop,"next_hop");
-	assign_bool(next_hop_1st_req,"next_hop_1st_req",false);
-	assign_bool_safe(patch_ruri_next_hop,"patch_ruri_next_hop",false,false);
-
-	assign_str(aleg_next_hop,"aleg_next_hop");
-
-	if(!readFilterSet(t,"transit_headers_a2b",headerfilter_a2b))
+	if(!readFilterSet(t,"transit_headers_a2b",headerfilter_a2b)) {
+		ERROR("failed to read transit_headers_a2b");
 		return false;
+	}
 
-	if(!readFilterSet(t,"transit_headers_b2a",headerfilter_b2a))
+	if(!readFilterSet(t,"transit_headers_b2a",headerfilter_b2a)) {
+		ERROR("failed to read transit_headers_b2a");
 		return false;
+	}
 
-	if (!readFilter(t, "sdp_filter", sdpfilter, true))
+	if (!readFilter(t, "sdp_filter", sdpfilter, true)) {
+		ERROR("failed to read sdp_filter");
 		return false;
+	}
 
 	// SDP alines filter
-	if (!readFilter(t, "sdp_alines_filter", sdpalinesfilter, false))
+	if (!readFilter(t, "sdp_alines_filter", sdpalinesfilter, false)) {
+		ERROR("failed to read sdp_alines_filter");
 		return false;
+	}
 
-	if (!readFilter(t, "bleg_sdp_alines_filter", bleg_sdpalinesfilter, false, FILTER_TYPE_WHITELIST))
+	if (!readFilter(t, "bleg_sdp_alines_filter", bleg_sdpalinesfilter, false, FILTER_TYPE_WHITELIST)) {
+		ERROR("failed to read bleg_sdp_alines_filter");
 		return false;
+	}
 
-	assign_bool_str(sst_enabled,"enable_session_timer",false);
-	if(column_exist(t,"enable_aleg_session_timer")) {
-		assign_bool_str(sst_aleg_enabled,"enable_aleg_session_timer",false);
+	sst_enabled = DbAmArg_hash_get_bool_any(t, "enable_session_timer", false);
+	if(t.hasMember("enable_aleg_session_timer")) {
+		sst_aleg_enabled = DbAmArg_hash_get_bool_any(t, "enable_aleg_session_timer", false);
 	} else {
 		sst_aleg_enabled = sst_enabled;
 	}
 
 #define CP_SST_CFGVAR(cfgprefix, cfgkey, dstcfg)			\
-	if (column_exist(t,cfgprefix cfgkey)) {				\
-	dstcfg.setParameter(cfgkey, t[cfgprefix cfgkey].c_str());	\
-	} else if (column_exist(t,cfgkey)) {				\
-		dstcfg.setParameter(cfgkey, t[cfgkey].c_str());		\
+	if(t.hasMember(cfgprefix cfgkey)) { \
+		dstcfg.setParameter(cfgkey, DbAmArg_hash_get_str_any(t,cfgprefix cfgkey));	\
+	} else { \
+		dstcfg.setParameter(cfgkey, DbAmArg_hash_get_str_any(t,cfgkey));		\
 	}
+
 #define	CP_SESSION_REFRESH_METHOD(method_id,dstcfg)\
 	switch(method_id){\
 		case REFRESH_METHOD_INVITE:\
@@ -153,7 +155,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 			return false;\
 	}
 
-	if (sst_enabled.size() && sst_enabled != "no") {
+	if (sst_enabled) {
 		if (nullptr == SBCFactory::instance()->session_timer_fact) {
 			ERROR("session_timer module not loaded thus SST not supported, but required");
 			return false;
@@ -165,11 +167,11 @@ bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 		CP_SST_CFGVAR("", "maximum_timer", sst_b_cfg);
 		//CP_SST_CFGVAR("", "session_refresh_method", sst_b_cfg);
 		CP_SST_CFGVAR("", "accept_501_reply", sst_b_cfg);
-		assign_int(session_refresh_method_id,"session_refresh_method_id",1);
+		session_refresh_method_id = DbAmArg_hash_get_int(t,"session_refresh_method_id",1);
 		CP_SESSION_REFRESH_METHOD(session_refresh_method_id,sst_b_cfg);
 	}
 
-	if (sst_aleg_enabled.size() && sst_aleg_enabled != "no") {
+	if (sst_aleg_enabled) {
 		sst_a_cfg.setParameter("enable_session_timer", "yes");
 		// create sst_a_cfg superimposing values from aleg_*
 		CP_SST_CFGVAR("aleg_", "session_expires", sst_a_cfg);
@@ -177,23 +179,23 @@ bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 		CP_SST_CFGVAR("aleg_", "maximum_timer", sst_a_cfg);
 		//CP_SST_CFGVAR("aleg_", "session_refresh_method", sst_a_cfg);
 		CP_SST_CFGVAR("aleg_", "accept_501_reply", sst_a_cfg);
-		assign_int(aleg_session_refresh_method_id,"aleg_session_refresh_method_id",1);
+		aleg_session_refresh_method_id = DbAmArg_hash_get_int(t,"aleg_session_refresh_method_id",1);
 		CP_SESSION_REFRESH_METHOD(aleg_session_refresh_method_id,sst_a_cfg);
 	}
 #undef CP_SST_CFGVAR
 #undef CP_SESSION_REFRESH_METHOD
 
-	assign_bool(auth_enabled,"enable_auth",false);
-	assign_str(auth_credentials.user,"auth_user");
-	assign_str(auth_credentials.pwd,"auth_pwd");
-
-	assign_bool(auth_aleg_enabled,"enable_aleg_auth",false);
-	assign_str(auth_aleg_credentials.user,"auth_aleg_user");
-	assign_str(auth_aleg_credentials.pwd,"auth_aleg_pwd");
-
-
+	auth_enabled = DbAmArg_hash_get_bool(t, "enable_auth", false);
+	auth_credentials.user = DbAmArg_hash_get_str(t, "auth_user");
+	auth_credentials.pwd = DbAmArg_hash_get_str(t, "auth_pwd");
+	
+	auth_aleg_enabled = DbAmArg_hash_get_bool(t, "enable_aleg_auth", false);
+	auth_aleg_credentials.user = DbAmArg_hash_get_str(t, "auth_aleg_user");
+	auth_aleg_credentials.pwd = DbAmArg_hash_get_str(t, "auth_aleg_pwd");
+	
 	vector<string> reply_translations_v =
-			explode(t["reply_translations"].c_str(), "|");
+		explode(DbAmArg_hash_get_str_any(t,"reply_translations"), "|");
+	
 	for (vector<string>::iterator it =
 			reply_translations_v.begin(); it != reply_translations_v.end(); it++) {
 		// expected: "603=>488 Not acceptable here"
@@ -203,7 +205,7 @@ bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 			ERROR("expected 'from_code=>to_code reason'");
 			return false;
 		}
-
+	
 		unsigned int from_code, to_code;
 		if (str2i(trans_components[0], from_code)) {
 			ERROR("code '%s' in reply_translations not understood.", trans_components[0].c_str());
@@ -223,82 +225,89 @@ bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 		// 	from_code, to_code, to_reply.substr(s_pos).c_str());
 		reply_translations[from_code] = make_pair(to_code, to_reply.substr(s_pos));
 	}
+	
+	append_headers_req = DbAmArg_hash_get_str(t, "append_headers_req");
+	aleg_append_headers_req = DbAmArg_hash_get_str(t, "aleg_append_headers_req");
+	aleg_append_headers_reply = DbAmArg_hash_get_str(t, "aleg_append_headers_reply");
+	
+	rtprelay_enabled = DbAmArg_hash_get_bool(t, "trusted_hdrs_gw", false);
+	force_symmetric_rtp = DbAmArg_hash_get_bool(t, "bleg_force_symmetric_rtp", false);
+	aleg_force_symmetric_rtp = DbAmArg_hash_get_bool(t, "aleg_force_symmetric_rtp", false);
+	
+	rtprelay_interface = DbAmArg_hash_get_str(t, "rtprelay_interface");
+	aleg_rtprelay_interface = DbAmArg_hash_get_str(t, "aleg_rtprelay_interface");
+	
+	outbound_interface = DbAmArg_hash_get_str(t, "outbound_interface");
+	aleg_outbound_interface = DbAmArg_hash_get_str(t, "aleg_outbound_interface");
+	
+	if (!readCodecPrefs(t)) {
+		ERROR("failed to read codec prefs");
+		return false;
+	}
+	
+	disconnect_code_id = DbAmArg_hash_get_int(t,"disconnect_code_id",0);
+	
+	bleg_override_id = DbAmArg_hash_get_int(t,"bleg_policy_id",0);
+	
+	ringing_timeout = DbAmArg_hash_get_int(t,"ringing_timeout",0);
+	
+	global_tag = DbAmArg_hash_get_str(t, "global_tag");
+	
+	rtprelay_dtmf_filtering = DbAmArg_hash_get_bool(t, "rtprelay_dtmf_filtering", false);
+	rtprelay_dtmf_detection = DbAmArg_hash_get_bool(t, "rtprelay_dtmf_detection", false);
+	rtprelay_force_dtmf_relay = DbAmArg_hash_get_bool(t, "rtprelay_force_dtmf_relay", true);
+	
+	aleg_symmetric_rtp_nonstop = DbAmArg_hash_get_bool(t, "aleg_symmetric_rtp_nonstop", false);
+	bleg_symmetric_rtp_nonstop = DbAmArg_hash_get_bool(t, "bleg_symmetric_rtp_nonstop", false);
+	
+	aleg_relay_options = DbAmArg_hash_get_bool(t, "aleg_relay_options", false);
+	bleg_relay_options = DbAmArg_hash_get_bool(t, "bleg_relay_options", false);
+	
+	aleg_relay_update = DbAmArg_hash_get_bool(t, "aleg_relay_update", true);
+	bleg_relay_update = DbAmArg_hash_get_bool(t, "bleg_relay_update", true);
+	
+	filter_noaudio_streams = DbAmArg_hash_get_bool(t, "filter_noaudio_streams", true);
+	
+	aleg_rtp_ping = DbAmArg_hash_get_bool(t, "aleg_rtp_ping", false);
+	bleg_rtp_ping = DbAmArg_hash_get_bool(t, "bleg_rtp_ping", false);
+	
+	aleg_conn_location_id = DbAmArg_hash_get_int(t,"aleg_sdp_c_location_id",0);
+	bleg_conn_location_id = DbAmArg_hash_get_int(t,"bleg_sdp_c_location_id",0);
 
-	assign_str(append_headers_req,"append_headers_req");
-	assign_str(aleg_append_headers_req,"aleg_append_headers_req");
-	assign_str_safe(aleg_append_headers_reply,"aleg_append_headers_reply","");
+	dead_rtp_time = DbAmArg_hash_get_int(
+		t,"dead_rtp_time",
+		AmConfig.dead_rtp_time);
 
-	assign_bool(rtprelay_enabled,"enable_rtprelay",false);
-	assign_bool_str_safe(force_symmetric_rtp,"bleg_force_symmetric_rtp",false,false);
-	assign_bool_str_safe(aleg_force_symmetric_rtp,"aleg_force_symmetric_rtp",false,false);
-
-	assign_str(rtprelay_interface,"rtprelay_interface");
-	assign_str(aleg_rtprelay_interface,"aleg_rtprelay_interface");
-
-	assign_str(outbound_interface,"outbound_interface");
-	assign_str(aleg_outbound_interface,"aleg_outbound_interface");
-
-	if (!readCodecPrefs(t)) return false;
-
-	assign_int(disconnect_code_id,"disconnect_code_id",0);
-
-	assign_int(bleg_override_id,"bleg_policy_id",0);
-
-	assign_int_safe(ringing_timeout,"ringing_timeout",0,0);
-
-	assign_str_safe(global_tag,"global_tag","");
-
-	assign_bool_safe(rtprelay_dtmf_filtering,"rtprelay_dtmf_filtering",false,false);
-	assign_bool_safe(rtprelay_dtmf_detection,"rtprelay_dtmf_detection",false,false);
-	assign_bool_safe(rtprelay_force_dtmf_relay,"rtprelay_force_dtmf_relay",true,true);
-
-	assign_bool_safe(aleg_symmetric_rtp_nonstop,"aleg_symmetric_rtp_nonstop",false,false);
-	assign_bool_safe(bleg_symmetric_rtp_nonstop,"bleg_symmetric_rtp_nonstop",false,false);
-
-	assign_bool_safe(aleg_relay_options,"aleg_relay_options",false,false);
-	assign_bool_safe(bleg_relay_options,"bleg_relay_options",false,false);
-
-	assign_bool_safe(aleg_relay_update,"aleg_relay_update",true,true);
-	assign_bool_safe(bleg_relay_update,"bleg_relay_update",true,true);
-
-	assign_bool_safe(filter_noaudio_streams,"filter_noaudio_streams",true,true);
-
-	assign_bool_safe(aleg_rtp_ping,"aleg_rtp_ping",false,false);
-	assign_bool_safe(bleg_rtp_ping,"bleg_rtp_ping",false,false);
-
-	assign_int_safe(aleg_conn_location_id,"aleg_sdp_c_location_id",0,0);
-	assign_int_safe(bleg_conn_location_id,"bleg_sdp_c_location_id",0,0);
-
-    assign_int_safe(dead_rtp_time,"dead_rtp_time",AmConfig.dead_rtp_time,AmConfig.dead_rtp_time);
-
-	assign_bool_safe(aleg_relay_reinvite,"aleg_relay_reinvite",true,true);
-	assign_bool_safe(bleg_relay_reinvite,"bleg_relay_reinvite",true,true);
+	aleg_relay_reinvite = DbAmArg_hash_get_bool(t, "aleg_relay_reinvite", true);
+	bleg_relay_reinvite = DbAmArg_hash_get_bool(t, "bleg_relay_reinvite", true);
 	/*assign_bool_safe(aleg_relay_prack,"aleg_relay_prack",true,true);
 	assign_bool_safe(bleg_relay_prack,"bleg_relay_prack",true,true);*/
-	assign_bool_safe(aleg_relay_hold,"aleg_relay_hold",true,true);
-	assign_bool_safe(bleg_relay_hold,"bleg_relay_hold",true,true);
+	aleg_relay_hold = DbAmArg_hash_get_bool(t, "aleg_relay_hold", true);
+	bleg_relay_hold = DbAmArg_hash_get_bool(t, "bleg_relay_hold", true);
 
-	assign_bool_safe(relay_timestamp_aligning,"rtp_relay_timestamp_aligning",false,false);
+	relay_timestamp_aligning = DbAmArg_hash_get_bool(t, "rtp_relay_timestamp_aligning", false);
 
-	assign_bool_safe(allow_1xx_without_to_tag,"allow_1xx_wo2tag",false,false);
+	allow_1xx_without_to_tag = DbAmArg_hash_get_bool(t, "allow_1xx_wo2tag", false);
 
-	assign_type_safe(inv_transaction_timeout,"invite_timeout",0,unsigned int,0);
-	assign_type_safe(inv_srv_failover_timeout,"srv_failover_timeout",0,unsigned int,0);
+	inv_transaction_timeout = DbAmArg_hash_get_int(t,"invite_timeout",0);
+	inv_srv_failover_timeout = DbAmArg_hash_get_int(t,"srv_failover_timeout",0);
+	/*assign_type_safe(inv_transaction_timeout,"invite_timeout",0,unsigned int,0);
+	assign_type_safe(inv_srv_failover_timeout,"srv_failover_timeout",0,unsigned int,0);*/
 
-	assign_bool_safe(force_relay_CN,"rtp_force_relay_cn",false,false);
+	force_relay_CN = DbAmArg_hash_get_bool(t, "rtp_force_relay_cn", false);
 
-	assign_int_safe(aleg_sensor_id,"aleg_sensor_id",-1,-1);
-	assign_int_safe(bleg_sensor_id,"bleg_sensor_id",-1,-1);
-	assign_int_safe(aleg_sensor_level_id,"aleg_sensor_level_id",0,0);
-	assign_int_safe(bleg_sensor_level_id,"bleg_sensor_level_id",0,0);
+	aleg_sensor_id = DbAmArg_hash_get_int(t,"aleg_sensor_id",-1);
+	bleg_sensor_id = DbAmArg_hash_get_int(t,"bleg_sensor_id",-1);
+	aleg_sensor_level_id = DbAmArg_hash_get_int(t,"aleg_sensor_level_id", 0);
+	bleg_sensor_level_id = DbAmArg_hash_get_int(t,"bleg_sensor_level_id", 0);
 
-	assign_int_safe(aleg_dtmf_send_mode_id,"aleg_dtmf_send_mode_id",DTMF_TX_MODE_RFC2833,DTMF_TX_MODE_RFC2833);
-	assign_int_safe(bleg_dtmf_send_mode_id,"bleg_dtmf_send_mode_id",DTMF_TX_MODE_RFC2833,DTMF_TX_MODE_RFC2833);
-	assign_int_safe(aleg_dtmf_recv_modes,"aleg_dtmf_recv_modes",DTMF_RX_MODE_ALL,DTMF_RX_MODE_ALL);
-	assign_int_safe(bleg_dtmf_recv_modes,"bleg_dtmf_recv_modes",DTMF_RX_MODE_ALL,DTMF_RX_MODE_ALL);
+	aleg_dtmf_send_mode_id = DbAmArg_hash_get_int(t,"aleg_dtmf_send_mode_id",DTMF_TX_MODE_RFC2833);
+	bleg_dtmf_send_mode_id = DbAmArg_hash_get_int(t,"bleg_dtmf_send_mode_id",DTMF_TX_MODE_RFC2833);
+	aleg_dtmf_recv_modes = DbAmArg_hash_get_int(t,"aleg_dtmf_recv_modes",DTMF_RX_MODE_ALL);
+	bleg_dtmf_recv_modes = DbAmArg_hash_get_int(t,"bleg_dtmf_recv_modes",DTMF_RX_MODE_ALL);
 
-	assign_bool_safe(aleg_rtp_filter_inband_dtmf,"aleg_rtp_filter_inband_dtmf",false,false);
-	assign_bool_safe(bleg_rtp_filter_inband_dtmf,"bleg_rtp_filter_inband_dtmf",false,false);
+	aleg_rtp_filter_inband_dtmf = DbAmArg_hash_get_bool(t, "aleg_rtp_filter_inband_dtmf", false);
+	bleg_rtp_filter_inband_dtmf = DbAmArg_hash_get_bool(t, "bleg_rtp_filter_inband_dtmf", false);
 
 	if(aleg_rtp_filter_inband_dtmf ||
 	   bleg_rtp_filter_inband_dtmf ||
@@ -311,34 +320,34 @@ bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 		transcoder.dtmf_mode = TranscoderSettings::DTMFNever;
 	}
 
-	assign_bool_safe(suppress_early_media,"suppress_early_media",false,false);
-	assign_bool_safe(force_one_way_early_media,"force_one_way_early_media",false,false);
-	assign_int_safe_silent(fake_ringing_timeout,"fake_180_timer",0,0);
+	suppress_early_media = DbAmArg_hash_get_bool(t, "suppress_early_media", false);
+	force_one_way_early_media = DbAmArg_hash_get_bool(t, "force_one_way_early_media", false);
+	fake_ringing_timeout = DbAmArg_hash_get_int(t,"fake_180_timer",0);
 
-	assign_int_safe_silent(aleg_rel100_mode_id,"aleg_rel100_mode_id",-1,-1);
-	assign_int_safe_silent(bleg_rel100_mode_id,"bleg_rel100_mode_id",-1,-1);
+	aleg_rel100_mode_id = DbAmArg_hash_get_int(t,"aleg_rel100_mode_id",-1);
+	bleg_rel100_mode_id = DbAmArg_hash_get_int(t,"bleg_rel100_mode_id",-1);
 
-	assign_int_safe_silent(radius_profile_id,"radius_auth_profile_id",0,0);
-	assign_int_safe_silent(aleg_radius_acc_profile_id,"aleg_radius_acc_profile_id",0,0);
-	assign_int_safe_silent(bleg_radius_acc_profile_id,"bleg_radius_acc_profile_id",0,0);
+	radius_profile_id = DbAmArg_hash_get_int(t,"radius_auth_profile_id",0);
+	aleg_radius_acc_profile_id = DbAmArg_hash_get_int(t,"aleg_radius_acc_profile_id",0);
+	bleg_radius_acc_profile_id = DbAmArg_hash_get_int(t,"bleg_radius_acc_profile_id",0);
 
-	assign_int_safe_silent(bleg_transport_id,"bleg_transport_protocol_id",0,0);
-	assign_int_safe_silent(outbound_proxy_transport_id,"bleg_outbound_proxy_transport_protocol_id",0,0);
-	assign_int_safe_silent(aleg_outbound_proxy_transport_id,"aleg_outbound_proxy_transport_protocol_id",0,0);
+	bleg_transport_id = DbAmArg_hash_get_int(t,"bleg_transport_protocol_id",0);
+	outbound_proxy_transport_id = DbAmArg_hash_get_int(t,"bleg_outbound_proxy_transport_protocol_id",0);
+	aleg_outbound_proxy_transport_id = DbAmArg_hash_get_int(t,"aleg_outbound_proxy_transport_protocol_id",0);
 
-	assign_int_safe_silent(bleg_protocol_priority_id,"bleg_protocol_priority_id",
-						   dns_priority::IPv4_only,dns_priority::IPv4_only);
+	bleg_protocol_priority_id = DbAmArg_hash_get_int(t,"bleg_protocol_priority_id",dns_priority::IPv4_only);
 
-	assign_int_safe_silent(bleg_max_30x_redirects,"bleg_max_30x_redirects",0,0);
-	assign_int_safe_silent(bleg_max_transfers, "bleg_max_transfers",0,0);
+	bleg_protocol_priority_id = DbAmArg_hash_get_int(t,"bleg_max_30x_redirects",0);
+	bleg_max_transfers = DbAmArg_hash_get_int(t,"bleg_max_transfers",0);
 
-	assign_bool_safe_silent(auth_required, "aleg_auth_required",false,false);
+	auth_required = DbAmArg_hash_get_bool(t, "aleg_auth_required", false);
 
-	assign_int_safe_silent(registered_aor_id, "registered_aor_id",0,0);
+	registered_aor_id = DbAmArg_hash_get_int(t,"registered_aor_id",0);
 
-	assign_int_safe_silent(aleg_media_encryption_mode_id, "aleg_media_encryption_mode_id",0,0);
-	assign_int_safe_silent(bleg_media_encryption_mode_id, "bleg_media_encryption_mode_id",0,0);
+	aleg_media_encryption_mode_id = DbAmArg_hash_get_int(t,"aleg_media_encryption_mode_id",0);
+	bleg_media_encryption_mode_id = DbAmArg_hash_get_int(t,"bleg_media_encryption_mode_id",0);
 
+	//TODO!!! parse arrays
 	readMediaAcl(t, "aleg_rtp_acl", aleg_rtp_acl);
 	readMediaAcl(t, "bleg_rtp_acl", bleg_rtp_acl);
 
@@ -423,10 +432,7 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 
 		DBG("RTP relay %sabled", rtprelay_enabled?"en":"dis");
 		if (rtprelay_enabled) {
-			if (!force_symmetric_rtp.empty()) {
-				DBG("RTP force symmetric RTP: %s",
-				force_symmetric_rtp.c_str());
-			}
+			DBG("RTP force symmetric RTP: %d", force_symmetric_rtp);
 			if (!aleg_rtprelay_interface.empty()) {
 				DBG("RTP Relay interface A leg '%s'", aleg_rtprelay_interface.c_str());
 			}
@@ -451,8 +457,8 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 		DBG("RTP Ping Aleg %sabled", aleg_rtp_ping?"en":"dis");
 		DBG("RTP Ping Bleg %sabled", bleg_rtp_ping?"en":"dis");
 
-		DBG("SST on A leg enabled: '%s'", sst_aleg_enabled.empty() ? "no" : sst_aleg_enabled.c_str());
-		if (sst_aleg_enabled.size() && sst_aleg_enabled != "no") {
+		DBG("SST on A leg enabled: %d", sst_aleg_enabled);
+		if (sst_aleg_enabled) {
 			DBG("session_expires=%s",
 			sst_a_cfg.getParameter("session_expires").c_str());
 			DBG("minimum_timer=%s",
@@ -464,8 +470,8 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 			DBG("accept_501_reply=%s",
 			sst_a_cfg.getParameter("accept_501_reply").c_str());
 		}
-		DBG("SST on B leg enabled: '%s'", sst_enabled.empty() ? "no" : sst_enabled.c_str());
-		if (sst_enabled.size() && sst_enabled != "no") {
+		DBG("SST on B leg enabled: %d'", sst_enabled);
+		if (sst_enabled) {
 			DBG("session_expires=%s",
 			sst_b_cfg.getParameter("session_expires").c_str());
 			DBG("minimum_timer=%s",
@@ -605,16 +611,20 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 	}
 }
 
-bool SqlCallProfile::readFilter(const pqxx::row &t, const char* cfg_key_filter,
-		vector<FilterEntry>& filter_list, bool keep_transparent_entry,
-		int failover_type_id){
+bool SqlCallProfile::readFilter(
+	const AmArg &t, const char* cfg_key_filter,
+	vector<FilterEntry>& filter_list, bool keep_transparent_entry,
+	int failover_type_id)
+{
 	FilterEntry hf;
 
 	string filter_key_type_field = string(cfg_key_filter)+"_type_id";
 	string filter_list_field = string(cfg_key_filter)+"_list";
 
 	int filter_type_id;
-	assign_int_safe(filter_type_id,filter_key_type_field.c_str(),FILTER_TYPE_TRANSPARENT,failover_type_id);
+	filter_type_id = DbAmArg_hash_get_int(
+		t,filter_key_type_field,
+		FILTER_TYPE_TRANSPARENT, failover_type_id);
 
 	switch(filter_type_id){
 		case FILTER_TYPE_TRANSPARENT:
@@ -636,10 +646,7 @@ bool SqlCallProfile::readFilter(const pqxx::row &t, const char* cfg_key_filter,
 	if (!keep_transparent_entry && hf.filter_type==Transparent)
 	return true;
 
-	string elems_str;
-	assign_str_safe(elems_str,filter_list_field.c_str(),"");
-
-	vector<string> elems = explode(elems_str,",");
+	vector<string> elems = explode(DbAmArg_hash_get_str(t,filter_list_field),",");
 	for (vector<string>::iterator it=elems.begin(); it != elems.end(); it++) {
 		string c = *it;
 		std::transform(c.begin(), c.end(), c.begin(), ::tolower);
@@ -650,11 +657,12 @@ bool SqlCallProfile::readFilter(const pqxx::row &t, const char* cfg_key_filter,
 	return true;
 }
 
-bool SqlCallProfile::readFilterSet(const pqxx::row &t, const char* cfg_key_filter,
-		vector<FilterEntry>& filter_list)
+bool SqlCallProfile::readFilterSet(
+	const AmArg &t, const char* cfg_key_filter,
+	vector<FilterEntry>& filter_list)
 {
 	string s;
-	assign_str_safe(s,cfg_key_filter,"");
+	s = DbAmArg_hash_get_str(t, cfg_key_filter);
 
 	if(s.empty()){
 		FilterEntry f;
@@ -688,38 +696,31 @@ bool SqlCallProfile::readFilterSet(const pqxx::row &t, const char* cfg_key_filte
 	return true;
 }
 
-bool SqlCallProfile::readCodecPrefs(const pqxx::row &t){
+bool SqlCallProfile::readCodecPrefs(const AmArg &t)
+{
 	/*assign_str(codec_prefs.bleg_payload_order_str,"codec_preference");
 	assign_bool_str(codec_prefs.bleg_prefer_existing_payloads_str,"prefer_existing_codecs",false);
 
 	assign_str(codec_prefs.aleg_payload_order_str,"codec_preference_aleg");
 	assign_bool_str(codec_prefs.aleg_prefer_existing_payloads_str,"prefer_existing_codecs_aleg",false);*/
 
-	assign_int(static_codecs_aleg_id,"aleg_codecs_group_id",0);
-	assign_int(static_codecs_bleg_id,"bleg_codecs_group_id",0);
-	assign_bool_safe(aleg_single_codec,"aleg_single_codec_in_200ok",false,false);
-	assign_bool_safe(bleg_single_codec,"bleg_single_codec_in_200ok",false,false);
-	assign_bool_safe(avoid_transcoding,"try_avoid_transcoding",false,false);
+	static_codecs_aleg_id = DbAmArg_hash_get_int(t,"aleg_codecs_group_id",0);
+	static_codecs_bleg_id = DbAmArg_hash_get_int(t,"bleg_codecs_group_id",0);
+
+	aleg_single_codec = DbAmArg_hash_get_bool(t, "aleg_single_codec_in_200ok", false);
+	bleg_single_codec = DbAmArg_hash_get_bool(t, "bleg_single_codec_in_200ok", false);
+	avoid_transcoding = DbAmArg_hash_get_bool(t, "try_avoid_transcoding", false);
 
 	return true;
 }
 
-bool SqlCallProfile::readDynFields(const pqxx::row &t,const DynFieldsT &df){
+bool SqlCallProfile::readDynFields(const AmArg &t,const DynFieldsT &df)
+{
 	dyn_fields.assertStruct();
-	for(DynFieldsT::const_iterator it = df.begin();it!=df.end();++it){
-		it->tuple2AmArg(t,dyn_fields[it->name]);
+	for(DynFieldsT::const_iterator it = df.begin();it!=df.end();++it) {
+		dyn_fields[it->name] = t.hasMember(it->name) ? t[it->name] : AmArg();
 	}
 	return true;
-}
-
-bool SqlCallProfile::column_exist(const pqxx::row &t,string column_name){
-	try {
-		t.column_number(column_name);
-		return true;
-	} catch(...){
-		DBG("%s column: %s",FUNC_NAME,column_name.c_str());
-	}
-	return false;
 }
 
 bool SqlCallProfile::eval_resources(){

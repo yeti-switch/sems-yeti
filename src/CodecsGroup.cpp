@@ -6,9 +6,9 @@
 #include "amci/amci.h"
 #include "RTPParameters.h"
 #include "yeti.h"
+#include "db/DbHelpers.h"
 
 #include <algorithm>
-#include <pqxx/pqxx>
 
 //#define ERROR_ON_UNKNOWN_CODECS
 
@@ -124,79 +124,42 @@ void CodecsGroupEntry::getConfig(AmArg &ret) const {
 	}
 }
 
-int CodecsGroups::configure(AmConfigReader &cfg){
-	db_schema = Yeti::instance().config.routing_schema;
-	configure_db(cfg);
-	if(load_codecs_groups()){
-		ERROR("can't load codecs groups");
-		return -1;
-	}
-
+int CodecsGroups::configure(AmConfigReader & )
+{
 	return 0;
 }
 
-void CodecsGroups::configure_db(AmConfigReader &cfg){
-	string prefix("master");
-	dbc.cfg2dbcfg(cfg,prefix);
-}
-
-bool CodecsGroups::reload(){
-	if(load_codecs_groups()){
-		return false;
-	}
-	return true;
-}
-
-int CodecsGroups::load_codecs_groups(){
+void CodecsGroups::load_codecs(const AmArg &data)
+{
 	map<unsigned int,CodecsGroupEntry> _m;
-	int ret = 1;
-	try {
-		pqxx::result r;
-		pqxx::connection c(dbc.conn_str());
-		c.set_variable("search_path",db_schema+", public");
 
-		pqxx::work t(c);
-		r = t.exec("SELECT * from load_codecs()");
-		t.commit();
-		c.disconnect();
-
-		for(pqxx::row_size_type i = 0; i < r.size();++i){
-			const pqxx::row &row = r[i];
-			unsigned int group_id = row["o_codec_group_id"].as<unsigned int>();
-			int dyn_payload_id = row["o_dynamic_payload_id"].as<int>(-1);
-			string sdp_format_params = row["o_format_params"].c_str();
-			string codec = row["o_codec_name"].c_str();
+	if(isArgArray(data)) {
+		for(size_t i = 0; i < data.size(); i++) {
+			auto &row = data[i];
+			//DbAmArg_hash_get_str
+			unsigned int group_id = DbAmArg_hash_get_int(row, "o_codec_group_id", 0);
+			int dyn_payload_id = DbAmArg_hash_get_int(row, "o_dynamic_payload_id", -1);
+			string sdp_format_params = DbAmArg_hash_get_str(row, "o_format_params");
+			string codec = DbAmArg_hash_get_str(row, "o_codec_name");
 			if(!insert(_m,group_id,codec,sdp_format_params, dyn_payload_id)){
-				ERROR("can't insert codec '%s'",row["o_codec_name"].c_str());
-				return 1;
+				ERROR("can't insert codec '%s'",codec.data());
+				return;
 			} else {
 				DBG("codec '%s' added to group %d",codec.c_str(),group_id);
 			}
 		}
-
-		INFO("codecs groups are loaded successfully. apply changes");
-		_lock.lock();
-		m.swap(_m);
-		_lock.unlock();
-
-		ret = 0;
-	} catch(const pqxx::pqxx_exception &e){
-		ERROR("pqxx_exception: %s ",e.base().what());
 	}
 
-	return ret;
+	INFO("codecs groups are loaded successfully. apply changes");
+
+	AmLock l(codec_groups_mutex);
+	codec_groups.swap(_m);
 }
 
-void CodecsGroups::GetConfig(AmArg& ret){
-	AmArg u;
-	ret["config_db"] = dbc.conn_str();
-	ret["db_schema"] = db_schema;
-
-	map<unsigned int,CodecsGroupEntry>::const_iterator it = m.begin();
-	for(;it!=m.end();++it){
-		AmArg p;
-		it->second.getConfig(p);
-		u.push(int2str(it->first),p);
+void CodecsGroups::GetConfig(AmArg& ret) {
+	AmArg &groups = ret["groups"];
+	AmLock l(codec_groups_mutex);
+	for(const auto &g : codec_groups) {
+		g.second.getConfig(groups[int2str(g.first)]);
 	}
-	ret.push("groups",u);
 }

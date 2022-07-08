@@ -51,9 +51,6 @@ class ResourceControl
 {
 	ResourceCache cache;
 	map<int,ResourceConfig> type2cfg;
-	AmMutex cfg_lock;
-	DbConfig dbc;
-	string db_schema;
 
 	struct handlers_entry {
 		ResourceList resources;
@@ -110,10 +107,8 @@ public:
 	ResourceControl();
 
 	int configure(AmConfigReader &cfg);
-	void configure_db(AmConfigReader &cfg);
 	void start();
 	void stop();
-	bool reload();
 	bool invalidate_resources();
 	void on_reconnect();
 	void on_resources_initialized();

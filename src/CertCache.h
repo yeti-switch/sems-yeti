@@ -12,7 +12,6 @@
 
 #include <botan/x509_ca.h>
 #include <botan/certstor.h>
-#include <pqxx/pqxx>
 
 #include <unordered_map>
 #include <regex>
@@ -135,9 +134,8 @@ class CertCache
 
     void processHttpReply(const HttpGetResponseEvent& resp);
     void onTimer(const std::chrono::system_clock::time_point &now);
-    void reloadDatabaseSettings(pqxx::connection &c,
-                                bool reload_trusted_cetificates,
-                                bool reload_trusted_repositories) noexcept;
+    void reloadTrustedCertificates(const AmArg &data);
+    void reloadTrustedRepositories(const AmArg &data);
 
     //rpc methods
     void ShowCerts(AmArg& ret, const std::chrono::system_clock::time_point &now);

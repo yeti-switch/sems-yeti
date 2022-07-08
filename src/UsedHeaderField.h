@@ -3,7 +3,6 @@
 
 #include "AmSipMsg.h"
 
-#include <pqxx/result>
 #include <string>
 
 using std::string;
@@ -28,11 +27,11 @@ class UsedHeaderField {
     NeededPart part;    //needed part of parsed value
     bool hashkey;       //this header used in routing logic
 
+    void applyFormat(const string &format);
   public:
     UsedHeaderField(const string &hdr_name);
-    UsedHeaderField(const pqxx::row &t);
+    UsedHeaderField(const AmArg &a);
 
-    void readFromTuple(const pqxx::row &t);
     bool getValue(const AmSipRequest &req,string &val) const;
     void getInfo(AmArg &arg) const;
     const char*type2str() const;

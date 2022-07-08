@@ -204,9 +204,8 @@ struct SBCCallProfile
   bool filter_noaudio_streams;
   bool force_relay_CN;
 
-  string sst_enabled;
-  bool sst_enabled_value;
-  string sst_aleg_enabled;
+  bool sst_enabled;
+  bool sst_aleg_enabled;
   AmConfigReader sst_a_cfg;    // SST config (A leg)
   AmConfigReader sst_b_cfg;    // SST config (B leg)
 
@@ -226,8 +225,8 @@ struct SBCCallProfile
   string refuse_with;
 
   bool rtprelay_enabled;
-  string force_symmetric_rtp;
-  string aleg_force_symmetric_rtp;
+  bool force_symmetric_rtp;
+  bool aleg_force_symmetric_rtp;
   bool force_symmetric_rtp_value;
   bool aleg_force_symmetric_rtp_value;
 
@@ -359,7 +358,8 @@ struct SBCCallProfile
     aleg_outbound_proxy_transport_id(0),
     dlg_nat_handling(false),
     keep_vias(false),bleg_keep_vias(false),
-    sst_enabled_value(false),
+    sst_enabled(false),
+    sst_aleg_enabled(false),
     rtprelay_enabled(false),
     force_symmetric_rtp_value(false),
     aleg_force_symmetric_rtp_value(false),

@@ -1,14 +1,21 @@
 #include "DbConfigStates.h"
 
-void DbConfigStates::readFromDbReply(const pqxx::result &r)
+void DbConfigStates::readFromDbReply(const AmArg &r)
 {
-    if(r.empty()) return;
+#define assign_var(var) var = r[#var].asInt()
 
-    const auto &row = r.front();
-    ip_auth = row["ip_auth"].as<unsigned long>();
-    trusted_lb = row["trusted_lb"].as<unsigned long>();
-    stir_shaken_trusted_certificates =
-        row["stir_shaken_trusted_certificates"].as<unsigned long>();
-    stir_shaken_trusted_repositories =
-        row["stir_shaken_trusted_repositories"].as<unsigned long>();
+    assign_var(auth_credentials);
+    assign_var(codec_groups);
+    assign_var(ip_auth);
+    assign_var(options_probers);
+    assign_var(radius_accounting_profiles);
+    assign_var(radius_authorization_profiles);
+    assign_var(registrations);
+    assign_var(sensors);
+    assign_var(stir_shaken_trusted_certificates);
+    assign_var(stir_shaken_trusted_repositories);
+    assign_var(translations);
+    assign_var(trusted_lb);
+
+#undef assign_var
 }

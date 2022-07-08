@@ -1,11 +1,7 @@
 #pragma once
 
-#include <pqxx/pqxx>
-
 #include "../SqlCallProfile.h"
 #include "AmThread.h"
-
-using cdr_transaction = pqxx::work;
 
 class CdrBase
 {
@@ -27,12 +23,6 @@ class CdrBase
 
     cdr_type getType() { return type; }
 
-    virtual pqxx::prepare::invocation get_invocation(cdr_transaction &tnx) = 0;
-
-    virtual void invoc(
-        pqxx::prepare::invocation &invoc,
-        const DynFieldsT &dfs) = 0;
-    virtual void to_csv_stream(ofstream &s, const DynFieldsT &df) = 0;
     virtual void info(AmArg &s) = 0;
 
     virtual ~CdrBase() { }

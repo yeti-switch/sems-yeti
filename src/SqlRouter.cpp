@@ -17,8 +17,12 @@
 #include "yeti.h"
 #include "cdr/AuthCdr.h"
 #include "jsonArg.h"
+#include "cdr/CdrWriter.h"
 
 #include "AmSession.h"
+#include "AmEventDispatcher.h"
+
+#include "ampi/PostgreSqlAPI.h"
 
 #define GET_VARIABLE(var)\
     if(!cfg.hasParameter(#var)){\
@@ -51,6 +55,23 @@ const static_field profile_static_fields[] = {
     { "identity", "json" }
 };
 
+struct SqlPlaceHolderArgs
+{
+    size_t n;
+    SqlPlaceHolderArgs(size_t n)
+      : n(n)
+    {}
+};
+std::ostream& operator<<(std::ostream& out, const SqlPlaceHolderArgs& args)
+{
+    out << "($1";
+    for(size_t i = 2; i <= args.n; i++)
+        out << ",$" << i;
+    out << ");";
+    return out;
+}
+
+
 SqlRouter::SqlRouter()
   : Auth(),
     db_hits(stat_group(Counter, "yeti", "router_db_hits").addAtomicCounter()),
@@ -60,10 +81,7 @@ SqlRouter::SqlRouter()
     gt_min(0), gt_max(0),
     gps_max(0), gps_avg(0),
     mi(5),
-    gpi(0),
-    master_pool(nullptr),
-    slave_pool(nullptr),
-    cdr_writer(nullptr)
+    gpi(0)
 {
     time(&mi_start);
 
@@ -76,14 +94,14 @@ SqlRouter::SqlRouter()
 SqlRouter::~SqlRouter()
 {
   
-  if (master_pool)
+  /*if (master_pool)
     delete master_pool;
   
   if (slave_pool)
-    delete slave_pool;
+    delete slave_pool;*/
   
-  if (cdr_writer)
-    delete cdr_writer;
+  /*if (cdr_writer)
+    delete cdr_writer;*/
 
   INFO("SqlRouter instance[%p] destroyed",this);
 }
@@ -91,136 +109,89 @@ SqlRouter::~SqlRouter()
 void SqlRouter::stop()
 {
   DBG("SqlRouter::stop()");
-  if(master_pool)
+  /*if(master_pool)
     master_pool->stop();
   if(slave_pool)
     slave_pool->stop();
   if(cdr_writer)
-    cdr_writer->stop();
+    cdr_writer->stop();*/
 }
 
 int SqlRouter::start()
 {
-    master_pool->start();
+    /*master_pool->start();
     WARN("Master SQLThread started");
     if (1==failover_to_slave) {
         slave_pool->start();
         WARN("Slave SQLThread started");
     }
-    cdr_writer->start();
+    cdr_writer->start();*/
     return 0;
 };
 
-int SqlRouter::db_configure(AmConfigReader& cfg){
-	int ret = 1;
-try {
-	int n;
-	PreparedQueryArgs profile_types,cdr_types,auth_log_types;
-		//load config from db
-	string sql_query,prefix("master");
-	dbc.cfg2dbcfg(cfg,prefix);
-
+int SqlRouter::load_db_interface_in_out()
+{
 	//fill arg types for static fields
 	for(int k = 0;k<GETPROFILE_STATIC_FIELDS_COUNT;k++)
-		profile_types.push_back(profile_static_fields[k].type);
-
-	for(int k = 0;k<WRITECDR_STATIC_FIELDS_COUNT;k++)
-		cdr_types.push_back(cdr_static_fields[k].type);
-	/*if(Yeti::instance().config.aleg_cdr_headers.enabled()) {
-		//aleg_cdr_headers
-		cdr_types.push_back("json");
-	}*/
+		getprofile_types.push_back(profile_static_fields[k].type);
 
 	for(const auto &f : auth_log_static_fields)
 		auth_log_types.push_back(f.type);
 
-	/*for(int k = 0;k<TrustedHeaders::instance()->count();k++)
-		cdr_types.push_back("varchar");*/
+	auto &sync_db = Yeti::instance().sync_db;
 
-	pqxx::connection c(dbc.conn_str());
-	c.set_variable("search_path",routing_schema+", public");
-	{
-		pqxx::nontransaction t(c);
-		pqxx::result r = t.exec("SELECT * from load_interface_out()");
-		for(pqxx::row_size_type i = 0; i < r.size();++i){
-			const pqxx::row &t = r[i];
-			const char *vartype = t["vartype"].c_str();
-			const char *varname = t["varname"].c_str();
-			DBG("load_interface_out:     %u: %s : %s, %s",i,
-				varname,vartype,t["forcdr"].c_str());
-			if(true==t["forcdr"].as<bool>()) {
-				dyn_fields.push_back(DynField(varname,vartype));
-			}
+	if(sync_db.exec_query("SELECT * from load_interface_out()", "load_interface_out"))
+		return 1;
+	assertArgArray(sync_db.db_reply_result);
+	for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {
+		AmArg &a = sync_db.db_reply_result.get(i);
+		//DBG("%zd %s", i, AmArg::print(a).data());
+		const char *vartype = a["vartype"].asCStr();
+		const char *varname = a["varname"].asCStr();
+		bool forcdr= a["forcdr"].asBool();
+
+		DBG("load_interface_out:     %zd: %s : %s, %d",
+			i, varname, vartype, forcdr);
+		if(forcdr) {
+			dyn_fields.emplace_back(varname, vartype);
 		}
 	}
 
-	{
-		pqxx::nontransaction t(c);
-		pqxx::result r = t.exec("SELECT * from load_interface_in()");
-		for(pqxx::row_size_type i = 0; i < r.size();++i){
-			const pqxx::row &t = r[i];
-			const char *vartype = t["vartype"].c_str();
-			DBG("load_interface_in:     %u: %s : %s",i,
-				t["varname"].c_str(),vartype);
-			used_header_fields.push_back(UsedHeaderField(t));
-			profile_types.push_back(vartype);
+	if(sync_db.exec_query("SELECT * from load_interface_in()", "load_interface_in"))
+		return 1;
+	assertArgArray(sync_db.db_reply_result);
+	for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {
+		AmArg &a = sync_db.db_reply_result.get(i);
+		const char *vartype = a["vartype"].asCStr();
+		DBG("load_interface_in:     %u: %s : %s",i,
+			a["varname"].asCStr(),vartype);
+
+		used_header_fields.emplace_back(a);
+		
+		string varname = a["varname"].asCStr();
+		if(varname=="X-ORIG-PROTO") {
+			getprofile_types.push_back("smallint");
+			auth_log_types.push_back("smallint");
+		} else if(varname=="X-ORIG-IP") {
+			getprofile_types.push_back("inet");
+			auth_log_types.push_back("inet");
+		} else {
+			getprofile_types.push_back(vartype);
 			auth_log_types.push_back(vartype);
 		}
 	}
 
-	{
-		pqxx::nontransaction t(c);
-		if(0!=auth_init(cfg,t)) {
-			ERROR("failed to initialize uas auth");
-			return 1;
-		}
-	}
-
-	c.disconnect();
-
-	/*{PreparedQueryArgs_iterator i = profile_types.begin();
-	while(i!=profile_types.end()){
-		ERROR("profile_types: %s",i->c_str());
-		++i;
-	}}
-	{PreparedQueryArgs_iterator i = cdr_types.begin();
-	while(i!=cdr_types.end()){
-		ERROR("cdr_types: %s",i->c_str());
-		++i;
-	}}*/
-
-		//apply them
-	sql_query = "SELECT * FROM "+routing_function+"($1";
-		//n = GETPROFILE_STATIC_FIELDS_COUNT+used_header_fields.size();
-		n = profile_types.size();
-		for(int i = 2;i<=n;i++) sql_query.append(",$"+int2str(i));
-		sql_query.append(");");
-	prepared_queries["getprofile"] = pair<string,PreparedQueryArgs>(sql_query,profile_types);
-
-	sql_query = "SELECT "+writecdr_function+"($1";
-		//n = WRITECDR_STATIC_FIELDS_COUNT+dyn_fields.size();
-		n =  cdr_types.size();
-		for(int i = 2;i<=n;i++) sql_query.append(",$"+int2str(i));
-		sql_query.append(");");
-	cdr_prepared_queries["writecdr"] = pair<string,PreparedQueryArgs>(sql_query,cdr_types);
-
-
-	sql_query = "SELECT "+authlog_function+"($1";
-		n =  auth_log_types.size();
-		for(int i = 2;i<=n;i++) sql_query.append(",$"+int2str(i));
-		sql_query.append(");");
-	cdr_prepared_queries[auth_sql_statement_name] = pair<string,PreparedQueryArgs>(sql_query,cdr_types);
-
-	ret = 0;
-
-} catch(const pqxx::pqxx_exception &e){
-	ERROR("SqlRouter::db_configure: pqxx_exception: %s ",e.base().what());
-}
-	return ret;
+	return 0;
 }
 
-int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg){
-    PgConnectionPoolCfg masterpoolcfg,slavepoolcfg;
+int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
+{
+    std::ostringstream sql;
+
+    if(0!=auth_init()) {
+        ERROR("failed to initialize uas auth");
+        return 1;
+    }
 
     routing_schema = Yeti::instance().config.routing_schema;
     GET_VARIABLE(routing_function);
@@ -236,60 +207,241 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg){
         INFO("SqlRouter::auth_configure: config read error");
     }
 
-    if(0==db_configure(cfg)){
-        INFO("SqlRouter::db_configure: config successfuly readed");
-    } else {
-        INFO("SqlRouter::db_configure: config read error");
-        return 1;
-    }
-
-    cdr_writer = new CdrWriter();
-    auto &cdrconfig = cdr_writer->getConfig();
-    cdrconfig.prepared_queries = cdr_prepared_queries;
-    cdrconfig.dyn_fields  = dyn_fields;
-    cdrconfig.db_schema = writecdr_schema;
-    cdrconfig.used_header_fields = used_header_fields;
-
-    if (cdr_writer->configure(confuse_cfg, cfg)) {
-        ERROR("Cdr writer pool configuration error.");
-        return 1;
-    }
-
-    masterpoolcfg.name="master";
-    if(0==masterpoolcfg.cfg2PgCfg(cfg)) {
-        masterpoolcfg.prepared_queries = prepared_queries;
-        INFO("Master pool config loaded");
-    } else {
+    PgConnectionPoolCfg masterpoolcfg("master");
+    if(0!=masterpoolcfg.cfg2PgCfg(cfg)) {
         ERROR("Master pool config loading error");
         return 1;
     }
-    failover_to_slave=cfg.hasParameter("failover_to_slave") ? cfg.getParameterInt("failover_to_slave") : 0;
+
+    PGPool master_routing_pool(
+        masterpoolcfg.dbconfig.host,
+        masterpoolcfg.dbconfig.port,
+        masterpoolcfg.dbconfig.name,
+        masterpoolcfg.dbconfig.user,
+        masterpoolcfg.dbconfig.pass);
+    master_routing_pool.pool_size = masterpoolcfg.size;
+
+    //add master routing worker pool
+    if(!AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE,
+        new PGWorkerPoolCreate(
+            yeti_routing_pg_worker,
+            PGWorkerPoolCreate::Master,
+            master_routing_pool)))
+    {
+        ERROR("missed required postgresql module");
+        return 1;
+    }
+
+    failover_to_slave = cfg.getParameterInt("failover_to_slave", 0);
 
     if (1==failover_to_slave) {
-        slavepoolcfg.name="slave";
-        if (0==slavepoolcfg.cfg2PgCfg(cfg)) {
-            slavepoolcfg.prepared_queries = prepared_queries;
-            INFO("Slave pool config loaded");
-        } else{
+        PgConnectionPoolCfg slavepoolcfg("slave");
+        if (0!=slavepoolcfg.cfg2PgCfg(cfg)) {
             WARN("Failover to slave enabled but slave config is wrong. Disabling failover");
             failover_to_slave=0;
         }
+
+        PGPool slave_routing_pool(
+            slavepoolcfg.dbconfig.host,
+            slavepoolcfg.dbconfig.port,
+            slavepoolcfg.dbconfig.name,
+            slavepoolcfg.dbconfig.user,
+            slavepoolcfg.dbconfig.pass);
+        slave_routing_pool.pool_size = slavepoolcfg.size;
+
+        //add slave routing worker pool
+        if(!AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE,
+            new PGWorkerPoolCreate(
+                yeti_routing_pg_worker,
+                PGWorkerPoolCreate::Slave,
+                slave_routing_pool)))
+        {
+            ERROR("failed to post routing slave pool event");
+            return 1;
+        }
     }
 
-    master_pool= new PgConnectionPool;
-    master_pool->set_config(masterpoolcfg);
-    master_pool->add_connections(masterpoolcfg.size);
-    master_pool->dump_config();
-    WARN("Master SQLThread configured");
-    if (1==failover_to_slave){
-        slave_pool= new PgConnectionPool(true);
-        slave_pool->set_config(slavepoolcfg);
-        slave_pool->add_connections(slavepoolcfg.size);
-        slave_pool->dump_config();
-        WARN("Slave SQLThread configured");
+    PGWorkerConfig* pg_config_routing = new PGWorkerConfig(
+        yeti_routing_pg_worker,
+        failover_to_slave,
+        false, /*retransmit_enable*/
+        false, /* use pipeline */
+        masterpoolcfg.statement_timeout ?
+            masterpoolcfg.statement_timeout
+          : PG_DEFAULT_WAIT_TIME, /* transaction timeout */
+        0 /* retransmit_interval */,
+        masterpoolcfg.check_interval /* reconnect_interval */);
+
+    pg_config_routing->addSearchPath(routing_schema);
+    pg_config_routing->addSearchPath("public");
+
+    AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_config_routing);
+
+    //modify/apply prepared queries here
+    if(0==load_db_interface_in_out()) {
+        INFO("SqlRouter::load_db_interface_in_out: finished");
     } else {
-        WARN("Slave SQLThread disabled");
+        INFO("SqlRouter::load_db_interface_in_out: error");
+        return 1;
     }
+
+    //prepare routing getprofile
+    sql.str("");
+    sql << "SELECT * FROM " << routing_function << SqlPlaceHolderArgs(getprofile_types.size());
+
+    auto prepare_getprofile = new PGPrepare(
+        yeti_routing_pg_worker,
+        getprofile_sql_statement_name,
+        sql.str());
+    prepare_getprofile->pdata.sql_types = getprofile_types;
+    AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, prepare_getprofile);
+
+    //prepare/execute routing connection init query
+    auto routing_init_function = cfg.getParameter("routing_init_function");
+    if(!routing_init_function.empty()) {
+        sql.str("");
+        sql << "SELECT " << routing_init_function << SqlPlaceHolderArgs(2);
+
+        auto query = new PGParamExecute(
+            PGQueryData(
+                yeti_routing_pg_worker,
+                sql.str(),
+                true /* single */),
+            PGTransactionData(),
+            false /* prepared */,
+            true /* initial */);
+        query->addParam(AmConfig.node_id).addParam(Yeti::instance().config.pop_id);
+        AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, query);
+    }
+
+    //create CDR DB and Auth log worker
+    CdrThreadCfg cdr_cfg;
+    if(cdr_cfg.cfg2CdrThCfg(cfg)) {
+        INFO("Cdr writer pool config loading error");
+        return 1;
+    }
+
+    PGPool cdr_db_master_pool(
+        cdr_cfg.masterdb.host,
+        cdr_cfg.masterdb.port,
+        cdr_cfg.masterdb.name,
+        cdr_cfg.masterdb.user,
+        cdr_cfg.masterdb.pass);
+    cdr_db_master_pool.pool_size = cdr_cfg.pool_size;
+
+    AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE,
+        new PGWorkerPoolCreate(
+            yeti_cdr_pg_worker,
+            PGWorkerPoolCreate::Master,
+            cdr_db_master_pool));
+
+    if(cdr_cfg.failover_to_slave) {
+        PGPool cdr_db_slave_pool(
+            cdr_cfg.slavedb.host,
+            cdr_cfg.slavedb.port,
+            cdr_cfg.slavedb.name,
+            cdr_cfg.slavedb.user,
+            cdr_cfg.slavedb.pass);
+        cdr_db_slave_pool.pool_size = cdr_cfg.pool_size;
+
+        AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE,
+            new PGWorkerPoolCreate(
+                yeti_cdr_pg_worker,
+                PGWorkerPoolCreate::Slave,
+                cdr_db_slave_pool));
+    }
+
+    //configure CDR DB worker
+    PGWorkerConfig* pg_config_cdr_writer = new PGWorkerConfig(
+        yeti_cdr_pg_worker,
+        cdr_cfg.failover_to_slave,
+        true, /*retransmit_enable*/
+        true, /* use pipeline */
+        PG_DEFAULT_WAIT_TIME, /* transaction timeout */
+        cdr_cfg.retry_interval /* retransmit_interval */,
+        cdr_cfg.check_interval /* reconnect_interval */,
+        cdr_cfg.batch_size, /* batch_size */
+        cdr_cfg.batch_timeout /* batch timeout */,
+        1000000 /* max_queue_length */);
+    pg_config_cdr_writer->addSearchPath(writecdr_schema);
+    pg_config_cdr_writer->addSearchPath("public");
+
+    PreparedQueryArgs cdr_types;
+    for(int i = 0;i<WRITECDR_STATIC_FIELDS_COUNT;i++)
+        cdr_types.push_back(cdr_static_fields[i].type);
+
+    sql.str("");
+    sql << "SELECT " << writecdr_function << SqlPlaceHolderArgs(cdr_types.size());
+
+    auto &cdr_prepared = pg_config_cdr_writer->addPrepared(
+        cdr_statement_name, sql.str());
+    cdr_prepared.sql_types = cdr_types;
+
+    AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_config_cdr_writer);
+
+    //create AuthLog DB workers
+    if(cfg_t* cdr_section = cfg_getsec(confuse_cfg, "cdr")) {
+        //reuse cdr_cfg for auth_log workers
+        if(cfg_size(cdr_section, "auth_pool_size"))
+            cdr_db_master_pool.pool_size = cdr_cfg.pool_size = cfg_getint(cdr_section, "auth_pool_size");
+        if(cfg_size(cdr_section, "auth_batch_size"))
+            cdr_cfg.batch_size = cfg_getint(cdr_section, "auth_batch_size");
+        if(cfg_size(cdr_section, "auth_batch_timeout"))
+            cdr_cfg.batch_timeout = cfg_getint(cdr_section, "auth_batch_timeout")/1000;
+    }
+
+    AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE,
+        new PGWorkerPoolCreate(
+            yeti_auth_log_pg_worker,
+            PGWorkerPoolCreate::Master,
+            cdr_db_master_pool));
+
+    if(cdr_cfg.failover_to_slave) {
+        PGPool auth_db_slave_pool(
+            cdr_cfg.slavedb.host,
+            cdr_cfg.slavedb.port,
+            cdr_cfg.slavedb.name,
+            cdr_cfg.slavedb.user,
+            cdr_cfg.slavedb.pass);
+        auth_db_slave_pool.pool_size = cdr_cfg.pool_size;
+
+        AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE,
+            new PGWorkerPoolCreate(
+                yeti_auth_log_pg_worker,
+                PGWorkerPoolCreate::Slave,
+                auth_db_slave_pool));
+    }
+
+    //configure AuthLog DB worker
+    PGWorkerConfig* pg_config_auth_log = new PGWorkerConfig(
+        yeti_auth_log_pg_worker,
+        cdr_cfg.failover_to_slave,
+        true, /*retransmit_enable*/
+        true, /* use pipeline */
+        PG_DEFAULT_WAIT_TIME, /* transaction timeout */
+        cdr_cfg.retry_interval /* retransmit_interval */,
+        cdr_cfg.check_interval /* reconnect_interval */,
+        cdr_cfg.batch_size, /* batch_size */
+        cdr_cfg.batch_timeout /* batch timeout */,
+        1000000 /* max_queue_length */);
+    pg_config_auth_log->addSearchPath(writecdr_schema);
+    pg_config_auth_log->addSearchPath("public");
+
+    sql.str("");
+    sql << "SELECT " << authlog_function << SqlPlaceHolderArgs(auth_log_types.size());
+
+    auto &auth_log_prepared = pg_config_auth_log->addPrepared(
+        auth_log_statement_name, sql.str());
+
+    int i = 0;
+    for(const auto &a : auth_log_types) {
+        i++;
+        DBG("auth %d %s", i, a.data());
+        
+    }
+    auth_log_prepared.sql_types = auth_log_types;
+
+    AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_config_auth_log);
 
     return 0;
 }
@@ -327,109 +479,57 @@ void SqlRouter::update_counters(struct timeval &start_time){
 }
 
 void SqlRouter::getprofiles(
+	const std::string &local_tag,
 	const AmSipRequest &req,CallCtx &ctx,
 	Auth::auth_id_type auth_id, AmArg *identity_data)
 {
-	PgConnection *conn = NULL;
-	PgConnectionPool *pool = master_pool;
-	bool getprofile_fail = true;
-	int refuse_code = 0xffff;
-	struct timeval start_time;
-
-	DBG("Lookup profile for request: \n %s",req.print().c_str());
-
-	UsageCounterHelper u(active_requests);
-
 	hits.inc();
-	gettimeofday(&start_time,nullptr);
 
-	while (getprofile_fail && pool) {
 	try {
-		conn = pool->getActiveConnection();
-		if(conn!=nullptr) {
-
-			auto rows = db_get_call_profiles_rows(
-				req,conn,auth_id,identity_data);
-
-			pool->returnConnection(conn);
-
-			for(const auto &r : rows) {
-				if(SqlCallProfile::skip(r))
-					continue;
-
-				ctx.profiles.emplace_back();
-				SqlCallProfile& p = ctx.profiles.back();
-
-				//read profile
-				try{
-					if(!p.readFromTuple(r,dyn_fields))
-						throw GetProfileException(FC_READ_FROM_TUPLE_FAILED,false);
-				} catch(pqxx::pqxx_exception &e) {
-					ERROR("SQL exception while reading from profile tuple: %s.",e.base().what());
-					throw GetProfileException(FC_READ_FROM_TUPLE_FAILED,false);
-				}
-
-				if(!p.eval()) {
-					throw GetProfileException(FC_EVALUATION_FAILED,false);
-				}
-
-				//p.infoPrint(dyn_fields);
-			}
-
-			if(ctx.profiles.empty())
-				throw GetProfileException(FC_DB_EMPTY_RESPONSE,false);
-
-			getprofile_fail = false;
-		} else {
-			DBG("Cant get active connection on %s",pool->pool_name.c_str());
-			refuse_code = FC_GET_ACTIVE_CONNECTION;
-		}
+		db_async_get_profiles(local_tag, req, auth_id, identity_data);
 	} catch(GetProfileException &e) {
-		DBG("GetProfile exception on %s SQLThread: fatal = %d code  = '%d'",
-			pool->pool_name.c_str(),
+		DBG("GetProfile exception on %s thread: fatal = %d code  = '%d'",
 			e.fatal,e.code);
-		refuse_code = e.code;
-		if(e.fatal){
-			pool->returnConnection(conn,PgConnectionPool::CONN_COMM_ERR);
-		} else {
-			pool->returnConnection(conn);
-		}
-	}
-
-	if(getprofile_fail&&pool == master_pool&&1==failover_to_slave) {
-		ERROR("SQL failover enabled. Trying slave connection");
-		pool = slave_pool;
-	} else {
-		pool = NULL;
-	}
-
-	} //while
-
-	if(getprofile_fail){
 		ERROR("SQL cant get profiles. Drop request");
 		ctx.profiles.clear();
 		ctx.profiles.emplace_back();
-		ctx.profiles.back().disconnect_code_id = refuse_code;
+		ctx.profiles.back().disconnect_code_id = e.code;
 		ctx.SQLexception = true;
-	} else {
-		update_counters(start_time);
-		db_hits.inc();
 	}
-	return;
 }
 
-pqxx::result SqlRouter::db_get_call_profiles_rows(
+AmArg SqlRouter::db_async_get_profiles(
+	const std::string &local_tag,
 	const AmSipRequest &req,
-	pqxx::connection* conn,
 	Auth::auth_id_type auth_id,
 	AmArg *identity_data)
 {
+	AmArg ret;
+
+
+	std::unique_ptr<PGParamExecute> pg_getprofile_event;
+	pg_getprofile_event.reset(new PGParamExecute(
+		PGQueryData(
+			yeti_routing_pg_worker, /* pg worker name */
+			getprofile_sql_statement_name, /* prepared stmt name */
+			false /*single*/,
+			local_tag /* session_id */),
+		PGTransactionData(), true /* prepared */));
+
+	auto &query_info = pg_getprofile_event.get()->qdata.info[0];
+
 #define invoc_field(field_value)\
 	fields_values.push(AmArg(field_value));\
-	invoc(field_value);
+	query_info.addParam(field_value);
 
-	pqxx::result r;
-	pqxx::nontransaction tnx(*conn);
+#define invoc_typed_field(type,field_value)\
+	fields_values.push(AmArg(field_value));\
+	query_info.addTypedParam(type, field_value);
+
+#define invoc_null() \
+	fields_values.push(AmArg());\
+	query_info.addParam(AmArg());
+
 	auto &gc = Yeti::instance().config;
 	AmArg fields_values;
 
@@ -460,20 +560,9 @@ pqxx::result SqlRouter::db_get_call_profiles_rows(
 	if(fixup_utf8_inplace(from_name))
 		WARN("From display name contained at least one invalid utf8 sequence. wrong bytes erased");
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-	pqxx::prepare::invocation invoc = tnx.prepared("getprofile");
-#pragma GCC diagnostic pop
-
-	if(!invoc.exists())
-		throw GetProfileException(FC_NOT_PREPARED,true);
-
-	//DBG("trsp: %s",trsp.c_str());
-	//req.tt.get_trans()
-
 	invoc_field(AmConfig.node_id);			//"node_id", "integer"
 	invoc_field(gc.pop_id);					//"pop_id", "integer"
-	invoc_field((int)req.transport_id);		//"proto_id", "smallint"
+	invoc_typed_field("smallint", (int)req.transport_id); //"transport_id", "smallint"
 	invoc_field(req.remote_ip);				//"remote_ip", "inet"
 	invoc_field(req.remote_port);			//"remote_port", "integer"
 	invoc_field(req.local_ip);				//"local_ip", "inet"
@@ -492,13 +581,13 @@ pqxx::result SqlRouter::db_get_call_profiles_rows(
 	invoc_field(req.domain);				//"uri_domain", "varchar"
 
 	if(auth_id!=0) { invoc_field(auth_id) }
-	else { invoc_field(); }
+	else { invoc_null(); }
 
 	if(identity_data) {
 		string identity_data_str(arg2json(*identity_data));
 		invoc_field(identity_data_str);
 	} else {
-		invoc_field();
+		invoc_null();
 	}
 
 	//invoc headers from sip request
@@ -508,36 +597,20 @@ pqxx::result SqlRouter::db_get_call_profiles_rows(
 		if(it->getValue(req,value)){
 			invoc_field(value);
 		} else {
-			invoc_field();
+			invoc_null();
 		}
 	}
 
 #undef invoc_field
 
-	try {
-		PROF_START(sql_query);
-		r = invoc.exec();
-		PROF_END(sql_query);
-		PROF_PRINT("SQL routing query",sql_query);
-	} catch(pqxx::broken_connection &e){
-		ERROR("SQL exception for [%p]: pqxx::broken_connection.",conn);
-		dbg_get_profiles(fields_values);
-		throw GetProfileException(FC_DB_BROKEN_EXCEPTION,true);
-	} catch(pqxx::conversion_error &e){
-		ERROR("SQL exception for [%p]: conversion error: %s.",conn,e.what());
-		dbg_get_profiles(fields_values);
-		throw GetProfileException(FC_DB_CONVERSION_EXCEPTION,true);
-	} catch(pqxx::pqxx_exception &e){
-		ERROR("SQL exception for [%p]: %s.",conn,e.base().what());
-		dbg_get_profiles(fields_values);
-		throw GetProfileException(FC_DB_BASE_EXCEPTION,true);
+	DBG("NEW DB request data: %s", AmArg::print(fields_values).data());
+	
+	if(!AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_getprofile_event.release())) {
+		ERROR("failed to post getprofile query event");
+		return 1;
 	}
-	DBG("%s() database returned %ld profiles",FUNC_NAME,r.size());
 
-	if (r.size()==0)
-		throw GetProfileException(FC_DB_EMPTY_RESPONSE,false);
-
-	return r;
+	return ret;
 }
 
 void SqlRouter::dbg_get_profiles(AmArg &fields_values){
@@ -580,10 +653,37 @@ void SqlRouter::write_cdr(Cdr* cdr, bool last)
   if(!cdr->writed) {
     cdr->writed = true;
     cdr->is_last = last;
-    cdr_writer->postcdr(cdr);
+
+    std::unique_ptr<PGParamExecute> pg_param_execute_event;
+    pg_param_execute_event.reset(new PGParamExecute(
+        PGQueryData(
+        yeti_cdr_pg_worker, /* pg worker name */
+        cdr_statement_name, /* prepared stmt name */
+        false /*single*/),
+    PGTransactionData(), true /* prepared */));
+    cdr->apply_params(pg_param_execute_event.get()->qdata.info.front(), dyn_fields);
+    delete cdr;
+
+    AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_param_execute_event.release());
+    //cdr_writer->postcdr(cdr);
   } else {
     DBG("%s(%p) trying to write already writed cdr",FUNC_NAME,cdr);
   }
+}
+
+void SqlRouter::write_auth_log(const AuthCdr &auth_log)
+{
+    std::unique_ptr<PGParamExecute> pg_param_execute_event;
+    pg_param_execute_event.reset(new PGParamExecute(
+        PGQueryData(
+        yeti_auth_log_pg_worker, /* pg worker name */
+        auth_log_statement_name, /* prepared stmt name */
+        false /*single*/),
+    PGTransactionData(), true /* prepared */));
+
+    auth_log.apply_params(pg_param_execute_event.get()->qdata.info.front());
+
+    AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_param_execute_event.release());
 }
 
 void SqlRouter::log_auth(
@@ -592,7 +692,7 @@ void SqlRouter::log_auth(
     AmArg &ret,
     Auth::auth_id_type auth_id)
 {
-    cdr_writer->post_auth_log(new AuthCdr(
+    write_auth_log(AuthCdr(
         req,used_header_fields,
         success,
         ret[0].asInt(), ret[1].asCStr(),ret[3].asCStr(),
@@ -605,40 +705,20 @@ void SqlRouter::send_and_log_auth_challenge(
     const string &hdrs, bool post_auth_log)
 {
     Auth::send_auth_challenge(req, hdrs);
-    if(post_auth_log)
-        cdr_writer->post_auth_log(
-            new AuthCdr(
-                req,used_header_fields, false,
-                401, "Unauthorized", internal_reason, 0));
+    if(post_auth_log) {
+        write_auth_log(AuthCdr(
+            req,used_header_fields, false,
+            401, "Unauthorized", internal_reason, 0));
+    }
 }
 
 void SqlRouter::dump_config()
-{
-  master_pool->dump_config();
-  slave_pool->dump_config();
-}
-
-void SqlRouter::closeCdrFiles(){
-	if(cdr_writer)
-		cdr_writer->closeFiles();
-}
+{}
 
 void SqlRouter::getConfig(AmArg &arg){
 	AmArg u;
-	arg["config_db"] = dbc.conn_str();
+	//arg["config_db"] = dbc.conn_str();
 	arg["failover_to_slave"] = failover_to_slave;
-
-	if(master_pool){
-		master_pool->getConfig(u);
-		arg.push("master_pool",u);
-		u.clear();
-	}
-
-	if(failover_to_slave&&slave_pool){
-		slave_pool->getConfig(u);
-		arg.push("slave_pool",u);
-		u.clear();
-	}
 
 	arg["routing_schema"] = routing_schema;
 	arg["routing_function"] = routing_function;
@@ -660,23 +740,6 @@ void SqlRouter::getConfig(AmArg &arg){
 	}
 	arg.push("dyn_fields",u);
 	u.clear();
-
-	if(cdr_writer){
-		cdr_writer->getConfig(u);
-		arg.push("cdrwriter",u);
-		u.clear();
-	}
-}
-
-void SqlRouter::showOpenedFiles(AmArg &arg){
-	if(cdr_writer){
-		cdr_writer->showOpenedFiles(arg);
-	}
-}
-
-void SqlRouter::showRetryQueues(AmArg &arg)
-{
-    cdr_writer->showRetryQueues(arg);
 }
 
 void SqlRouter::getStats(AmArg &arg)
@@ -689,19 +752,6 @@ void SqlRouter::getStats(AmArg &arg)
 
     arg["hits"] = static_cast<unsigned int>(hits.get());
     arg["db_hits"] = static_cast<unsigned int>(db_hits.get());
-
-    /* pools stats */
-    if(master_pool) {
-        master_pool->getStats(arg["master_pool"]);
-    }
-    if(slave_pool) {
-        slave_pool->getStats(arg["slave_pool"]);
-    }
-
-    /* cdr writer stats */
-    if(cdr_writer) {
-        cdr_writer->getStats(arg["cdr_writer"]);
-    }
 }
 
 static void assertEndCRLF(string& s)
@@ -751,24 +801,4 @@ bool SqlRouter::check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
         AmSipDialog::reply_error(req, response_code, response_reason, hdrs);
     }
     return true;
-}
-
-void SqlRouter::db_reload_credentials(AmArg &ret)
-{
-    try {
-        pqxx::connection c(dbc.conn_str());
-        c.set_variable("search_path",routing_schema+", public");
-        pqxx::nontransaction t(c);
-
-        size_t credentials_count;
-        reload_credentials(t,credentials_count);
-
-        ret["result"] = "reloaded";
-        ret["count"] = credentials_count;
-
-        DBG("auth credentials reloaded");
-    } catch(...) {
-        ERROR("failed to reload credentials");
-        AmSession::Exception(500,"exception");
-    }
 }

@@ -2,6 +2,7 @@
 
 #include <map>
 #include <algorithm>
+#include <sstream>
 
 const static_call_field static_call_fields[] = {
 	{ "node_id", "integer", c_field_unsupported },
@@ -32,7 +33,7 @@ const static_call_field static_call_fields[] = {
 	{ "dump_level_id", "integer", c_field_unsupported },
 	{ "audio_record_enabled", "integer", c_field_unsupported },
 	{ "versions", "json", c_field_unsupported },
-	NULL
+	{ nullptr, nullptr, c_field_unsupported }
 };
 const unsigned int static_call_fields_count = 28;
 

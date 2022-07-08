@@ -1,4 +1,5 @@
 #include "YetiCfg.h"
+#include "ampi/PostgreSqlAPI.h"
 
 #include "sip/resolver.h"
 #include "log.h"

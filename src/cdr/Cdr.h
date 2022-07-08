@@ -7,11 +7,13 @@
 #include "AmRtpStream.h"
 #include "AmISUP.h"
 #include "cJSON.h"
-#include <pqxx/pqxx>
-#include <unordered_set>
-
+#include "ampi/PostgreSqlAPI.h"
 #include "CdrBase.h"
 #include "CdrHeaders.h"
+
+#include <unordered_set>
+
+extern const string cdr_statement_name;
 
 enum UpdateAction {
     Start,
@@ -159,9 +161,7 @@ struct Cdr
 
     void setSdpCompleted(bool a_leg);
 
-    pqxx::prepare::invocation get_invocation(cdr_transaction &tnx) override;
-    void invoc(pqxx::prepare::invocation &invoc, const DynFieldsT &df) override;
-    void to_csv_stream(ofstream &s, const DynFieldsT &df) override;
+    void apply_params(QueryInfo &query_info, const DynFieldsT &df);
 
     //serializators
     char *serialize_rtp_stats();

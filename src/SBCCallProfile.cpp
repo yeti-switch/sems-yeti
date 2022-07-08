@@ -239,8 +239,8 @@ string SBCCallProfile::print() const {
   // res += "sdpfilter_list:       " + stringset_print(sdpfilter_list) + "\n";
   // res += "sdpalinesfilter:      " + string(FilterType2String(sdpalinesfilter)) + "\n";
   // res += "sdpalinesfilter_list: " + stringset_print(sdpalinesfilter_list) + "\n";
-  res += "sst_enabled:          " + sst_enabled + "\n";
-  res += "sst_aleg_enabled:     " + sst_aleg_enabled + "\n";
+  res += "sst_enabled:          " + int2str(sst_enabled) + "\n";
+  res += "sst_aleg_enabled:     " + int2str(sst_aleg_enabled) + "\n";
   res += "auth_enabled:         " + string(auth_enabled?"true":"false") + "\n";
   res += "auth_user:            " + auth_credentials.user+"\n";
   res += "auth_pwd:             " + auth_credentials.pwd+"\n";
@@ -390,15 +390,15 @@ bool SBCCallProfile::evaluate(ParamReplacerCtx& ctx, const AmSipRequest& req)
   if (rtprelay_enabled || transcoder.isActive()) {
     // evaluate other RTP relay related params only if enabled
     // FIXME: really not evaluate rtprelay_enabled itself?
-    REPLACE_BOOL(force_symmetric_rtp, force_symmetric_rtp_value);
-    REPLACE_BOOL(aleg_force_symmetric_rtp, aleg_force_symmetric_rtp_value);
+    /*REPLACE_BOOL(force_symmetric_rtp, force_symmetric_rtp_value);
+    REPLACE_BOOL(aleg_force_symmetric_rtp, aleg_force_symmetric_rtp_value);*/
 
     REPLACE_IFACE_RTP(rtprelay_interface, rtprelay_interface_value);
     REPLACE_IFACE_RTP(aleg_rtprelay_interface, aleg_rtprelay_interface_value);
   }
 
-  REPLACE_BOOL(sst_enabled, sst_enabled_value);
-  if (sst_enabled_value) {
+  //REPLACE_BOOL(sst_enabled, sst_enabled_value);
+  if(sst_enabled) {
     AmConfigReader& sst_cfg = sst_b_cfg;
     eval_sst_config(ctx,req,sst_cfg);
   }

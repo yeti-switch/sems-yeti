@@ -4,7 +4,6 @@
 #include "AmConfigReader.h"
 #include "AmThread.h"
 
-#include <pqxx/pqxx>
 #include <unordered_map>
 #include <confuse.h>
 
@@ -46,15 +45,8 @@ class Auth {
   protected:
 
     int auth_configure(cfg_t* cfg);
-    int auth_init(AmConfigReader& cfg, pqxx::nontransaction &t);
+    int auth_init();
 
-    /**
-     * @brief reload_credentials
-     * load credentials hash from database
-     * @param t transaction
-     * @return 0 on success
-     */
-    int reload_credentials(pqxx::nontransaction &t, size_t &credentials_count);
     void send_auth_challenge(const AmSipRequest &req, const string &hdrs);
   public:
     Auth();
@@ -62,6 +54,7 @@ class Auth {
     void auth_info_by_user(const string &username, AmArg &ret);
     void auth_info_by_id(auth_id_type id, AmArg &ret);
 
+    void reload_credentials(const AmArg &data);
 
     /**
     * @brief check_request_auth

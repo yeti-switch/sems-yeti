@@ -2,8 +2,8 @@
 #include "sip/parse_via.h"
 #include "AmSipRegistration.h"
 #include "ampi/SIPRegistrarClientAPI.h"
-#include <pqxx/pqxx>
 #include "yeti.h"
+#include "db/DbHelpers.h"
 
 Registration* Registration::_instance=0;
 
@@ -18,90 +18,89 @@ void Registration::dispose() {
 		delete _instance;
 }
 
-Registration::Registration() { }
+Registration::Registration()
+  : registrar_client_i(nullptr)
+{
+	AmDynInvokeFactory* di_f = AmPlugIn::instance()->getFactory4Di("registrar_client");
+	if (di_f == nullptr) {
+		ERROR("unable to get a registrar_client");
+		return;
+	}
 
-Registration::~Registration(){ }
-
-void Registration::configure_db(AmConfigReader &cfg){
-	string prefix("master");
-	dbc.cfg2dbcfg(cfg,prefix);
+	registrar_client_i = di_f->getInstance();
+	if (registrar_client_i == nullptr) {
+		ERROR("unable to get registrar client invoke instance");
+		return;
+	}
 }
 
-int Registration::load_registrations(){
-	int ret = 1;
+Registration::~Registration()
+{ }
 
-	AmDynInvokeFactory* di_f = AmPlugIn::instance()->getFactory4Di("registrar_client");
-	if (di_f == NULL) {
-		ERROR("unable to get a registrar_client");
-		return ret;
+void Registration::load_registrations(const AmArg &data)
+{
+	if(!registrar_client_i) {
+		ERROR("unable to get registar_client module api");
+		return;
 	}
 
-	AmDynInvoke* registrar_client_i = di_f->getInstance();
-	if (registrar_client_i==NULL) {
-		ERROR("unable to get registrar client invoke instance");
-		return ret;
-	}
-
-	try {
-		pqxx::result r;
-		auto &gc = Yeti::instance().config;
-
-		pqxx::connection c(dbc.conn_str());
-		c.set_variable("search_path",gc.routing_schema+", public");
-
-		pqxx::work t(c);
-		c.prepare("load_reg","SELECT * from load_registrations_out($1,$2)")
-#if PQXX_VERSION_MAJOR == 3 && PQXX_VERSION_MINOR == 1
-			("integer")("integer")
-#endif
-		;
-		r = t.exec_prepared("load_reg", gc.pop_id, AmConfig.node_id);
-		for(pqxx::row_size_type i = 0; i < r.size();++i){
-			const pqxx::row &row = r[i];
-			//for(const auto &f: row) DBG("reg[%d] %s: %s",i,f.name(),f.c_str());
-			if(!create_registration(row,registrar_client_i)) {
-				ERROR("registration create error");
-				break;
+	RegistrationsContainer db_registrations;
+	if(isArgArray(data)) {
+		for(size_t i = 0; i < data.size(); i++) {
+			if(!read_registration(data[i],db_registrations)) {
+				ERROR("registration read error");
+				continue;
 			}
 		}
-
-		t.commit();
-		c.disconnect();
-
-		ret = 0;
-	} catch(const pqxx::pqxx_exception &e){
-		ERROR("pqxx_exception: %s ",e.base().what());
 	}
-	return ret;
+
+	/*for(const auto &r : db_registrations) {
+		BG("db registration %s:%s",
+			r.first.data(), AmArg::print(r.second).data());
+	}
+	for(const auto &r : registrations) {
+		DBG("local registration %s:%s",
+			r.first.data(), AmArg::print(r.second).data());
+	}*/
+
+	//process removed and updated
+	for(const auto &r : registrations) {
+		auto it = db_registrations.find(r.first);
+		if(it != db_registrations.end()) {
+			if(is_reg_updated(r.second, it->second)) {
+				//changed in db. update
+				DBG("update registration. id:%s", r.first.data());
+				remove_registration(r.first);
+				add_registration(it->second);
+			}
+			//keep untouched
+		} else {
+			//present locally. removed from DB
+			DBG("remove registration. id:%s", r.first.data());
+			remove_registration(r.first);
+		}
+	}
+
+	//process new
+	for(const auto &r : db_registrations) {
+		if(!registrations.count(r.first)) {
+			DBG("add registration. id:%s", r.first.data());
+			add_registration(r.second);
+		}
+	}
+
+	registrations.swap(db_registrations);
 }
 
-int Registration::configure(AmConfigReader &cfg){
-
-	db_schema = Yeti::instance().config.routing_schema;
-	configure_db(cfg);
-
-	if(load_registrations()){
-		ERROR("can't load registrations");
-		return -1;
-	}
-
+int Registration::configure(AmConfigReader &)
+{
 	return 0;
 }
 
-int Registration::reload(AmConfigReader &cfg){
-	DBG("Registration::reload()");
-	//remove old registrations
-	clean_registrations();
-	//add new
-	return configure(cfg);
-}
-
-bool Registration::create_registration(const pqxx::row &r, AmDynInvoke* registrar_client_i)
+bool Registration::read_registration(const AmArg &r, RegistrationsContainer &regs)
 {
-	AmArg args, ret;
-
-	args.push(AmArg());
-	AmArg &ri = args.back();
+	string id = DbAmArg_hash_get_str_any(r, "o_id");
+	AmArg &ri = regs.try_emplace(id).first->second;
 
 	static std::vector< std::tuple<const char *, const char *> > str_fields({
 		{"id", "o_id"},
@@ -114,14 +113,9 @@ bool Registration::create_registration(const pqxx::row &r, AmDynInvoke* registra
 		{"contact", "o_contact"},
 		{"sip_interface_name", "o_sip_interface_name"}
 	});
+
 	for(const auto &t: str_fields) {
-		try {
-			ri[std::get<0>(t)] = r[std::get<1>(t)].c_str();
-		} catch(pqxx::pqxx_exception &e) {
-			DBG("pqxx exception for tuple (%s,%s): %s",
-				std::get<0>(t), std::get<1>(t),
-				e.base().what());
-		}
+		ri[std::get<0>(t)] = DbAmArg_hash_get_str_any(r, std::get<1>(t));
 	}
 
 	static std::vector< std::tuple<const char *, const char *, int> > int_fields({
@@ -133,151 +127,59 @@ bool Registration::create_registration(const pqxx::row &r, AmDynInvoke* registra
 		{"scheme_id", "o_scheme_id", sip_uri::SIP}
 	});
 	for(const auto &t: int_fields) {
-		try {
-			ri[std::get<0>(t)] = r[std::get<1>(t)].as<int>(std::get<2>(t));
-		} catch(pqxx::pqxx_exception &e) {
-			DBG("exception on tuple: %s %s %d. use default value: %s",
-				std::get<0>(t), std::get<1>(t), std::get<2>(t),
-				e.base().what());
-			ri[std::get<0>(t)] = std::get<2>(t);
-		}
+		ri[std::get<0>(t)]= DbAmArg_hash_get_int(
+			r, std::get<1>(t), std::get<2>(t));
 	}
 
 	static std::vector< std::tuple<const char *, const char *, bool> > bool_fields({
 		{"force_expires_interval", "o_force_expire", false},
 	});
 	for(const auto &t: bool_fields) {
-		try {
-			ri[std::get<0>(t)] = static_cast<int>(r[std::get<1>(t)].as<bool>(std::get<2>(t)));
-		} catch(pqxx::pqxx_exception &e) {
-			DBG("exception on tuple: %s %s %d. use default value: %s",
-				std::get<0>(t), std::get<1>(t), std::get<2>(t),
-				e.base().what());
-			ri[std::get<0>(t)] = static_cast<int>(std::get<2>(t));
-		}
+		ri[std::get<0>(t)] = (int)DbAmArg_hash_get_bool(
+			r, std::get<1>(t), std::get<2>(t));
 	}
-
-	registrar_client_i->invoke("createRegistration", args, ret);
 
 	return true;
 }
 
+bool Registration::is_reg_updated(const AmArg &local_reg, const AmArg &db_reg)
+{
+	for(const auto &r : local_reg) {
+		if(r.second != db_reg[r.first]) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void Registration::add_registration(const AmArg &r)
+{
+	AmArg arg, ret;
+	arg.push(r);
+	registrar_client_i->invoke("createRegistration", arg, ret);
+}
+
+void Registration::remove_registration(const string &reg_id)
+{
+	AmArg arg, ret;
+	arg.push(reg_id);
+	registrar_client_i->invoke("removeRegistrationById", arg, ret);
+}
+
 void Registration::list_registrations(AmArg &ret)
 {
-	AmDynInvokeFactory* di_f = AmPlugIn::instance()->getFactory4Di("registrar_client");
-	if (di_f == NULL) {
-		ERROR("unable to get a registrar_client");
-		return;
-	}
-
-	AmDynInvoke* registrar_client_i = di_f->getInstance();
-	if (registrar_client_i==NULL) {
-		ERROR("unable to get registrar client invoke instance");
-		return;
-	}
-
 	ret.assertArray();
+
+	if(!registrar_client_i)
+		return;
+
 	registrar_client_i->invoke("listRegistrations", AmArg(), ret);
 
 	//add node_id and pop_id to the each element of array  to keep compatibility
 	const auto &c = Yeti::instance().config;
-	for(int i = 0;i < ret.size(); i++) {
+	for(size_t i = 0;i < ret.size(); i++) {
 		AmArg &a = ret[i];
 		a["node_id"] = AmConfig.node_id;
 		a["pop_id"] = c.pop_id;
 	}
 }
-
-void Registration::clean_registrations()
-{
-	AmArg ret, tmp;
-
-	AmDynInvokeFactory* di_f = AmPlugIn::instance()->getFactory4Di("registrar_client");
-	if (di_f == NULL) {
-		ERROR("unable to get a registrar_client");
-		return;
-	}
-
-	AmDynInvoke* registrar_client_i = di_f->getInstance();
-	if (registrar_client_i==NULL) {
-		ERROR("unable to get registrar client invoke instance");
-		return;
-	}
-
-	ret.assertArray();
-	registrar_client_i->invoke("listRegistrations", AmArg(), ret);
-
-	for(int i = 0;i < ret.size(); i++) {
-		AmArg arg;
-		arg.push(ret[i]["handle"]);
-		registrar_client_i->invoke("removeRegistration", arg, tmp);
-	}
-}
-
-int Registration::reload_registration(AmConfigReader &cfg, const AmArg &args)
-{
-	AmArg tmp;
-	string reg_id(args.get(0).asCStr());
-
-	AmDynInvokeFactory* di_f = AmPlugIn::instance()->getFactory4Di("registrar_client");
-	if (di_f == NULL) {
-		ERROR("unable to get a registrar_client");
-		return -1;
-	}
-
-	AmDynInvoke* registrar_client_i = di_f->getInstance();
-	if (registrar_client_i==NULL) {
-		ERROR("unable to get registrar client invoke instance");
-		return -1;
-	}
-
-	//remove old registration suppressing not existence exceptions
-	try {
-		registrar_client_i->invoke("removeRegistrationById", args, tmp);
-	} catch(AmSession::Exception &e) {
-		DBG("exception on removeRegistrationById(%s): %d %s. continue anyway",
-			reg_id.c_str(),e.code,e.reason.c_str());
-	}
-
-	//load all registrations and try to create the one with specified id
-	try {
-		string reg_id(args.get(0).asCStr());
-		pqxx::result r;
-		auto &gc = Yeti::instance().config;
-
-		pqxx::connection c(dbc.conn_str());
-		c.set_variable("search_path",gc.routing_schema+", public");
-
-		pqxx::work t(c);
-		c.prepare("load_reg","SELECT * from load_registrations_out($1,$2,$3)")
-#if PQXX_VERSION_MAJOR == 3 && PQXX_VERSION_MINOR == 1
-			("integer")("integer")("integer")
-#endif
-		;
-		r = t.exec_prepared("load_reg", gc.pop_id, AmConfig.node_id, reg_id);
-
-		t.commit();
-		c.disconnect();
-
-		if(r.size()==0) {
-			DBG("empty response from DB for registration with id %s",
-				reg_id.c_str());
-			return 0;
-		}
-
-		const pqxx::row &row = *r.begin();
-
-		DBG("got response from DB for registration with id %s. add it to registrar_client",
-			reg_id.c_str());
-
-		if(!create_registration(row,registrar_client_i))
-			ERROR("registration create error");
-
-	} catch(const pqxx::pqxx_exception &e){
-		ERROR("pqxx_exception: %s ",e.base().what());
-		return -1;
-	}
-
-	return 0;
-}
-

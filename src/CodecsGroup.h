@@ -31,11 +31,8 @@ class CodecsGroupEntry {
 
 class CodecsGroups {
 	static CodecsGroups* _instance;
-	AmMutex _lock;
-
-	DbConfig dbc;
-	string db_schema;
-	map<unsigned int,CodecsGroupEntry> m;
+	map<unsigned int,CodecsGroupEntry> codec_groups;
+	AmMutex codec_groups_mutex;
 
   public:
 	CodecsGroups(){}
@@ -48,28 +45,31 @@ class CodecsGroups {
 	static void dispose() { if(_instance) delete _instance; }
 
 	int configure(AmConfigReader &cfg);
-	void configure_db(AmConfigReader &cfg);
-	int load_codecs_groups();
-	bool reload();
+	void load_codecs(const AmArg &data);
 
-	void get(int group_id,CodecsGroupEntry &e) {
-		_lock.lock();
-		map<unsigned int,CodecsGroupEntry>::iterator i = m.find(group_id);
-		if(i==m.end()){
-			_lock.unlock();
+	void get(int group_id, CodecsGroupEntry &e)
+	{
+		AmLock l(codec_groups_mutex);
+		auto  i = codec_groups.find(group_id);
+		if(i == codec_groups.end()) {
 			ERROR("can't find codecs group %d",group_id);
 			throw CodecsGroupException(FC_CG_GROUP_NOT_FOUND,group_id);
 		}
 		e = i->second;
-		_lock.unlock();
 	}
 
-	bool insert(map<unsigned int,CodecsGroupEntry> &dst, unsigned int group_id, string codec,string sdp_params,int dyn_payload_id = NO_DYN_PAYLOAD) {
+	bool insert(
+		map<unsigned int,CodecsGroupEntry> &dst,
+		unsigned int group_id,
+		string codec,
+		string sdp_params,
+		int dyn_payload_id = NO_DYN_PAYLOAD)
+	{
 		return dst[group_id].add_codec(codec,sdp_params,dyn_payload_id);
 	}
 
-	void clear(){ m.clear(); }
-	unsigned int size() { return m.size(); }
+	void clear(){ codec_groups.clear(); }
+	unsigned int size() { return codec_groups.size(); }
 
 	void GetConfig(AmArg& ret);
 };

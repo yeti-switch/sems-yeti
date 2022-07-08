@@ -27,6 +27,7 @@
 #include <cstdio>
 
 static const bool RPC_CMD_SUCC = true;
+static const string RPC_CMD_DEPRECATED("deprecated");
 
 typedef YetiRpc::rpc_handler YetiRpc::*YetiRpcHandler;
 
@@ -64,10 +65,10 @@ struct rpc_entry: public AmObject {
 	  handler(NULL), leaf_descr(ld) {}
 
   rpc_entry(string ld, YetiRpcHandler h, string fd):
-	  leaf_descr(ld), handler(h), func_descr(fd) {}
+	  handler(h), leaf_descr(ld), func_descr(fd) {}
 
   rpc_entry(string ld, YetiRpcHandler h, string fd, string a, string ad):
-	  leaf_descr(ld), handler(h), func_descr(fd), arg(a), arg_descr(ad) {}
+	  handler(h), leaf_descr(ld), func_descr(fd), arg(a), arg_descr(ad) {}
 
   bool isMethod(){ return handler!=NULL; }
   bool hasLeafs(){ return leaves.getType()==AmArg::Struct; }
@@ -174,9 +175,6 @@ void YetiRpc::init_rpc_tree()
 		leaf(show,show_recorder,"recorder","audio recorder instance");
 			method(show_recorder,"stats","show audio recorder processor stats",showRecorderStats,"");
 
-		leaf(show,show_cdrwriter,"cdrwriter","cdrwriter");
-			method(show_cdrwriter,"retry_queues","show cdrwriter threads retry_queue content",showCdrWriterRetryQueues,"");
-
 		method(show,"aors","show registered AoRs",showAors,"");
 		method(show,"keepalive_contexts","show keepalive contexts",showKeepaliveContexts,"");
 		method(show,"http_sequencer_data","show http sequencer runtime data",showHttpSequencerData,"");
@@ -273,10 +271,6 @@ void YetiRpc::init_rpc_tree()
 			leaf(request_auth,request_auth_credentials,"credentials","credentials");
 				method(request_auth_credentials,"reload","reload auth credentials hash",requestAuthCredentialsReload,"");
 
-		leaf(request,request_cdrwriter,"cdrwriter","cdrwriter");
-			method(request_cdrwriter,"pause","pause CDRs processing",requestCdrWriterPause,"");
-			method(request_cdrwriter,"resume","resume CDRs processing",requestCdrWriterResume,"");
-
 		leaf(request,request_options_prober,"options_prober","options_prober");
 			method(request_options_prober,"reload","",requestOptionsProberReload,"");
 
@@ -310,9 +304,6 @@ void YetiRpc::init_rpc_tree()
 			method(set_system_dump_level,"signalling","",setSystemDumpLevelSignalling,"");
 			method(set_system_dump_level,"rtp","",setSystemDumpLevelRtp,"");
 			method(set_system_dump_level,"full","",setSystemDumpLevelFull,"");
-
-		leaf(lset,set_cdrwriter,"cdrwriter","cdrwriter");
-			method(set_cdrwriter,"retry_interval","set cdrwriter retry_interval",setCdrWriterRetryInterval,"");
 
 #undef leaf
 #undef method
@@ -388,59 +379,6 @@ void YetiRpc::invoke(const string& method, const AmArg& args, AmArg& ret)
 }
 
 /****************************************
- * 				aux funcs				*
- ****************************************/
-
-bool YetiRpc::check_event_id(int event_id,AmArg &ret){
-	bool succ = false;
-	try {
-		DbConfig dbc;
-		string prefix("master");
-		dbc.cfg2dbcfg(cfg,prefix);
-		pqxx::connection c(dbc.conn_str());
-		c.set_variable("search_path",
-					   config.routing_schema+", public");
-#if PQXX_VERSION_MAJOR == 3 && PQXX_VERSION_MINOR == 1
-		pqxx::prepare::declaration d =
-#endif
-			c.prepare("check_event","SELECT * from check_event($1)");
-#if PQXX_VERSION_MAJOR == 3 && PQXX_VERSION_MINOR == 1
-			d("integer",pqxx::prepare::treat_direct);
-#endif
-		pqxx::nontransaction t(c);
-		pqxx::result r = t.exec_prepared("check_event",event_id);
-		if(r[0][0].as<bool>(false)){
-			DBG("event_id checking succ");
-			succ = true;
-		} else {
-			WARN("no appropriate id in database");
-			throw AmSession::Exception(503,"no such event_id");
-		}
-	} catch(pqxx::pqxx_exception &e){
-		DBG("e = %s",e.base().what());
-		throw AmSession::Exception(500,string("can't check event id in database ")+e.base().what());
-	} catch(AmSession::Exception){
-		throw;
-	} catch(...){
-		AmSession::Exception(500,"can't check event id in database");
-	}
-	return succ;
-}
-
-bool YetiRpc::assert_event_id(const AmArg &args,AmArg &ret){
-	if(args.size()){
-		int event_id;
-		args.assertArrayFmt("s");
-		if(!str2int(args[0].asCStr(),event_id)){
-			throw AmSession::Exception(500,"invalid event id");
-		}
-		if(!check_event_id(event_id,ret))
-				return false;
-	}
-	return true;
-}
-
-/****************************************
  * 				rpc handlers			*
  ****************************************/
 
@@ -488,7 +426,7 @@ void YetiRpc::GetCallsFields(const AmArg &args, AmArg &ret){
 	}
 }
 
-void YetiRpc::showCallsFields(const AmArg &args, AmArg &ret){
+void YetiRpc::showCallsFields(const AmArg &, AmArg &ret){
 	cdr_list.getFields(ret,&router);
 }
 
@@ -538,11 +476,8 @@ void YetiRpc::GetRegistrationsCount(const AmArg& args, AmArg& ret){
 	registrar_client_i->invoke("getRegistrationsCount", AmArg(), ret);
 }
 
-void YetiRpc::ClearStats(const AmArg& args, AmArg& ret){
-	handler_log();
-	throw AmSession::Exception(500,"deprecated method");
-	/*rctl.clearStats();
-	ret = RPC_CMD_SUCC;*/
+void YetiRpc::ClearStats(const AmArg&, AmArg& ret){
+	ret = RPC_CMD_DEPRECATED;
 }
 
 void YetiRpc::GetStats(const AmArg& args, AmArg& ret){
@@ -695,69 +630,23 @@ void YetiRpc::showVersion(const AmArg& args, AmArg& ret) {
 }
 
 void YetiRpc::reloadResources(const AmArg& args, AmArg& ret){
-	handler_log();
-	if(!assert_event_id(args,ret))
-		return;
-	rctl.configure_db(cfg);
-	if(!rctl.reload()){
-		throw AmSession::Exception(500,"errors during resources config reload. leave old state");
-	}
-	ret = RPC_CMD_SUCC;
+	ret = RPC_CMD_DEPRECATED;
 }
 
-void YetiRpc::reloadTranslations(const AmArg& args, AmArg& ret){
-	handler_log();
-	if(!assert_event_id(args,ret))
-		return;
-	CodesTranslator::instance()->configure_db(cfg);
-	if(!CodesTranslator::instance()->reload()){
-		throw AmSession::Exception(500,"errors during translations config reload. leave old state");
-	}
-	ret = RPC_CMD_SUCC;
+void YetiRpc::reloadTranslations(const AmArg&, AmArg& ret){
+	ret = RPC_CMD_DEPRECATED;
 }
 
-void YetiRpc::reloadRegistrations(const AmArg& args, AmArg& ret){
-	handler_log();
-	/*if(!assert_event_id(args,ret))
-		return;*/
-
-	if(args.size()){
-		if(0==Registration::instance()->reload_registration(cfg,args)){
-			ret = RPC_CMD_SUCC;
-		} else {
-			throw AmSession::Exception(500,"errors during registration config reload. check state");
-		}
-		return;
-	}
-
-	if(0==Registration::instance()->reload(cfg)){
-		ret = RPC_CMD_SUCC;
-	} else {
-		throw AmSession::Exception(500,"errors during registrations config reload. check state");
-	}
+void YetiRpc::reloadRegistrations(const AmArg&, AmArg& ret){
+	ret = RPC_CMD_DEPRECATED;
 }
 
-void YetiRpc::reloadCodecsGroups(const AmArg& args, AmArg& ret){
-	handler_log();
-	if(!assert_event_id(args,ret))
-		return;
-	CodecsGroups::instance()->configure_db(cfg);
-	if(!CodecsGroups::instance()->reload()){
-		throw AmSession::Exception(500,"errors during codecs groups reload. leave old state");
-	}
-	ret = RPC_CMD_SUCC;
+void YetiRpc::reloadCodecsGroups(const AmArg&, AmArg& ret){
+	ret = RPC_CMD_DEPRECATED;
 }
 
-void YetiRpc::requestReloadSensors(const AmArg& args, AmArg& ret){
-	handler_log();
-	if(!assert_event_id(args,ret))
-		return;
-	Sensors::instance()->configure_db(cfg);
-	if(Sensors::instance()->reload()){
-		ret = RPC_CMD_SUCC;
-	} else {
-		throw AmSession::Exception(500,"errors during sensors reload. leave old state");
-	}
+void YetiRpc::requestReloadSensors(const AmArg&, AmArg& ret){
+	ret = RPC_CMD_DEPRECATED;
 }
 
 void YetiRpc::showSensorsState(const AmArg& args, AmArg& ret){
@@ -788,29 +677,7 @@ static void SBCCallLeg2AmArg(SBCCallLeg *leg, AmArg &s)
 		leg->putCallCtx();
 	}
 }
-
-static void dump_session_info(
-	const AmEventDispatcher::QueueEntry &entry,
-	void *arg)
-{
-	AmArg &a = *(AmArg *)arg;
-	a.assertStruct();
-	SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q);
-	if(!leg) return;
-	SBCCallLeg2AmArg(leg,a);
-}
-
-static void dump_sessions_info(
-	const string &key,
-	const AmEventDispatcher::QueueEntry &entry,
-	void *arg)
-{
-	SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q);
-	if(!leg) return; //dump only SBCCallLeg entries
-	AmArg &ret = *(AmArg *)arg;
-	SBCCallLeg2AmArg(leg,ret[key]);
-}
-
+ 
 void YetiRpc::showSessionsInfo(const AmArg& args, AmArg& ret){
 	handler_log();
 	ret.assertStruct();
@@ -901,70 +768,32 @@ void YetiRpc::requestSessionDump(const AmArg& args, AmArg& ret)
 	}
 }
 
-static inline AmDynInvoke* get_radius_interace(){
-	AmDynInvokeFactory* radius_client_factory = AmPlugIn::instance()->getFactory4Di("radius_client");
-	if(NULL==radius_client_factory){
-		throw AmSession::Exception(500,"radius module not loaded");
-	}
-	AmDynInvoke* radius_client = radius_client_factory->getInstance();
-	if(NULL==radius_client){
-		throw AmSession::Exception(500,"can't get radius client instance");
-	}
-	return radius_client;
-}
-
 void YetiRpc::showRadiusAuthProfiles(const AmArg& args, AmArg& ret){
 	handler_log();
-	(void)args;
-	get_radius_interace()->invoke("showAuthConnections",args,ret);
+	radius_invoke("showAuthConnections", args, ret);
 }
 
 void YetiRpc::showRadiusAccProfiles(const AmArg& args, AmArg& ret){
 	handler_log();
-	(void)args;
-	get_radius_interace()->invoke("showAccConnections",args,ret);
+	radius_invoke("showAccConnections", args, ret);
 }
 
 void YetiRpc::showRadiusAuthStat(const AmArg& args, AmArg& ret){
 	handler_log();
-	(void)args;
-	get_radius_interace()->invoke("showAuthStat",args,ret);
+	radius_invoke("showAuthStat", args, ret);
 }
 
 void YetiRpc::showRadiusAccStat(const AmArg& args, AmArg& ret){
 	handler_log();
-	(void)args;
-	get_radius_interace()->invoke("showAccStat",args,ret);
+	radius_invoke("showAccStat", args, ret);
 }
 
-void YetiRpc::requestRadiusAuthProfilesReload(const AmArg& args, AmArg& ret){
-	handler_log();
-	(void)args;
-	AmArg lret;
-	AmDynInvoke *r = get_radius_interace();
-	DBG("clear radius auth connections");
-	r->invoke("clearAuthConnections",AmArg(),lret);
-	if(init_radius_auth_connections(r)){
-		ERROR("intializing radius auth profiles");
-		throw AmSession::Exception(500,"profiles cleared but exception occured during reinit. "
-			  "you have no loaded profiles for now. examine logs and check your configuration");
-	}
-	ret = "auth profiles reloaded";
+void YetiRpc::requestRadiusAuthProfilesReload(const AmArg&, AmArg& ret){
+	ret = RPC_CMD_DEPRECATED;
 }
 
-void YetiRpc::requestRadiusAccProfilesReload(const AmArg& args, AmArg& ret){
-	handler_log();
-	(void)args;
-	AmArg lret;
-	AmDynInvoke *r = get_radius_interace();
-	DBG("clear radius auth connections");
-	r->invoke("clearAccConnections",AmArg(),lret);
-	if(init_radius_acc_connections(r)){
-		ERROR("intializing radius acc profiles");
-		throw AmSession::Exception(500,"profiles cleared but exception occured during reinit. "
-			  "you have no loaded profiles for now. examine logs and check your configuration");
-	}
-	ret = "acc profiles reloaded";
+void YetiRpc::requestRadiusAccProfilesReload(const AmArg&, AmArg& ret){
+	ret = RPC_CMD_DEPRECATED;
 }
 
 void YetiRpc::closeCdrFiles(const AmArg& args, AmArg& ret){
@@ -1097,41 +926,8 @@ void YetiRpc::showAuthCredentialsById(const AmArg& args, AmArg& ret)
 
 void YetiRpc::requestAuthCredentialsReload(const AmArg&, AmArg& ret)
 {
-	router.db_reload_credentials(ret);
+	ret = RPC_CMD_DEPRECATED;
 }
-
-void YetiRpc::requestCdrWriterPause(const AmArg&, AmArg& ret)
-{
-	router.setCdrWriterPaused(true);
-	ret = RPC_CMD_SUCC;
-}
-
-void YetiRpc::requestCdrWriterResume(const AmArg&, AmArg& ret)
-{
-	router.setCdrWriterPaused(false);
-	ret = RPC_CMD_SUCC;
-}
-
-void YetiRpc::setCdrWriterRetryInterval(const AmArg& args, AmArg& ret)
-{
-	if(!args.size() || !isArgCStr(args[0]))
-		throw AmSession::Exception(500, "required interval value");
-	int interval;
-	if(!str2int(args[0].asCStr(),interval))
-		throw AmSession::Exception(500, "failed to cast str2int");
-	if(interval < 0)
-		throw AmSession::Exception(500, "wrong interval value. must be positive integer");
-
-	router.setRetryInterval(interval);
-
-	ret = RPC_CMD_SUCC;
-}
-
-void YetiRpc::showCdrWriterRetryQueues(const AmArg&, AmArg& ret)
-{
-	router.showRetryQueues(ret);
-}
-
 
 DEFINE_CORE_PROXY_METHOD(showMediaStreams);
 DEFINE_CORE_PROXY_METHOD(showSessionsCount);
@@ -1211,35 +1007,19 @@ void YetiRpc::showAors(const AmArg& arg, AmArg& ret)
 	}
 }
 
-void YetiRpc::showKeepaliveContexts(const AmArg& arg, AmArg& ret)
+void YetiRpc::showKeepaliveContexts(const AmArg&, AmArg& ret)
 {
 	registrar_redis.dumpKeepAliveContexts(ret);
 }
 
-void YetiRpc::showHttpSequencerData(const AmArg& arg, AmArg& ret)
+void YetiRpc::showHttpSequencerData(const AmArg&, AmArg& ret)
 {
 	http_sequencer.serialize(ret);
 }
 
-void YetiRpc::requestOptionsProberReload(const AmArg& arg, AmArg& ret)
+void YetiRpc::requestOptionsProberReload(const AmArg&, AmArg& ret)
 {
-	int prober_id = -1;
-	arg.assertArray();
-	if(!arg.size()) {
-		//reload all probers
-	} else if(arg.size() == 1) {
-		//reload single prober
-		if(!isArgInt(arg[0])) {
-			throw AmSession::Exception(400,"expected integer options prober id");
-		}
-		prober_id = arg[0].asInt();
-	} else {
-		throw AmSession::Exception(400,"expected empty or one-element array");
-	}
-	if(options_prober_manager.reload_probers(prober_id)) {
-		throw AmSession::Exception(500,"failed to reload");
-	}
-	ret = 0;
+	ret = RPC_CMD_DEPRECATED;
 }
 
 void YetiRpc::showCertCacheEntries(const AmArg&, AmArg& ret)
@@ -1257,17 +1037,17 @@ void YetiRpc::renewCertCacheEntries(const AmArg& arg, AmArg& ret)
     ret = cert_cache.RenewCerts(arg);
 }
 
-void YetiRpc::showCertCacheTrustedCerts(const AmArg& arg, AmArg& ret)
+void YetiRpc::showCertCacheTrustedCerts(const AmArg&, AmArg& ret)
 {
     cert_cache.ShowTrustedCerts(ret);
 }
 
-void YetiRpc::showCertCacheTrustedRepositories(const AmArg& arg, AmArg& ret)
+void YetiRpc::showCertCacheTrustedRepositories(const AmArg&, AmArg& ret)
 {
     cert_cache.ShowTrustedRepositories(ret);
 }
 
-void YetiRpc::showTrustedBalancers(const AmArg& arg, AmArg& ret)
+void YetiRpc::showTrustedBalancers(const AmArg&, AmArg& ret)
 {
     orig_pre_auth.ShowTrustedBalancers(ret);
 }
@@ -1279,62 +1059,26 @@ void YetiRpc::showIPAuth(const AmArg& arg, AmArg& ret)
 
 void YetiRpc::requestCertCacheTrustedCertsReload(const AmArg&, AmArg& ret)
 {
-    pqxx::connection c(config.routing_db_master.conn_str());
-    c.set_variable("search_path",config.routing_schema+", public");
-    cert_cache.reloadDatabaseSettings(c, true, false);
-    ret = 0;
+    ret = RPC_CMD_DEPRECATED;
 }
 
 void YetiRpc::requestCertCacheTrustedRepositoriesReload(const AmArg&, AmArg& ret)
 {
-    pqxx::connection c(config.routing_db_master.conn_str());
-    c.set_variable("search_path",config.routing_schema+", public");
-    cert_cache.reloadDatabaseSettings(c, false, true);
-    ret = 0;
+    ret = RPC_CMD_DEPRECATED;
 }
 
 void YetiRpc::requestTrustedBalancersReload(const AmArg&, AmArg& ret)
 {
-    pqxx::connection c(config.routing_db_master.conn_str());
-    c.set_variable("search_path",config.routing_schema+", public");
-    orig_pre_auth.reloadDatabaseSettings(c, true, false);
-    ret = 0;
+    ret = RPC_CMD_DEPRECATED;
 }
 
 void YetiRpc::requestIPAuthReload(const AmArg&, AmArg& ret)
 {
-    pqxx::connection c(config.routing_db_master.conn_str());
-    c.set_variable("search_path",config.routing_schema+", public");
-    orig_pre_auth.reloadDatabaseSettings(c, false, true);
-    ret = 0;
-}
-
-static void fillReloadStatus(AmArg &a, unsigned long node_state, unsigned long db_state)
-{
-    a["node"] = node_state;
-    a["db"] = db_state;
+    ret = RPC_CMD_DEPRECATED;
 }
 
 void YetiRpc::showReloadStatus(const AmArg&, AmArg& ret)
 {
-    DbConfigStates new_db_cfg_states;
-    pqxx::connection c(config.routing_db_master.conn_str());
-    c.set_variable("search_path",config.routing_schema+", public");
-    {
-        pqxx::nontransaction t(c);
-        new_db_cfg_states.readFromDbReply(t.exec("SELECT * FROM check_states()"));
-    }
-
-    ret.assertStruct();
-#define fillStatusByName(field_name) \
-    fillReloadStatus(ret[#field_name],\
-                     db_cfg_states.field_name,\
-                     new_db_cfg_states.field_name)
-
-    fillStatusByName(trusted_lb);
-    fillStatusByName(ip_auth);
-    fillStatusByName(stir_shaken_trusted_certificates);
-    fillStatusByName(stir_shaken_trusted_repositories);
-
-#undef fillStatusByName
+    //TODO: rewrite to use async postgres and show db values
+    ret = db_cfg_states;
 }
