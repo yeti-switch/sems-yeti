@@ -1,3 +1,8 @@
+sems-yeti (1.12.35) stable; urgency=medium
+  * optimize netlink usage on outbound interface resolving
+  * fix $Oi replacement for non-UDP transports 
+ -- dev <dev@yeti-switch.org>  Mon, 11 Jul 2022 14:08:16 +0300
+
 sems-yeti (1.12.34) stable; urgency=medium
   * libsems 1.86.0
   * bind A/B leg sessions for the same call to the same session processor thread
