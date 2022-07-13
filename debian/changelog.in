@@ -1,3 +1,7 @@
+sems-yeti (1.12.36) stable; urgency=medium
+  * change DC_REINVITE_ERROR_REPLY 150 -> 145 
+ -- dev <dev@yeti-switch.org>  Wed, 13 Jul 2022 12:07:22 +0300
+
 sems-yeti (1.12.35) stable; urgency=medium
   * optimize netlink usage on outbound interface resolving
   * fix $Oi replacement for non-UDP transports 
