@@ -174,10 +174,8 @@ public:
     {
         redisAsyncContext* ctx = (redisAsyncContext*)malloc(sizeof(redisAsyncContext));
         memset(ctx, 0, sizeof(redisAsyncContext));
-        ctx->c.tcp.host = (char*)malloc(strlen(ip) + 1);
-        strcpy(ctx->c.tcp.host, ip);
-        ctx->c.tcp.source_addr = (char*)malloc(strlen(ip) + 1);
-        strcpy(ctx->c.tcp.source_addr , ip);
+        ctx->c.tcp.host = strdup(ip);
+        ctx->c.tcp.source_addr = strdup(ip);
         ctx->c.tcp.port = port;
         ctx->c.connection_type = REDIS_CONN_TCP;
         ctx->c.fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -197,10 +195,8 @@ public:
     {
         redisContext* ctx = (redisContext*)malloc(sizeof(redisContext));
         memset(ctx, 0, sizeof(redisContext));
-        ctx->tcp.host = (char*)malloc(strlen(ip) + 1);
-        strcpy(ctx->tcp.host, ip);
-        ctx->tcp.source_addr = (char*)malloc(strlen(ip) + 1);
-        strcpy(ctx->tcp.source_addr , ip);
+        ctx->tcp.host = strdup(ip);
+        ctx->tcp.source_addr = strdup(ip);
         ctx->tcp.port = port;
         ctx->connection_type = REDIS_CONN_TCP;
         ctx->timeout = (struct timeval*)malloc(sizeof(struct timeval));
@@ -213,8 +209,7 @@ public:
     {
         redisContext* ctx = (redisContext*)malloc(sizeof(redisContext));
         memset(ctx, 0, sizeof(redisContext));
-        ctx->unix_sock.path = (char*)malloc(strlen(path) + 1);
-        strcpy(ctx->unix_sock.path, path);
+        ctx->unix_sock.path = strdup(path);
         ctx->connection_type = REDIS_CONN_UNIX;
         ctx->timeout = (struct timeval*)malloc(sizeof(struct timeval));
         *ctx->timeout = tv;
@@ -251,7 +246,7 @@ public:
         return REDIS_OK;
     }
 
-    void redisAsyncHandleRead(redisAsyncContext *ac) override {}
+    void redisAsyncHandleRead(redisAsyncContext *) override {}
     void redisAsyncHandleWrite(redisAsyncContext *ac) override
     {
         if(!async_connected && ac->onConnect) {
@@ -291,7 +286,7 @@ public:
         return REDIS_OK;
     }
 
-    int redisAppendCommand(redisContext* c, const char* format, va_list argptr) override
+    int redisAppendCommand(redisContext* , const char* format, va_list argptr) override
     {
         Command current;
         current.replyfn = 0;
@@ -304,9 +299,8 @@ public:
         return REDIS_OK;
     }
 
-    int redisGetReply(redisContext* c, void ** reply) override
+    int redisGetReply(redisContext*, void ** reply) override
     {
-        (void*)c;
         Command& cmd = q.front();
         AmArg r;
         if(server)
@@ -325,7 +319,7 @@ public:
         redisReply* _reply = (redisReply*)reply;
         if(_reply->str) free(_reply->str);
         if(_reply->element) {
-            for(int i = 0; i < _reply->elements; i++)
+            for(size_t i = 0; i < _reply->elements; i++)
                 freeReplyObject(_reply->element[i]);
             free(_reply->element);
         }
@@ -610,7 +604,7 @@ void Amarg2redisReply(const AmArg& a, redisReply** r)
     } else if(isArgArray(a)){
         (*r)->elements = a.size();
         (*r)->element = (redisReply**)malloc(sizeof(redisReply*)*a.size());
-        for(int i = 0; i < a.size(); i++)
+        for(size_t i = 0; i < a.size(); i++)
             Amarg2redisReply(a[i], (*r)->element + i);
     } else if(isArgUndef(a)) {
         (*r)->type = REDIS_REPLY_NIL;
@@ -619,7 +613,7 @@ void Amarg2redisReply(const AmArg& a, redisReply** r)
     }
 }
 
-static void checkReplyType(redisContext * ctx, redisReply* reply, int state, int expected, char* log) noexcept(false)
+static void checkReplyType(redisContext * ctx, redisReply* reply, int state, int expected, const char* log) noexcept(false)
 {
     if(state!=REDIS_OK)
         throw GetReplyException(string(log) + ": redis::redisGetReply() != REDIS_OK",state);
@@ -635,7 +629,7 @@ static void checkReplyType(redisContext * ctx, redisReply* reply, int state, int
     }
 }
 
-AmArg runMultiCommand(redisContext * ctx, const vector<string>& commands, char* log) noexcept(false)
+AmArg runMultiCommand(redisContext * ctx, const vector<string>& commands, const char* log) noexcept(false)
 {
     redisReply* reply;
     AmArg ret;

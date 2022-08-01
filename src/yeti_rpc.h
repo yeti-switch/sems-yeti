@@ -37,7 +37,6 @@ class YetiRpc
     rpc_handler GetRegistrations;
     rpc_handler GetRegistrationsCount;
     rpc_handler showVersion;
-    rpc_handler closeCdrFiles;
 
     rpc_handler reloadResources;
     rpc_handler reloadTranslations;
@@ -46,7 +45,6 @@ class YetiRpc
     rpc_handler showMediaStreams;
     rpc_handler showPayloads;
     rpc_handler showInterfaces;
-    rpc_handler showRouterCdrWriterOpenedFiles;
     rpc_handler showCallsFields;
     rpc_handler requestSystemLogDump;
 

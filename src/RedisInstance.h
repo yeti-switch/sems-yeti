@@ -82,7 +82,7 @@ struct ReplyDataException {
 void makeRedisInstance(bool test, RedisTestServer* server = 0);
 void freeRedisInstance();
 
-AmArg runMultiCommand(redisContext * ctx, const vector<string>& commands, char* log) noexcept(false);
+AmArg runMultiCommand(redisContext * ctx, const vector<string>& commands, const char* log) noexcept(false);
 void redisReply2Amarg(AmArg &a, redisReply *r);
 void Amarg2redisReply(const AmArg &a, redisReply **r);
 

@@ -9,7 +9,7 @@ TEST_F(YetiTest, inplaceHeaderFilterTest)
         entry.filter_type = FilterType::Whitelist;
         entry.filter_list.emplace("x-origin");
         filters.push_back(entry);
-        string headers("Host: www.didww.com\r\nX-Origin: test\r\nContent-Type: application/json\r\n");
+        string headers("Host: domain.invalid\r\nX-Origin: test\r\nContent-Type: application/json\r\n");
         ASSERT_FALSE(inplaceHeaderFilter(headers, filters));
         ASSERT_EQ(headers, string("X-Origin: test\r\n"));
     }
@@ -19,9 +19,9 @@ TEST_F(YetiTest, inplaceHeaderFilterTest)
         entry.filter_type = FilterType::Blacklist;
         entry.filter_list.emplace("x-origin");
         filters.push_back(entry);
-        string headers("Host: www.didww.com\r\nX-Origin: test\r\nContent-Type: application/json\r\n");
+        string headers("Host: domain.invalid\r\nX-Origin: test\r\nContent-Type: application/json\r\n");
         ASSERT_FALSE(inplaceHeaderFilter(headers, filters));
-        ASSERT_EQ(headers, string("Host: www.didww.com\r\nContent-Type: application/json\r\n"));
+        ASSERT_EQ(headers, string("Host: domain.invalid\r\nContent-Type: application/json\r\n"));
     }
     {
         vector<FilterEntry> filters;
@@ -31,7 +31,7 @@ TEST_F(YetiTest, inplaceHeaderFilterTest)
         filters.push_back(entry);
         entry.filter_type = FilterType::Whitelist;
         filters.push_back(entry);
-        string headers("Host: www.didww.com\r\nX-Origin: test\r\nContent-Type: application/json\r\n");
+        string headers("Host: domain.invalid\r\nX-Origin: test\r\nContent-Type: application/json\r\n");
         ASSERT_FALSE(inplaceHeaderFilter(headers, filters));
         ASSERT_TRUE(headers.empty());
     }
@@ -45,7 +45,7 @@ TEST_F(YetiTest, inplaceHeaderFilterPatternTest)
         entry.filter_type = FilterType::Whitelist;
         entry.filter_list.emplace("x-*");
         filters.push_back(entry);
-        string headers("Host: www.didww.com\r\nX-Origin: test\r\nContent-Type: application/json\r\n");
+        string headers("Host: domain.invalid\r\nX-Origin: test\r\nContent-Type: application/json\r\n");
         ASSERT_FALSE(inplaceHeaderPatternFilter(headers, filters));
         ASSERT_EQ(headers, string("X-Origin: test\r\n"));
     }
@@ -55,9 +55,9 @@ TEST_F(YetiTest, inplaceHeaderFilterPatternTest)
         entry.filter_type = FilterType::Blacklist;
         entry.filter_list.emplace("x-*");
         filters.push_back(entry);
-        string headers("Host: www.didww.com\r\nX-Origin: test\r\nContent-Type: application/json\r\n");
+        string headers("Host: domain.invalid\r\nX-Origin: test\r\nContent-Type: application/json\r\n");
         ASSERT_FALSE(inplaceHeaderPatternFilter(headers, filters));
-        ASSERT_EQ(headers, string("Host: www.didww.com\r\nContent-Type: application/json\r\n"));
+        ASSERT_EQ(headers, string("Host: domain.invalid\r\nContent-Type: application/json\r\n"));
     }
     {
         vector<FilterEntry> filters;
@@ -67,7 +67,7 @@ TEST_F(YetiTest, inplaceHeaderFilterPatternTest)
         filters.push_back(entry);
         entry.filter_type = FilterType::Whitelist;
         filters.push_back(entry);
-        string headers("Host: www.didww.com\r\nX-Origin: test\r\nContent-Type: application/json\r\n");
+        string headers("Host: domain.invalid\r\nX-Origin: test\r\nContent-Type: application/json\r\n");
         ASSERT_FALSE(inplaceHeaderFilter(headers, filters));
         ASSERT_TRUE(headers.empty());
     }

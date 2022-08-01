@@ -12,10 +12,9 @@
 #define CHECK_STATE_SKIP 2
 
 ResourceCache::ResourceCache():
-	tostop(false),
-	data_ready(true)
-{
-}
+    data_ready(true),
+    tostop(false)
+{}
 
 int ResourceCache::configure(const AmConfigReader &cfg){
 	int ret = write_pool.configure(cfg,"write",false) ||
@@ -49,8 +48,6 @@ void ResourceCache::run(){
 	redisContext *write_ctx;
 
 	setThreadName("yeti-res-wr");
-
-	auto &gc = Yeti::instance().config;
 
 	read_pool.start();
 	write_pool.start();
@@ -288,13 +285,13 @@ void ResourceCache::pending_get_finish(){
 	data_ready.set(true);
 }
 
-long int Reply2Int(AmArg& r) throw()
+long int Reply2Int(AmArg& r)
 {
-	long int ret = 0;
-	char *s;
-	if(isArgNumber(r))
+    long int ret = 0;
+    char *s;
+    if(isArgNumber(r))
         ret = r.asLongLong();
-	else if(isArgUndef(r))//non existent key
+    else if(isArgUndef(r))//non existent key
         ret = 0;
     else if(isArgCStr(r)) {//string response
         s = (char*)r.asCStr();
@@ -307,12 +304,12 @@ long int Reply2Int(AmArg& r) throw()
             ret+=Reply2Int(r[i]);
     } else if(isArgStruct(r) && r.hasMember("error")) { 
         ERROR("reply error: '%s'",r["error"].asCStr());
-        throw ReplyDataException("undesired reply");
+        throw ReplyDataException("unexpected reply");
     } else {
         throw ReplyTypeException("reply type not desired",r.getType());
     }
 
-	return ret;
+    return ret;
 }
 
 ResourceResponse ResourceCache::get(ResourceList &rl,

@@ -591,7 +591,7 @@ void Yeti::processRedisRpcAorLookupReply(RedisReplyEvent &e)
     ctx.cond.set(true);
 }
 
-bool Yeti::isAllComponentInited()
+bool Yeti::isAllComponentsInited()
 {
     for(int i = 0; i < YetiComponentInited::MaxType; i++) {
         if(!component_inited[i]) return false;

@@ -111,11 +111,8 @@ class SqlRouter
         const string &hdrs, bool post_auth_log);
 
     void dump_config();
-    void closeCdrFiles();
     void getStats(AmArg &arg);
     void getConfig(AmArg &arg);
-    void showOpenedFiles(AmArg &arg);
-    void showRetryQueues(AmArg &arg);
 
     const DynFieldsT &getDynFields() const { return dyn_fields; }
 

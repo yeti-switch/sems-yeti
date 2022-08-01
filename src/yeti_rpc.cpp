@@ -117,11 +117,6 @@ void YetiRpc::init_rpc_tree()
 		/*leaf(show,show_sensors,"sensors","sensors related functions");
 			method(show_sensors,"state","show active sensors configuration",showSensorsState,"");*/
 
-		leaf(show,show_router,"router","active router instance");
-
-			leaf(show_router,show_router_cdrwriter,"cdrwriter","cdrwriter");
-				method(show_router_cdrwriter,"opened-files","show opened csv files",showRouterCdrWriterOpenedFiles,"");
-
 		leaf(show,show_media,"media","media processor instance");
 			method(show_media,"streams","active media streams info",showMediaStreams,"");
 
@@ -197,9 +192,6 @@ void YetiRpc::init_rpc_tree()
 			method(request_sensors,"reload","reload sensors",requestReloadSensors,"");
 
 		leaf(request,request_router,"router","active router instance");
-
-			leaf(request_router,request_router_cdrwriter,"cdrwriter","CDR writer instance");
-				method(request_router_cdrwriter,"close-files","immideatly close failover csv files",closeCdrFiles,"");
 
 			leaf(request_router,request_router_translations,"translations","disconnect/internal_db codes translator");
 				method(request_router_translations,"reload","reload translator",reloadTranslations,"");
@@ -349,9 +341,6 @@ void YetiRpc::invoke(const string& method, const AmArg& args, AmArg& ret)
 	} else if (method == "showVersion"){
 		INFO ("showVersion received via rpc2di");
 		showVersion(args, ret);
-	} else if(method == "closeCdrFiles"){
-		INFO ("closeCdrFiles received via rpc2di");
-		closeCdrFiles(args,ret);
 	/*} else if(method == "_list"){
 		ret.push(AmArg("showVersion"));
 		ret.push(AmArg("getConfig"));
@@ -794,18 +783,6 @@ void YetiRpc::requestRadiusAuthProfilesReload(const AmArg&, AmArg& ret){
 
 void YetiRpc::requestRadiusAccProfilesReload(const AmArg&, AmArg& ret){
 	ret = RPC_CMD_DEPRECATED;
-}
-
-void YetiRpc::closeCdrFiles(const AmArg& args, AmArg& ret){
-	handler_log();
-	router.closeCdrFiles();
-	ret = RPC_CMD_SUCC;
-}
-
-void YetiRpc::showRouterCdrWriterOpenedFiles(const AmArg& args, AmArg& ret){
-	handler_log();
-	(void)args;
-	router.showOpenedFiles(ret);
 }
 
 void YetiRpc::showSystemStatus(const AmArg& args, AmArg& ret){
