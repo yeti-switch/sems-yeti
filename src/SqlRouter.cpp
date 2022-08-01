@@ -432,13 +432,6 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
 
     auto &auth_log_prepared = pg_config_auth_log->addPrepared(
         auth_log_statement_name, sql.str());
-
-    int i = 0;
-    for(const auto &a : auth_log_types) {
-        i++;
-        DBG("auth %d %s", i, a.data());
-        
-    }
     auth_log_prepared.sql_types = auth_log_types;
 
     AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_config_auth_log);
