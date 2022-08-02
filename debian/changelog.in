@@ -1,3 +1,9 @@
+sems-yeti (1.12.35) stable; urgency=medium
+  * async postgres
+  * unit tests
+  * optimize netlink usage on outbound interface resolving
+ -- dev <dev@yeti-switch.org>  Tue, 02 Aug 2022 14:47:06 +0300
+
 sems-yeti (1.12.34) stable; urgency=medium
   * libsems 1.86.0
   * bind A/B leg sessions for the same call to the same session processor thread
