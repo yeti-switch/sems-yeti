@@ -1,3 +1,9 @@
+sems-yeti (1.12.37) stable; urgency=medium
+  * async postgres
+  * unit tests
+  * optimize netlink usage on outbound interface resolving
+ -- dev <dev@yeti-switch.org>  Tue, 02 Aug 2022 14:48:22 +0300
+
 sems-yeti (1.12.36) stable; urgency=medium
   * change DC_REINVITE_ERROR_REPLY 150 -> 145 
  -- dev <dev@yeti-switch.org>  Wed, 13 Jul 2022 12:07:22 +0300

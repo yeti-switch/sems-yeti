@@ -5,6 +5,7 @@
 #include "AmConfigReader.h"
 #include "../db/DbConfig.h"
 #include <chrono>
+#include "ampi/PostgreSqlAPI.h"
 
 struct YetiCfg {
     int pop_id;
@@ -13,6 +14,7 @@ struct YetiCfg {
 
     string routing_schema;
     DbConfig routing_db_master;
+
     std::chrono::seconds db_refresh_interval;
 
     string msg_logger_dir;

@@ -5,6 +5,7 @@
 #include "sip/defs.h"
 #include "md5.h"
 #include "AmUriParser.h"
+#include "yeti.h"
 
 #include <unistd.h>
 
@@ -78,7 +79,7 @@ int Auth::auth_configure(cfg_t* cfg)
     return 0;
 }
 
-int Auth::auth_init(AmConfigReader& cfg, pqxx::nontransaction &t)
+int Auth::auth_init()
 {
     AmDynInvokeFactory* di_f = AmPlugIn::instance()->getFactory4Di("uac_auth");
     if (NULL==di_f) {
@@ -91,36 +92,27 @@ int Auth::auth_init(AmConfigReader& cfg, pqxx::nontransaction &t)
         return -1;
     }
 
-    size_t credentials_count;
-    if(0!=reload_credentials(t,credentials_count)) {
-        ERROR("failed to load credentials");
-        return -1;
-    }
-
     return 0;
 }
 
-int Auth::reload_credentials(pqxx::nontransaction &t, size_t &credentials_count)
+void Auth::reload_credentials(const AmArg &data)
 {
     CredentialsContainer c;
 
-    pqxx::result r = t.exec("SELECT * from load_incoming_auth()");
-    for(pqxx::row_size_type i = 0; i < r.size();++i){
-        const pqxx::row &t = r[i];
-        c.add(t["id"].as<int>(),
-              t["username"].c_str(),
-              t["password"].c_str());
-    }
+    AmLock l(credentials_mutex);
 
-    credentials_count = c.size();
+    if(isArgArray(data)) {
+        for(size_t i = 0; i < data.size(); i++) {
+            auto &a = data[i];
+            c.add(a["id"].asInt(),
+                  a["username"].asCStr(),
+                  a["password"].asCStr());
+        }
+    }
 
     DBG("loaded credentials list. %zd items",c.size());
 
-    credentials_mutex.lock();
     credentials.swap(c);
-    credentials_mutex.unlock();
-
-    return 0;
 }
 
 Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req,  AmArg &ret)

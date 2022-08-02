@@ -19,6 +19,8 @@
 #define timeriseq(a,b) \
     (((a).tv_sec == (b).tv_sec) && ((a).tv_usec == (b).tv_usec))
 
+const string cdr_statement_name("writecdr");
+
 static string user_agent_hdr(SIP_HDR_USER_AGENT);
 static string server_hdr(SIP_HDR_SERVER);
 
@@ -855,6 +857,11 @@ char *Cdr::serialize_dynamic(const DynFieldsT &df) {
         case AmArg::CStr:
             cJSON_AddStringToObject(j,namep,arg.asCStr());
             break;
+        case AmArg::Double:
+            cJSON_AddNumberToObject(j,namep,arg.asDouble());
+            break;
+        case AmArg::Array:
+            cJSON_AddStringToObject(j,namep, arg2json(arg).data());
         case AmArg::Undef:
             cJSON_AddNullToObject(j,namep);
             break;
@@ -938,46 +945,27 @@ void Cdr::add_versions_to_amarg(AmArg &arg) const
 
 static string cdr_sql_statement_name("writecdr");
 
-static inline void invoc_AmArg(pqxx::prepare::invocation &invoc,const AmArg &arg)
-{
-    short type = arg.getType();
-    switch(type) {
-    case AmArg::Int:
-        invoc(arg.asInt());
-        break;
-    case AmArg::LongLong:
-        invoc(arg.asLongLong());
-        break;
-    case AmArg::Bool:
-        invoc(arg.asBool());
-        break;
-    case AmArg::CStr:
-        invoc(arg.asCStr());
-        break;
-    case AmArg::Undef:
-        invoc();
-        break;
-    default:
-        ERROR("invoc_AmArg. unhandled AmArg type %s",arg.t2str(type));
-        invoc();
-    }
-}
-
-pqxx::prepare::invocation Cdr::get_invocation(cdr_transaction &tnx)
-{
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-    return tnx.prepared(cdr_sql_statement_name);
-#pragma GCC diagnostic pop
-}
-
-void Cdr::invoc(
-    pqxx::prepare::invocation &invoc,
+void Cdr::apply_params(
+    QueryInfo &query_info,
     const DynFieldsT &df)
 {
+#define invoc(field_value) \
+    query_info.addParam(field_value);
+
+#define invoc_typed(type,field_value)\
+    query_info.addTypedParam(type, field_value);
+
+#define invoc_null() \
+    query_info.addParam(AmArg());
+
 #define invoc_cond(field_value,condition)\
     if(condition) { invoc(field_value); }\
-    else { invoc(); }
+    else { invoc_null(); }
+
+#define invoc_cond_typed(type, field_value,condition)\
+    if(condition) { invoc_typed(type, field_value); }\
+    else { invoc_null(); }
+
 
 #define invoc_json(func) do { \
     char *s = func; \
@@ -985,14 +973,24 @@ void Cdr::invoc(
     free(s); \
 } while(0)
 
+    invoc(true); //is_master
+    invoc(AmConfig.node_id);
+    invoc(Yeti::instance().config.pop_id);
+
     invoc(attempt_num);
     invoc(is_last);
-    invoc_cond(legA_transport_protocol_id,legA_transport_protocol_id!=0);
+
+    invoc_cond_typed("smallint", legA_transport_protocol_id,legA_transport_protocol_id!=0);
+    //invoc_cond(legA_transport_protocol_id,legA_transport_protocol_id!=0);
+
     invoc(legA_local_ip);
     invoc(legA_local_port);
     invoc(legA_remote_ip);
     invoc(legA_remote_port);
-    invoc_cond(legB_transport_protocol_id,legB_transport_protocol_id!=0);
+
+    invoc_cond_typed("smallint", legB_transport_protocol_id,legB_transport_protocol_id!=0);
+    //invoc_cond(legB_transport_protocol_id,legB_transport_protocol_id!=0);
+
     invoc(legB_local_ip);
     invoc(legB_local_port);
     invoc(legB_remote_ip);
@@ -1033,11 +1031,11 @@ void Cdr::invoc(
     invoc(resources);
     invoc(active_resources);
 
-    invoc_cond(failed_resource_type_id, failed_resource_type_id!=-1);
-    invoc_cond(failed_resource_id, failed_resource_id!=-1);
+    invoc_cond_typed("smallint", failed_resource_type_id, failed_resource_type_id!=-1);
+    invoc_cond_typed("bigint", failed_resource_id, failed_resource_id!=-1);
 
     if(dtmf_events_a2b.empty() && dtmf_events_b2a.empty()) {
-        invoc();
+        invoc_null();
     } else {
         invoc_json(serialize_dtmf_events());
     }
@@ -1047,7 +1045,8 @@ void Cdr::invoc(
     invoc(is_redirected);
 
     /* invocate dynamic fields  */
-    invoc_json(serialize_dynamic(df));
+    invoc(arg2json(dyn_fields));
+    //invoc_json(serialize_dynamic(df));
 
     /*if(Yeti::instance().config.aleg_cdr_headers.enabled()) {*/
     invoc_cond(arg2json(aleg_headers_amarg), isArgStruct(aleg_headers_amarg) && aleg_headers_amarg.size());
@@ -1062,82 +1061,11 @@ void Cdr::invoc(
     invoc_cond(arg2json(identity_data), isArgArray(identity_data) && identity_data.size());
 
 #undef invoc_json
+#undef invoc_cond_typed
 #undef invoc_cond
-}
-
-template<class T>
-static void join_csv(ofstream &s, const T &a)
-{
-    if(!a.size())
-        return;
-
-    int n = a.size()-1;
-
-    s << ",";
-    for(int k = 0;k<n;k++)
-        s << "'" << AmArg::print(a[k]) << "',";
-    s << "'" << AmArg::print(a[n]) << "'";
-}
-
-void Cdr::to_csv_stream(ofstream &s, const DynFieldsT &df)
-{
-
-#define add_value(v) s << "'"<<v<< "'" << ','
-
-#define add_json(func) do { \
-    char *jstr = func; \
-    add_value(jstr); \
-    free(jstr); \
-} while(0)
-
-    add_value(attempt_num);
-    add_value(is_last);
-    add_value(legA_local_ip); add_value(legA_local_port);
-    add_value(legA_remote_ip); add_value(legA_remote_port);
-    add_value(legB_local_ip); add_value(legB_local_port);
-    add_value(legB_remote_ip); add_value(legB_remote_port);
-    add_value(sip_early_media_present);
-    add_json(serialize_timers_data());
-
-    add_value(disconnect_code); add_value(disconnect_reason);
-    add_value(disconnect_initiator);
-    add_value(disconnect_internal_code); add_value(disconnect_internal_reason);
-
-    if(is_last){
-        add_value(disconnect_rewrited_code);
-        add_value(disconnect_rewrited_reason);
-    } else {
-        add_value(0);
-        add_value("");
-    }
-
-    add_value(orig_call_id); add_value(term_call_id);
-    add_value(local_tag); add_value(msg_logger_path);
-    add_value(dump_level_id);
-
-    add_json(serialize_rtp_stats());
-
-    add_value(global_tag);
-
-    add_value(resources);
-    add_value(active_resources);
-
-    //dynamic fields
-    if(dyn_fields.size()){
-        s << ",";
-        for(DynFieldsT_const_iterator it = df.begin();
-            it!=df.end();++it)
-        {
-            if(it!=df.begin()) s << ",";
-            s << "'" << AmArg::print(dyn_fields[it->name]) << "'";
-        }
-    }
-
-    //trusted fields
-    join_csv(s,trusted_hdrs);
-
-#undef add_json
-#undef add_value
+#undef invoc_null
+#undef invoc_typed
+#undef invoc
 }
 
 void Cdr::snapshot_info(AmArg &s, const DynFieldsT &df) const

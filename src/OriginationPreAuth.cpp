@@ -2,16 +2,17 @@
 #include "AmLcConfig.h"
 #include "HeaderFilter.h"
 #include <exception>
+#include "db/DbHelpers.h"
 
 OriginationPreAuth::OriginationPreAuth(YetiCfg &ycfg)
   : ycfg(ycfg)
 {}
 
-OriginationPreAuth::LoadBalancerData::LoadBalancerData(const pqxx::row &r)
+OriginationPreAuth::LoadBalancerData::LoadBalancerData(const AmArg &r)
 {
-    id = r["id"].as<unsigned long>();
-    name = r["name"].c_str();
-    signalling_ip = r["signalling_ip"].c_str();
+    id = r["id"].asInt();
+    name = r["name"].asCStr();
+    signalling_ip = r["signalling_ip"].asCStr();
 }
 
 OriginationPreAuth::LoadBalancerData::operator AmArg() const
@@ -23,12 +24,13 @@ OriginationPreAuth::LoadBalancerData::operator AmArg() const
     return a;
 }
 
-OriginationPreAuth::IPAuthData::IPAuthData(const pqxx::row &r)
+OriginationPreAuth::IPAuthData::IPAuthData(const AmArg &r)
 {
-    ip = r["ip"].c_str();
-    x_yeti_auth = r["x_yeti_auth"].c_str();
-    require_incoming_auth = r["require_incoming_auth"].as<bool>();
-    require_identity_parsing = r["require_identity_parsing"].as<bool>();
+    ip = DbAmArg_hash_get_str(r,"ip");
+    x_yeti_auth = DbAmArg_hash_get_str(r,"x_yeti_auth");
+    require_incoming_auth = DbAmArg_hash_get_bool(r,"require_incoming_auth");
+    require_identity_parsing = DbAmArg_hash_get_bool(r,"require_identity_parsing");
+
     if(!subnet.parse(ip))
         throw string("failed to parse IP");
 }
@@ -44,49 +46,39 @@ OriginationPreAuth::IPAuthData::operator AmArg() const
     return a;
 }
 
-void OriginationPreAuth::reloadDatabaseSettings(pqxx::connection &c,
-                                                bool reload_load_balancers,
-                                                bool reload_ip_auth) noexcept
+void OriginationPreAuth::reloadLoadBalancers(const AmArg &data)
 {
-    //TODO: async DB request
     LoadBalancersContainer tmp_load_balancers;
-    IPAuthDataContainer tmp_ip_auths;
-    try {
-        pqxx::nontransaction t(c);
-
-        if(reload_load_balancers) {
-            auto r = t.exec("SELECT * FROM load_trusted_lb()");
-            for(const auto &row: r)
-                tmp_load_balancers.emplace_back(row);
+    if(isArgArray(data)) {
+        for(size_t i = 0; i < data.size(); i++) {
+            tmp_load_balancers.emplace_back(data[i]);
         }
-
-        if(reload_ip_auth) {
-            auto r =  t.exec_params("SELECT * FROM load_ip_auth($1,$2)",
-                           AmConfig.node_id, ycfg.pop_id);
-            for(const auto &row: r)
-                tmp_ip_auths.emplace_back(row);
-        }
-
-        {
-            AmLock l(mutex);
-
-            if(reload_load_balancers)
-                load_balancers.swap(tmp_load_balancers);
-
-            if(reload_ip_auth) {
-                ip_auths.swap(tmp_ip_auths);
-
-                subnets_tree.clear();
-                int idx = 0;
-                for(const auto &auth: ip_auths)
-                    subnets_tree.addSubnet(auth.subnet, idx++);
-            }
-        }
-    } catch(const pqxx::pqxx_exception &e) {
-        ERROR("OriginationPreAuth pqxx_exception: %s ",e.base().what());
-    } catch(...) {
-        ERROR("OriginationPreAuth unexpected exception");
     }
+
+    AmLock l(mutex);
+
+    load_balancers.swap(tmp_load_balancers);
+}
+
+void OriginationPreAuth::reloadLoadIPAuth(const AmArg &data)
+{
+    DBG("reloadLoadIPAuth AmArg: %s", AmArg::print(data).data());
+
+    IPAuthDataContainer tmp_ip_auths;
+    if(isArgArray(data)) {
+        for(size_t i = 0; i < data.size(); i++) {
+            tmp_ip_auths.emplace_back(data[i]);
+        }
+    }
+
+    AmLock l(mutex);
+
+    ip_auths.swap(tmp_ip_auths);
+
+    subnets_tree.clear();
+    int idx = 0;
+    for(const auto &auth: ip_auths)
+        subnets_tree.addSubnet(auth.subnet, idx++);
 }
 
 void OriginationPreAuth::ShowTrustedBalancers(AmArg& ret)

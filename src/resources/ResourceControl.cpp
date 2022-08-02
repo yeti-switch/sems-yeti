@@ -3,7 +3,7 @@
 #include "AmUtils.h"
 #include "AmSession.h"
 #include "../db/DbConfig.h"
-#include <pqxx/pqxx>
+#include "../db/DbHelpers.h"
 
 //workaround for callback
 static ResourceControl *_instance;
@@ -69,17 +69,15 @@ ResourceControl::ResourceControl():
 	stat.clear();
 }
 
-int ResourceControl::configure(AmConfigReader &cfg){
-	db_schema = Yeti::instance().config.routing_schema;
+int ResourceControl::configure(AmConfigReader &cfg)
+{
 	reject_on_error = cfg.getParameterInt("reject_on_cache_error",-1);
 	if(reject_on_error == -1){
 		ERROR("missed 'reject_on_error' parameter");
 		return -1;
 	}
 
-	configure_db(cfg);
-
-	if(load_resources_config()){
+	if(load_resources_config()) {
 		ERROR("can't load resources config");
 		return -1;
 	}
@@ -90,11 +88,6 @@ int ResourceControl::configure(AmConfigReader &cfg){
 	return cache.configure(cfg);
 }
 
-void ResourceControl::configure_db(AmConfigReader &cfg){
-	string prefix("master");
-	dbc.cfg2dbcfg(cfg,prefix);
-}
-
 void ResourceControl::start(){
 //	DBG("%s()",FUNC_NAME);
 	cache.start();
@@ -102,19 +95,6 @@ void ResourceControl::start(){
 
 void ResourceControl::stop(){
 	cache.stop(true);
-}
-
-bool ResourceControl::reload(){
-	bool ret = true;
-
-	cfg_lock.lock();
-	type2cfg.clear();
-	if(load_resources_config()){
-		ret = false;
-	}
-	cfg_lock.unlock();
-
-	return ret;
 }
 
 bool ResourceControl::invalidate_resources(){
@@ -150,43 +130,31 @@ void ResourceControl::replace(string &s,Resource &r,ResourceConfig &rc){
 	replace(s,"$name",rc.name);
 }
 
-int ResourceControl::load_resources_config(){
-	map<int,ResourceConfig> _type2cfg;
-	try {
-		pqxx::result r;
-		pqxx::connection c(dbc.conn_str());
-		c.set_variable("search_path",db_schema+", public");
-			pqxx::work t(c);
-			r = t.exec("SELECT * FROM load_resource_types()");
-			t.commit();
-		c.disconnect();
-		for(pqxx::row_size_type i = 0; i < r.size();++i) {
-			const pqxx::row &row = r[i];
-			int id = row["id"].as<int>();
-			ResourceConfig rc(
-				id,
-				row["name"].c_str(),
-				row["internal_code_id"].as<int>(0),
-				row["action_id"].as<int>()
-			);
-			_type2cfg.insert(pair<int,ResourceConfig>(id,rc));
-		}
+int ResourceControl::load_resources_config()
+{
+	auto &sync_db = Yeti::instance().sync_db;
 
-		INFO("resources types are loaded successfully. apply changes");
-
-		type2cfg.swap(_type2cfg);
-
-		map<int,ResourceConfig>::const_iterator mi = type2cfg.begin();
-		for(;mi!=type2cfg.end();++mi){
-			const ResourceConfig &c = mi->second;
-			DBG("resource cfg:     <%s>",c.print().c_str());
-		}
-
-		return 0;
-	} catch(const pqxx::pqxx_exception &e){
-		ERROR("pqxx_exception: %s ",e.base().what());
+	if(sync_db.exec_query("SELECT * from load_resource_types()", "load_resource_types"))
 		return 1;
+
+	assertArgArray(sync_db.db_reply_result);
+	int id;
+	for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {
+		AmArg &a = sync_db.db_reply_result.get(i);
+		id = a["id"].asInt();
+		type2cfg.try_emplace(
+			id,
+			id,
+			a["name"].asCStr(),
+			DbAmArg_hash_get_int(a, "internal_code_id", 0),
+			DbAmArg_hash_get_int(a, "action_id", 0));
 	}
+
+	for(const auto &it: type2cfg) {
+		DBG("resource cfg:     <%s>",it.second.print().c_str());
+	}
+
+	return 0;
 }
 
 void ResourceControl::on_reconnect(){
@@ -246,7 +214,6 @@ ResourceCtlResponse ResourceControl::get(
 		}
 		case RES_BUSY: {
 			stat.overloaded++;
-			cfg_lock.lock();
 			map<int,ResourceConfig>::iterator ti = type2cfg.find(rli->type);
 			if(ti==type2cfg.end()) {
 				resource_config.internal_code_id = DC_RESOURCE_UNKNOWN_TYPE;
@@ -259,12 +226,10 @@ ResourceCtlResponse ResourceControl::get(
 				ResourceConfig &rc  = ti->second;
 				DBG("overloaded resource %d:%d action: %s",rli->type,rli->id,rc.str_action.c_str());
 				if(rc.action==ResourceConfig::Accept){
-					cfg_lock.unlock();
 					return RES_CTL_OK;
 				} else { /* reject or choose next */
 					resource_config = rc;
 					ResourceConfig::ActionType a = rc.action;
-					cfg_lock.unlock();
 
 					if(a==ResourceConfig::NextRoute){
 						stat.nextroute++;
@@ -275,7 +240,6 @@ ResourceCtlResponse ResourceControl::get(
 					}
 				}
 			}
-			cfg_lock.unlock();
 		} break;
 		case RES_ERR: {
 			stat.errors++;
@@ -333,8 +297,7 @@ void ResourceControl::put(const string &handler){
 void ResourceControl::GetConfig(AmArg& ret,bool types_only){
 	DBG("types_only = %d, size = %ld",types_only,type2cfg.size());
 
-	if(types_only){
-		cfg_lock.lock();
+	if(types_only) {
 		map<int,ResourceConfig>::const_iterator it = type2cfg.begin();
 		for(map<int,ResourceConfig>::const_iterator it = type2cfg.begin();
 			it!=type2cfg.end();++it)
@@ -349,18 +312,12 @@ void ResourceControl::GetConfig(AmArg& ret,bool types_only){
 			p["internal_code_id"] = c.internal_code_id;
 			p["action"] = c.str_action;
 		}
-		cfg_lock.unlock();
 		return;
 	}
 
-	ret["db_config"] = dbc.conn_str();
-	ret["db_schema"] = db_schema;
-
-	cfg_lock.lock();
-		ret.push("cache",AmArg());
-		AmArg &u = ret["cache"];
-		cache.GetConfig(u);
-	cfg_lock.unlock();
+	ret.push("cache",AmArg());
+	AmArg &u = ret["cache"];
+	cache.GetConfig(u);
 }
 
 void ResourceControl::clearStats(){
@@ -373,12 +330,9 @@ void ResourceControl::getStats(AmArg &ret){
 
 void ResourceControl::getResourceState(int type, int id, AmArg &ret){
 	if(type!=ANY_VALUE){
-		cfg_lock.lock();
 		if(type2cfg.find(type)==type2cfg.end()){
-			cfg_lock.unlock();
 			throw ResourceCacheException("unknown resource type",500);
 		}
-		cfg_lock.unlock();
 	}
 	cache.getResourceState(type,id,ret);
 }

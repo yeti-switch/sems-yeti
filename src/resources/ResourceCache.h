@@ -5,7 +5,7 @@
 #include "AmThread.h"
 #include "Resource.h"
 #include "AmArg.h"
-#include "hiredis/hiredis.h"
+#include "../RedisInstance.h"
 #include "RedisConnPool.h"
 
 #include <list>

@@ -118,6 +118,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   SBCCallProfile call_profile;
   PlaceholdersHash placeholders_hash;
+  AmArg identity_data;
 
   // Rate limiting
   auto_ptr<RateLimit> rtp_relay_rate_limit;
@@ -183,6 +184,11 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   /*! choose next profile, create cdr and check resources */
   bool chooseNextProfile();
   bool connectCalleeRequest(const AmSipRequest &orig_req);
+
+  void onPostgresResponse(PGResponse &e);
+  void onPostgresResponseError(PGResponseError &e);
+  void onPostgresTimeout(PGTimeout &e);
+  void onProfilesReady();
 
   void onRadiusReply(const RadiusReplyEvent &ev);
   void onRedisReply(const RedisReplyEvent &e);

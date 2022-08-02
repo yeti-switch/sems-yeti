@@ -5,10 +5,13 @@ set(yeti_config_dist_files yeti)
 
 set(sems_module_name yeti)
 
-file(GLOB_RECURSE yeti_SRCS "*.cpp")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
-include_directories(${HIREDIS_INCLUDE_DIR} ${PQXX_INCLUDE_DIRECTORIES} ${SEMS_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
-set(sems_module_libs ${HIREDIS_LIBRARIES} ${PQXX_LIBRARIES} ${SEMS_LIBRARIES})
+file(GLOB_RECURSE yeti_SRCS "*.cpp")
+file(GLOB yeti_UNIT_SRCS "../unit_tests/*.cpp")
+
+include_directories(${HIREDIS_INCLUDE_DIR} ${SEMS_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+set(sems_module_libs ${HIREDIS_LIBRARIES} ${SEMS_LIBRARIES})
 
 add_definitions("-fmacro-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}/=${sems_module_name}:")
 

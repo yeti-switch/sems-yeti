@@ -224,67 +224,48 @@ void CertCache::renewCertEntry(HashType::value_type &entry)
                         YETI_QUEUE_NAME)); //session_id
 }
 
-void CertCache::reloadDatabaseSettings(pqxx::connection &c,
-                                       bool reload_trusted_cetificates,
-                                       bool reload_trusted_repositories) noexcept
+void CertCache::reloadTrustedCertificates(const AmArg &data)
 {
-    //TODO: async DB request
-    try {
-        pqxx::nontransaction t(c);
-        if(reload_trusted_cetificates) {
-            auto r = t.exec("SELECT * FROM load_stir_shaken_trusted_certificates()");
-
-            AmLock l(mutex);
-            trusted_certs.clear();
-            trusted_certs_store = Botan::Certificate_Store_In_Memory();
-            for(const auto &row: r) {
-                try {
-                    trusted_certs.emplace_back(
-                        row["id"].as<unsigned long>(),
-                        row["name"].c_str());
-                    auto &cert_entry = trusted_certs.back();
-
-                    string cert_data = row["certificate"].c_str();
-                    //split and parse certificates
-                    Botan::DataSource_Memory in(cert_data);
-                    while(!in.end_of_data()) {
-                        try {
-                            cert_entry.certs.emplace_back(new Botan::X509_Certificate(in));
-                            trusted_certs_store.add_certificate(cert_entry.certs.back());
-                        } catch(Botan::Exception &e) {
-                            ERROR("CertCache entry %lu '%s' Botan::exception: %s",
-                                cert_entry.id, cert_entry.name.data(),
-                                e.what());
-                        }
-                    }
-                } catch(const pqxx::pqxx_exception &e) {
-                    ERROR("CertCache row pqxx_exception: %s ",e.base().what());
-                }
+    AmLock l(mutex);
+    trusted_certs.clear();
+    if(!isArgArray(data)) return;
+    for(size_t i = 0; i < data.size(); i++) {
+        AmArg &a = data[i];
+        trusted_certs.emplace_back(
+            a["id"].asInt(),
+            a["name"].asCStr());
+        auto &cert_entry = trusted_certs.back();
+        string cert_data = a["certificate"].asCStr();
+        //split and parse certificates
+        Botan::DataSource_Memory in(cert_data);
+        while(!in.end_of_data()) {
+            try {
+                cert_entry.certs.emplace_back(new Botan::X509_Certificate(in));
+                trusted_certs_store.add_certificate(cert_entry.certs.back());
+            } catch(Botan::Exception &e) {
+                ERROR("CertCache entry %lu '%s' Botan::exception: %s",
+                    cert_entry.id, cert_entry.name.data(),
+                    e.what());
             }
         }
+    }
+}
 
-        if(reload_trusted_repositories) {
-            auto r = t.exec("SELECT * FROM load_stir_shaken_trusted_repositories()");
-
-            AmLock l(mutex);
-            trusted_repositories.clear();
-            for(const auto &row: r) {
-                try {
-                    trusted_repositories.emplace_back(
-                        row["id"].as<unsigned long>(),
-                        row["url_pattern"].c_str(),
-                        row["validate_https_certificate"].as<bool>());
-                } catch(const pqxx::pqxx_exception &e) {
-                    ERROR("CertCache row pqxx_exception: %s ",e.base().what());
-                } catch(std::regex_error& e) {
-                    ERROR("CertCache row regex_error: %s", e.what());
-                }
-            }
+void CertCache::reloadTrustedRepositories(const AmArg &data)
+{
+    AmLock l(mutex);
+    trusted_repositories.clear();
+    if(!isArgArray(data)) return;
+    for(size_t i = 0; i < data.size(); i++) {
+        AmArg &a = data[i];
+        try {
+            trusted_repositories.emplace_back(
+                a["id"].asInt(),
+                a["url_pattern"].asCStr(),
+                a["validate_https_certificate"].asBool());
+        } catch(std::regex_error& e) {
+            ERROR("CertCache row regex_error: %s", e.what());
         }
-    } catch(const pqxx::pqxx_exception &e){
-        ERROR("CertCache pqxx_exception: %s ",e.base().what());
-    } catch(...) {
-        ERROR("CertCache unexpected exception");
     }
 }
 

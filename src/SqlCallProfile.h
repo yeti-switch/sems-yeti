@@ -2,7 +2,6 @@
 #define SQLCALLPROFILE_H
 
 #include "SBCCallProfile.h"
-#include <pqxx/result>
 #include <string>
 
 #include "resources/Resource.h"
@@ -42,16 +41,15 @@ struct SqlCallProfile
 	SqlCallProfile();
 	~SqlCallProfile();
 
-	static bool skip(const pqxx::row &t);
-	bool readFromTuple(const pqxx::row &t,const DynFieldsT &df);
-	bool readFilter(const pqxx::row &t, const char* cfg_key_filter,
+	bool readFromTuple(const AmArg &t,const DynFieldsT &df);
+
+	bool readFilter(const AmArg &t, const char* cfg_key_filter,
 			vector<FilterEntry>& filter_list, bool keep_transparent_entry,
 			int failover_type_id = FILTER_TYPE_TRANSPARENT);
-	bool readFilterSet(const pqxx::row &t, const char* cfg_key_filter,
+	bool readFilterSet(const AmArg &t, const char* cfg_key_filter,
 			vector<FilterEntry>& filter_list);
-	bool readCodecPrefs(const pqxx::row &t);
-	bool readDynFields(const pqxx::row &t,const DynFieldsT &df);
-	bool column_exist(const pqxx::row &t,string column_name);
+	bool readCodecPrefs(const AmArg &t);
+	bool readDynFields(const AmArg &t,const DynFieldsT &df);
 	bool eval_media_encryption();
 	bool eval_resources();
 	bool eval_radius();

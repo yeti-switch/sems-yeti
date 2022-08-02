@@ -1,6 +1,7 @@
 #include "UsedHeaderField.h"
 
 #include "AmUtils.h"
+#include "db/DbHelpers.h"
 #include "sip/parse_common.h"
 #include "sip/parse_nameaddr.h"
 #include "sip/parse_uri.h"
@@ -26,26 +27,8 @@ static bool getInternalHeader(const AmSipRequest &req,const string &name, string
     return true;
 }
 
-UsedHeaderField::UsedHeaderField(const string &hdr_name)
+void UsedHeaderField::applyFormat(const string &format)
 {
-    name = hdr_name;
-    type = Raw;
-}
-
-UsedHeaderField::UsedHeaderField(const pqxx::row &t)
-{
-    readFromTuple(t);
-}
-
-void UsedHeaderField::readFromTuple(const pqxx::row &t)
-{
-    string format;
-
-    name = t["varname"].c_str();
-    param = t["varparam"].c_str();
-    hashkey = t["varhashkey"].as<bool>(false);
-    format = t["varformat"].c_str();
-
     if(format.empty()){
         type = Raw;
         return;
@@ -74,6 +57,20 @@ void UsedHeaderField::readFromTuple(const pqxx::row &t)
             format.c_str(),name.c_str());
         type = Raw;
     }
+}
+
+UsedHeaderField::UsedHeaderField(const string &hdr_name)
+{
+    name = hdr_name;
+    type = Raw;
+}
+
+UsedHeaderField::UsedHeaderField(const AmArg &a)
+{
+    name = DbAmArg_hash_get_str(a,"varname");
+    param = DbAmArg_hash_get_str(a,"varparam");
+    hashkey = DbAmArg_hash_get_bool(a,"varhashkey");
+    applyFormat(DbAmArg_hash_get_str(a,"varformat"));
 }
 
 bool UsedHeaderField::getValue(const AmSipRequest &req,string &val) const

@@ -31,40 +31,11 @@ int RedisScript::load(const string &script_path, int reply_type_id)
     }
 }
 
-static void redisReply2Amarg(AmArg &a, redisReply *r)
-{
-    switch(r->type) {
-    case REDIS_REPLY_ERROR:
-        a = string("error: ") + string(r->str,r->len);
-        break;
-    case REDIS_REPLY_STATUS:
-        a = string("status: ") + string(r->str,r->len);
-        break;
-    case REDIS_REPLY_NIL:
-        break;
-    case REDIS_REPLY_STRING:
-        a = r->str;
-        break;
-    case REDIS_REPLY_INTEGER:
-        a = r->integer;
-        break;
-    case REDIS_REPLY_ARRAY:
-        a.assertArray();
-        for(size_t i = 0; i < r->elements; i++) {
-            a.push(AmArg());
-            redisReply2Amarg(a.back(), r->element[i]);
-        }
-        break;
-    default:
-        ERROR("unexpected reply type: %d", r->type);
-    }
-}
-
 RedisRequestEvent::~RedisRequestEvent()
 {
     //use redisFreeCommand() for cmd buffer allocated by redisvFormatCommand()
     if(cmd_allocated_by_redis && cmd.get()) {
-        redisFreeCommand(cmd.release());
+        redis::redisFreeCommand(cmd.release());
     }
 }
 
@@ -78,16 +49,13 @@ RedisReplyEvent::RedisReplyEvent(redisReply *reply, RedisReplyCtx &ctx)
         return;
     }
     //serialize redisReply to AmArg
-    switch(reply->type) {
-    case REDIS_REPLY_ERROR:
+    if(redis::isReplyError(reply)) {
         result = ErrorReply;
         //data = string("error: ") + string(reply->str,reply->len);
-        break;
-    case REDIS_REPLY_STATUS:
+    } else if(redis::isReplyStatus(reply)) {
         result = StatusReply;
         //data = string("status: ") + string(reply->str,reply->len);
-        break;
-    default:
+    } else {
         result = SuccessReply;
     }
 
@@ -126,7 +94,7 @@ RedisConnection::~RedisConnection()
 
 static void connectCallback_static(const redisAsyncContext *c, int status)
 {
-    static_cast<RedisConnection *>(c->ev.data)->connectCallback(c,status);
+    static_cast<RedisConnection *>(redis::redisAsyncGetData(c))->connectCallback(c,status);
 }
 void RedisConnection::connectCallback(const struct redisAsyncContext* c, int status)
 {
@@ -135,13 +103,13 @@ void RedisConnection::connectCallback(const struct redisAsyncContext* c, int sta
         INFO("redis %s %s:%d connected", name, host.c_str(), port);
         on_connect();
     } else {
-        ERROR("redis %s[%p] %s:%d: %s",name, c, host.c_str(), port, c->errstr);
+        ERROR("redis %s[%p] %s:%d: %s",name, c, host.c_str(), port, redis::redisGetError((void*)c));
     }
 }
 
 static void disconnectCallback_static(const redisAsyncContext *c, int status)
 {
-    static_cast<RedisConnection *>(c->ev.data)->disconnectCallback(c,status);
+    static_cast<RedisConnection *>(redis::redisAsyncGetData(c))->disconnectCallback(c,status);
 }
 void RedisConnection::disconnectCallback(const struct redisAsyncContext* c, int status)
 {
@@ -149,7 +117,7 @@ void RedisConnection::disconnectCallback(const struct redisAsyncContext* c, int 
     if(status == REDIS_OK) {
         INFO("redis %s %s:%d disconnected", name, host.c_str(), port);
     } else {
-        ERROR("redis %s %s:%d: %s",name, host.c_str(), port, c->errstr);
+        ERROR("redis %s %s:%d: %s",name, host.c_str(), port, redis::redisGetError((void*)c));
     }
 }
 
@@ -166,7 +134,7 @@ int RedisConnection::add_event(int flag)
     ee.events = static_cast<uint32_t>(mask |= flag);
     ee.data.ptr = async_context;
 
-    return epoll_ctl(epoll_fd, op, async_context->c.fd, &ee);
+    return epoll_ctl(epoll_fd, op, redis::redisGetFd(async_context), &ee);
 }
 
 static int del_event_static(void *c, int flag)
@@ -181,7 +149,7 @@ int RedisConnection::del_event(int flag)
     ee.events = static_cast<uint32_t>(mask &= ~flag);
     ee.data.ptr = async_context;
 
-    return epoll_ctl(epoll_fd, mask ?  EPOLL_CTL_MOD : EPOLL_CTL_DEL, async_context->c.fd, &ee);
+    return epoll_ctl(epoll_fd, mask ?  EPOLL_CTL_MOD : EPOLL_CTL_DEL, redis::redisGetFd(async_context), &ee);
 }
 
 void RedisConnection::cleanup()
@@ -220,28 +188,26 @@ int RedisConnection::init_async_context()
         CLASS_DBG("%s: has pending async context %p. do nothing", name, async_context);
         return 0;
     }
-    async_context = redisAsyncConnect(host.c_str(), port);
-    if(!async_context || async_context->err) {
-        CLASS_ERROR("%s redisAsyncContext: %s", name, async_context->errstr);
+    async_context = redis::redisAsyncConnect(host.c_str(), port);
+    if(!async_context || redis::redisGetErrorNumber(async_context)) {
+        CLASS_ERROR("%s redisAsyncContext: %s", name, redis::redisGetError(async_context));
         return -1;
     }
 
     mask = 0;
 
     //init ctx
-    async_context->data = this;
-
-    auto &ev = async_context->ev;
-
+    redis::EpollCallbacks ev;
     ev.data = this;
     ev.addRead = redisAddRead;
     ev.delRead = redisDelRead;
     ev.addWrite = redisAddWrite;
     ev.delWrite = redisDelWrite;
     ev.cleanup = redisCleanup;
+    redis::redisAsyncSetEpollCallbacks(async_context, ev);
 
-    redisAsyncSetConnectCallback(async_context, connectCallback_static);
-    redisAsyncSetDisconnectCallback(async_context, disconnectCallback_static);
+    redis::redisAsyncSetConnectCallback(async_context, connectCallback_static);
+    redis::redisAsyncSetDisconnectCallback(async_context, disconnectCallback_static);
 
     return 0;
 }
@@ -312,7 +278,7 @@ void RedisConnection::run()
             } else if(p==&stop_event) {
                 stop_event.read();
                 if(connected)
-                    redisAsyncDisconnect(async_context);
+                    redis::redisAsyncDisconnect(async_context);
                 running = false;
                 break;
             } else if(p==self_queue_ptr) {
@@ -327,10 +293,10 @@ void RedisConnection::run()
                     continue;
                 }
                 if(e.events & EPOLLIN) {
-                    redisAsyncHandleRead(async_context);
+                    redis::redisAsyncHandleRead(async_context);
                 }
                 if(e.events & EPOLLOUT) {
-                    redisAsyncHandleWrite(async_context);
+                    redis::redisAsyncHandleWrite(async_context);
                 }
             }
         }
@@ -387,12 +353,12 @@ static void redis_request_cb_static(redisAsyncContext *, void *r, void *privdata
 
 void RedisConnection::on_redis_reply(RedisReplyCtx &ctx, redisReply *reply)
 {
-    //DBG("got reply from redis for cmd: %s",request.cmd.c_str());
+    DBG("got reply from redis");
 
     if(reply == nullptr) {
         ERROR("%s: I/O error", name);
-    } else if(reply->type == REDIS_REPLY_ERROR) {
-        ERROR("%s: error: %s", name, reply->str);
+    } else if(redis::isReplyError(reply)) {
+        ERROR("%s: error: %s", name, redis::getReplyError(reply));
     } else {
         //DBG("got succ reply from redis for cmd: %s",request.cmd.get());
     }
@@ -414,7 +380,7 @@ void RedisConnection::process_request_event(RedisRequestEvent &event)
             }
 
             auto ctx = new RedisReplyCtx(this,event);
-            if(REDIS_OK!=redisAsyncFormattedCommand(
+            if(REDIS_OK!=redis::redisAsyncFormattedCommand(
                 async_context,
                 &redis_request_cb_static, ctx,
                 event.cmd.get(),event.cmd_size))
@@ -430,7 +396,7 @@ void RedisConnection::process_request_event(RedisRequestEvent &event)
                 persistent_reply_contexts.push_back(ctx);
             }
         } else {
-            if(REDIS_OK!=redisAsyncFormattedCommand(
+            if(REDIS_OK!=redis::redisAsyncFormattedCommand(
                 async_context,
                 nullptr, nullptr,
                 event.cmd.get(),event.cmd_size))

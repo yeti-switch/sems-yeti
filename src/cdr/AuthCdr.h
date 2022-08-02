@@ -1,12 +1,13 @@
 #pragma once
 
 #include "CdrBase.h"
+#include "ampi/PostgreSqlAPI.h"
 #include "../UsedHeaderField.h"
 #include "../Auth.h"
 
 #include <vector>
 
-extern const string auth_sql_statement_name;
+extern const string auth_log_statement_name;
 extern const std::vector<static_field> auth_log_static_fields;
 
 class AuthCdr
@@ -48,10 +49,6 @@ class AuthCdr
             const string &internal_reason,
             Auth::auth_id_type auth_id);
 
-    pqxx::prepare::invocation get_invocation(cdr_transaction &tnx) override;
-    void invoc(
-        pqxx::prepare::invocation &i,
-        const DynFieldsT &) override;
-    void to_csv_stream(ofstream &s, const DynFieldsT &df) override;
+    void apply_params(QueryInfo &query_info) const;
     void info(AmArg &s) override;
 };

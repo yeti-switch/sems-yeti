@@ -49,10 +49,6 @@ class _Sensors {
 	sensors_container _sensors;
 	AmMutex lock;
 
-	DbConfig dbc;
-	string db_schema;
-	int load_sensors_config();
-
   public:
 	_Sensors();
 	~_Sensors();
@@ -61,8 +57,7 @@ class _Sensors {
 	msg_sensor *getSensor(int id);
 
 	int configure(AmConfigReader &cfg);
-	void configure_db(AmConfigReader &cfg);
-	bool reload();
+	int load_sensors_config(const AmArg &data);
 
 	void GetConfig(AmArg& ret);
 };

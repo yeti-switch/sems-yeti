@@ -60,10 +60,16 @@ class CodesTranslator {
 	/*! actions preferences */
 	struct pref {
 		bool is_stop_hunting;
-
-		pref(bool stop_hunting):is_stop_hunting(stop_hunting){}
+		pref(bool stop_hunting)
+		  : is_stop_hunting(stop_hunting)
+		{}
+		void getInfo(AmArg &ret) const;
 	};
-	map<int,pref> code2pref;
+	using Code2PrefContainer = map<unsigned int,pref>;
+	using Code2PrefOverridesContainer = map<unsigned int,Code2PrefContainer>;
+
+	Code2PrefContainer code2pref;
+	Code2PrefOverridesContainer code2prefs_overrides;
 	AmMutex code2pref_mutex;
 
 	/*! response translation preferences */
@@ -74,9 +80,15 @@ class CodesTranslator {
 		trans(bool p,int c,string r):
 			pass_reason_to_originator(p),
 			rewrite_code(c),
-			rewrite_reason(r){}
+			rewrite_reason(r)
+		{}
+		void getInfo(AmArg &ret) const;
 	};
-	map<int,trans> code2trans;
+	using Code2TransContainer = map<unsigned int,trans>;
+	using Code2TransOverridesContainer = map<unsigned int,Code2TransContainer>;
+
+	Code2TransContainer code2trans;
+	Code2TransOverridesContainer code2trans_overrides;
 	AmMutex code2trans_mutex;
 
 	/*! internal codes translator */
@@ -85,28 +97,19 @@ class CodesTranslator {
 		string internal_reason,response_reason;
 		bool store_cdr,silently_drop;
 		icode(int ic,string ir,int rc, string rr,bool sc,bool sd):
-			internal_code(ic),
-			internal_reason(ir),
-			response_code(rc),
-			response_reason(rr),
+			internal_code(ic),response_code(rc),
+			internal_reason(ir), response_reason(rr),
 			store_cdr(sc),
-			silently_drop(sd){}
+			silently_drop(sd)
+		{}
+		void getInfo(AmArg &ret) const;
 	};
-	map<unsigned int,icode> icode2resp;
+	using Icode2RespContainer = map<unsigned int,icode>;
+	using Icode2RespOverridesContainer = map<unsigned int,Icode2RespContainer>;
+
+	Icode2RespContainer icode2resp;
+	Icode2RespOverridesContainer icode2resp_overrides;
 	AmMutex icode2resp_mutex;
-
-	/*! overrides */
-	struct override {
-		map<int,pref> code2prefs;
-		map<int,trans> code2trans;
-		map<int,icode> icode2resp;
-	};
-	map<unsigned int,override> overrides;
-	AmMutex overrides_mutex;
-
-	DbConfig dbc;
-	string db_schema;
-	int load_translations_config();
 
 	struct {
 		unsigned int unknown_response_codes;
@@ -138,8 +141,15 @@ class CodesTranslator {
 	static void dispose();
 
 	int configure(AmConfigReader &cfg);
-	void configure_db(AmConfigReader &cfg);
-	bool reload();
+
+	void load_disconnect_code_rerouting(const AmArg &data);
+	void load_disconnect_code_rewrite(const AmArg &data);
+	void load_disconnect_code_refuse(const AmArg &data);
+
+	void load_disconnect_code_refuse_overrides(const AmArg &data);
+	void load_disconnect_code_rerouting_overrides(const AmArg &data);
+	void load_disconnect_code_rewrite_overrides(const AmArg &data);
+
 
 	void rewrite_response(unsigned int code,const string &reason,
 						  unsigned int &out_code,string &out_reason,

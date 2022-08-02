@@ -24,9 +24,6 @@ class YetiRpc
     void init_rpc_tree();
 
   private:
-    bool check_event_id(int event_id, AmArg &ret);
-    bool assert_event_id(const AmArg &args,AmArg &ret);
-
     rpc_handler DropCall;
     rpc_handler RemoveCall;
     rpc_handler ClearStats;
@@ -40,7 +37,6 @@ class YetiRpc
     rpc_handler GetRegistrations;
     rpc_handler GetRegistrationsCount;
     rpc_handler showVersion;
-    rpc_handler closeCdrFiles;
 
     rpc_handler reloadResources;
     rpc_handler reloadTranslations;
@@ -49,7 +45,6 @@ class YetiRpc
     rpc_handler showMediaStreams;
     rpc_handler showPayloads;
     rpc_handler showInterfaces;
-    rpc_handler showRouterCdrWriterOpenedFiles;
     rpc_handler showCallsFields;
     rpc_handler requestSystemLogDump;
 
@@ -106,11 +101,6 @@ class YetiRpc
     rpc_handler showAuthCredentialsByUser;
     rpc_handler showAuthCredentialsById;
     rpc_handler requestAuthCredentialsReload;
-
-    rpc_handler requestCdrWriterPause;
-    rpc_handler requestCdrWriterResume;
-    rpc_handler setCdrWriterRetryInterval;
-    rpc_handler showCdrWriterRetryQueues;
 
     rpc_handler showAors;
     rpc_handler showKeepaliveContexts;

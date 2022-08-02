@@ -697,7 +697,7 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
     removeHeader(invite_req.hdrs,PARAM_HDR);
     removeHeader(invite_req.hdrs,"P-App-Name");
 
-    if (call_profile.sst_enabled_value) {
+    if (call_profile.sst_enabled) {
         removeHeader(invite_req.hdrs,SIP_HDR_SESSION_EXPIRES);
         removeHeader(invite_req.hdrs,SIP_HDR_MIN_SE);
     }
@@ -743,6 +743,263 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
                   callee_dlg.release());
 
     return false;
+}
+
+void SBCCallLeg::onPostgresResponse(PGResponse &e)
+{
+    bool ret;
+    //cast result to call profiles here
+    try {
+        if(!isArgArray(e.result)) {
+            ERROR("unexpected db reply: %s", AmArg::print(e.result).data());
+            throw GetProfileException(FC_READ_FROM_TUPLE_FAILED,false);
+        }
+
+        //iterate rows fill/evaluate profiles
+        for(size_t i = 0; i < e.result.size(); i++) {
+            AmArg &a = e.result.get(i);
+
+            //skip profiles without 'ruri' field
+            if(!a.hasMember("ruri") || isArgUndef(a["ruri"]))
+                continue;
+
+            call_ctx->profiles.emplace_back();
+            SqlCallProfile &p = call_ctx->profiles.back();
+
+            //read profile
+            ret = false;
+            try {
+                ret = p.readFromTuple(a, router.getDynFields());
+            } catch(AmArg::OutOfBoundsException &e) {
+                ERROR("OutOfBoundsException while reading from profile tuple: %s",
+                      AmArg::print(a).data());
+            } catch(AmArg::TypeMismatchException &e) {
+                ERROR("TypeMismatchException while reading from profile tuple: %s",
+                      AmArg::print(a).data());
+            } catch(std::string &s) {
+                ERROR("string exception '%s' while reading from profile tuple: %s",
+                      s.data(), AmArg::print(a).data());
+            } catch(std::exception &e) {
+                ERROR("std::exception '%s' while reading from profile tuple: %s",
+                      e.what(), AmArg::print(a).data());
+            } catch(...) {
+                ERROR("exception while reading from profile tuple: %s",
+                      AmArg::print(a).data());
+            }
+
+            if(!ret) {
+                throw GetProfileException(FC_READ_FROM_TUPLE_FAILED,false);
+            }
+
+            if(!p.eval()) {
+                throw GetProfileException(FC_EVALUATION_FAILED,false);
+            }
+        }
+
+        if(call_ctx->profiles.empty())
+            throw GetProfileException(FC_DB_EMPTY_RESPONSE,false);
+
+    } catch(GetProfileException &e) {
+        DBG("GetProfile exception. code:%d", e.code);
+
+        call_ctx->profiles.clear();
+        call_ctx->profiles.emplace_back();
+        call_ctx->profiles.back().disconnect_code_id = e.code;
+        call_ctx->SQLexception = true;
+    }
+
+    onProfilesReady();
+}
+
+void SBCCallLeg::onPostgresResponseError(PGResponseError &e)
+{
+    ERROR("getprofile db error: %s", e.error.data());
+
+    delete call_ctx;
+    call_ctx = nullptr;
+
+    AmSipDialog::reply_error(uac_req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+    dlg->drop();
+    dlg->dropTransactions();
+    setStopped();
+    return;
+}
+
+void SBCCallLeg::onPostgresTimeout(PGTimeout &)
+{
+    ERROR("getprofile timeout");
+
+    delete call_ctx;
+    call_ctx = nullptr;
+
+    AmSipDialog::reply_error(uac_req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+    dlg->drop();
+    dlg->dropTransactions();
+    setStopped();
+    return;
+}
+
+void SBCCallLeg::onProfilesReady()
+{
+    SqlCallProfile *profile = call_ctx->getFirstProfile();
+    if(nullptr == profile) {
+        delete call_ctx;
+        call_ctx = nullptr;
+
+        AmSipDialog::reply_error(uac_req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+        dlg->drop();
+        dlg->dropTransactions();
+        setStopped();
+        return;
+    }
+
+    Cdr *cdr = call_ctx->cdr;
+    if(cdr && !isArgUndef(identity_data)) {
+        cdr->identity_data = identity_data;
+    }
+
+    if(profile->auth_required) {
+        delete cdr;
+        delete call_ctx;
+        call_ctx = nullptr;
+
+        if(auth_result_id <= 0) {
+            DBG("auth required for not authorized request. send auth challenge");
+            send_and_log_auth_challenge(uac_req,"no Authorization header", !router.is_skip_logging_invite_challenge());
+        } else {
+            ERROR("got callprofile with auth_required "
+                  "for already authorized request. reply internal error. i:%s",
+                  dlg->getCallid().data());
+            AmSipDialog::reply_error(uac_req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+        }
+
+        dlg->drop();
+        dlg->dropTransactions();
+        setStopped();
+        return;
+    }
+
+    cdr->set_start_time(call_start_time);
+
+    ctx.call_profile = profile;
+    if(router.check_and_refuse(profile,cdr,uac_req,ctx,true)) {
+        if(!call_ctx->SQLexception) { //avoid to write cdr on failed getprofile()
+            cdr->dump_level_id = 0; //override dump_level_id. we have no logging at this stage
+            if(call_profile.global_tag.empty()) {
+                global_tag = getLocalTag();
+            } else {
+                global_tag = call_profile.global_tag;
+            }
+            cdr->update_init_aleg(getLocalTag(),global_tag,uac_req.callid);
+
+            router.write_cdr(cdr,true);
+        } else {
+            delete cdr;
+        }
+        delete call_ctx;
+        call_ctx = nullptr;
+
+        //AmSipDialog::reply_error(req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
+        dlg->drop();
+        dlg->dropTransactions();
+        setStopped();
+        return;
+    }
+
+    //check for registered_aor_id in profiles
+    std::set<int> aor_ids;
+    for(const auto &p : call_ctx->profiles) {
+        if(0!=p.registered_aor_id) {
+            aor_ids.emplace(p.registered_aor_id);
+        }
+    }
+
+    if(!aor_ids.empty()) {
+        DBG("got %zd AoR ids to resolve", aor_ids.size());
+    }
+
+    call_profile = *call_ctx->getCurrentProfile();
+
+    set_sip_relay_only(false);
+
+    if(call_profile.aleg_rel100_mode_id!=-1) {
+        dlg->setRel100State(static_cast<Am100rel::State>(call_profile.aleg_rel100_mode_id));
+    } else {
+        dlg->setRel100State(Am100rel::REL100_IGNORED);
+    }
+
+    if(call_profile.rtprelay_bw_limit_rate > 0
+       && call_profile.rtprelay_bw_limit_peak > 0)
+    {
+            RateLimit* limit = new RateLimit(
+                static_cast<unsigned int>(call_profile.rtprelay_bw_limit_rate),
+                static_cast<unsigned int>(call_profile.rtprelay_bw_limit_peak),
+                1000);
+        rtp_relay_rate_limit.reset(limit);
+    }
+
+    if(call_profile.global_tag.empty()) {
+        global_tag = getLocalTag();
+    } else {
+        global_tag = call_profile.global_tag;
+    }
+
+    ctx.call_profile = &call_profile;
+    ctx.app_param = getHeader(uac_req.hdrs, PARAM_HDR, true);
+
+    init();
+
+    modified_req = uac_req;
+    aleg_modified_req = uac_req;
+
+    if (!logger) {
+        if(!call_profile.get_logger_path().empty() &&
+           (call_profile.log_sip || call_profile.log_rtp))
+        {
+            DBG("pcap logging requested by call_profile");
+            // open the logger if not already opened
+            ParamReplacerCtx ctx(&call_profile);
+            string log_path = ctx.replaceParameters(call_profile.get_logger_path(), "msg_logger_path",uac_req);
+            if(!openLogger(log_path)){
+                WARN("can't open msg_logger_path: '%s'",log_path.c_str());
+            }
+        } else if(yeti.config.pcap_memory_logger) {
+            DBG("no pcap logging by call_profile, but pcap_memory_logger enabled. set in-memory logger");
+            setLogger(new in_memory_msg_logger());
+            memory_logger_enabled = true;
+        } else {
+            DBG("continue without pcap logger");
+        }
+    }
+
+    uac_req.log((call_profile.log_sip || memory_logger_enabled) ? getLogger(): nullptr,
+            call_profile.aleg_sensor_level_id&LOG_SIP_MASK?getSensor():nullptr);
+
+    uac_ruri.uri = uac_req.r_uri;
+    if(!uac_ruri.parse_uri()) {
+        DBG("Error parsing R-URI '%s'",uac_ruri.uri.c_str());
+        throw AmSession::Exception(400,"Failed to parse R-URI");
+    }
+
+    call_ctx->cdr->update_with_sip_request(uac_req, yeti.config.aleg_cdr_headers);
+    call_ctx->initial_invite = new AmSipRequest(aleg_modified_req);
+
+    if(yeti.config.early_100_trying) {
+        msg_logger *logger = getLogger();
+        if(logger){
+            early_trying_logger->relog(logger);
+        }
+    } else {
+        dlg->reply(uac_req,100,"Connecting");
+    }
+
+
+    radius_auth(this,*call_ctx->cdr,call_profile,uac_req);
+
+    httpCallStartedHook();
+    if(!radius_auth_post_event(this,call_profile)) {
+        processAorResolving();
+    }
 }
 
 void SBCCallLeg::onRadiusReply(const RadiusReplyEvent &ev)
@@ -1290,7 +1547,7 @@ void SBCCallLeg::applyBProfile()
         }
     }
 
-    if (call_profile.sst_enabled_value) {
+    if (call_profile.sst_enabled) {
         if(applySSTCfg(call_profile.sst_b_cfg,nullptr) < 0) {
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
@@ -2286,6 +2543,30 @@ void SBCCallLeg::process(AmEvent* ev)
 
     do {
         getCtx_chained
+
+
+        if(auto pg_event = dynamic_cast<PGEvent *>(ev)) {
+            switch(pg_event->event_id) {
+            case PGEvent::Result:
+                if(auto e = dynamic_cast<PGResponse *>(pg_event))
+                    onPostgresResponse(*e);
+                return;
+            case PGEvent::ResultError:
+                if(auto e = dynamic_cast<PGResponseError *>(pg_event))
+                    onPostgresResponseError(*e);
+                return;
+            case PGEvent::Timeout:
+                if(auto e = dynamic_cast<PGTimeout *>(pg_event))
+                    onPostgresTimeout(*e);
+                return;
+            default:
+                break;
+            }
+
+            ERROR("unexpected pg event: %d", pg_event->event_id);
+            return;
+        }
+
         RadiusReplyEvent *radius_event = dynamic_cast<RadiusReplyEvent*>(ev);
         if(radius_event){
             onRadiusReply(*radius_event);
@@ -2589,7 +2870,6 @@ void SBCCallLeg::addIdentityHdr(const string &header_value)
 
 void SBCCallLeg::onIdentityReady()
 {
-    AmArg identity_data;
     AmArg *identity_data_ptr = nullptr;
     if(yeti.config.identity_enabled) {
         string error_reason;
@@ -2666,10 +2946,10 @@ void SBCCallLeg::onIdentityReady()
     call_ctx = new CallCtx(router);
     call_ctx->references++;
 
-    PROF_START(gprof);
+    //PROF_START(gprof);
 
-    router.getprofiles(uac_req,*call_ctx,auth_result_id,identity_data_ptr);
-
+    router.getprofiles(getLocalTag(), uac_req,*call_ctx,auth_result_id,identity_data_ptr);
+#if 0
     SqlCallProfile *profile = call_ctx->getFirstProfile();
     if(nullptr == profile) {
         delete call_ctx;
@@ -2837,19 +3117,20 @@ void SBCCallLeg::onIdentityReady()
     if(!radius_auth_post_event(this,call_profile)) {
         processAorResolving();
     }
+#endif
 }
 
 void SBCCallLeg::onRoutingReady()
 {
-    call_profile.sst_aleg_enabled = ctx.replaceParameters(
+    /*call_profile.sst_aleg_enabled = ctx.replaceParameters(
         call_profile.sst_aleg_enabled,
         "enable_aleg_session_timer", aleg_modified_req);
 
     call_profile.sst_enabled = ctx.replaceParameters(
         call_profile.sst_enabled,
-        "enable_session_timer", aleg_modified_req);
+        "enable_session_timer", aleg_modified_req);*/
 
-    if (call_profile.sst_aleg_enabled == "yes") {
+    if (call_profile.sst_aleg_enabled) {
         call_profile.eval_sst_config(ctx,aleg_modified_req,call_profile.sst_a_cfg);
         if(applySSTCfg(call_profile.sst_a_cfg,&aleg_modified_req) < 0) {
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
@@ -2928,7 +3209,7 @@ void SBCCallLeg::onRoutingReady()
     removeHeader(modified_req.hdrs,PARAM_HDR);
     removeHeader(modified_req.hdrs,"P-App-Name");
 
-    if (call_profile.sst_enabled_value) {
+    if (call_profile.sst_enabled) {
         removeHeader(modified_req.hdrs,SIP_HDR_SESSION_EXPIRES);
         removeHeader(modified_req.hdrs,SIP_HDR_MIN_SE);
     }

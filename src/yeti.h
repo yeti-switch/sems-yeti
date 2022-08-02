@@ -30,7 +30,21 @@ class Yeti
     AmTimerFd each_second_timer;
     AmTimerFd db_cfg_reload_timer;
 
+    struct cfg_timer_mapping_entry {
+        std::function<void (const string &key)> on_reload;
+        std::function<void (const PGResponse &e)> on_db_response;
+        cfg_timer_mapping_entry(
+            std::function<void (const string &key)> on_reload,
+            std::function<void (const PGResponse &e)> on_db_response)
+          : on_reload(on_reload),
+            on_db_response(on_db_response)
+        {}
+    };
+    map<string, cfg_timer_mapping_entry> db_config_timer_mappings;
+
+    void initCfgTimerMappings();
     void onDbCfgReloadTimer() noexcept;
+    void onDbCfgReloadTimerResponse(const PGResponse &e) noexcept;
 
   public:
 
@@ -62,4 +76,5 @@ class Yeti
     void processRedisRegisterReply(RedisReplyEvent &e);
     void processRedisRpcAorLookupReply(RedisReplyEvent &e);
     bool getCoreOptionsHandling() { return config.core_options_handling; }
+    bool isAllComponentsInited();
 };

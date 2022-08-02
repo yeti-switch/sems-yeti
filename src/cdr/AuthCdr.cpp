@@ -4,15 +4,16 @@
 #include "AmSipMsg.h"
 
 #include <vector>
+#include "../yeti.h"
 
-string const auth_sql_statement_name("writeauth");
+const string auth_log_statement_name("writeauth");
 
 const std::vector<static_field> auth_log_static_fields = {
     { "is_master", "boolean" },
     { "node_id", "integer" },
     { "pop_id", "integer" },
-    { "transport_proto_id", "integer" },
-    { "remote_ip", "varchar" },
+    { "request_time", "double" },
+    { "transport_proto_id", "smallint" },
     { "remote_ip", "varchar" },
     { "remote_port", "integer" },
     { "local_ip", "varchar" },
@@ -106,38 +107,60 @@ AuthCdr::AuthCdr(
     fixup_utf8_inplace(realm);
 }
 
-pqxx::prepare::invocation AuthCdr::get_invocation(cdr_transaction &tnx)
+void AuthCdr::apply_params(QueryInfo &query_info) const
 {
-    return tnx.prepared(auth_sql_statement_name);
-}
+#define invoc(field_value) \
+    query_info.addParam(field_value);
 
-void AuthCdr::invoc(
-    pqxx::prepare::invocation &i,
-    const DynFieldsT &)
-{
-    i(timeval2double(request_time));
-    i(transport_proto_id);
-    i(remote_ip)(remote_port);
-    i(local_ip)(local_port);
-    if(username.empty()) i(); else i(username);
-    if(realm.empty()) i(); else i(realm);
-    i(method);
-    i(r_uri)(from_uri)(to_uri);
-    i(orig_call_id);
+#define invoc_typed(type,field_value)\
+    query_info.addTypedParam(type, field_value);
 
-    i(success);
-    i(code)(reason);
-    i(internal_reason);
-    if(nonce.empty()) i(); else i(nonce);
-    if(response.empty()) i(); else i(response);
-    if(auth_id <= 0) i(); else i(auth_id);
+#define invoc_null() \
+    query_info.addParam(AmArg());
+
+#define invoc_cond(field_value,condition)\
+    if(condition) { invoc(field_value); }\
+    else { invoc_null(); }
+
+#define invoc_cond_typed(type, field_value,condition)\
+    if(condition) { invoc_typed(type, field_value); }\
+    else { invoc_null(); }
+
+    invoc(true); //is_master
+    invoc(AmConfig.node_id);
+    invoc(Yeti::instance().config.pop_id);
+
+    invoc(timeval2double(request_time));
+    invoc_typed("smallint",transport_proto_id);
+    invoc(remote_ip);
+    invoc(remote_port);
+    invoc(local_ip)
+    invoc(local_port);
+    invoc_cond(username, !username.empty());
+    invoc_cond(realm, !realm.empty());
+    invoc(method);
+    invoc(r_uri);
+    invoc(from_uri);
+    invoc(to_uri);
+    invoc(orig_call_id);
+
+    invoc(success);
+    invoc_typed("smallint",code);
+    invoc(reason);
+    invoc(internal_reason);
+    invoc_cond(nonce, !nonce.empty());
+    invoc_cond(response, !response.empty());
+    invoc_cond(auth_id, auth_id > 0);
 
     for(const auto &f : dynamic_fields)
-        if(f.empty()) i(); else i(f);
-}
+        invoc_cond(f, !f.empty());
 
-void AuthCdr::to_csv_stream(ofstream &s, const DynFieldsT &df)
-{ }
+#undef invoc_cond_typed
+#undef invoc_cond
+#undef invoc_null
+#undef invoc_typed
+#undef invoc
+}
 
 void AuthCdr::info(AmArg &s)
 {
