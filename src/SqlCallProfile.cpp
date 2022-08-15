@@ -230,7 +230,7 @@ bool SqlCallProfile::readFromTuple(const AmArg &t,const DynFieldsT &df){
 	aleg_append_headers_req = DbAmArg_hash_get_str(t, "aleg_append_headers_req");
 	aleg_append_headers_reply = DbAmArg_hash_get_str(t, "aleg_append_headers_reply");
 	
-	rtprelay_enabled = DbAmArg_hash_get_bool(t, "trusted_hdrs_gw", false);
+	rtprelay_enabled = DbAmArg_hash_get_bool(t, "enable_rtprelay", false);
 	force_symmetric_rtp = DbAmArg_hash_get_bool(t, "bleg_force_symmetric_rtp", false);
 	aleg_force_symmetric_rtp = DbAmArg_hash_get_bool(t, "aleg_force_symmetric_rtp", false);
 	
