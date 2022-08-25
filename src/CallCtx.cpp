@@ -156,6 +156,7 @@ CallCtx::CallCtx(SqlRouter &router):
 	transfer_intermediate_state(false),
 	router(router)
 {
+	current_profile = profiles.end();
 	//DBG("%s() this = %p",FUNC_NAME,this);
 }
 
