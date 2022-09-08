@@ -293,7 +293,7 @@ class CallLeg: public AmB2BSession
      * TODO: add parameter to trigger reINVITE */
     //void changeRtpMode(RTPRelayMode new_mode);
 
-    virtual void updateLocalSdp(AmSdp &sdp);
+    virtual void updateLocalSdp(AmSdp &sdp, unsigned int sip_msg_cseq) override;
 
 	void setAllow1xxWithoutToTag(bool allow) { allow_1xx_without_to_tag = allow; }
 
