@@ -1,3 +1,8 @@
+sems-yeti (1.13.0) stable; urgency=medium
+  * fix hold detection on a=sendonly in 18x
+  * libsems1.91
+ -- dev <dev@yeti-switch.org>  Mon, 12 Sep 2022 19:36:52 +0300
+
 sems-yeti (1.12.38) stable; urgency=medium
   * CallCtx: fix 'current_profile' iterator initialization
   * SqlCallProfile: fix 'enable_rtprelay' reading
