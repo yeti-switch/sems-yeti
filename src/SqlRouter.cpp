@@ -169,10 +169,12 @@ int SqlRouter::load_db_interface_in_out()
 		used_header_fields.emplace_back(a);
 		
 		string varname = a["varname"].asCStr();
+
+		//TODO: fix types in DB
 		if(varname=="X-ORIG-PROTO") {
 			getprofile_types.push_back("smallint");
 			auth_log_types.push_back("smallint");
-		} else if(varname=="X-ORIG-IP") {
+		} else if(varname=="X-ORIG-IP" || varname=="X-SRC-IP") {
 			getprofile_types.push_back("inet");
 			auth_log_types.push_back("inet");
 		} else {
@@ -656,6 +658,11 @@ void SqlRouter::write_cdr(Cdr* cdr, bool last)
     PGTransactionData(), true /* prepared */));
     cdr->apply_params(pg_param_execute_event.get()->qdata.info.front(), dyn_fields);
     delete cdr;
+
+    auto &q = pg_param_execute_event->qdata.info.front();
+    for(unsigned int i = 0; i < q.params.size(); i++) {
+        DBG("%d %s", i+1, AmArg::print(q.params[i]).data());
+    }
 
     AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_param_execute_event.release());
     //cdr_writer->postcdr(cdr);
