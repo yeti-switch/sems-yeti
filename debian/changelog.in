@@ -1,3 +1,9 @@
+sems-yeti (1.13.1) stable; urgency=medium
+  * Cdr: use 'smallint' for dump_level_id
+  * SqlRouter: force 'inet' type for 'X-ORIG-IP' field
+  * libsems1.93
+ -- dev <dev@yeti-switch.org>  Thu, 15 Sep 2022 18:04:40 +0300
+
 sems-yeti (1.13.0) stable; urgency=medium
   * fix hold detection on a=sendonly in 18x
   * libsems1.91
