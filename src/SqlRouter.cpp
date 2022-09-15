@@ -659,10 +659,10 @@ void SqlRouter::write_cdr(Cdr* cdr, bool last)
     cdr->apply_params(pg_param_execute_event.get()->qdata.info.front(), dyn_fields);
     delete cdr;
 
-    auto &q = pg_param_execute_event->qdata.info.front();
+    /*auto &q = pg_param_execute_event->qdata.info.front();
     for(unsigned int i = 0; i < q.params.size(); i++) {
         DBG("%d %s", i+1, AmArg::print(q.params[i]).data());
-    }
+    }*/
 
     AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_param_execute_event.release());
     //cdr_writer->postcdr(cdr);
