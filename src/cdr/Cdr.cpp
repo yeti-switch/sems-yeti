@@ -1020,7 +1020,8 @@ void Cdr::apply_params(
     invoc(local_tag);
     invoc(bleg_local_tag);
     invoc(msg_logger_path);
-    invoc(dump_level_id);
+    invoc_typed("smallint", dump_level_id);
+
     invoc(audio_record_enabled);
 
     invoc_json(serialize_rtp_stats());
