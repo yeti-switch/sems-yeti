@@ -239,7 +239,9 @@ bool SqlCallProfile::readFromTuple(const AmArg &t,const DynFieldsT &df){
 	
 	outbound_interface = DbAmArg_hash_get_str(t, "outbound_interface");
 	aleg_outbound_interface = DbAmArg_hash_get_str(t, "aleg_outbound_interface");
-	
+
+	force_cancel_route_set = DbAmArg_hash_get_bool(t, "force_cancel_route_set", false);
+
 	if (!readCodecPrefs(t)) {
 		ERROR("failed to read codec prefs");
 		return false;
