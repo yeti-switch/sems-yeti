@@ -550,6 +550,11 @@ bool SBCCallProfile::apply_b_routing(
 
     dlg.setResolvePriority(static_cast<int>(bleg_protocol_priority_id));
 
+    if(force_cancel_route_set) {
+        DBG("force to use dialog route-set for CANCEL requests");
+        dlg.setForceCancelRouteSet(true);
+    }
+
     return true;
 }
 

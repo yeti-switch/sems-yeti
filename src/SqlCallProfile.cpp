@@ -238,6 +238,8 @@ bool SqlCallProfile::readFromTuple(const pqxx::row &t,const DynFieldsT &df){
 	assign_str(outbound_interface,"outbound_interface");
 	assign_str(aleg_outbound_interface,"aleg_outbound_interface");
 
+	assign_bool_safe_silent(force_cancel_route_set,"force_cancel_route_set",false,false);
+
 	if (!readCodecPrefs(t)) return false;
 
 	assign_int(disconnect_code_id,"disconnect_code_id",0);

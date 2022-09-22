@@ -262,6 +262,8 @@ struct SBCCallProfile
   string aleg_outbound_interface;
   int aleg_outbound_interface_value;
 
+  bool force_cancel_route_set;
+
   int ringing_timeout;
   unsigned int inv_transaction_timeout;
   unsigned int inv_srv_failover_timeout;
@@ -368,6 +370,7 @@ struct SBCCallProfile
     rtprelay_bw_limit_rate(-1),
     rtprelay_bw_limit_peak(-1),
     outbound_interface_value(-1),
+    force_cancel_route_set(false),
     log_rtp(false),
     log_sip(false),
     patch_ruri_next_hop(false),
