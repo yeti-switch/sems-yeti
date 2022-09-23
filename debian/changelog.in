@@ -1,3 +1,7 @@
+sems-yeti (1.12.38) stable; urgency=medium
+  * add 'bleg_force_cancel_routeset' callprofile setting
+ -- dev <dev@yeti-switch.org>  Fri, 23 Sep 2022 16:50:55 +0300
+
 sems-yeti (1.12.37) stable; urgency=medium
   * fix oneway audio on 18x with a=sendonly
   * libsems1.92 (with fixes for 100rel handling and startup deadlock)

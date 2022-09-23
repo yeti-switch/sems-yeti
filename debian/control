@@ -3,7 +3,7 @@ Maintainer: yeti team <dev@yeti-switch.org>
 Section: net
 Priority: optional
 Standards-Version: 3.9.2
-Build-Depends: debhelper (>= 9), build-essential, devscripts, libsems1-dev (>= 1.92.0), libpqxx-dev, libhiredis-dev
+Build-Depends: debhelper (>= 9), build-essential, devscripts, libsems1-dev (>= 1.94.0), libpqxx-dev, libhiredis-dev
 
 Package: sems-modules-yeti
 Section: net
