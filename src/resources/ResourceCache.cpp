@@ -30,17 +30,6 @@ static bool isArgNumber(AmArg& arg) {
     return isArgInt(arg) || isArgLongLong(arg) || isArgDouble(arg);
 }
 
-static void formatCommand(char** cmd, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    int ret = vsnprintf(0, 0, fmt, args);
-    va_end(args);
-    va_start(args, fmt);
-    if(ret) *cmd = (char*)malloc(ret + 1);
-    vsprintf(*cmd, fmt, args);
-    va_end(args);
-}
-
 void ResourceCache::run(){
 	ResourceList put,get;
 	ResourceList filtered_put;
@@ -95,18 +84,15 @@ void ResourceCache::run(){
 		}
 
 		try {
-			if(get.size()){ //we have resources to grab
-                vector<string> commands;
-				for(ResourceList::iterator rit = get.begin();rit!=get.end();++rit){
-					Resource &r = (*rit);
-					string key = get_key(r);
-                    char* cmd;
-                    formatCommand(&cmd, "HINCRBY %b %d %d",
-                                                key.c_str(),key.size(),
-                                                AmConfig.node_id,
-                                                r.takes);
-                    commands.push_back(cmd);
-                    free(cmd);
+			if(get.size()) { //we have resources to grab
+				vector<string> commands;
+				for(auto &r: get) {
+					ostringstream ss;
+					ss << "HINCRBY "
+						<< get_key(r) << " "
+						<< AmConfig.node_id << " "
+						<< r.takes;
+					commands.emplace_back(ss.str());
 				}
 
 				AmArg res = runMultiCommand(write_ctx, commands, "HINCRBY");
@@ -125,19 +111,15 @@ void ResourceCache::run(){
 				}
 			}
 
-			if(filtered_put.size()){
-                vector<string> commands;
-				ResourceList::iterator rit = filtered_put.begin();
-				for(;rit!=filtered_put.end();++rit){
-					Resource &r = (*rit);
-					string key = get_key(r);
-                    char* cmd;
-                    formatCommand(&cmd, "HINCRBY %b %d %d",
-						key.c_str(),key.size(),
-						AmConfig.node_id,
-						-r.takes/*pass negative to increment*/);
-                    commands.push_back(cmd);
-                    free(cmd);
+			if(filtered_put.size()) {
+				vector<string> commands;
+				for(auto &r: filtered_put) {
+					ostringstream ss;
+					ss << "HINCRBY "
+						<< get_key(r) << " "
+						<< AmConfig.node_id << " "
+						<< -r.takes; /*pass negative to increment*/
+					commands.emplace_back(ss.str());
 				}
 
 				AmArg res = runMultiCommand(write_ctx, commands, "HDECRBY");
@@ -246,10 +228,12 @@ bool ResourceCache::init_resources(bool initial){
 		vector<string> commands;
 		for(size_t i = 0;i < res.size(); i++){
 			AmArg& r = res[i];
-            char* cmd;
-			formatCommand(&cmd,"HSET %s %d %d",(char*)r.asCStr(),node_id,0);
-            commands.push_back(cmd);
-            free(cmd);
+			ostringstream ss;
+			ss << "HSET "
+				<< res[i].asCStr() << " "
+				<< node_id << " "
+				<< 0;
+			commands.emplace_back(ss.str());
 		}
 		res = runMultiCommand(write_ctx,commands, "SET");
 
@@ -333,15 +317,11 @@ ResourceResponse ResourceCache::get(ResourceList &rl,
 		}
 
 			//prepare request
-        vector<string> commands;
+		vector<string> commands;
 		ResourceList::iterator rit = rl.begin();
-		for(;rit!=rl.end();++rit){
-			string key = get_key(*rit);
-            char* cmd;
-			formatCommand(&cmd, "HVALS %b",
-                                    key.c_str(),key.size());
-            commands.push_back(cmd);
-            free(cmd);
+		for(;rit!=rl.end();++rit) {
+			commands.push_back("HVALS ");
+			commands.back() += get_key(*rit);
 		}
 
 		try {
@@ -520,14 +500,11 @@ void ResourceCache::getResourceState(int type, int id, AmArg &ret){
 		DBG("%s(): got %ld keys",FUNC_NAME,res.size());
 
 		list<string> keys;
-        vector<string> commands;
+		vector<string> commands;
 		for(size_t i = 0; i < res.size(); i++){
-			AmArg& r = res[i];
-            char* cmd;
-			formatCommand(&cmd,"HGETALL %s",r.asCStr());
-			keys.push_back(r.asCStr());
-            commands.push_back(cmd);
-            free(cmd);
+			commands.push_back("HGETALL ");
+			keys.push_back(res[i].asCStr());
+			commands.back() += keys.back();
 		}
 		try {
             res = runMultiCommand(redis_ctx, commands, "GET ALL");
