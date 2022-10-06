@@ -24,6 +24,8 @@ char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
 char opt_name_db_refresh_interval[] = "db_refresh_interval";
 char opt_name_ip_auth_reject_if_no_matched[] = "ip_auth_reject_if_no_matched";
 char opt_name_ip_auth_header[] = "ip_auth_header";
+char opt_name_postgresql_debug[] = "postgresql_debug";
+
 
 char opt_identity_expires[] = "expires";
 char opt_identity_http_destination[] = "http_destination";
@@ -177,6 +179,7 @@ cfg_opt_t yeti_opts[] = {
     CFG_BOOL(opt_name_auth_feedback, cfg_false, CFGF_NONE),
     CFG_STR(opt_name_http_events_destination,"",CFGF_NONE),
     CFG_STR(opt_name_ip_auth_header,IP_AUTH_DEFAULT_HEADER,CFGF_NONE),
+    CFG_BOOL(opt_name_postgresql_debug, cfg_false, CFGF_NONE),
 
     CFG_END()
 };

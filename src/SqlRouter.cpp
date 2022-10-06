@@ -514,25 +514,19 @@ AmArg SqlRouter::db_async_get_profiles(
 	auto &query_info = pg_getprofile_event.get()->qdata.info[0];
 
 #define invoc_field(field_value)\
-	fields_values.push(AmArg(field_value));\
 	query_info.addParam(field_value);
 
 #define invoc_typed_field(type,field_value)\
-	fields_values.push(AmArg(field_value));\
 	query_info.addTypedParam(type, field_value);
 
 #define invoc_null() \
-	fields_values.push(AmArg());\
 	query_info.addParam(AmArg());
 
 	auto &gc = Yeti::instance().config;
-	AmArg fields_values;
 
 	const char *sptr;
 	sip_nameaddr na;
 	sip_uri from_uri,to_uri,contact_uri;
-
-	fields_values.assertArray();
 
 	sptr = req.to.c_str();
 	if(	parse_nameaddr(&na,&sptr,req.to.length()) < 0 ||
@@ -598,41 +592,21 @@ AmArg SqlRouter::db_async_get_profiles(
 
 #undef invoc_field
 
-	DBG("NEW DB request data: %s", AmArg::print(fields_values).data());
-	
+    if(gc.postgresql_debug) {
+        for(unsigned int i = 0; i < query_info.params.size(); i++) {
+            DBG("%s getprofile %d %s %s",
+                local_tag.data(), i+1,
+                AmArg::t2str(query_info.params[i].getType()),
+                AmArg::print(query_info.params[i]).data());
+        }
+    }
+
 	if(!AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_getprofile_event.release())) {
 		ERROR("failed to post getprofile query event");
 		return 1;
 	}
 
 	return ret;
-}
-
-void SqlRouter::dbg_get_profiles(AmArg &fields_values){
-	int k = 0;
-	//static fields
-	for(int j = 0;j<GETPROFILE_STATIC_FIELDS_COUNT;j++){
-		AmArg &a = fields_values.get(k);
-		const static_field &f = profile_static_fields[j];
-		ERROR("%d: %s[%s] -> %s[%s]",
-			k,f.name,f.type,
-			AmArg::print(a).c_str(),
-			a.t2str(a.getType()));
-		k++;
-	}
-	//dyn fields
-	for(vector<UsedHeaderField>::const_iterator it = used_header_fields.begin();
-			it != used_header_fields.end(); ++it)
-	{
-		AmArg &a = fields_values.get(k);
-		const UsedHeaderField &f = *it;
-		ERROR("%d: %s[%s:%s] -> %s[%s]",
-			k,
-			f.getName().c_str(),f.type2str(),f.part2str(),
-			AmArg::print(a).c_str(),
-			a.t2str(a.getType()));
-		k++;
-	}
 }
 
 void SqlRouter::align_cdr(Cdr &cdr){
@@ -657,12 +631,18 @@ void SqlRouter::write_cdr(Cdr* cdr, bool last)
         false /*single*/),
     PGTransactionData(), true /* prepared */));
     cdr->apply_params(pg_param_execute_event.get()->qdata.info.front(), dyn_fields);
-    delete cdr;
 
-    /*auto &q = pg_param_execute_event->qdata.info.front();
-    for(unsigned int i = 0; i < q.params.size(); i++) {
-        DBG("%d %s", i+1, AmArg::print(q.params[i]).data());
-    }*/
+    if(Yeti::instance().config.postgresql_debug) {
+        auto &q = pg_param_execute_event->qdata.info.front();
+        for(unsigned int i = 0; i < q.params.size(); i++) {
+            DBG("%s cdr %d %s %s",
+                cdr->local_tag.data(), i+1,
+                AmArg::t2str(q.params[i].getType()),
+                AmArg::print(q.params[i]).data());
+        }
+    }
+
+    delete cdr;
 
     AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_param_execute_event.release());
     //cdr_writer->postcdr(cdr);
@@ -682,6 +662,16 @@ void SqlRouter::write_auth_log(const AuthCdr &auth_log)
     PGTransactionData(), true /* prepared */));
 
     auth_log.apply_params(pg_param_execute_event.get()->qdata.info.front());
+
+    if(Yeti::instance().config.postgresql_debug) {
+        auto &q = pg_param_execute_event->qdata.info.front();
+        for(unsigned int i = 0; i < q.params.size(); i++) {
+            DBG("%p auth_log %d %s %s",
+                &auth_log, i+1,
+                AmArg::t2str(q.params[i].getType()),
+                AmArg::print(q.params[i]).data());
+        }
+    }
 
     AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_param_execute_event.release());
 }

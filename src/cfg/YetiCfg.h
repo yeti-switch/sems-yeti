@@ -39,6 +39,7 @@ struct YetiCfg {
     cdr_headers_t bleg_reply_cdr_headers;
 
     bool core_options_handling;
+    bool postgresql_debug;
 
     int identity_enabled;
 

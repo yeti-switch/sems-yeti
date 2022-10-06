@@ -77,7 +77,6 @@ class SqlRouter
       Auth::auth_id_type auth_id,
       AmArg *identity_data);
 
-    void dbg_get_profiles(AmArg &fields_values);
     void update_counters(struct timeval &start_time);
 
   public:

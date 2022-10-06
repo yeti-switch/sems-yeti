@@ -24,7 +24,7 @@ static void readMediaAcl(const AmArg &t, const char key[], std::vector<AmSubnet>
 
 	AmArg &v = t[key];
 	if(!isArgArray(v)) {
-		ERROR("expected array by the key: %s", key);
+		DBG("expected array by the key: %s", key);
 		return;
 	}
 	for(size_t i = 0; i < v.size(); i++) {
@@ -349,7 +349,6 @@ bool SqlCallProfile::readFromTuple(const AmArg &t,const DynFieldsT &df){
 	aleg_media_encryption_mode_id = DbAmArg_hash_get_int(t,"aleg_media_encryption_mode_id",0);
 	bleg_media_encryption_mode_id = DbAmArg_hash_get_int(t,"bleg_media_encryption_mode_id",0);
 
-	//TODO!!! parse arrays
 	readMediaAcl(t, "aleg_rtp_acl", aleg_rtp_acl);
 	readMediaAcl(t, "bleg_rtp_acl", bleg_rtp_acl);
 

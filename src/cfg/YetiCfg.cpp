@@ -69,6 +69,7 @@ int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
     http_events_destination = cfg_getstr(cfg, opt_name_http_events_destination);
     aleg_cdr_headers = cfg_aleg_cdr_headers;
     bleg_reply_cdr_headers = cfg_bleg_reply_cdr_headers;
+    postgresql_debug = cfg_getbool(cfg, opt_name_postgresql_debug);
 
     serialize_to_amconfig(cfg, am_cfg);
 
