@@ -26,6 +26,7 @@ class UsedHeaderField {
     ValueType type;     //type of header value
     NeededPart part;    //needed part of parsed value
     bool hashkey;       //this header used in routing logic
+    string sql_type_name;
 
     void applyFormat(const string &format);
   public:
@@ -38,6 +39,7 @@ class UsedHeaderField {
     const char*part2str() const;
 
     const string &getName() const { return name; }
+    const string &getSqlTypeName() const { return sql_type_name; }
     bool is_hashkey() const { return hashkey; }
 };
 

@@ -69,6 +69,7 @@ UsedHeaderField::UsedHeaderField(const AmArg &a)
 {
     name = DbAmArg_hash_get_str(a,"varname");
     param = DbAmArg_hash_get_str(a,"varparam");
+    sql_type_name = DbAmArg_hash_get_str(a,"vartype");
     hashkey = DbAmArg_hash_get_bool(a,"varhashkey");
     applyFormat(DbAmArg_hash_get_str(a,"varformat"));
 }

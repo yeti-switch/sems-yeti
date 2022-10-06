@@ -594,8 +594,12 @@ AmArg SqlRouter::db_async_get_profiles(
 
     if(gc.postgresql_debug) {
         for(unsigned int i = 0; i < query_info.params.size(); i++) {
-            DBG("%s getprofile %d %s %s",
+            DBG("%s/getprofile %d(%s/%s): %s %s",
                 local_tag.data(), i+1,
+                i < GETPROFILE_STATIC_FIELDS_COUNT ?
+                    profile_static_fields[i].name :
+                    used_header_fields[i - GETPROFILE_STATIC_FIELDS_COUNT].getName().data(),
+                getprofile_types[i].data(),
                 AmArg::t2str(query_info.params[i].getType()),
                 AmArg::print(query_info.params[i]).data());
         }
@@ -635,8 +639,10 @@ void SqlRouter::write_cdr(Cdr* cdr, bool last)
     if(Yeti::instance().config.postgresql_debug) {
         auto &q = pg_param_execute_event->qdata.info.front();
         for(unsigned int i = 0; i < q.params.size(); i++) {
-            DBG("%s cdr %d %s %s",
+            DBG("%s/cdr %d(%s/%s): %s %s",
                 cdr->local_tag.data(), i+1,
+                cdr_static_fields[i].name,
+                cdr_static_fields[i].type,
                 AmArg::t2str(q.params[i].getType()),
                 AmArg::print(q.params[i]).data());
         }
@@ -666,8 +672,12 @@ void SqlRouter::write_auth_log(const AuthCdr &auth_log)
     if(Yeti::instance().config.postgresql_debug) {
         auto &q = pg_param_execute_event->qdata.info.front();
         for(unsigned int i = 0; i < q.params.size(); i++) {
-            DBG("%p auth_log %d %s %s",
+            DBG("%p/auth_log %d(%s/%s): %s %s",
                 &auth_log, i+1,
+                i < auth_log_static_fields.size() ?
+                    auth_log_static_fields[i].name :
+                    used_header_fields[i - auth_log_static_fields.size()].getName().data(),
+                auth_log_types[i].data(),
                 AmArg::t2str(q.params[i].getType()),
                 AmArg::print(q.params[i]).data());
         }
