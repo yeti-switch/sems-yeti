@@ -1,3 +1,9 @@
+sems-yeti (1.13.2) stable; urgency=medium
+  * add 'bleg_force_cancel_routeset' callprofile setting
+  * add option 'postgresql_debug'
+  * libsems1.94
+ -- dev <dev@yeti-switch.org>  Thu, 06 Oct 2022 17:40:24 +0300
+
 sems-yeti (1.13.1) stable; urgency=medium
   * Cdr: use 'smallint' for dump_level_id
   * SqlRouter: force 'inet' type for 'X-ORIG-IP' field
