@@ -26,6 +26,7 @@ struct CdrThreadCfg
 {
     unsigned int pool_size;
     bool failover_to_slave;
+    int connection_lifetime;
     bool failover_to_file;
     bool failover_requeue;
     string failover_file_dir;

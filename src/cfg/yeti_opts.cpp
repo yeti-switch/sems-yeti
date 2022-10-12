@@ -53,6 +53,7 @@ cfg_opt_t sig_yeti_routing_opts[] = {
 	DCFG_STR(function),
 	DCFG_STR(init),
 	DCFG_BOOL(failover_to_slave),
+	DCFG_INT(connection_lifetime),
 	DCFG_SEC(master_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
 	DCFG_SEC(slave_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
 	CFG_END()
@@ -77,6 +78,7 @@ cfg_opt_t sig_yeti_cdr_opts[] = {
 	DCFG_INT(auth_batch_size),
 	DCFG_INT(batch_timeout),
 	DCFG_INT(auth_batch_timeout),
+	DCFG_INT(connection_lifetime),
 	DCFG_STR(dir),
 	DCFG_STR(completed_dir),
 	DCFG_STR(schema),

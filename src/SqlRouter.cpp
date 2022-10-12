@@ -263,6 +263,8 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         }
     }
 
+    connection_lifetime = cfg.getParameterInt("routing_connection_lifetime", 0);
+
     PGWorkerConfig* pg_config_routing = new PGWorkerConfig(
         yeti_routing_pg_worker,
         failover_to_slave,
@@ -274,6 +276,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         0 /* retransmit_interval */,
         masterpoolcfg.check_interval /* reconnect_interval */);
 
+    pg_config_routing->connection_lifetime = connection_lifetime;
     pg_config_routing->addSearchPath(routing_schema);
     pg_config_routing->addSearchPath("public");
 
@@ -364,7 +367,8 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         cdr_cfg.check_interval /* reconnect_interval */,
         cdr_cfg.batch_size, /* batch_size */
         cdr_cfg.batch_timeout /* batch timeout */,
-        1000000 /* max_queue_length */);
+        1000000 /* max_queue_length */,
+        cdr_cfg.connection_lifetime /* connection_lifetime*/ );
     pg_config_cdr_writer->addSearchPath(writecdr_schema);
     pg_config_cdr_writer->addSearchPath("public");
 
@@ -425,7 +429,8 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         cdr_cfg.check_interval /* reconnect_interval */,
         cdr_cfg.batch_size, /* batch_size */
         cdr_cfg.batch_timeout /* batch timeout */,
-        1000000 /* max_queue_length */);
+        1000000 /* max_queue_length */,
+        cdr_cfg.connection_lifetime /* connection lifetime */);
     pg_config_auth_log->addSearchPath(writecdr_schema);
     pg_config_auth_log->addSearchPath("public");
 
@@ -719,6 +724,7 @@ void SqlRouter::getConfig(AmArg &arg){
 	AmArg u;
 	//arg["config_db"] = dbc.conn_str();
 	arg["failover_to_slave"] = failover_to_slave;
+	arg["connection_lifetime"] = connection_lifetime;
 
 	arg["routing_schema"] = routing_schema;
 	arg["routing_function"] = routing_function;

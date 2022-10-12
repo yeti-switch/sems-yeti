@@ -76,6 +76,7 @@ int CdrThreadCfg::cfg2CdrThCfg(AmConfigReader& cfg)
 	batch_timeout = cfg.getParameterInt("cdr_batch_timeout",DEFAULT_BATCH_TIMEOUT_MSEC)/1000;
 	batch_size = cfg.getParameterInt("cdr_batch_size",DEFAULT_BATCH_SIZE);
 	failover_to_slave = cfg.getParameterInt("cdr_failover_to_slave",1);
+	connection_lifetime = cfg.getParameterInt("cdr_connection_lifetime",0);
 
 	string cdr_file_dir = "cdr_dir";
 	string cdr_file_completed_dir = "cdr_completed_dir";
