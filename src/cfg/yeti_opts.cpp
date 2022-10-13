@@ -15,6 +15,9 @@
 char opt_name_auth_feedback[] = "enable_auth_feedback";
 char opt_name_http_events_destination[] = "http_events_destination";
 
+char section_name_routing[] = "routing";
+char section_name_cdr[] = "cdr";
+char section_name_auth[] = "auth";
 char section_name_lega_cdr_headers[] = "lega_cdr_headers";
 char section_name_legb_reply_cdr_headers[] = "legb_response_cdr_headers";
 char section_name_identity[] = "identity";
@@ -25,7 +28,7 @@ char opt_name_db_refresh_interval[] = "db_refresh_interval";
 char opt_name_ip_auth_reject_if_no_matched[] = "ip_auth_reject_if_no_matched";
 char opt_name_ip_auth_header[] = "ip_auth_header";
 char opt_name_postgresql_debug[] = "postgresql_debug";
-
+char opt_name_connection_lifetime[] = "connection_lifetime";
 
 char opt_identity_expires[] = "expires";
 char opt_identity_http_destination[] = "http_destination";
@@ -53,7 +56,7 @@ cfg_opt_t sig_yeti_routing_opts[] = {
 	DCFG_STR(function),
 	DCFG_STR(init),
 	DCFG_BOOL(failover_to_slave),
-	DCFG_INT(connection_lifetime),
+	CFG_INT(opt_name_connection_lifetime,0,CFGF_NONE),
 	DCFG_SEC(master_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
 	DCFG_SEC(slave_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
 	CFG_END()
@@ -78,7 +81,7 @@ cfg_opt_t sig_yeti_cdr_opts[] = {
 	DCFG_INT(auth_batch_size),
 	DCFG_INT(batch_timeout),
 	DCFG_INT(auth_batch_timeout),
-	DCFG_INT(connection_lifetime),
+	CFG_INT(opt_name_connection_lifetime,0,CFGF_NONE),
 	DCFG_STR(dir),
 	DCFG_STR(completed_dir),
 	DCFG_STR(schema),
@@ -163,8 +166,8 @@ cfg_opt_t yeti_opts[] = {
     DCFG_STR(msg_logger_dir),
     DCFG_STR(audio_recorder_dir),
     DCFG_BOOL(audio_recorder_compress),
-    DCFG_SEC(routing,sig_yeti_routing_opts,CFGF_NONE),
-    DCFG_SEC(cdr,sig_yeti_cdr_opts,CFGF_NONE),
+    CFG_SEC(section_name_routing, sig_yeti_routing_opts, CFGF_NONE),
+    CFG_SEC(section_name_cdr, sig_yeti_cdr_opts, CFGF_NONE),
     DCFG_SEC(resources,sig_yeti_resources_opts,CFGF_NONE),
     DCFG_SEC(registrations,sig_yeti_reg_opts,CFGF_NONE),
     DCFG_SEC(registrar,sig_yeti_registrar_opts,CFGF_NONE),

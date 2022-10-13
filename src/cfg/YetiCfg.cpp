@@ -119,7 +119,6 @@ void YetiCfg::serialize_to_amconfig(cfg_t *y, AmConfigReader &out)
 		add2hash(r,"routing_function","function",out);
 		add2hash(r,"routing_init_function","init",out);
 		add2hash(r,"failover_to_slave","failover_to_slave",out);
-		add2hash(r,"routing_connection_lifetime","connection_lifetime",out);
 			//master pool
 			apply_pool_cfg(cfg_getsec(r,"master_pool"),"master_",out);
 			//slave pool
@@ -138,7 +137,6 @@ void YetiCfg::serialize_to_amconfig(cfg_t *y, AmConfigReader &out)
 		add2hash(c,"cdr_check_interval","check_interval",out);
 		add2hash(c,"cdr_batch_timeout","batch_timeout",out);
 		add2hash(c,"cdr_batch_size","batch_size",out);
-		add2hash(c,"cdr_connection_lifetime","connection_lifetime",out);
 			//master
 			apply_db_cfg(cfg_getsec(c,"master"),"mastercdr_",out);
 			//slave

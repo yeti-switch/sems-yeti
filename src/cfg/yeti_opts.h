@@ -14,6 +14,9 @@
 extern char opt_name_auth_feedback[];
 extern char opt_name_http_events_destination[];
 
+extern char section_name_routing[];
+extern char section_name_cdr[];
+extern char section_name_auth[];
 extern char section_name_lega_cdr_headers[];
 extern char section_name_identity[];
 
@@ -23,6 +26,7 @@ extern char opt_name_db_refresh_interval[];
 extern char opt_name_ip_auth_reject_if_no_matched[];
 extern char opt_name_ip_auth_header[];
 extern char opt_name_postgresql_debug[];
+extern char opt_name_connection_lifetime[];
 
 extern char opt_identity_expires[];
 extern char opt_identity_http_destination[];

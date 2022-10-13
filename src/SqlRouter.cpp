@@ -15,6 +15,7 @@
 #include "SqlRouter.h"
 #include "db/DbTypes.h"
 #include "yeti.h"
+#include "cfg/yeti_opts.h"
 #include "cdr/AuthCdr.h"
 #include "jsonArg.h"
 #include "cdr/CdrWriter.h"
@@ -190,6 +191,18 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
 {
     std::ostringstream sql;
 
+    cfg_t *routing_sec = cfg_getsec(confuse_cfg, section_name_routing);
+    if(!routing_sec) {
+        ERROR("missed 'router' section in module config");
+        return 1;
+    }
+
+    cfg_t *cdr_sec = cfg_getsec(confuse_cfg, section_name_cdr);
+    if(!cdr_sec) {
+        ERROR("missed 'cdr' section in module config");
+        return 1;
+    }
+
     if(0!=auth_init()) {
         ERROR("failed to initialize uas auth");
         return 1;
@@ -202,8 +215,11 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
     GET_VARIABLE(writecdr_function);
     authlog_function = cfg.getParameter("authlog_function","write_auth_log");
 
-    cfg_t *auth = cfg_getsec(confuse_cfg, "auth");
-    if(!auth || 0==auth_configure(auth)) {
+    failover_to_slave = cfg.getParameterInt("failover_to_slave", 0);
+    connection_lifetime = cfg_getint(routing_sec, opt_name_connection_lifetime);
+
+    cfg_t *auth_sec = cfg_getsec(confuse_cfg, section_name_auth);
+    if(!auth_sec || 0==auth_configure(auth_sec)) {
         INFO("SqlRouter::auth_configure: config successfuly readed");
     } else {
         INFO("SqlRouter::auth_configure: config read error");
@@ -234,8 +250,6 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         return 1;
     }
 
-    failover_to_slave = cfg.getParameterInt("failover_to_slave", 0);
-
     if (1==failover_to_slave) {
         PgConnectionPoolCfg slavepoolcfg("slave");
         if (0!=slavepoolcfg.cfg2PgCfg(cfg)) {
@@ -262,8 +276,6 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
             return 1;
         }
     }
-
-    connection_lifetime = cfg.getParameterInt("routing_connection_lifetime", 0);
 
     PGWorkerConfig* pg_config_routing = new PGWorkerConfig(
         yeti_routing_pg_worker,
@@ -321,7 +333,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
 
     //create CDR DB and Auth log worker
     CdrThreadCfg cdr_cfg;
-    if(cdr_cfg.cfg2CdrThCfg(cfg)) {
+    if(cdr_cfg.cfg2CdrThCfg(cdr_sec, cfg)) {
         INFO("Cdr writer pool config loading error");
         return 1;
     }

@@ -40,5 +40,5 @@ struct CdrThreadCfg
     DynFieldsT dyn_fields;
     vector<UsedHeaderField> used_header_fields;
     string db_schema;
-    int cfg2CdrThCfg(AmConfigReader& cfg);
+    int cfg2CdrThCfg(cfg_t *cdr_sec, AmConfigReader& cfg);
 };
