@@ -29,12 +29,13 @@ struct Resource {
 	string print() const;
 };
 
-
-//typedef vector<Resource> ResourceList;
-
-struct ResourceList: public list<Resource>, AmMutex {
+template <typename Res>
+struct ResList: public list<Res>, AmMutex {
 	void parse(const string s);
 };
-//ResourceList resource_parse(const string s);
+
+typedef ResList<Resource> ResourceList;
+
+//extern template ResList<Resource>::parse(const string s);
 
 #endif // RESOURCE_H

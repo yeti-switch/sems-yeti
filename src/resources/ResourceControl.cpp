@@ -8,10 +8,6 @@
 //workaround for callback
 static ResourceControl *_instance;
 
-static void on_reconnect_static(void *){
-	_instance->on_reconnect();
-}
-
 static void on_resources_initialized_static(){
 	_instance->on_resources_initialized();
 }
@@ -82,19 +78,19 @@ int ResourceControl::configure(AmConfigReader &cfg)
 		return -1;
 	}
 
-	cache.registerReconnectCallback(&on_reconnect_static,NULL);
-	cache.registerResourcesInitializedCallback(&on_resources_initialized_static);
+	redis_conn.registerResourcesInitializedCallback(&on_resources_initialized_static);
 
-	return cache.configure(cfg);
+	return redis_conn.configure(cfg);
 }
 
 void ResourceControl::start(){
 //	DBG("%s()",FUNC_NAME);
-	cache.start();
+    redis_conn.init();
+	redis_conn.start();
 }
 
 void ResourceControl::stop(){
-	cache.stop(true);
+	redis_conn.stop(true);
 }
 
 bool ResourceControl::invalidate_resources(){
@@ -109,7 +105,7 @@ bool ResourceControl::invalidate_resources(){
 
 	for(Handlers::iterator i = handlers.begin();i!=handlers.end();++i)
 		i->second.invalidate();
-	ret = cache.init_resources();
+	ret = redis_conn.invalidate_resources();
 	handlers_lock.unlock();
 	return ret;
 }
@@ -157,13 +153,6 @@ int ResourceControl::load_resources_config()
 	return 0;
 }
 
-void ResourceControl::on_reconnect(){
-	ERROR("ResourceControl::on_reconnect(): invalidate resources");
-	if(!invalidate_resources()){
-		ERROR("can't clear resources. please examine actual state. (all handlers invalidated)");
-	}
-}
-
 void ResourceControl::on_resources_initialized(){
 	DBG("resources reported to be intialized. mark container ready");
 	container_ready.set(true);
@@ -187,11 +176,8 @@ ResourceCtlResponse ResourceControl::get(
 
 	ResourceResponse ret;
 
-	/*for(ResourceList::const_iterator i = rl.begin();i!=rl.end();++i)
-		DBG("ResourceControl::get() before resource: <%s>",(*i).print().c_str());*/
-
 	if(container_ready.get()){
-		ret = cache.get(rl,rli);
+		ret = redis_conn.get(rl,rli);
 	} else {
 		WARN("attempt to get resource from unready container");
 		ret = RES_ERR;
@@ -210,8 +196,7 @@ ResourceCtlResponse ResourceControl::get(
 				handler.c_str(),&rl);
 			//TODO: add to internal handlers list
 			return RES_CTL_OK;
-			break;
-		}
+		} break;
 		case RES_BUSY: {
 			stat.overloaded++;
 			map<int,ResourceConfig>::iterator ti = type2cfg.find(rli->type);
@@ -285,7 +270,7 @@ void ResourceControl::put(const string &handler){
 	}
 
 	if(!e.resources.empty()){
-		cache.put(e.resources);
+		redis_conn.put(e.resources);
 	} else {
 		DBG("ResourceControl::put(%p) empty resources list",&e.resources);
 	}
@@ -317,7 +302,7 @@ void ResourceControl::GetConfig(AmArg& ret,bool types_only){
 
 	ret.push("cache",AmArg());
 	AmArg &u = ret["cache"];
-	cache.GetConfig(u);
+	redis_conn.get_config(u);
 }
 
 void ResourceControl::clearStats(){
@@ -328,13 +313,27 @@ void ResourceControl::getStats(AmArg &ret){
 	stat.get(ret);
 }
 
-void ResourceControl::getResourceState(int type, int id, AmArg &ret){
+bool ResourceControl::getResourceState(const string& connection_id,
+                                      const AmArg& request_id,
+                                      const AmArg& params){
+	int type, id;
+
+	if(params.size()<2){
+		throw AmSession::Exception(500,"specify type and id of resource");
+	}
+	params.assertArrayFmt("ss");
+	if(!str2int(params.get(0).asCStr(),type)){
+		throw AmSession::Exception(500,"invalid resource type");
+	}
+	if(!str2int(params.get(1).asCStr(),id)){
+		throw AmSession::Exception(500,"invalid resource id");
+	}
 	if(type!=ANY_VALUE){
 		if(type2cfg.find(type)==type2cfg.end()){
-			throw ResourceCacheException("unknown resource type",500);
+			throw AmSession::Exception(500, "unknown resource type");
 		}
 	}
-	cache.getResourceState(type,id,ret);
+	return redis_conn.get_resource_state(connection_id,request_id,params);
 }
 
 void ResourceControl::showResources(AmArg &ret){

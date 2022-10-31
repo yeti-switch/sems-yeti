@@ -69,7 +69,7 @@ class YetiRpc
     rpc_handler showSystemAlarms;
     rpc_handler showSystemDumpLevel;
 
-    rpc_handler getResourceState;
+    async_rpc_handler getResourceState;
     rpc_handler showResources;
     rpc_handler showResourceTypes;
     rpc_handler showResourceByHandler;

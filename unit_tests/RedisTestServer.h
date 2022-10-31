@@ -21,7 +21,8 @@ public:
         char* command;
         redis::redisvFormatCommand(&command, cmd.c_str(), args);
         statuses.emplace(command, status);
-        addResponse(command, response);
+        if(status != REDIS_REPLY_STATUS)
+            addResponse(command, response);
         redis::redisFreeCommand(command);
         va_end(args);
     }
@@ -29,7 +30,8 @@ public:
     void addFormattedCommandResponce(const string& cmd, int status, AmArg response)
     {
         statuses.insert(std::make_pair(cmd, status));
-        addResponse(cmd, response);
+        if(status != REDIS_REPLY_STATUS)
+            addResponse(cmd, response);
     }
 
     int getStatus(const string& cmd)
@@ -40,9 +42,9 @@ public:
         return REDIS_REPLY_NIL;
     }
 
-    AmArg getResponse(const string& cmd)
+    bool getResponse(const string& cmd, AmArg& res)
     {
-        return TestServer::getResponse(cmd);
+        return TestServer::getResponse(cmd, res);
     }
 
     void clear() {

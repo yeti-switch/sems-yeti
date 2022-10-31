@@ -2,13 +2,15 @@
 #define RESOURCECONTROL_H
 
 #include "AmConfigReader.h"
-#include "ResourceCache.h"
+#include "ResourceRedisConnection.h"
 #include "AmArg.h"
 #include <map>
 #include "log.h"
 #include "../db/DbConfig.h"
 
 using namespace std;
+
+#define ANY_VALUE -1
 
 #define ResourceAction_Reject 1
 #define ResourceAction_NextRoute 2
@@ -49,7 +51,7 @@ enum ResourceCtlResponse {
 
 class ResourceControl
 {
-	ResourceCache cache;
+	ResourceRedisConnection redis_conn;
 	map<int,ResourceConfig> type2cfg;
 
 	struct handlers_entry {
@@ -127,7 +129,9 @@ public:
 	void GetConfig(AmArg& ret,bool types_only = false);
 	void clearStats();
 	void getStats(AmArg &ret);
-	void getResourceState(int type, int id, AmArg &ret);
+	bool getResourceState(const string& connection_id,
+                          const AmArg& request_id,
+                          const AmArg& params);
 	void showResources(AmArg &ret);
 	void showResourceByHandler(const string &h, AmArg &ret);
 	void showResourceByLocalTag(const string &tag, AmArg &ret);

@@ -801,26 +801,11 @@ void YetiRpc::showSystemAlarms(const AmArg& args, AmArg& ret){
 	}
 }
 
-void YetiRpc::getResourceState(const AmArg& args, AmArg& ret){
-	handler_log();
-	int type, id;
-
-	if(args.size()<2){
-		throw AmSession::Exception(500,"specify type and id of resource");
-	}
-	args.assertArrayFmt("ss");
-	if(!str2int(args.get(0).asCStr(),type)){
-		throw AmSession::Exception(500,"invalid resource type");
-	}
-	if(!str2int(args.get(1).asCStr(),id)){
-		throw AmSession::Exception(500,"invalid resource id");
-	}
-
-	try {
-		rctl.getResourceState(type,id,ret);
-	} catch(const ResourceCacheException &e){
-		throw AmSession::Exception(e.code,e.what);
-	}
+bool YetiRpc::getResourceState(const string& connection_id,
+                               const AmArg& request_id,
+                               const AmArg& params){
+//	handler_log();
+    return rctl.getResourceState(connection_id,request_id,params);
 }
 
 void YetiRpc::showResources(const AmArg& args, AmArg& ret){

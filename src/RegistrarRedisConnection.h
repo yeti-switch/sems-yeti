@@ -1,12 +1,13 @@
 #pragma once
 
+#include "RedisConnectionPool.h"
 #include "RedisConnection.h"
 #include "Auth.h"
 
 #include <unordered_map>
 
-class RegistrarRedisConnection final
-  : public RedisConnection
+class RegistrarRedisConnection
+  : public RedisConnectionPool
 {
   private:
     //contains data to generate correct keepalive OPTIONS requests
@@ -54,19 +55,21 @@ class RegistrarRedisConnection final
     AmMutex uac_dlgs_mutex;
 
     class ContactsSubscriptionConnection
-      : public RedisConnection
+      : public RedisConnectionPool
     {
+        RedisConnection* conn;
         KeepAliveContexts &keepalive_contexts;
         RedisScript load_contacts_data;
 
         void process_loaded_contacts(const AmArg &key_arg);
         void process_expired_key(const AmArg &key_arg);
       protected:
-        void on_connect() override;
+        void on_connect(RedisConnection* c) override;
 
       public:
         ContactsSubscriptionConnection(KeepAliveContexts &keepalive_contexts);
         void process_reply_event(RedisReplyEvent &event) override;
+        int init(const string& host, int port);
     } contacts_subscription;
 
     bool subscription_enabled;
@@ -74,9 +77,10 @@ class RegistrarRedisConnection final
     RedisScript yeti_register;
     RedisScript yeti_aor_lookup;
     RedisScript yeti_rpc_aor_lookup;
+    RedisConnection* conn;
 
   protected:
-    void on_connect() override;
+    void on_connect(RedisConnection* c) override;
 
   public:
     RegistrarRedisConnection();

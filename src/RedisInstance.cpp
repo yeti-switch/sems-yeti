@@ -299,16 +299,29 @@ public:
         return REDIS_OK;
     }
 
-    int redisGetReply(redisContext*, void ** reply) override
+    int redisGetReply(redisContext* c, void ** reply) override
     {
         Command& cmd = q.front();
+
         AmArg r;
-        if(server)
-            r = server->getResponse(cmd.command);
+        if(server) {
+            AmArg res;
+            while(server->getResponse(cmd.command, res)) 
+                r.push(res);
+        }
         Amarg2redisReply(r, (redisReply**)reply);
+        INFO("redisGetReply type %d", (*(redisReply**)reply)->type);
         redisReply* _reply = (redisReply*)*reply;
-        if(server)
-            _reply->type = server->getStatus(cmd.command);
+        if(server && server->getStatus(cmd.command) == REDIS_REPLY_STATUS && _reply->type == REDIS_REPLY_NIL) {
+            q.pop();
+            _reply->type = REDIS_REPLY_STATUS;
+            return REDIS_OK;
+        } else if(server && _reply->type != server->getStatus(cmd.command)) {
+            q.pop();
+            _reply->type = REDIS_REPLY_ERROR;
+            c->err = REDIS_REPLY_ERROR;
+            return REDIS_REPLY_ERROR;
+        }
         q.pop();
         return REDIS_OK;
     }
@@ -602,6 +615,7 @@ void Amarg2redisReply(const AmArg& a, redisReply** r)
         (*r)->str = strdup(a.asCStr());
         (*r)->len = strlen(a.asCStr());
     } else if(isArgArray(a)){
+        (*r)->type = REDIS_REPLY_ARRAY;
         (*r)->elements = a.size();
         (*r)->element = (redisReply**)malloc(sizeof(redisReply*)*a.size());
         for(size_t i = 0; i < a.size(); i++)

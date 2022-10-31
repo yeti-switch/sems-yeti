@@ -11,15 +11,15 @@ static const string REGISTAR_QUEUE_NAME("registrar");
 
 RegistrarRedisConnection::ContactsSubscriptionConnection::ContactsSubscriptionConnection(
     KeepAliveContexts &keepalive_contexts)
-  : RedisConnection("reg_subscription", "reg_async_redis_sub"),
+  : RedisConnectionPool("reg_subscription", "reg_async_redis_sub"),
     keepalive_contexts(keepalive_contexts),
-    load_contacts_data("load_contacts_data", queue_name)
+    load_contacts_data("load_contacts_data", get_queue_name())
 {}
 
-void RegistrarRedisConnection::ContactsSubscriptionConnection::on_connect()
+void RegistrarRedisConnection::ContactsSubscriptionConnection::on_connect(RedisConnection* c)
 {
     //load contacts data loading script
-    load_contacts_data.load("/etc/yeti/scripts/load_contacts.lua", REDIS_REPLY_SCRIPT_LOAD);
+    load_contacts_data.load(c, "/etc/yeti/scripts/load_contacts.lua", REDIS_REPLY_SCRIPT_LOAD);
 }
 
 void RegistrarRedisConnection::ContactsSubscriptionConnection::process_reply_event(RedisReplyEvent &event)
@@ -29,6 +29,7 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_reply_eve
 
     if(event.result!=RedisReplyEvent::SuccessReply) {
         DBG("non-succ reply: %d, data: %s",event.result, AmArg::print(event.data).data());
+        if(REDIS_REPLY_SCRIPT_LOAD == event.user_type_id) event.user_data.release();
         return;
     }
 
@@ -46,8 +47,8 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_reply_eve
         DBG("script '%s' loaded with hash '%s'",
             script->name.c_str(),script->hash.c_str());
         //execute load_contacts script
-        if(!postRedisRequestFmt(
-            queue_name, queue_name, false,
+        if(!postRedisRequestFmt(conn,
+            get_queue_name(), get_queue_name(), false,
             nullptr, REDIS_REPLY_CONTACTS_DATA,
             "EVALSHA %s 0",
             load_contacts_data.hash.c_str()))
@@ -62,6 +63,14 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_reply_eve
         ERROR("unexpected reply event with type: %d",event.user_type_id);
         break;
     }
+}
+
+int RegistrarRedisConnection::ContactsSubscriptionConnection::init(const std::string& host, int port)
+{
+    int ret = RedisConnectionPool::init();
+    conn = addConnection(host, port);
+    if(ret || !conn) return -1;
+    return 0;
 }
 
 void RegistrarRedisConnection::keepalive_ctx_data::dump(const std::string &key) const
@@ -144,8 +153,8 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_loaded_co
     //keepalive_contexts.dump();
 
     //subscribe to del/expire events
-    if(!postRedisRequestFmt(
-        queue_name, queue_name, true,
+    if(!postRedisRequestFmt(conn,
+        get_queue_name(), get_queue_name(), true,
         nullptr, REDIS_REPLY_SUBSCRIPTION,
         //"PSUBSCRIBE __keyspace@0__:c:*",
         "SUBSCRIBE __keyevent@0__:expired __keyevent@0__:del"))
@@ -168,11 +177,12 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_expired_k
 }
 
 RegistrarRedisConnection::RegistrarRedisConnection()
-  : RedisConnection("reg", REGISTAR_QUEUE_NAME),
+  : RedisConnectionPool("reg", REGISTAR_QUEUE_NAME),
      contacts_subscription(keepalive_contexts),
-     yeti_register("yeti_register", queue_name),
-     yeti_aor_lookup("yeti_aor_lookup", queue_name),
-     yeti_rpc_aor_lookup("yeti_rpc_aor_lookup", queue_name)
+     yeti_register("yeti_register", REGISTAR_QUEUE_NAME),
+     yeti_aor_lookup("yeti_aor_lookup", REGISTAR_QUEUE_NAME),
+     yeti_rpc_aor_lookup("yeti_rpc_aor_lookup", REGISTAR_QUEUE_NAME),
+     conn(0)
 { }
 
 void RegistrarRedisConnection::start()
@@ -194,17 +204,17 @@ int RegistrarRedisConnection::init(const string &_host, int _port, bool _subscri
     int ret;
     subscription_enabled = _subscription_enabled;
 
-    ret = RedisConnection::init(_host, _port);
-    if(ret || !subscription_enabled) return ret;
+    ret = RedisConnectionPool::init();
+    conn = addConnection(_host, _port);
+    if(ret || !subscription_enabled || !conn) return -1;
 
     return contacts_subscription.init(_host, _port);
 }
 
-void RegistrarRedisConnection::on_connect()
-{
-    yeti_register.load("/etc/yeti/scripts/register.lua", REDIS_REPLY_SCRIPT_LOAD);
-    yeti_aor_lookup.load("/etc/yeti/scripts/aor_lookup.lua", REDIS_REPLY_SCRIPT_LOAD);
-    yeti_rpc_aor_lookup.load("/etc/yeti/scripts/rpc_aor_lookup.lua", REDIS_REPLY_SCRIPT_LOAD);
+void RegistrarRedisConnection::on_connect(RedisConnection* c) {
+    yeti_register.load(c, "/etc/yeti/scripts/register.lua", REDIS_REPLY_SCRIPT_LOAD);
+    yeti_aor_lookup.load(c, "/etc/yeti/scripts/aor_lookup.lua", REDIS_REPLY_SCRIPT_LOAD);
+    yeti_rpc_aor_lookup.load(c, "/etc/yeti/scripts/rpc_aor_lookup.lua", REDIS_REPLY_SCRIPT_LOAD);
 }
 
 void RegistrarRedisConnection::process(AmEvent* ev)
@@ -222,7 +232,7 @@ void RegistrarRedisConnection::process(AmEvent* ev)
         }
         return;
     }
-    RedisConnection::process(ev);
+    RedisConnectionPool::process(ev);
 }
 void RegistrarRedisConnection::process_reply_event(RedisReplyEvent &event)
 {
@@ -246,7 +256,8 @@ void RegistrarRedisConnection::process_reply_event(RedisReplyEvent &event)
 bool RegistrarRedisConnection::fetch_all(const AmSipRequest &req, Auth::auth_id_type auth_id)
 {
     return postRedisRequestFmt(
-        queue_name,
+        conn,
+        get_queue_name(),
         YETI_QUEUE_NAME,
         false,
         new AmSipRequest(req), YETI_REDIS_REGISTER_TYPE_ID,
@@ -258,7 +269,8 @@ bool RegistrarRedisConnection::fetch_all(const AmSipRequest &req, Auth::auth_id_
 bool RegistrarRedisConnection::unbind_all(const AmSipRequest &req, Auth::auth_id_type auth_id)
 {
     return postRedisRequestFmt(
-        queue_name,
+        conn,
+        get_queue_name(),
         YETI_QUEUE_NAME,
         false,
         new AmSipRequest(req), YETI_REDIS_REGISTER_TYPE_ID,
@@ -275,7 +287,8 @@ bool RegistrarRedisConnection::bind(
     const string &path)
 {
     return postRedisRequestFmt(
-        queue_name,
+        conn,
+        get_queue_name(),
         YETI_QUEUE_NAME,
         false,
         new AmSipRequest(req), YETI_REDIS_REGISTER_TYPE_ID,
@@ -316,7 +329,8 @@ void RegistrarRedisConnection::resolve_aors(
 
     //send request to redis
     if(false==postRedisRequest(
-        queue_name,
+        conn,
+        get_queue_name(),
         local_tag,
         cmd.release(),cmd_size, false))
     {
@@ -355,7 +369,8 @@ void RegistrarRedisConnection::rpc_resolve_aors_blocking(
     ss.str().copy(cmd.get(), cmd_size);
 
     if(false==postRedisRequest(
-        queue_name,
+        conn,
+        get_queue_name(),
         YETI_QUEUE_NAME,
         cmd.release(),cmd_size, false,
         false,

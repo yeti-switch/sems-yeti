@@ -20,6 +20,7 @@ public:
 struct YetiTestFactory
 {
     RedisTestServer server;
+    TestServer pqtest_server;
     struct RedisSettings{
         bool external;
         string host;
