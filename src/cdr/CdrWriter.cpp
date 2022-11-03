@@ -49,7 +49,7 @@ const static_field cdr_static_fields[] = {
 	{ "local_tag", "varchar" },
 	{ "bleg_local_tag", "varchar" },
 	{ "msg_logger_path", "varchar" },
-	{ "dump_level_id", "integer" },
+	{ "dump_level_id", "smallint" },
 	{ "audio_record_enabled", "boolean"},
 	{ "rtp_stats", "json" }, //stats variables serialized to json
 	{ "media_stats", "json" }, //media stats serialized to json
