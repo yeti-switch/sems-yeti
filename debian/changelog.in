@@ -1,3 +1,8 @@
+sems-yeti (1.13.6) stable; urgency=medium
+  * active calls rpc methods: skip sessions with unfinished routing
+  * fix 'yeti.show.resource.state' method
+ -- dev <dev@yeti-switch.org>  Thu, 10 Nov 2022 23:14:12 +0200
+
 sems-yeti (1.13.5) stable; urgency=medium
   * disable transaction timeout for CDR pg worker
  -- dev <dev@yeti-switch.org>  Wed, 09 Nov 2022 12:48:17 +0200
