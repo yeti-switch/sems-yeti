@@ -107,7 +107,7 @@ public:
 
     int redisAppendCommand(redisContext* c, const char* format, va_list argptr) override
     {
-        return ::redisAppendCommand(c, format, argptr);
+        return ::redisvAppendCommand(c, format, argptr);
     }
 
     int redisAsyncSetConnectCallback(redisAsyncContext *ac, redisConnectCallback *fn) override

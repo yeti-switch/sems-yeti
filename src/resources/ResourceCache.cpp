@@ -451,7 +451,7 @@ void ResourceCache::getResourceState(int type, int id, AmArg &ret){
 		}
 
 		AmArg res;
-        redisReply2Amarg(res, reply);
+		redisReply2Amarg(res, reply);
 		if(!isArgArray(res)){
 			redis::freeReplyObject(redis_ctx, reply);
 			read_pool.putConnection(redis_ctx,RedisConnPool::CONN_STATE_ERR);
@@ -472,7 +472,8 @@ void ResourceCache::getResourceState(int type, int id, AmArg &ret){
 		redis::freeReplyObject(redis_ctx, reply);
 	} else { //if(type!=ANY_VALUE and id!=ANY_VALUE){
 #define int2key(v) (v==ANY_VALUE) ? "*" : int2str(v)
-		string key = int2key(type);
+		string key = "r:";
+		key += int2key(type);
 		key.append(":");
 		key.append(int2key(id));
 #undef int2key
@@ -486,7 +487,7 @@ void ResourceCache::getResourceState(int type, int id, AmArg &ret){
 		}
 
 		AmArg res;
-        redisReply2Amarg(res, reply);
+		redisReply2Amarg(res, reply);
 		if(!isArgArray(res)){
 			if(isArgUndef(res)){
 				redis::freeReplyObject(redis_ctx, reply);
