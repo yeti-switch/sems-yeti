@@ -1,3 +1,7 @@
+sems-yeti (1.13.7) stable; urgency=medium
+  * fix deadlock in active calls rpc methods
+ -- dev <dev@yeti-switch.org>  Mon, 14 Nov 2022 16:52:12 +0200
+
 sems-yeti (1.13.6) stable; urgency=medium
   * active calls rpc methods: skip sessions with unfinished routing
   * fix 'yeti.show.resource.state' method
