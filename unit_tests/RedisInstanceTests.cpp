@@ -84,7 +84,7 @@ TEST_F(YetiTest, AsyncRedisTest)
 
     char *cmd;
     redis::redisFormatCommand(&cmd,"HSET %s %d %d","r:471",8,0);
-    server->addFormattedCommandResponce(cmd, REDIS_REPLY_NIL, AmArg());
+    server->addFormattedCommandResponse(cmd, REDIS_REPLY_NIL, AmArg());
     conn.post(new RedisRequestEvent(conn.get_connection(), "regTest", cmd, strlen(cmd), true));
 
     time_ = time(0);
@@ -95,7 +95,7 @@ TEST_F(YetiTest, AsyncRedisTest)
 
     redis::redisFormatCommand(&cmd,"HGET %s %d", "r:471", 8);
     AmArg res("0");
-    server->addFormattedCommandResponce(cmd, REDIS_REPLY_ARRAY, res);
+    server->addFormattedCommandResponse(cmd, REDIS_REPLY_ARRAY, res);
     conn.post(new RedisRequestEvent(conn.get_connection(), "regTest", cmd, strlen(cmd), true));
 
     time_ = time(0);
@@ -119,14 +119,14 @@ TEST_F(YetiTest, MultiRedisTest)
     vector<string> commands;
     commands.push_back("HSET r:471 8 0");
     commands.push_back("HGET r:471 8");
-    server->addCommandResponce("MULTI", REDIS_REPLY_STATUS, AmArg());
-    server->addCommandResponce(commands[0], REDIS_REPLY_STATUS, AmArg());
-    server->addCommandResponce(commands[1], REDIS_REPLY_STATUS, AmArg());
+    server->addCommandResponse("MULTI", REDIS_REPLY_STATUS, AmArg());
+    server->addCommandResponse(commands[0], REDIS_REPLY_STATUS, AmArg());
+    server->addCommandResponse(commands[1], REDIS_REPLY_STATUS, AmArg());
     AmArg res;
     res.assertArray();
     res[0] = 0;
     res[1] = "0";
-    server->addCommandResponce("EXEC", REDIS_REPLY_ARRAY, res);
+    server->addCommandResponse("EXEC", REDIS_REPLY_ARRAY, res);
     AmArg ret = runMultiCommand(ctx, commands, "HSET-HGET");
     redis::redisFree(ctx);
 }

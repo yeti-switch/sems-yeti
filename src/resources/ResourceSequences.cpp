@@ -14,10 +14,10 @@ static string get_key(Resource &r){
 void InvalidateResources::runSequence(RedisReplyEvent* event)
 {
     if(!event && state != INITIAL) {
-        on_error((char*)"connection[%p] error: state of initial sequence incorrect", conn);
+        on_error((char*)"connection[%p] error: state of the initial sequence is incorrect", conn);
     } else if(state == INITIAL) {
         if(!postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_INITIAL_SEQ, "KEYS r:*"))
-            on_error((char*)"error post redis request: state INITIAL");
+            on_error((char*)"error on post redis request: state INITIAL");
         state = GET_KEYS;
     } else if(state == GET_KEYS) {
         if(event->result != RedisReplyEvent::SuccessReply){
@@ -34,13 +34,13 @@ void InvalidateResources::runSequence(RedisReplyEvent* event)
             state = CLEAN_RES;
             command_size = 2 + event->data.size();
         } else {
-            on_error((char*)"unexpected type of result data: state GET_KEYS");
+            on_error((char*)"unexpected type of the result data: state GET_KEYS");
         }
     } else if(state == CLEAN_RES) {
         command_size--;
         if((command_size && event->result != RedisReplyEvent::StatusReply) ||
             (!command_size && event->result != RedisReplyEvent::SuccessReply)){
-            on_error((char*)"reply error in request: state CLEAN_RES, command_size %d, result_type %d", command_size, event->result);
+            on_error((char*)"reply error in the request: state CLEAN_RES, command_size %d, result_type %d", command_size, event->result);
         } else if(!command_size && event->result == RedisReplyEvent::SuccessReply) {
             state = FINISH;
         }
@@ -53,7 +53,7 @@ void InvalidateResources::on_error(char* error, ...)
     va_list argptr;
     va_start (argptr, error);
     vsprintf(err, error, argptr);
-    ERROR("can't init resources(%s). stop", err);
+    ERROR("failed to init resources(%s). stop", err);
     va_end(argptr);
     if(initial) kill(getpid(),SIGTERM);
 }
@@ -61,7 +61,7 @@ void InvalidateResources::on_error(char* error, ...)
 void OperationResources::runSequence(RedisReplyEvent* event)
 {
     if(!event && state != INITIAL) {
-        on_error((char*)"connection[%p] error: state of put sequence incorrect", conn);
+        on_error((char*)"connection[%p] error: state of the put sequence is incorrect", conn);
     } else if(state == INITIAL) {
         postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_OP_SEQ, "MULTI");
         state = MULTI_START;
@@ -81,7 +81,7 @@ void OperationResources::runSequence(RedisReplyEvent* event)
         command_size--;
         if((command_size && event->result != RedisReplyEvent::StatusReply) ||
            (!command_size && event->result != RedisReplyEvent::SuccessReply)){
-                if(!iserror) on_error((char*)"reply error in request: state OP_RES, command_size %d, result_type %d", command_size, event->result);
+                if(!iserror) on_error((char*)"reply error in the request: state OP_RES, command_size %d, result_type %d", command_size, event->result);
         } 
         if(!command_size) {
             state = FINISH;
@@ -95,7 +95,7 @@ void OperationResources::on_error(char* error, ...)
     va_list argptr;
     va_start (argptr, error);
     vsprintf(err, error, argptr);
-    ERROR("can't do operation on resources(%s). stop", err);
+    ERROR("failed to do operation on resources(%s). stop", err);
     va_end(argptr);
     iserror = true;
 }
@@ -125,7 +125,7 @@ long int Reply2Int(AmArg& r)
         ERROR("reply error: '%s'",r["error"].asCStr());
         throw ReplyDataException("unexpected reply");
     } else {
-        throw ReplyTypeException("reply type not desired",r.getType());
+        throw ReplyTypeException("reply type is not desired",r.getType());
     }
 
     return ret;
@@ -173,7 +173,7 @@ void GetAllResources::runSequence(RedisReplyEvent* event)
             state = GET_ALL;
             command_size = event->data.size();
         } else {
-            on_error(500, (char*)"unexpected type of result data");
+            on_error(500, (char*)"unexpected type of the result data");
             state = FINISH;
         }
     } else if(state == GET_KEYS && !event) {
@@ -184,9 +184,9 @@ void GetAllResources::runSequence(RedisReplyEvent* event)
     } else if(state == GET_ALL) {
         command_size--;
         if(event->result != RedisReplyEvent::SuccessReply){
-            on_error(500, (char*)"reply error in request");
+            on_error(500, (char*)"reply error in the request");
         } else if(isArgUndef(event->data)){
-            on_error(500, (char*)"undesired reply from storage");
+            on_error(500, (char*)"undesired reply from the storage");
         } else if(isArgArray(event->data)){
             string key = keys[keys.size() - command_size - 1];
             result.push(key,AmArg());
@@ -233,13 +233,13 @@ void CheckResources::runSequence(RedisReplyEvent* event)
     } else if(state == GET_VALS) {
         command_size--;
         if(event->result != RedisReplyEvent::SuccessReply){
-            on_error((char*)"reply error in request");
+            on_error((char*)"reply error in the request");
         } else {
             try {
                 long int now = Reply2Int(event->data);
                 result.push(now);
             } catch(...){
-                on_error((char*)"can't parse response");
+                on_error((char*)"failed to parse response");
             }
         }
     }
@@ -255,7 +255,7 @@ void CheckResources::on_error(char* error, ...)
     va_list argptr;
     va_start (argptr, error);
     vsprintf(err, error, argptr);
-    ERROR("can't check resources(%s)", err);
+    ERROR("failed to check resources(%s)", err);
     va_end(argptr);
     iserror = true;
     finished.set(true);

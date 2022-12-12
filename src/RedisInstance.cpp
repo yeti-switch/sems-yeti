@@ -310,7 +310,7 @@ public:
                 r.push(res);
         }
         Amarg2redisReply(r, (redisReply**)reply);
-        INFO("redisGetReply type %d", (*(redisReply**)reply)->type);
+        //INFO("redisGetReply type %d", (*(redisReply**)reply)->type);
         redisReply* _reply = (redisReply*)*reply;
         if(server && server->getStatus(cmd.command) == REDIS_REPLY_STATUS && _reply->type == REDIS_REPLY_NIL) {
             q.pop();

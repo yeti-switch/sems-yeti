@@ -318,8 +318,8 @@ bool ResourceControl::getResourceState(const string& connection_id,
                                       const AmArg& params){
 	int type, id;
 
-	if(params.size()<2){
-		throw AmSession::Exception(500,"specify type and id of resource");
+	if(params.size()<2) {
+		throw AmSession::Exception(500,"specify type and id of the resource");
 	}
 	params.assertArrayFmt("ss");
 	if(!str2int(params.get(0).asCStr(),type)){

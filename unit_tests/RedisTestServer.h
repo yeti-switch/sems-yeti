@@ -14,7 +14,7 @@ public:
     RedisTestServer(){}
     ~RedisTestServer(){}
 
-    void addCommandResponce(const string& cmd, int status, AmArg response, ...)
+    void addCommandResponse(const string& cmd, int status, AmArg response, ...)
     {
         va_list args;
         va_start(args, response);
@@ -27,7 +27,7 @@ public:
         va_end(args);
     }
 
-    void addFormattedCommandResponce(const string& cmd, int status, AmArg response)
+    void addFormattedCommandResponse(const string& cmd, int status, AmArg response)
     {
         statuses.insert(std::make_pair(cmd, status));
         if(status != REDIS_REPLY_STATUS)

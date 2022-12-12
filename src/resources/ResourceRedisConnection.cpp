@@ -92,7 +92,7 @@ void ResourceRedisConnection::on_connect(RedisConnection* c){
     if(c == write_async) {
         if(!resources_inited.get()) {
             if(inv_seq.get_state()) {
-                WARN("initialization of resources not finished. Reset sequence and try again");
+                WARN("initialization of the resources is not finished. Reset the sequence and try again");
                 inv_seq.cleanup(false);
             }
             inv_seq.runSequence(0);
@@ -224,11 +224,11 @@ int ResourceRedisConnection::init()
 bool ResourceRedisConnection::invalidate_resources()
 {
     if(!write_async->is_connected()) {
-        INFO("resources will be invalidate after connected");
+        INFO("resources will be invalidated after the connect");
     } else if(!resources_inited.get()) {
-        INFO("resources in invalidating process");
+        INFO("resources are in invalidation process");
     } else if(op_seq) {
-        INFO("resources will be invalidate after finished job");
+        INFO("resources will be invalidated after the job finished");
     } else {
         inv_seq.cleanup(false);
         inv_seq.runSequence(0);
@@ -303,7 +303,7 @@ ResourceResponse ResourceRedisConnection::get(ResourceList &rl, ResourceList::it
         } else {
             res.active = true;
             if(CHECK_STATE_FAILOVER==check_state){
-                DBG("failovered to resource %d:%d",res.type,res.id);
+                DBG("failovered to the resource %d:%d",res.type,res.id);
                 //if(res.failover_to_next)	//skip if not last
                 //    check_state = CHECK_STATE_SKIP;
             }
@@ -314,7 +314,7 @@ ResourceResponse ResourceRedisConnection::get(ResourceList &rl, ResourceList::it
     delete cr;
 
     if(!resources_available){
-        DBG("resources unavailable");
+        DBG("resources are unavailable");
         ret = RES_BUSY;
     } else {
         get(rl);
