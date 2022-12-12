@@ -16,7 +16,10 @@ void InvalidateResources::runSequence(RedisReplyEvent* event)
     if(!event && state != INITIAL) {
         on_error((char*)"connection[%p] error: state of the initial sequence is incorrect", conn);
     } else if(state == INITIAL) {
-        if(!postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_INITIAL_SEQ, "KEYS r:*"))
+        if(!postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(),
+                                conn->get_queue_name(), false, this,
+                                REDIS_REPLY_INITIAL_SEQ,
+                                "KEYS r:*:*"))
             on_error((char*)"error on post redis request: state INITIAL");
         state = GET_KEYS;
     } else if(state == GET_KEYS) {
@@ -26,11 +29,21 @@ void InvalidateResources::runSequence(RedisReplyEvent* event)
             INFO("empty database. skip resources initialization");
             state = FINISH;
         } else if(isArgArray(event->data)){
-            postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_INITIAL_SEQ, "MULTI");
+            postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(),
+                                conn->get_queue_name(), false, this,
+                                REDIS_REPLY_INITIAL_SEQ,
+                                "MULTI");
             for(size_t i = 0;i < event->data.size(); i++) {
-                postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_INITIAL_SEQ, "HSET %s %d 0", event->data[i].asCStr(), AmConfig.node_id);
+                postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(),
+                                    conn->get_queue_name(), false, this,
+                                    REDIS_REPLY_INITIAL_SEQ,
+                                    "HSET %s %d 0",
+                                    event->data[i].asCStr(), AmConfig.node_id);
             }
-            postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_INITIAL_SEQ, "EXEC");
+            postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(),
+                                conn->get_queue_name(), false, this,
+                                REDIS_REPLY_INITIAL_SEQ,
+                                "EXEC");
             state = CLEAN_RES;
             command_size = 2 + event->data.size();
         } else {
