@@ -7,22 +7,14 @@ enum RpcMethodId {
 
 const string RESOURCE_QUEUE_NAME("resource");
 
-static string get_key(Resource &r){
-	ostringstream ss;
-	ss << "r:" << r.type << ":" << r.id;
-	return ss.str();
-}
-
 ResourceRedisConnection::ResourceRedisConnection(const string& queue_name)
-: RedisConnectionPool("resources", queue_name)
-, write_async(0), read_async(0)
-, inv_seq(this)
-, resources_inited(false)
-, op_seq(0)
-, resources_initialized_cb(0)
-{
-    inv_seq.cleanup(true);
-}
+  : RedisConnectionPool("resources", queue_name),
+    write_async(nullptr), read_async(nullptr),
+    inv_seq(this),
+    resources_inited(false),
+    op_seq(nullptr),
+    resources_initialized_cb(nullptr)
+{}
 
 ResourceRedisConnection::~ResourceRedisConnection() {}
 
@@ -67,20 +59,18 @@ void ResourceRedisConnection::queue_op()
     if(!is_ready()) return;
     res_queue.lock();
     if(res_queue.size()) {
-        op_seq = new OperationResources(this);
-        op_seq->cleanup(res_queue);
-        op_seq->runSequence(0);
+        op_seq = new OperationResources(this, res_queue);
+        op_seq->perform();
         res_queue.clear();
-    } 
+    }
     res_queue.unlock();
 }
 
 void ResourceRedisConnection::operate(ResourceOperationList& rol)
 {
     if(is_ready()) {
-        op_seq = new OperationResources(this);
-        op_seq->cleanup(rol);
-        op_seq->runSequence(0);
+        op_seq = new OperationResources(this, rol);
+        op_seq->perform();
     } else {
         res_queue.lock();
         res_queue.insert(res_queue.end(), rol.begin(), rol.end());
@@ -93,9 +83,9 @@ void ResourceRedisConnection::on_connect(RedisConnection* c){
         if(!resources_inited.get()) {
             if(inv_seq.get_state()) {
                 WARN("initialization of the resources is not finished. Reset the sequence and try again");
-                inv_seq.cleanup(false);
+                inv_seq.cleanup();
             }
-            inv_seq.runSequence(0);
+            inv_seq.perform();
         } else {
             queue_op();
         }
@@ -116,21 +106,21 @@ void ResourceRedisConnection::get_resource_state(const JsonRpcRequestEvent& req)
     int type, id;
     str2int(req.params.get(0).asCStr(),type);
     str2int(req.params.get(1).asCStr(),id);
-    GetAllResources* gal = new GetAllResources(this, req);
-    gal->cleanup(type, id);
-    gal->runSequence(0);
+    (new GetAllResources(this, req, type, id))->perform();
 }
 
 void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
 {
-    if(ev.user_type_id == REDIS_REPLY_INITIAL_SEQ) {
-        InvalidateResources* seq = dynamic_cast<InvalidateResources*>(ev.user_data.release());
+    if(ev.user_type_id == ResourceSequenceBase::REDIS_REPLY_INITIAL_SEQ) {
+        InvalidateResources* seq = dynamic_cast<InvalidateResources*>(ev.user_data.get());
         if(!seq && seq != &inv_seq) {
             ERROR("incorrect user data[%p], expected initial sequence[%p]", seq, &inv_seq);
             return;
         }
 
-        inv_seq.runSequence(&ev);
+        if(!inv_seq.processRedisReply(ev))
+            ev.user_data.release();
+
         if(inv_seq.is_finish()) {
             INFO("resources invalidated");
             resources_inited.set(true);
@@ -142,55 +132,54 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
             }
             queue_op();
         }
-    } else if(ev.user_type_id == REDIS_REPLY_OP_SEQ) {
+    } else if(ev.user_type_id == ResourceSequenceBase::REDIS_REPLY_OP_SEQ) {
         OperationResources* seq = dynamic_cast<OperationResources*>(ev.user_data.get());
         if(!seq) {
-            ERROR("incorrect user data[%p], expected put sequence", seq);
+            ERROR("incorrect user data[%p], expected put sequence", ev.user_data.get());
             return;
         }
 
-        seq->runSequence(&ev);
-        if(!seq->is_finish())
+        if(!seq->processRedisReply(ev))
             ev.user_data.release();
-        else {
+
+        if(seq->is_finish()) {
             DBG("resources operation finished %s errors", seq->is_error() ? "with" : "without");
             op_seq = 0;
             if(seq->is_error()) {
                 // on error have to reset the connection and invalidate resources
                 redis::redisAsyncDisconnect(write_async->get_async_context());
                 resources_inited.set(false);
-                inv_seq.cleanup(false);
+                inv_seq.cleanup();
             } else if(!resources_inited.get()) {
                 // for rpc command of invalidate resources(if connection was busy)
-                inv_seq.cleanup(false);
-                inv_seq.runSequence(0);
+                inv_seq.cleanup();
+                inv_seq.perform();
             } else {
                 // trying the next operation after successful finished previous
                 queue_op();
             }
         }
-    } else if(ev.user_type_id == REDIS_REPLY_GET_ALL_KEYS_SEQ) {
+    } else if(ev.user_type_id == ResourceSequenceBase::REDIS_REPLY_GET_ALL_KEYS_SEQ) {
         GetAllResources* seq = dynamic_cast<GetAllResources*>(ev.user_data.get());
         if(!seq) {
-            ERROR("incorrect user data[%p], expected get all sequence", seq);
+            ERROR("incorrect user data[%p], expected get all sequence", ev.user_data.get());
             return;
         }
 
-        seq->runSequence(&ev);
-        if(!seq->is_finish())
+        if(!seq->processRedisReply(ev))
             ev.user_data.release();
-        else {
+
+        if(seq->is_finish()) {
             DBG("get resources finished %s errors", seq->is_error() ? "with" : "without");
         }
-    } else if(ev.user_type_id == REDIS_REPLY_CHECK_SEQ) {
+    } else if(ev.user_type_id == ResourceSequenceBase::REDIS_REPLY_CHECK_SEQ) {
         CheckResources* seq = dynamic_cast<CheckResources*>(ev.user_data.get());
         if(!seq) {
-            ERROR("incorrect user data[%p], expected get all sequence", seq);
+            ERROR("incorrect user data[%p], expected check sequence", ev.user_data.get());
             return;
         }
 
-        seq->runSequence(&ev);
-        if(!seq->is_finish() || !seq->is_error())
+        if(!seq->processRedisReply(ev))
             ev.user_data.release();
     }
 }
@@ -230,8 +219,8 @@ bool ResourceRedisConnection::invalidate_resources()
     } else if(op_seq) {
         INFO("resources will be invalidated after the job finished");
     } else {
-        inv_seq.cleanup(false);
-        inv_seq.runSequence(0);
+        inv_seq.cleanup();
+        inv_seq.perform();
     }
     resources_inited.set(false);
     return resources_inited.wait_for_to(writecfg.timeout);
@@ -246,7 +235,7 @@ void ResourceRedisConnection::put(ResourceList& rl)
 {
     ResourceOperationList rol;
     for(auto& res : rl) {
-        rol.push_back(ResourceOperation(ResourceOperation::RES_PUT, res));
+        rol.emplace_back(ResourceOperation::RES_PUT, res);
     }
     operate(rol);
 }
@@ -256,7 +245,7 @@ void ResourceRedisConnection::get(ResourceList& rl)
     ResourceOperationList rol;
     for(auto& res : rl) {
         res.taken = true;
-        rol.push_back(ResourceOperation(ResourceOperation::RES_GET, res));
+        rol.emplace_back(ResourceOperation::RES_GET, res);
     }
     operate(rol);
 }
@@ -268,17 +257,25 @@ void ResourceRedisConnection::get(ResourceList& rl)
 ResourceResponse ResourceRedisConnection::get(ResourceList &rl, ResourceList::iterator &resource)
 {
     ResourceResponse ret = RES_ERR;
-    CheckResources *cr = new CheckResources(this);
-    cr->cleanup(rl);
-    cr->runSequence(0);
+
     resource = rl.begin();
-    if(!cr->wait_finish(readcfg.timeout))
+
+    unique_ptr<CheckResources> cr_seq(new CheckResources(this, rl));
+
+    if(!cr_seq->perform())
         return ret;
+
+    if(!cr_seq->wait_finish(readcfg.timeout)) {
+        //cr_seq will be deleted by redis thread
+        cr_seq.release();
+
+        return ret;
+    }
 
     bool resources_available = true;
     int check_state = CHECK_STATE_NORMAL;
-    AmArg result = cr->get_result();
-    for(size_t i = 0; i < result.size(); i++,++resource){
+    AmArg result = cr_seq->get_result();
+    for(size_t i = 0; i < result.size(); i++,++resource) {
         Resource &res = *resource;
         if(CHECK_STATE_SKIP==check_state){
             DBG("skip %d:%d intended for failover",res.type,res.id);
@@ -302,7 +299,7 @@ ResourceResponse ResourceRedisConnection::get(ResourceList &rl, ResourceList::it
             break;
         } else {
             res.active = true;
-            if(CHECK_STATE_FAILOVER==check_state){
+            if(CHECK_STATE_FAILOVER==check_state) {
                 DBG("failovered to the resource %d:%d",res.type,res.id);
                 //if(res.failover_to_next)	//skip if not last
                 //    check_state = CHECK_STATE_SKIP;
@@ -311,7 +308,6 @@ ResourceResponse ResourceRedisConnection::get(ResourceList &rl, ResourceList::it
                 CHECK_STATE_SKIP : CHECK_STATE_NORMAL;
         }
     }
-    delete cr;
 
     if(!resources_available){
         DBG("resources are unavailable");

@@ -5,115 +5,47 @@
 
 using namespace std; 
 
-static string get_key(Resource &r){
-	ostringstream ss;
-	ss << "r:" << r.type << ":" << r.id;
-	return ss.str();
-}
-
-void InvalidateResources::runSequence(RedisReplyEvent* event)
+template<typename... Args>
+inline bool postReadRedisRequestFmt(
+    ResourceRedisConnection* conn,
+    AmObject *user_data,
+    int user_type_id,
+    const char *fmt, Args... args)
 {
-    if(!event && state != INITIAL) {
-        on_error((char*)"connection[%p] error: state of the initial sequence is incorrect", conn);
-    } else if(state == INITIAL) {
-        if(!postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(),
-                                conn->get_queue_name(), false, this,
-                                REDIS_REPLY_INITIAL_SEQ,
-                                "KEYS r:*:*"))
-            on_error((char*)"error on post redis request: state INITIAL");
-        state = GET_KEYS;
-    } else if(state == GET_KEYS) {
-        if(event->result != RedisReplyEvent::SuccessReply){
-            on_error((char*)"reply error in request: state GET_KEYS, result_type %d", event->result);
-        } else if(isArgUndef(event->data)){
-            INFO("empty database. skip resources initialization");
-            state = FINISH;
-        } else if(isArgArray(event->data)){
-            postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(),
-                                conn->get_queue_name(), false, this,
-                                REDIS_REPLY_INITIAL_SEQ,
-                                "MULTI");
-            for(size_t i = 0;i < event->data.size(); i++) {
-                postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(),
-                                    conn->get_queue_name(), false, this,
-                                    REDIS_REPLY_INITIAL_SEQ,
-                                    "HSET %s %d 0",
-                                    event->data[i].asCStr(), AmConfig.node_id);
-            }
-            postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(),
-                                conn->get_queue_name(), false, this,
-                                REDIS_REPLY_INITIAL_SEQ,
-                                "EXEC");
-            state = CLEAN_RES;
-            command_size = 2 + event->data.size();
-        } else {
-            on_error((char*)"unexpected type of the result data: state GET_KEYS");
-        }
-    } else if(state == CLEAN_RES) {
-        command_size--;
-        if((command_size && event->result != RedisReplyEvent::StatusReply) ||
-            (!command_size && event->result != RedisReplyEvent::SuccessReply)){
-            on_error((char*)"reply error in the request: state CLEAN_RES, command_size %d, result_type %d", command_size, event->result);
-        } else if(!command_size && event->result == RedisReplyEvent::SuccessReply) {
-            state = FINISH;
-        }
-    }
+    return postRedisRequestFmt(
+        conn->get_read_conn(),
+        conn->get_queue_name(),
+        conn->get_queue_name(), false,
+        user_data, user_type_id,
+        fmt, args...);
 }
+#define SEQ_REDIS_READ(fmt, args...) postReadRedisRequestFmt(conn, this, user_type_id, fmt, ##args)
 
-void InvalidateResources::on_error(char* error, ...)
+template<typename... Args>
+inline bool postWriteRedisRequestFmt(
+    ResourceRedisConnection* conn,
+    AmObject *user_data,
+    int user_type_id,
+    const char *fmt, Args... args)
 {
-    static char err[1024];
-    va_list argptr;
-    va_start (argptr, error);
-    vsprintf(err, error, argptr);
-    ERROR("failed to init resources(%s). stop", err);
-    va_end(argptr);
-    if(initial) kill(getpid(),SIGTERM);
+    return postRedisRequestFmt(
+        conn->get_write_conn(),
+        conn->get_queue_name(),
+        conn->get_queue_name(), false,
+        user_data, user_type_id,
+        fmt, args...);
 }
+#define SEQ_REDIS_WRITE(fmt, args...) postWriteRedisRequestFmt(conn, this, user_type_id, fmt, ##args)
 
-void OperationResources::runSequence(RedisReplyEvent* event)
+static string get_key(Resource &r)
 {
-    if(!event && state != INITIAL) {
-        on_error((char*)"connection[%p] error: state of the put sequence is incorrect", conn);
-    } else if(state == INITIAL) {
-        postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_OP_SEQ, "MULTI");
-        state = MULTI_START;
-    } else if(state == MULTI_START) {
-        for(auto& res : res_list) {
-            int node_id = AmConfig.node_id;
-            if(res.op == ResourceOperation::RES_GET && res.active)
-                postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_OP_SEQ, "HINCRBY %s %d %d", get_key(res).c_str(), node_id, res.takes);
-            else if(res.op == ResourceOperation::RES_PUT && res.taken)
-                postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_OP_SEQ, "HINCRBY %s %d -%d", get_key(res).c_str(), node_id, res.takes);
-            command_size++;
-        }
-        postRedisRequestFmt(conn->get_write_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_OP_SEQ, "EXEC");
-        command_size++;
-        state = OP_RES;
-    } else if(state == OP_RES) {
-        command_size--;
-        if((command_size && event->result != RedisReplyEvent::StatusReply) ||
-           (!command_size && event->result != RedisReplyEvent::SuccessReply)){
-                if(!iserror) on_error((char*)"reply error in the request: state OP_RES, command_size %d, result_type %d", command_size, event->result);
-        } 
-        if(!command_size) {
-            state = FINISH;
-        }
-    }
+    ostringstream ss;
+    ss << "r:" << r.type << ":" << r.id;
+    return ss.str();
 }
 
-void OperationResources::on_error(char* error, ...)
+static bool isArgNumber(const AmArg& arg)
 {
-    static char err[1024];
-    va_list argptr;
-    va_start (argptr, error);
-    vsprintf(err, error, argptr);
-    ERROR("failed to do operation on resources(%s). stop", err);
-    va_end(argptr);
-    iserror = true;
-}
-
-static bool isArgNumber(const AmArg& arg) {
     return isArgInt(arg) || isArgLongLong(arg) || isArgDouble(arg);
 }
 
@@ -134,7 +66,7 @@ long int Reply2Int(AmArg& r)
     } else if(isArgArray(r)) { //we have array reply. return sum of all elements");
         for(size_t i=0; i < r.size(); i++)
             ret+=Reply2Int(r[i]);
-    } else if(isArgStruct(r) && r.hasMember("error")) { 
+    } else if(isArgStruct(r) && r.hasMember("error")) {
         ERROR("reply error: '%s'",r["error"].asCStr());
         throw ReplyDataException("unexpected reply");
     } else {
@@ -144,16 +76,164 @@ long int Reply2Int(AmArg& r)
     return ret;
 }
 
-void GetAllResources::cleanup(int type, int id)
+InvalidateResources::InvalidateResources(ResourceRedisConnection* conn)
+  : ResourceSequenceBase(conn, REDIS_REPLY_INITIAL_SEQ),
+    state(INITIAL),
+    initial(true)
+{}
+
+void InvalidateResources::cleanup()
 {
-    command_size = 0;
+    commands_count = 0;
+    state = INITIAL;
+    initial = false;
+}
+
+bool InvalidateResources::perform()
+{
+    if(state == INITIAL) {
+        if(!SEQ_REDIS_WRITE("KEYS r:*:*")) {
+            on_error((char*)"error on post redis request: state INITIAL");
+            return false;
+        }
+        state = GET_KEYS;
+    } else {
+        on_error((char*)"perform called in the not INITIAL state: %d", state);
+        return false;
+    }
+
+    return true;
+}
+
+bool InvalidateResources::processRedisReply(RedisReplyEvent &reply)
+{
+    if(state == INITIAL) {
+        on_error((char*)"redis reply in the INITIAL state");
+    } else if(state == GET_KEYS) {
+        if(reply.result != RedisReplyEvent::SuccessReply) {
+            on_error((char*)"reply error in request: state GET_KEYS, result_type %d", reply.result);
+        } else if(isArgUndef(reply.data)){
+            INFO("empty database. skip resources initialization");
+            initial = false;
+            state = FINISH;
+        } else if(isArgArray(reply.data)) {
+            SEQ_REDIS_WRITE("MULTI");
+            for(size_t i = 0;i < reply.data.size(); i++) {
+                SEQ_REDIS_WRITE("HSET %s %d 0",
+                                reply.data[i].asCStr(), AmConfig.node_id);
+            }
+            SEQ_REDIS_WRITE("EXEC");
+            state = CLEAN_RES;
+            commands_count = 2 + reply.data.size();
+        } else {
+            on_error((char*)"unexpected type of the result data: state GET_KEYS");
+        }
+    } else if(state == CLEAN_RES) {
+        commands_count--;
+        if((commands_count && reply.result != RedisReplyEvent::StatusReply) ||
+            (!commands_count && reply.result != RedisReplyEvent::SuccessReply))
+        {
+            on_error((char*)"reply error in the request: state CLEAN_RES, commands_count %d, result_type %d",
+                     commands_count, reply.result);
+        } else if(!commands_count && reply.result == RedisReplyEvent::SuccessReply) {
+            initial = false;
+            state = FINISH;
+        }
+    }
+
+    //always persistent
+    return false;
+}
+
+void InvalidateResources::on_error(char* error, ...)
+{
+    static char err[1024];
+    va_list argptr;
+    va_start (argptr, error);
+    vsprintf(err, error, argptr);
+    ERROR("failed to init resources(%s). stop", err);
+    va_end(argptr);
+    if(initial) kill(getpid(),SIGTERM);
+}
+
+OperationResources::OperationResources(ResourceRedisConnection* conn, const ResourceOperationList& rl)
+  : ResourceSequenceBase(conn, REDIS_REPLY_OP_SEQ),
+    state(INITIAL),
+    res_list(rl),
+    iserror(false)
+{}
+
+bool OperationResources::perform()
+{
+    if(state == INITIAL) {
+        if(!SEQ_REDIS_WRITE("MULTI")) {
+            on_error((char*)"failed to post redis request");
+            return false;
+        }
+        state = MULTI_START;
+    } else {
+        on_error((char*)"perform called in the not INITIAL state: %d", state);
+        return false;
+    }
+
+    return true;
+}
+
+bool OperationResources::processRedisReply(RedisReplyEvent &reply)
+{
+    if(state == INITIAL) {
+        on_error((char*)"redis reply in the INITIAL state");
+    } else if(state == MULTI_START) {
+        for(auto& res : res_list) {
+            if(res.op == ResourceOperation::RES_GET && res.active)
+                SEQ_REDIS_WRITE("HINCRBY %s %d %d", get_key(res).c_str(), AmConfig.node_id, res.takes);
+            else if(res.op == ResourceOperation::RES_PUT && res.taken)
+                SEQ_REDIS_WRITE("HINCRBY %s %d -%d", get_key(res).c_str(), AmConfig.node_id, res.takes);
+            commands_count++;
+        }
+        SEQ_REDIS_WRITE("EXEC");
+        commands_count++;
+        state = OP_RES;
+    } else if(state == OP_RES) {
+        commands_count--;
+        if((commands_count && reply.result != RedisReplyEvent::StatusReply) ||
+           (!commands_count && reply.result != RedisReplyEvent::SuccessReply))
+        {
+            if(!iserror) on_error((char*)"reply error in the request: state OP_RES, commands_count %d, result_type %d",\
+                                  commands_count, reply.result);
+        }
+        if(!commands_count) {
+            state = FINISH;
+        }
+    }
+
+    return state == FINISH;
+}
+
+void OperationResources::on_error(char* error, ...)
+{
+    static char err[1024];
+    va_list argptr;
+    va_start (argptr, error);
+    vsprintf(err, error, argptr);
+    ERROR("failed to do operation on resources(%s). stop", err);
+    va_end(argptr);
+    iserror = true;
+}
+
+GetAllResources::GetAllResources(ResourceRedisConnection* conn,
+                                 const JsonRpcRequestEvent& event,
+                                 int type, int id)
+  : ResourceSequenceBase(conn, REDIS_REPLY_GET_ALL_KEYS_SEQ),
+    req(event),
+    iserror(false)
+{
     if(type != ANY_VALUE && id != ANY_VALUE) {
         Resource r;
         r.type = type;
         r.id = id;
-        //prepare request
         res_key = get_key(r);
-        state = GET_KEYS;
+        state = GET_SINGLE_KEY;
     } else {
         #define int2key(v) (v==ANY_VALUE) ? "*" : int2str(v)
         res_key = "r:";
@@ -165,111 +245,162 @@ void GetAllResources::cleanup(int type, int id)
     }
 }
 
-void GetAllResources::runSequence(RedisReplyEvent* event)
+bool GetAllResources::perform()
 {
     if(state == INITIAL) {
-        postRedisRequestFmt(conn->get_read_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_GET_ALL_KEYS_SEQ, "KEYS %s",res_key.c_str());
+        if(!SEQ_REDIS_READ("KEYS %s",res_key.c_str())) {
+            on_error(500, (char*)"failed to post redis request");
+            return false;
+        }
         state = GET_KEYS;
-    } else if(state == GET_KEYS && event) {
-        if(event->result != RedisReplyEvent::SuccessReply){
+    } else if(state == GET_SINGLE_KEY) {
+        keys.push_back(res_key);
+        if(!SEQ_REDIS_READ("HGETALL %s", res_key.c_str())) {
+            on_error(500, (char*)"failed to post redis request");
+            return false;
+        }
+        commands_count++;
+        state = GET_DATA;
+    } else {
+        on_error(500, (char*)"perform called in the not INITIAL or GET_SINGLE_KEY state: %d", state);
+        return false;
+    }
+
+    return true;
+}
+
+bool GetAllResources::processRedisReply(RedisReplyEvent &reply)
+{
+    if(state == INITIAL) {
+        on_error(500, (char*)"redis reply in the INITIAL state");
+    } else if(state == GET_KEYS) {
+        if(reply.result != RedisReplyEvent::SuccessReply){
             on_error(500, (char*)"no reply from storage");
             state = FINISH;
-        } else if(isArgUndef(event->data) ||(
-            isArgArray(event->data) && !event->data.size())){
+        } else if(isArgUndef(reply.data) ||(
+            isArgArray(reply.data) && !reply.data.size())){
             on_error(404, (char*)"no resources matched");
             state = FINISH;
-        } else if(isArgArray(event->data)){
-            for(size_t i = 0;i < event->data.size(); i++) {
-                keys.push_back(event->data[i].asCStr());
-                postRedisRequestFmt(conn->get_read_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_GET_ALL_KEYS_SEQ, "HGETALL %s", keys.back().c_str());
+        } else if(isArgArray(reply.data)) {
+            for(size_t i = 0;i < reply.data.size(); i++) {
+                keys.push_back(reply.data[i].asCStr());
+                SEQ_REDIS_READ("HGETALL %s", keys.back().c_str());
             }
-            state = GET_ALL;
-            command_size = event->data.size();
+            state = GET_DATA;
+            commands_count = reply.data.size();
         } else {
             on_error(500, (char*)"unexpected type of the result data");
             state = FINISH;
         }
-    } else if(state == GET_KEYS && !event) {
-        keys.push_back(res_key);
-        postRedisRequestFmt(conn->get_read_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_GET_ALL_KEYS_SEQ, "HGETALL %s", res_key.c_str());
-        command_size++;
-        state = GET_ALL;
-    } else if(state == GET_ALL) {
-        command_size--;
-        if(event->result != RedisReplyEvent::SuccessReply){
+    } else if(state == GET_DATA) {
+        commands_count--;
+        if(reply.result != RedisReplyEvent::SuccessReply){
             on_error(500, (char*)"reply error in the request");
-        } else if(isArgUndef(event->data)){
+        } else if(isArgUndef(reply.data)){
             on_error(500, (char*)"undesired reply from the storage");
-        } else if(isArgArray(event->data)){
-            string key = keys[keys.size() - command_size - 1];
+        } else if(isArgArray(reply.data)){
+            string key = keys[keys.size() - commands_count - 1];
             result.push(key,AmArg());
             AmArg &q = result[key];
-            for(size_t j = 0; j < event->data.size(); j+=2){
+            for(size_t j = 0; j < reply.data.size(); j+=2){
                 try {
-                    q.push(int2str((unsigned int)Reply2Int(event->data[j])),	//node_id
-                            AmArg(Reply2Int(event->data[j+1])));				//value*/
-                } catch(...){
+                    q.push(int2str((unsigned int)Reply2Int(reply.data[j])),	//node_id
+                            AmArg(Reply2Int(reply.data[j+1])));				//value*/
+                } catch(...) {
                     on_error(500, (char*)"can't parse response");
                 }
             }
         }
-        if(!command_size) {
+        if(!commands_count) {
             if(!iserror) postJsonRpcReply(req, result);
             state = FINISH;
         }
     }
+
+    return state == FINISH;
 }
 
 void GetAllResources::on_error(int code, char* error, ...)
 {
+    static char err[1024];
+
     if(iserror) return;
     iserror = true;
-    static char err[1024];
+
     va_list argptr;
     va_start (argptr, error);
     vsprintf(err, error, argptr);
+
     DBG("error %s", err);
+
     AmArg ret;
     ret["message"] = err;
     ret["code"] = code;
     postJsonRpcReply(req, ret, true);
 }
 
-void CheckResources::runSequence(RedisReplyEvent* event)
+CheckResources::CheckResources(ResourceRedisConnection* conn, const ResourceList& rl)
+  : ResourceSequenceBase(conn, REDIS_REPLY_CHECK_SEQ),
+    state(INITIAL),
+    resources(rl),
+    finished(false),
+    iserror(false)
+{}
+
+bool CheckResources::perform()
 {
     if(state == INITIAL) {
         for(auto& res : resources) {
-            command_size++;
-            postRedisRequestFmt(conn->get_read_conn(), conn->get_queue_name(), conn->get_queue_name(), false, this, REDIS_REPLY_CHECK_SEQ, "HVALS %s", get_key(res).c_str());
+            commands_count++;
+            SEQ_REDIS_READ("HVALS %s", get_key(res).c_str());
         }
         state = GET_VALS;
+    } else {
+        on_error((char*)"perform called in the not INITIAL state: %d", state);
+        return false;
+    }
+
+    return true;
+}
+
+bool CheckResources::processRedisReply(RedisReplyEvent &reply)
+{
+    if(state == INITIAL) {
+        on_error((char*)"redis reply in the INITIAL state");
     } else if(state == GET_VALS) {
-        command_size--;
-        if(event->result != RedisReplyEvent::SuccessReply){
+        commands_count--;
+        if(reply.result != RedisReplyEvent::SuccessReply) {
             on_error((char*)"reply error in the request");
         } else {
             try {
-                long int now = Reply2Int(event->data);
+                long int now = Reply2Int(reply.data);
                 result.push(now);
-            } catch(...){
+            } catch(...) {
                 on_error((char*)"failed to parse response");
             }
         }
     }
-    if(!command_size) {
+
+    if(!commands_count) {
         finished.set(true);
         state = FINISH;
     }
+
+    //do not delete on finish without errors because result is used in ResourceRedisConnection::get
+    return state==FINISH && iserror;
 }
 
 void CheckResources::on_error(char* error, ...)
 {
     static char err[1024];
+
     va_list argptr;
     va_start (argptr, error);
     vsprintf(err, error, argptr);
-    ERROR("failed to check resources(%s)", err);
     va_end(argptr);
+
+    ERROR("failed to check resources(%s)", err);
+
     iserror = true;
     finished.set(true);
 }
@@ -280,4 +411,3 @@ bool CheckResources::wait_finish(int timeout)
     if(!ret) iserror = true;
     return ret;
 }
-

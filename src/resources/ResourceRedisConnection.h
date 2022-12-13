@@ -1,5 +1,4 @@
-#ifndef RESOURCE_REDIS_CONNECTION_H
-#define RESOURCE_REDIS_CONNECTION_H
+#pragma once
 
 #include "ResourceSequences.h"
 
@@ -12,9 +11,9 @@ struct RedisConfig {
 };
 
 enum ResourceResponse {
-	RES_SUCC,			//we successful got all resources
-	RES_BUSY,			//one of resources is busy
-	RES_ERR				//error occured on interaction with cache
+    RES_SUCC,       //we successful got all resources
+    RES_BUSY,       //one of resources is busy
+    RES_ERR         //error occured on interaction with cache
 };
 
 class ResourceRedisConnection : public RedisConnectionPool
@@ -29,7 +28,8 @@ class ResourceRedisConnection : public RedisConnectionPool
     AmCondition<bool> resources_inited;
     ResourceOperationList res_queue;
     OperationResources* op_seq;
-protected:
+
+  protected:
     int cfg2RedisCfg(const AmConfigReader &cfg, RedisConfig &rcfg,string prefix);
     bool is_ready();
     void queue_op();
@@ -40,7 +40,8 @@ protected:
 
     void get_resource_state(const JsonRpcRequestEvent& req);
     void get(ResourceList &rl);
-public:
+
+  public:
     ResourceRedisConnection(const string& queue_name = RESOURCE_QUEUE_NAME);
     ~ResourceRedisConnection();
 
@@ -67,5 +68,3 @@ public:
     RedisConnection* get_write_conn(){ return write_async; }
     RedisConnection* get_read_conn(){ return read_async; }
 };
-
-#endif/*RESOURCE_REDIS_CONNECTION_H*/

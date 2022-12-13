@@ -1,144 +1,159 @@
-#ifndef RESOURCE_SEQUENCES_H
-#define RESOURCE_SEQUENCES_H
+#pragma once
 
 #include "Resource.h"
 #include "../RedisConnectionPool.h"
 #include <ampi/JsonRPCEvents.h>
 
-#define REDIS_REPLY_INITIAL_SEQ 1
-#define REDIS_REPLY_OP_SEQ 2
-#define REDIS_REPLY_GET_ALL_KEYS_SEQ 3
-#define REDIS_REPLY_CHECK_SEQ 4
-
 class ResourceRedisConnection;
 
-class JsonRpcRequest : public AmObject, public JsonRpcRequestEvent
+class ResourceSequenceBase
+  : public AmObject
 {
-public:
-    JsonRpcRequest(const JsonRpcRequestEvent& event)
-    : JsonRpcRequestEvent(event){}
+  public:
+    enum seq_id {
+        REDIS_REPLY_INITIAL_SEQ = 1,
+        REDIS_REPLY_OP_SEQ,
+        REDIS_REPLY_GET_ALL_KEYS_SEQ,
+        REDIS_REPLY_CHECK_SEQ
+    };
+
+  protected:
+    ResourceRedisConnection* conn;
+    int user_type_id;
+    int commands_count;
+
+  public:
+    ResourceSequenceBase(ResourceRedisConnection* conn, int user_type_id)
+      : conn(conn),
+        user_type_id(user_type_id),
+        commands_count(0)
+    { }
+    virtual ~ResourceSequenceBase() { }
+
+    //run sequence. returns false on errors
+    virtual bool perform() = 0;
+
+    //process redis reply, generate new queries, change internal FSM state, save result
+    //return: true if finished and can be destroyed
+    virtual bool processRedisReply(RedisReplyEvent& reply) = 0;
 };
 
-class InvalidateResources : public AmObject
+class ResourceOperation
+  : public Resource
 {
-    ResourceRedisConnection* conn;
+  public:
+    enum Operation {
+        RES_PUT,
+        RES_GET
+    } op;
+
+    ResourceOperation(Operation op_, const Resource& res)
+      : Resource(res),
+        op(op_)
+    {}
+};
+
+typedef ResList<ResourceOperation> ResourceOperationList;
+
+class InvalidateResources
+  : public ResourceSequenceBase
+{
     enum {
         INITIAL = 0,
         GET_KEYS,
         CLEAN_RES,
         FINISH
     } state;
-    int command_size;
     bool initial;
-public:
-    InvalidateResources(ResourceRedisConnection* conn)
-    : conn(conn), state(INITIAL), command_size(0), initial(false){}
 
-    void runSequence(RedisReplyEvent* event);
-    void cleanup(bool init) {
-        state = INITIAL;
-        command_size = 0;
-        initial = init;
-    }
+  public:
+    InvalidateResources(ResourceRedisConnection* conn);
+
+    bool perform() override;
+    bool processRedisReply(RedisReplyEvent &reply) override;
+    void cleanup();
+    void on_error(char* error, ...);
+
     bool is_finish() { return state == FINISH; }
     bool is_initial() { return initial; }
-    void on_error(char* error, ...);
     int get_state() { return state; }
 };
 
-class ResourceOperation : public Resource
+class OperationResources
+  : public ResourceSequenceBase
 {
-public:
-    enum Operation {
-        RES_PUT,
-        RES_GET
-    } op;
-    ResourceOperation(Operation op_, const Resource& res)
-    : Resource(res), op(op_){}
-};
-
-typedef ResList<ResourceOperation> ResourceOperationList;
-
-class OperationResources : public AmObject
-{
-    ResourceRedisConnection* conn;
     enum {
         INITIAL = 0,
         MULTI_START,
         OP_RES,
         FINISH
     } state;
-    int command_size;
     ResourceOperationList res_list;
     bool iserror;
-public:
-    OperationResources(ResourceRedisConnection* conn)
-    : conn(conn), state(INITIAL), command_size(0), iserror(false){}
 
-    void runSequence(RedisReplyEvent* event);
-    void cleanup(const ResourceOperationList& rl) {
-        state = INITIAL;
-        command_size = 0;
-        res_list = rl;
-    }
-    bool is_finish() { return state == FINISH; }
+  public:
+    OperationResources(ResourceRedisConnection* conn, const ResourceOperationList& rl);
+
+    bool perform() override;
+    bool processRedisReply(RedisReplyEvent &reply) override;
     void on_error(char* error, ...);
+
+    bool is_finish() { return state == FINISH; }
     bool is_error() { return iserror; }
 };
 
-class GetAllResources : public AmObject
+class GetAllResources
+  : public ResourceSequenceBase
 {
-    ResourceRedisConnection* conn;
-    JsonRpcRequest req;
+    JsonRpcRequestEvent req;
 
     string res_key;
     enum {
         INITIAL = 0,
         GET_KEYS,
-        GET_ALL,
+        GET_SINGLE_KEY,
+        GET_DATA,
         FINISH
     } state;
-    int command_size;
     vector<string> keys;
     AmArg result;
     bool iserror;
-public:
-    GetAllResources(ResourceRedisConnection* conn, const JsonRpcRequestEvent& event)
-    : conn(conn), req(event), state(INITIAL), command_size(0), iserror(false){}
 
-    void runSequence(RedisReplyEvent* event);
-    void cleanup(int type, int id);
-    bool is_finish() { return state == FINISH; }
+  public:
+    GetAllResources(ResourceRedisConnection* conn,
+                    const JsonRpcRequestEvent& event,
+                    int type, int id);
+
+    bool perform() override;
+    bool processRedisReply(RedisReplyEvent &reply) override;
     void on_error(int code, char* error, ...);
+
+    bool is_finish() { return state == FINISH; }
     bool is_error() { return iserror; }
 };
 
-class CheckResources : public AmObject
+class CheckResources
+  : public ResourceSequenceBase
 {
-    ResourceRedisConnection* conn;
     enum {
         INITIAL = 0,
         GET_VALS,
         FINISH
     } state;
-    int command_size;
     ResourceList resources;
     AmCondition<bool> finished;
     bool iserror;
     AmArg result;
-public:
-    CheckResources(ResourceRedisConnection* conn)
-    : conn(conn), state(INITIAL), command_size(0), iserror(false){}
 
-    void runSequence(RedisReplyEvent* event);
-    void cleanup(const ResourceList& rl) {
-        resources = rl;
-    }
-    bool wait_finish(int timeout);
-    bool is_finish() { return state == FINISH; }
+  public:
+    CheckResources(ResourceRedisConnection* conn, const ResourceList& rl);
+
+    bool perform() override;
+    bool processRedisReply(RedisReplyEvent &reply) override;
     void on_error(char* error, ...);
+    bool wait_finish(int timeout);
+
+    bool is_finish() { return state == FINISH; }
     bool is_error() { return iserror; }
     AmArg get_result() { return result; }
 };
-
-#endif/*RESOURCE_SEQUENCES_H*/
