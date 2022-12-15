@@ -72,7 +72,7 @@ class InvalidateResources
     bool perform() override;
     bool processRedisReply(RedisReplyEvent &reply) override;
     void cleanup();
-    void on_error(char* error, ...);
+    void on_error(const char* error, ...);
 
     bool is_finish() { return state == FINISH; }
     bool is_initial() { return initial; }
@@ -96,7 +96,7 @@ class OperationResources
 
     bool perform() override;
     bool processRedisReply(RedisReplyEvent &reply) override;
-    void on_error(char* error, ...);
+    void on_error(const char* error, ...);
 
     bool is_finish() { return state == FINISH; }
     bool is_error() { return iserror; }
@@ -126,7 +126,7 @@ class GetAllResources
 
     bool perform() override;
     bool processRedisReply(RedisReplyEvent &reply) override;
-    void on_error(int code, char* error, ...);
+    void on_error(int code, const char* error, ...);
 
     bool is_finish() { return state == FINISH; }
     bool is_error() { return iserror; }
@@ -150,7 +150,7 @@ class CheckResources
 
     bool perform() override;
     bool processRedisReply(RedisReplyEvent &reply) override;
-    void on_error(char* error, ...);
+    void on_error(const char* error, ...);
     bool wait_finish(int timeout);
 
     bool is_finish() { return state == FINISH; }

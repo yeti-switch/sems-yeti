@@ -60,7 +60,7 @@ long int Reply2Int(AmArg& r)
     else if(isArgCStr(r)) {//string response
         s = (char*)r.asCStr();
         if(!str2long(s,ret)){
-            ERROR("Reply2Int: conversion falied for: '%s'",s);
+            ERROR("Reply2Int: conversion falied for: '%s'",r.asCStr());
             throw ReplyDataException("invalid response from redis");
         }
     } else if(isArgArray(r)) { //we have array reply. return sum of all elements");
@@ -93,12 +93,12 @@ bool InvalidateResources::perform()
 {
     if(state == INITIAL) {
         if(!SEQ_REDIS_WRITE("KEYS r:*:*")) {
-            on_error((char*)"error on post redis request: state INITIAL");
+            on_error("error on post redis request: state INITIAL");
             return false;
         }
         state = GET_KEYS;
     } else {
-        on_error((char*)"perform called in the not INITIAL state: %d", state);
+        on_error("perform called in the not INITIAL state: %d", state);
         return false;
     }
 
@@ -108,10 +108,10 @@ bool InvalidateResources::perform()
 bool InvalidateResources::processRedisReply(RedisReplyEvent &reply)
 {
     if(state == INITIAL) {
-        on_error((char*)"redis reply in the INITIAL state");
+        on_error("redis reply in the INITIAL state");
     } else if(state == GET_KEYS) {
         if(reply.result != RedisReplyEvent::SuccessReply) {
-            on_error((char*)"reply error in request: state GET_KEYS, result_type %d", reply.result);
+            on_error("reply error in request: state GET_KEYS, result_type %d", reply.result);
         } else if(isArgUndef(reply.data)){
             INFO("empty database. skip resources initialization");
             initial = false;
@@ -126,14 +126,14 @@ bool InvalidateResources::processRedisReply(RedisReplyEvent &reply)
             state = CLEAN_RES;
             commands_count = 2 + reply.data.size();
         } else {
-            on_error((char*)"unexpected type of the result data: state GET_KEYS");
+            on_error("unexpected type of the result data: state GET_KEYS");
         }
     } else if(state == CLEAN_RES) {
         commands_count--;
         if((commands_count && reply.result != RedisReplyEvent::StatusReply) ||
             (!commands_count && reply.result != RedisReplyEvent::SuccessReply))
         {
-            on_error((char*)"reply error in the request: state CLEAN_RES, commands_count %d, result_type %d",
+            on_error("reply error in the request: state CLEAN_RES, commands_count %d, result_type %d",
                      commands_count, reply.result);
         } else if(!commands_count && reply.result == RedisReplyEvent::SuccessReply) {
             initial = false;
@@ -145,7 +145,7 @@ bool InvalidateResources::processRedisReply(RedisReplyEvent &reply)
     return false;
 }
 
-void InvalidateResources::on_error(char* error, ...)
+void InvalidateResources::on_error(const char* error, ...)
 {
     static char err[1024];
     va_list argptr;
@@ -167,12 +167,12 @@ bool OperationResources::perform()
 {
     if(state == INITIAL) {
         if(!SEQ_REDIS_WRITE("MULTI")) {
-            on_error((char*)"failed to post redis request");
+            on_error("failed to post redis request");
             return false;
         }
         state = MULTI_START;
     } else {
-        on_error((char*)"perform called in the not INITIAL state: %d", state);
+        on_error("perform called in the not INITIAL state: %d", state);
         return false;
     }
 
@@ -182,7 +182,7 @@ bool OperationResources::perform()
 bool OperationResources::processRedisReply(RedisReplyEvent &reply)
 {
     if(state == INITIAL) {
-        on_error((char*)"redis reply in the INITIAL state");
+        on_error("redis reply in the INITIAL state");
     } else if(state == MULTI_START) {
         for(auto& res : res_list) {
             if(res.op == ResourceOperation::RES_GET && res.active)
@@ -199,7 +199,7 @@ bool OperationResources::processRedisReply(RedisReplyEvent &reply)
         if((commands_count && reply.result != RedisReplyEvent::StatusReply) ||
            (!commands_count && reply.result != RedisReplyEvent::SuccessReply))
         {
-            if(!iserror) on_error((char*)"reply error in the request: state OP_RES, commands_count %d, result_type %d",\
+            if(!iserror) on_error("reply error in the request: state OP_RES, commands_count %d, result_type %d",\
                                   commands_count, reply.result);
         }
         if(!commands_count) {
@@ -210,7 +210,7 @@ bool OperationResources::processRedisReply(RedisReplyEvent &reply)
     return state == FINISH;
 }
 
-void OperationResources::on_error(char* error, ...)
+void OperationResources::on_error(const char* error, ...)
 {
     static char err[1024];
     va_list argptr;
@@ -249,20 +249,20 @@ bool GetAllResources::perform()
 {
     if(state == INITIAL) {
         if(!SEQ_REDIS_READ("KEYS %s",res_key.c_str())) {
-            on_error(500, (char*)"failed to post redis request");
+            on_error(500, "failed to post redis request");
             return false;
         }
         state = GET_KEYS;
     } else if(state == GET_SINGLE_KEY) {
         keys.push_back(res_key);
         if(!SEQ_REDIS_READ("HGETALL %s", res_key.c_str())) {
-            on_error(500, (char*)"failed to post redis request");
+            on_error(500, "failed to post redis request");
             return false;
         }
         commands_count++;
         state = GET_DATA;
     } else {
-        on_error(500, (char*)"perform called in the not INITIAL or GET_SINGLE_KEY state: %d", state);
+        on_error(500, "perform called in the not INITIAL or GET_SINGLE_KEY state: %d", state);
         return false;
     }
 
@@ -272,14 +272,14 @@ bool GetAllResources::perform()
 bool GetAllResources::processRedisReply(RedisReplyEvent &reply)
 {
     if(state == INITIAL) {
-        on_error(500, (char*)"redis reply in the INITIAL state");
+        on_error(500, "redis reply in the INITIAL state");
     } else if(state == GET_KEYS) {
         if(reply.result != RedisReplyEvent::SuccessReply){
-            on_error(500, (char*)"no reply from storage");
+            on_error(500, "no reply from storage");
             state = FINISH;
         } else if(isArgUndef(reply.data) ||(
             isArgArray(reply.data) && !reply.data.size())){
-            on_error(404, (char*)"no resources matched");
+            on_error(404, "no resources matched");
             state = FINISH;
         } else if(isArgArray(reply.data)) {
             for(size_t i = 0;i < reply.data.size(); i++) {
@@ -289,15 +289,15 @@ bool GetAllResources::processRedisReply(RedisReplyEvent &reply)
             state = GET_DATA;
             commands_count = reply.data.size();
         } else {
-            on_error(500, (char*)"unexpected type of the result data");
+            on_error(500, "unexpected type of the result data");
             state = FINISH;
         }
     } else if(state == GET_DATA) {
         commands_count--;
         if(reply.result != RedisReplyEvent::SuccessReply){
-            on_error(500, (char*)"reply error in the request");
+            on_error(500, "reply error in the request");
         } else if(isArgUndef(reply.data)){
-            on_error(500, (char*)"undesired reply from the storage");
+            on_error(500, "undesired reply from the storage");
         } else if(isArgArray(reply.data)){
             string key = keys[keys.size() - commands_count - 1];
             result.push(key,AmArg());
@@ -307,7 +307,7 @@ bool GetAllResources::processRedisReply(RedisReplyEvent &reply)
                     q.push(int2str((unsigned int)Reply2Int(reply.data[j])),	//node_id
                             AmArg(Reply2Int(reply.data[j+1])));				//value*/
                 } catch(...) {
-                    on_error(500, (char*)"can't parse response");
+                    on_error(500, "can't parse response");
                 }
             }
         }
@@ -320,7 +320,7 @@ bool GetAllResources::processRedisReply(RedisReplyEvent &reply)
     return state == FINISH;
 }
 
-void GetAllResources::on_error(int code, char* error, ...)
+void GetAllResources::on_error(int code, const char* error, ...)
 {
     static char err[1024];
 
@@ -356,7 +356,7 @@ bool CheckResources::perform()
         }
         state = GET_VALS;
     } else {
-        on_error((char*)"perform called in the not INITIAL state: %d", state);
+        on_error("perform called in the not INITIAL state: %d", state);
         return false;
     }
 
@@ -366,17 +366,17 @@ bool CheckResources::perform()
 bool CheckResources::processRedisReply(RedisReplyEvent &reply)
 {
     if(state == INITIAL) {
-        on_error((char*)"redis reply in the INITIAL state");
+        on_error("redis reply in the INITIAL state");
     } else if(state == GET_VALS) {
         commands_count--;
         if(reply.result != RedisReplyEvent::SuccessReply) {
-            on_error((char*)"reply error in the request");
+            on_error("reply error in the request");
         } else {
             try {
                 long int now = Reply2Int(reply.data);
                 result.push(now);
             } catch(...) {
-                on_error((char*)"failed to parse response");
+                on_error("failed to parse response");
             }
         }
     }
@@ -390,7 +390,7 @@ bool CheckResources::processRedisReply(RedisReplyEvent &reply)
     return state==FINISH && iserror;
 }
 
-void CheckResources::on_error(char* error, ...)
+void CheckResources::on_error(const char* error, ...)
 {
     static char err[1024];
 
