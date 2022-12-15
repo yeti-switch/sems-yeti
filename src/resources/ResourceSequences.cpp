@@ -166,6 +166,22 @@ OperationResources::OperationResources(ResourceRedisConnection* conn, const Reso
 bool OperationResources::perform()
 {
     if(state == INITIAL) {
+        for(auto res = res_list.begin(); res != res_list.end();) {
+            //filter out inactive and taken resources
+            if((res->op == ResourceOperation::RES_GET && !res->active) ||
+                (res->op == ResourceOperation::RES_PUT && !res->taken))
+            {
+                res = res_list.erase(res);
+            } else {
+                res++;
+            }
+        }
+
+        if(res_list.empty()) {
+            //ask to be deleted by caller
+            return false;
+        }
+
         if(!SEQ_REDIS_WRITE("MULTI")) {
             on_error("failed to post redis request");
             return false;
