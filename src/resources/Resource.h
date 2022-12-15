@@ -1,5 +1,4 @@
-#ifndef RESOURCE_H
-#define RESOURCE_H
+#pragma once
 
 //#include <vector>
 #include <list>
@@ -29,13 +28,9 @@ struct Resource {
 	string print() const;
 };
 
-template <typename Res>
-struct ResList: public list<Res>, AmMutex {
-	void parse(const string s);
+struct ResourceList
+  : public list<Resource>,
+    public AmMutex
+{
+    void parse(const string s);
 };
-
-typedef ResList<Resource> ResourceList;
-
-//extern template ResList<Resource>::parse(const string s);
-
-#endif // RESOURCE_H

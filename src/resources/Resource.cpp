@@ -8,7 +8,8 @@
 #define RES_OPTION_SEPARATOR "|"
 #define RES_FIELDS_SEPARATOR ":"
 
-template<> void ResList<Resource>::parse(const std::string rs){
+void ResourceList::parse(const std::string rs)
+{
 	clear();
 	//DBG("rs = %s",rs.c_str());
 	vector<string> lc = explode(rs,RES_ATOM_SEPARATOR);

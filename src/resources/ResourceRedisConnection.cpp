@@ -12,7 +12,6 @@ ResourceRedisConnection::ResourceRedisConnection(const string& queue_name)
     write_async(nullptr), read_async(nullptr),
     inv_seq(this),
     resources_inited(false),
-    op_seq(nullptr),
     resources_initialized_cb(nullptr)
 {}
 
@@ -51,30 +50,37 @@ int ResourceRedisConnection::cfg2RedisCfg(const AmConfigReader &cfg, RedisConfig
 
 bool ResourceRedisConnection::is_ready()
 {
-    return write_async && write_async->is_connected() && resources_inited.get() && !op_seq;
+    return write_async && write_async->is_connected() && resources_inited.get();
 }
 
-void ResourceRedisConnection::queue_op()
+void ResourceRedisConnection::process_operations_queue()
 {
-    if(!is_ready()) return;
-    res_queue.lock();
-    if(res_queue.size()) {
-        op_seq = new OperationResources(this, res_queue);
-        op_seq->perform();
-        res_queue.clear();
+    AmLock l(queue_and_state_mutex);
+
+    if(!is_ready() || write_async_is_busy) return;
+
+    if(resource_operations_queue.size()) {
+        unique_ptr<OperationResources> op_seq(new OperationResources(this, resource_operations_queue));
+        if(op_seq->perform()) {
+            write_async_is_busy = true;
+            op_seq.release(); //will be deleted by redis thread
+        }
+        resource_operations_queue.clear();
     }
-    res_queue.unlock();
 }
 
-void ResourceRedisConnection::operate(ResourceOperationList& rol)
+void ResourceRedisConnection::process_operations_list(ResourceOperationList& rol)
 {
-    if(is_ready()) {
-        op_seq = new OperationResources(this, rol);
-        op_seq->perform();
+    AmLock l(queue_and_state_mutex);
+
+    if(is_ready() && !write_async_is_busy) {
+        unique_ptr<OperationResources> op_seq(new OperationResources(this, rol));
+        if(op_seq->perform()) {
+            write_async_is_busy = true;
+            op_seq.release(); //will be deleted by redis thread
+        }
     } else {
-        res_queue.lock();
-        res_queue.insert(res_queue.end(), rol.begin(), rol.end());
-        res_queue.unlock();
+        resource_operations_queue.splice(resource_operations_queue.end(), rol);
     }
 }
 
@@ -87,16 +93,16 @@ void ResourceRedisConnection::on_connect(RedisConnection* c){
             }
             inv_seq.perform();
         } else {
-            queue_op();
+            process_operations_queue();
         }
     }
 }
 
 void ResourceRedisConnection::on_disconnect(RedisConnection* c) {
     if(c == write_async) {
-        if(op_seq) {
+        if(write_async_is_busy) {
             resources_inited.set(false);
-            op_seq = 0;
+            write_async_is_busy = false;
         }
     }
 }
@@ -130,7 +136,7 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
 
                 Yeti::instance().postEvent(new YetiComponentInited(YetiComponentInited::Resource));
             }
-            queue_op();
+            process_operations_queue();
         }
     } else if(ev.user_type_id == ResourceSequenceBase::REDIS_REPLY_OP_SEQ) {
         OperationResources* seq = dynamic_cast<OperationResources*>(ev.user_data.get());
@@ -144,7 +150,7 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
 
         if(seq->is_finish()) {
             //DBG("resources operation finished %s errors", seq->is_error() ? "with" : "without");
-            op_seq = 0;
+            write_async_is_busy = false;
             if(seq->is_error()) {
                 // on error have to reset the connection and invalidate resources
                 redis::redisAsyncDisconnect(write_async->get_async_context());
@@ -156,7 +162,7 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
                 inv_seq.perform();
             } else {
                 // trying the next operation after successful finished previous
-                queue_op();
+                process_operations_queue();
             }
         }
     } else if(ev.user_type_id == ResourceSequenceBase::REDIS_REPLY_GET_ALL_KEYS_SEQ) {
@@ -216,7 +222,7 @@ bool ResourceRedisConnection::invalidate_resources()
         INFO("resources will be invalidated after the connect");
     } else if(!resources_inited.get()) {
         INFO("resources are in invalidation process");
-    } else if(op_seq) {
+    } else if(write_async_is_busy) {
         INFO("resources will be invalidated after the job finished");
     } else {
         inv_seq.cleanup();
@@ -237,7 +243,7 @@ void ResourceRedisConnection::put(ResourceList& rl)
     for(auto& res : rl) {
         rol.emplace_back(ResourceOperation::RES_PUT, res);
     }
-    operate(rol);
+    process_operations_list(rol);
 }
 
 void ResourceRedisConnection::get(ResourceList& rl)
@@ -247,7 +253,7 @@ void ResourceRedisConnection::get(ResourceList& rl)
         res.taken = true;
         rol.emplace_back(ResourceOperation::RES_GET, res);
     }
-    operate(rol);
+    process_operations_list(rol);
 }
 
 #define CHECK_STATE_NORMAL 0

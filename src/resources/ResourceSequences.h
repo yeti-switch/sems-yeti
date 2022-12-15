@@ -53,7 +53,7 @@ class ResourceOperation
     {}
 };
 
-typedef ResList<ResourceOperation> ResourceOperationList;
+typedef list<ResourceOperation> ResourceOperationList;
 
 class InvalidateResources
   : public ResourceSequenceBase

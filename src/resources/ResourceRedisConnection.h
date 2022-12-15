@@ -24,16 +24,19 @@ class ResourceRedisConnection : public RedisConnectionPool
     RedisConnection* write_async;
     RedisConnection* read_async;
 
+    AmMutex queue_and_state_mutex;
+    bool write_async_is_busy;                           //guarded by queue_and_state_mutex
+    ResourceOperationList resource_operations_queue;    //guarded by queue_and_state_mutex
+
     InvalidateResources inv_seq;
     AmCondition<bool> resources_inited;
-    ResourceOperationList res_queue;
-    OperationResources* op_seq;
 
   protected:
     int cfg2RedisCfg(const AmConfigReader &cfg, RedisConfig &rcfg,string prefix);
     bool is_ready();
-    void queue_op();
-    void operate(ResourceOperationList& rol);
+
+    void process_operations_queue();
+    void process_operations_list(ResourceOperationList& rol);
 
     void on_connect(RedisConnection* c) override;
     void on_disconnect(RedisConnection* c) override;
