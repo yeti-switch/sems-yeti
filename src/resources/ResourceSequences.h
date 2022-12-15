@@ -76,6 +76,7 @@ class InvalidateResources
 
     bool is_finish() { return state == FINISH; }
     bool is_initial() { return initial; }
+    void clear_initial() { initial = false; }
     int get_state() { return state; }
 };
 

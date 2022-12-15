@@ -114,7 +114,6 @@ bool InvalidateResources::processRedisReply(RedisReplyEvent &reply)
             on_error("reply error in request: state GET_KEYS, result_type %d", reply.result);
         } else if(isArgUndef(reply.data)){
             INFO("empty database. skip resources initialization");
-            initial = false;
             state = FINISH;
         } else if(isArgArray(reply.data)) {
             SEQ_REDIS_WRITE("MULTI");
@@ -136,7 +135,6 @@ bool InvalidateResources::processRedisReply(RedisReplyEvent &reply)
             on_error("reply error in the request: state CLEAN_RES, commands_count %d, result_type %d",
                      commands_count, reply.result);
         } else if(!commands_count && reply.result == RedisReplyEvent::SuccessReply) {
-            initial = false;
             state = FINISH;
         }
     }

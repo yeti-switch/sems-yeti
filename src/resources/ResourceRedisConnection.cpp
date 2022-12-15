@@ -130,7 +130,10 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
         if(inv_seq.is_finish()) {
             INFO("resources invalidated");
             resources_inited.set(true);
+
             if(inv_seq.is_initial()) {
+                inv_seq.clear_initial();
+
                 if(resources_initialized_cb)
                     resources_initialized_cb();
 
