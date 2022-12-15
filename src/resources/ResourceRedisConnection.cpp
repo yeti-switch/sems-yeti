@@ -10,6 +10,7 @@ const string RESOURCE_QUEUE_NAME("resource");
 ResourceRedisConnection::ResourceRedisConnection(const string& queue_name)
   : RedisConnectionPool("resources", queue_name),
     write_async(nullptr), read_async(nullptr),
+    write_async_is_busy(false),
     inv_seq(this),
     resources_inited(false),
     resources_initialized_cb(nullptr)
