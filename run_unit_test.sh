@@ -10,6 +10,9 @@ TEST_TMP_DIR=$BUILD_DIR/unit_tests
 SEMS_TESTER=/usr/bin/sems-tester
 SEMS_TESTER_CFG=./unit_tests/etc/sems_test.cfg
 
+MODULE_PREFIX=YetiTest
+DEFAULT_FILTER=$MODULE_PREFIX.*
+
 for d in rsr logs lib dump record; do
     mkdir -p $TEST_TMP_DIR/$d
 done
@@ -27,4 +30,22 @@ do
     cp -uv $m $TEST_TMP_DIR/lib/${name//"_unit"/}
 done
 
-$SEMS_TESTER -c $SEMS_TESTER_CFG --gtest_also_run_disabled_tests --gtest_filter="YetiTest.*" $@
+if [ $# -gt 0 ]; then
+    filter=$1
+    shift
+
+    if [ $filter == "all" ]; then
+        cmd="$SEMS_TESTER -c $SEMS_TESTER_CFG --gtest_filter=$DEFAULT_FILTER $@"
+    else
+        if [[ $filter == *"."* ]]; then
+            cmd="$SEMS_TESTER -c $SEMS_TESTER_CFG --gtest_also_run_disabled_tests --gtest_filter=$filter $@"
+        else
+            cmd="$SEMS_TESTER -c $SEMS_TESTER_CFG --gtest_also_run_disabled_tests --gtest_filter=$MODULE_PREFIX.$filter $@"
+        fi
+    fi
+else
+    cmd="$SEMS_TESTER -c $SEMS_TESTER_CFG --gtest_filter=$DEFAULT_FILTER --gtest_list_tests"
+fi
+
+echo $cmd
+exec $cmd
