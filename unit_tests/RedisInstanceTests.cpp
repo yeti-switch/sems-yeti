@@ -134,21 +134,32 @@ TEST_F(YetiTest, MultiRedisTest)
 TEST_F(YetiTest, ResourceConnectionTest)
 {
     ResourceRedisConnection conn("resourceTest");
+
     AmConfigReader cfg;
-    cfg.setParameter("write_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("write_redis_port", int2str(yeti_test::instance()->redis.port));
-    cfg.setParameter("read_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("read_redis_port", int2str(yeti_test::instance()->redis.port));
+    auto &redis_cfg = yeti_test::instance()->redis;
+    cfg.setParameter("write_redis_host", redis_cfg.host);
+    cfg.setParameter("write_redis_port", int2str(redis_cfg.port));
+    cfg.setParameter("write_redis_timeout", int2str(redis_cfg.timeout));
+    cfg.setParameter("read_redis_host", redis_cfg.host);
+    cfg.setParameter("read_redis_port", int2str(redis_cfg.port));
+    cfg.setParameter("read_redis_timeout", int2str(redis_cfg.timeout));
+
     conn.configure(cfg);
     conn.init();
     conn.start();
+
     sleep(5);
+
     ResourceList rl;
     ResourceList::iterator rli;
     rl.parse("0:472:100:2;1:472:100:2");
+
     ResourceResponse res = conn.get(rl, rli);
     DBG("get finished with %d", res);
+
     conn.put(rl);
+
     sleep(5);
+
     conn.stop(true);
 }

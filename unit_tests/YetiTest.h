@@ -7,6 +7,8 @@
 #include <gtest/gtest.h>
 #include "RedisTestServer.h"
 
+#define DEFAULT_REDIS_TIMEOUT_MSEC 1000
+
 class YetiTest : public testing::Test
 {
 protected:
@@ -25,6 +27,10 @@ struct YetiTestFactory
         bool external;
         string host;
         int port;
+        int timeout;
+        RedisSettings()
+          : timeout(DEFAULT_REDIS_TIMEOUT_MSEC)
+        {}
     } redis;
 
     YetiTestFactory();
