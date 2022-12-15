@@ -143,7 +143,7 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
             ev.user_data.release();
 
         if(seq->is_finish()) {
-            DBG("resources operation finished %s errors", seq->is_error() ? "with" : "without");
+            //DBG("resources operation finished %s errors", seq->is_error() ? "with" : "without");
             op_seq = 0;
             if(seq->is_error()) {
                 // on error have to reset the connection and invalidate resources
@@ -169,9 +169,9 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
         if(!seq->processRedisReply(ev))
             ev.user_data.release();
 
-        if(seq->is_finish()) {
+        /*if(seq->is_finish()) {
             DBG("get resources finished %s errors", seq->is_error() ? "with" : "without");
-        }
+        }*/
     } else if(ev.user_type_id == ResourceSequenceBase::REDIS_REPLY_CHECK_SEQ) {
         CheckResources* seq = dynamic_cast<CheckResources*>(ev.user_data.get());
         if(!seq) {
