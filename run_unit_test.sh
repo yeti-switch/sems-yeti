@@ -8,6 +8,8 @@ BUILD_DIR=./build
 TEST_TMP_DIR=$BUILD_DIR/unit_tests
 
 SEMS_TESTER=/usr/bin/sems-tester
+[ "$GDB" == "1" ] && SEMS_TESTER="gdb -q -ex r --args $SEMS_TESTER"
+
 SEMS_TESTER_CFG=./unit_tests/etc/sems_test.cfg
 
 MODULE_PREFIX=YetiTest
