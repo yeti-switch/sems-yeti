@@ -34,7 +34,7 @@ class YetiTestListener : public testing::EmptyTestEventListener
 public:
     void OnTestProgramStart(const testing::UnitTest&) override
     {
-        while(!Yeti::instance().isAllComponentsInited()) { sleep(1); }
+        //while(!Yeti::instance().isAllComponentsInited()) { sleep(1); }
 
         cfg_opt_t redis[] = {
             CFG_BOOL(PARAM_EXT_REDIS_NAME, cfg_false, CFGF_NONE),
