@@ -174,7 +174,7 @@ int RedisConnection::init(int fd, const string &_host, int _port)
 
 void RedisConnection::on_reconnect()
 {
-    if(!connected) {
+    if(!connected.get()) {
         init(epoll_fd, host, port);
     }
 }

@@ -45,7 +45,7 @@ class RedisConnection
     int port;
 
     redisAsyncContext* async_context;
-    bool connected;
+    AmCondition<bool> connected;
     int mask;
 
   protected:
@@ -64,7 +64,12 @@ class RedisConnection
 
     redisAsyncContext* get_async_context() {return async_context; }
     void cleanup();
-    bool is_connected() { return connected; }
+    bool is_connected() { return connected.get(); }
+
+    //for unit_tests
+    bool wait_connected() {
+        return connected.wait_for_to(500);
+    }
 
     redisConnectCallback connectCallback;
     redisDisconnectCallback disconnectCallback;

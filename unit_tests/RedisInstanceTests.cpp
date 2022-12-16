@@ -14,11 +14,9 @@ TEST_F(YetiTest, FormatRedisTest)
     ::redisFreeCommand(cmd1);
 }
 
-#define REDIS_CONN_TIMEOUT 5
-
 TEST_F(YetiTest, SimpleRedisTest)
 {
-    timeval timeout = { REDIS_CONN_TIMEOUT, 0 };
+    timeval timeout = { DEFAULT_REDIS_TIMEOUT_MSEC, 0 };
     redisContext* ctx = redis::redisConnectWithTimeout(yeti_test::instance()->redis.host.c_str(), yeti_test::instance()->redis.port, timeout);
     ASSERT_TRUE(ctx);
     ASSERT_FALSE(redis::redisGetErrorNumber(ctx));
@@ -31,21 +29,19 @@ TEST_F(YetiTest, SimpleRedisTest)
 
 class TestRedisConnection : public RedisConnectionPool
 {
-    bool gotreply;
+    AmCondition<bool> gotreply;
     AmArg result;
-    bool connected;
     RedisConnection* conn;
     RedisReplyEvent::result_type rstatus;
 public:
     TestRedisConnection()
     : RedisConnectionPool("test", "regTest")
     , gotreply(false)
-    , connected(false)
     , rstatus(RedisReplyEvent::SuccessReply){}
     ~TestRedisConnection(){}
 
     void process_reply_event(RedisReplyEvent & event) override {
-        gotreply = true;
+        gotreply.set(true);
         result = event.data;
         rstatus = event.result;
     }
@@ -57,7 +53,9 @@ public:
         return 0;
     }
     bool is_connected() {return conn->is_connected(); }
-    bool is_gotreply() {return gotreply; }
+    bool wait_connected() { return conn->wait_connected(); }
+    bool is_gotreply() {return gotreply.get(); }
+    bool wait_reply() { return gotreply.wait_for_to(500); }
     RedisReplyEvent::result_type get_result_type() {return rstatus;}
     AmArg& get_result() {return result;}
     RedisConnection* get_connection() { return conn; }
@@ -77,8 +75,7 @@ TEST_F(YetiTest, AsyncRedisTest)
     conn.start();
 
     time_t time_ = time(0);
-    while(!conn.is_connected()) {
-        usleep(500);
+    while(!conn.wait_connected()) {
         ASSERT_FALSE(time(0) - time_ > 3);
     }
 
@@ -88,8 +85,7 @@ TEST_F(YetiTest, AsyncRedisTest)
     conn.post(new RedisRequestEvent(conn.get_connection(), "regTest", cmd, strlen(cmd), true));
 
     time_ = time(0);
-    while(!conn.is_gotreply()){
-        usleep(500);
+    while(!conn.wait_reply()){
         ASSERT_FALSE(time(0) - time_ > 30);
     }
 
@@ -99,8 +95,7 @@ TEST_F(YetiTest, AsyncRedisTest)
     conn.post(new RedisRequestEvent(conn.get_connection(), "regTest", cmd, strlen(cmd), true));
 
     time_ = time(0);
-    while(!conn.is_gotreply()){
-        usleep(500);
+    while(!conn.wait_reply()){
         ASSERT_FALSE(time(0) - time_ > 3);
     }
 
@@ -112,7 +107,7 @@ TEST_F(YetiTest, AsyncRedisTest)
 
 TEST_F(YetiTest, MultiRedisTest)
 {
-    timeval timeout = { REDIS_CONN_TIMEOUT, 0 };
+    timeval timeout = { DEFAULT_REDIS_TIMEOUT_MSEC, 0 };
     redisContext* ctx = redis::redisConnectWithTimeout(yeti_test::instance()->redis.host.c_str(), yeti_test::instance()->redis.port, timeout);
     ASSERT_TRUE(ctx);
     ASSERT_FALSE(redis::redisGetErrorNumber(ctx));
@@ -129,37 +124,4 @@ TEST_F(YetiTest, MultiRedisTest)
     server->addCommandResponse("EXEC", REDIS_REPLY_ARRAY, res);
     AmArg ret = runMultiCommand(ctx, commands, "HSET-HGET");
     redis::redisFree(ctx);
-}
-
-TEST_F(YetiTest, ResourceConnectionTest)
-{
-    ResourceRedisConnection conn("resourceTest");
-
-    AmConfigReader cfg;
-    auto &redis_cfg = yeti_test::instance()->redis;
-    cfg.setParameter("write_redis_host", redis_cfg.host);
-    cfg.setParameter("write_redis_port", int2str(redis_cfg.port));
-    cfg.setParameter("write_redis_timeout", int2str(redis_cfg.timeout));
-    cfg.setParameter("read_redis_host", redis_cfg.host);
-    cfg.setParameter("read_redis_port", int2str(redis_cfg.port));
-    cfg.setParameter("read_redis_timeout", int2str(redis_cfg.timeout));
-
-    conn.configure(cfg);
-    conn.init();
-    conn.start();
-
-    sleep(5);
-
-    ResourceList rl;
-    ResourceList::iterator rli;
-    rl.parse("0:472:100:2;1:472:100:2");
-
-    ResourceResponse res = conn.get(rl, rli);
-    DBG("get finished with %d", res);
-
-    conn.put(rl);
-
-    sleep(5);
-
-    conn.stop(true);
 }

@@ -61,6 +61,10 @@ class ResourceRedisConnection : public RedisConnectionPool
     cb_func *resources_initialized_cb;
     void registerResourcesInitializedCallback(cb_func *func);
 
+    typedef void cb_op_func(bool success);
+    cb_op_func *operation_result_cb;
+    void registerOperationResultCallback(cb_op_func *func);
+
     void put(ResourceList &rl);
     ResourceResponse get(ResourceList &rl, ResourceList::iterator &resource);
 

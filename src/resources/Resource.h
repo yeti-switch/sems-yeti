@@ -28,9 +28,23 @@ struct Resource {
 	string print() const;
 };
 
-struct ResourceList
-  : public list<Resource>,
-    public AmMutex
+class ResourceOperation : public Resource
 {
-    void parse(const string s);
+public:
+    enum Operation {
+        RES_PUT,
+        RES_GET,
+        RES_NONE
+    } op;
+    ResourceOperation() : op(RES_NONE){}
+    ResourceOperation(Operation op_, const Resource& res)
+    : Resource(res), op(op_){}
 };
+
+template <typename Res>
+struct ResList: public list<Res>, AmMutex {
+	void parse(const string s);
+};
+
+typedef ResList<Resource> ResourceList;
+typedef ResList<ResourceOperation> ResourceOperationList;

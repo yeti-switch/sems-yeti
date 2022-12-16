@@ -167,12 +167,10 @@ bool OperationResources::perform()
         for(auto res = res_list.begin(); res != res_list.end();) {
             //filter out inactive and taken resources
             if((res->op == ResourceOperation::RES_GET && !res->active) ||
-                (res->op == ResourceOperation::RES_PUT && !res->taken))
-            {
-                res = res_list.erase(res);
-            } else {
-                res++;
-            }
+               (res->op == ResourceOperation::RES_PUT && !res->taken) ||
+               res->op == ResourceOperation::RES_NONE) {
+                    res = res_list.erase(res);
+            } else res++;
         }
 
         if(res_list.empty()) {

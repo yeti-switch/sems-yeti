@@ -38,23 +38,6 @@ class ResourceSequenceBase
     virtual bool processRedisReply(RedisReplyEvent& reply) = 0;
 };
 
-class ResourceOperation
-  : public Resource
-{
-  public:
-    enum Operation {
-        RES_PUT,
-        RES_GET
-    } op;
-
-    ResourceOperation(Operation op_, const Resource& res)
-      : Resource(res),
-        op(op_)
-    {}
-};
-
-typedef list<ResourceOperation> ResourceOperationList;
-
 class InvalidateResources
   : public ResourceSequenceBase
 {

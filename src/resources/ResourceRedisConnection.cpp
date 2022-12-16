@@ -154,6 +154,7 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
 
         if(seq->is_finish()) {
             //DBG("resources operation finished %s errors", seq->is_error() ? "with" : "without");
+            operation_result_cb(!seq->is_error());
             write_async_is_busy = false;
             if(seq->is_error()) {
                 // on error have to reset the connection and invalidate resources
@@ -239,6 +240,11 @@ bool ResourceRedisConnection::invalidate_resources()
 void ResourceRedisConnection::registerResourcesInitializedCallback(ResourceRedisConnection::cb_func* func)
 {
     resources_initialized_cb = func;
+}
+
+void ResourceRedisConnection::registerOperationResultCallback(ResourceRedisConnection::cb_op_func* func)
+{
+    operation_result_cb = func;
 }
 
 void ResourceRedisConnection::put(ResourceList& rl)
