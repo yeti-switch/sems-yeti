@@ -1,5 +1,6 @@
 #include "YetiTest.h"
 #include "../src/RedisConnection.h"
+#include "../src/resources/ResourceControl.h"
 #include "../src/resources/ResourceRedisConnection.h"
 
 static AmCondition<bool> inited(false);
@@ -77,3 +78,153 @@ TEST_F(YetiTest, ResourceGetPutTest)
     conn.stop(true);
 }
 
+TEST_F(YetiTest, ResourceCheckTest)
+{
+    ResourceRedisConnection conn("resourceTest");
+    AmConfigReader cfg;
+    cfg.setParameter("write_redis_host", yeti_test::instance()->redis.host.c_str());
+    cfg.setParameter("write_redis_port", int2str(yeti_test::instance()->redis.port));
+    cfg.setParameter("read_redis_host", yeti_test::instance()->redis.host.c_str());
+    cfg.setParameter("read_redis_port", int2str(yeti_test::instance()->redis.port));
+    cfg.setParameter("read_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
+    cfg.setParameter("write_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
+    conn.configure(cfg);
+    conn.registerOperationResultCallback(GetPutCallback);
+    conn.init();
+    conn.start();
+
+    time_t time_ = time(0);
+    while(!conn.get_write_conn()->wait_connected() &&
+          !conn.get_read_conn()->wait_connected()) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+
+    ResourceList rl;
+    rl.parse("0:472:100:2;1:472:100:2");
+    CheckResources *cr = new CheckResources(&conn, rl);
+    cr->perform();
+
+    time_ = time(0);
+    while(!cr->wait_finish(500)) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+    AmArg result = cr->get_result();
+    ASSERT_TRUE(isArgArray(result));
+    ASSERT_EQ(result.size(), 2);
+    delete cr;
+
+    conn.stop(true);
+}
+
+static AmCondition<bool> getAllSuccess(false);
+static AmArg getAllResult;
+static void GetAllCallback(bool is_error, const AmArg& result) {
+    getAllSuccess.set(!is_error);
+    getAllResult = result;
+}
+
+static bool isArgNumber(const AmArg& arg)
+{
+    return isArgInt(arg) || isArgLongLong(arg) || isArgDouble(arg);
+}
+
+TEST_F(YetiTest, ResourceGetAllTest)
+{
+    ResourceRedisConnection conn("resourceTest");
+    AmConfigReader cfg;
+    cfg.setParameter("write_redis_host", yeti_test::instance()->redis.host.c_str());
+    cfg.setParameter("write_redis_port", int2str(yeti_test::instance()->redis.port));
+    cfg.setParameter("read_redis_host", yeti_test::instance()->redis.host.c_str());
+    cfg.setParameter("read_redis_port", int2str(yeti_test::instance()->redis.port));
+    cfg.setParameter("read_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
+    cfg.setParameter("write_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
+    conn.configure(cfg);
+    conn.registerOperationResultCallback(GetPutCallback);
+    conn.init();
+    conn.start();
+
+    time_t time_ = time(0);
+    while(!conn.get_write_conn()->wait_connected() &&
+          !conn.get_read_conn()->wait_connected()) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+
+    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "1");
+    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "0");
+
+    GetAllResources *res = new GetAllResources(&conn, GetAllCallback, 0, 472);
+    res->perform();
+
+    time_ = time(0);
+    while(!getAllSuccess.wait_for_to(500)) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+    ASSERT_TRUE(isArgStruct(getAllResult));
+    ASSERT_TRUE(isArgStruct(getAllResult["r:0:472"]));
+    ASSERT_TRUE(isArgNumber(getAllResult["r:0:472"]["1"]));
+    ASSERT_EQ(getAllResult["r:0:472"]["1"].asInt(), 0);
+
+    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "1");
+    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "0");
+    server->addCommandResponse("HGETALL r:1:472", REDIS_REPLY_ARRAY, "1");
+    server->addCommandResponse("HGETALL r:1:472", REDIS_REPLY_ARRAY, "0");
+    server->addCommandResponse("KEYS r:*:472", REDIS_REPLY_ARRAY, "r:1:472");
+    server->addCommandResponse("KEYS r:*:472", REDIS_REPLY_ARRAY, "r:0:472");
+
+    res = new GetAllResources(&conn, GetAllCallback, ANY_VALUE, 472);
+    res->perform();
+
+    getAllSuccess.set(false);
+    time_ = time(0);
+    while(!getAllSuccess.wait_for_to(500)) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+    ASSERT_TRUE(isArgStruct(getAllResult));
+    ASSERT_TRUE(isArgStruct(getAllResult["r:0:472"]));
+    ASSERT_TRUE(isArgNumber(getAllResult["r:0:472"]["1"]));
+    ASSERT_TRUE(isArgStruct(getAllResult["r:1:472"]));
+    ASSERT_TRUE(isArgNumber(getAllResult["r:1:472"]["1"]));
+    ASSERT_EQ(getAllResult["r:0:472"]["1"].asInt(), 0);
+    ASSERT_EQ(getAllResult["r:1:472"]["1"].asInt(), 0);
+
+    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "1");
+    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "0");
+    server->addCommandResponse("KEYS r:0:*", REDIS_REPLY_ARRAY, "r:0:472");
+
+    res = new GetAllResources(&conn, GetAllCallback, 0, ANY_VALUE);
+    res->perform();
+
+    getAllSuccess.set(false);
+    time_ = time(0);
+    while(!getAllSuccess.wait_for_to(500)) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+    ASSERT_TRUE(isArgStruct(getAllResult));
+    ASSERT_TRUE(isArgStruct(getAllResult["r:0:472"]));
+    ASSERT_TRUE(isArgNumber(getAllResult["r:0:472"]["1"]));
+    ASSERT_EQ(getAllResult["r:0:472"]["1"].asInt(), 0);
+
+    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "1");
+    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "0");
+    server->addCommandResponse("HGETALL r:1:472", REDIS_REPLY_ARRAY, "1");
+    server->addCommandResponse("HGETALL r:1:472", REDIS_REPLY_ARRAY, "0");
+    server->addCommandResponse("KEYS r:*:*", REDIS_REPLY_ARRAY, "r:1:472");
+    server->addCommandResponse("KEYS r:*:*", REDIS_REPLY_ARRAY, "r:0:472");
+    res = new GetAllResources(&conn, GetAllCallback, ANY_VALUE, ANY_VALUE);
+    res->perform();
+
+    getAllSuccess.set(false);
+    time_ = time(0);
+    while(!getAllSuccess.wait_for_to(500)) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+    ASSERT_TRUE(isArgStruct(getAllResult));
+    ASSERT_TRUE(isArgStruct(getAllResult["r:0:472"]));
+    ASSERT_TRUE(isArgNumber(getAllResult["r:0:472"]["1"]));
+    ASSERT_TRUE(isArgStruct(getAllResult["r:1:472"]));
+    ASSERT_TRUE(isArgNumber(getAllResult["r:1:472"]["1"]));
+    ASSERT_EQ(getAllResult["r:0:472"]["1"].asInt(), 0);
+    ASSERT_EQ(getAllResult["r:1:472"]["1"].asInt(), 0);
+
+    conn.stop(true);
+}

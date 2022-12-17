@@ -238,7 +238,9 @@ GetAllResources::GetAllResources(ResourceRedisConnection* conn,
                                  int type, int id)
   : ResourceSequenceBase(conn, REDIS_REPLY_GET_ALL_KEYS_SEQ),
     req(event),
-    iserror(false)
+    iserror(false),
+    unit_test(false),
+    callback(0)
 {
     if(type != ANY_VALUE && id != ANY_VALUE) {
         Resource r;
@@ -255,6 +257,14 @@ GetAllResources::GetAllResources(ResourceRedisConnection* conn,
         #undef int2key
         state = INITIAL;
     }
+}
+
+GetAllResources::GetAllResources(ResourceRedisConnection* conn,
+                                 cb_func* cb, int type, int id)
+: GetAllResources(conn, JsonRpcRequestEvent(""), type, id)
+{
+    callback = cb;
+    unit_test = true;
 }
 
 bool GetAllResources::perform()
@@ -324,7 +334,13 @@ bool GetAllResources::processRedisReply(RedisReplyEvent &reply)
             }
         }
         if(!commands_count) {
-            if(!iserror) postJsonRpcReply(req, result);
+            if(!iserror) {
+                if(unit_test) {
+                    if(callback) callback(false, result);
+                } else {
+                    postJsonRpcReply(req, result);
+                }
+            }
             state = FINISH;
         }
     }
@@ -348,7 +364,11 @@ void GetAllResources::on_error(int code, const char* error, ...)
     AmArg ret;
     ret["message"] = err;
     ret["code"] = code;
-    postJsonRpcReply(req, ret, true);
+    if(unit_test) {
+        if(callback) callback(true, result);
+    } else {
+        postJsonRpcReply(req, ret, true);
+    }
 }
 
 CheckResources::CheckResources(ResourceRedisConnection* conn, const ResourceList& rl)

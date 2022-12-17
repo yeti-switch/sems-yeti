@@ -103,9 +103,17 @@ class GetAllResources
     AmArg result;
     bool iserror;
 
+    //for unit tests
+    bool unit_test;
+    typedef void cb_func(bool is_error, const AmArg& result);
+    cb_func *callback;
   public:
     GetAllResources(ResourceRedisConnection* conn,
                     const JsonRpcRequestEvent& event,
+                    int type, int id);
+    //for unit tests
+    GetAllResources(ResourceRedisConnection* conn,
+                    cb_func* cb,
                     int type, int id);
 
     bool perform() override;
