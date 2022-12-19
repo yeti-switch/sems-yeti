@@ -89,7 +89,6 @@ TEST_F(YetiTest, ResourceCheckTest)
     cfg.setParameter("read_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
     cfg.setParameter("write_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
     conn.configure(cfg);
-    conn.registerOperationResultCallback(GetPutCallback);
     conn.init();
     conn.start();
 
@@ -139,7 +138,6 @@ TEST_F(YetiTest, ResourceGetAllTest)
     cfg.setParameter("read_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
     cfg.setParameter("write_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
     conn.configure(cfg);
-    conn.registerOperationResultCallback(GetPutCallback);
     conn.init();
     conn.start();
 
@@ -225,6 +223,103 @@ TEST_F(YetiTest, ResourceGetAllTest)
     ASSERT_TRUE(isArgNumber(getAllResult["r:1:472"]["1"]));
     ASSERT_EQ(getAllResult["r:0:472"]["1"].asInt(), 0);
     ASSERT_EQ(getAllResult["r:1:472"]["1"].asInt(), 0);
+
+    conn.stop(true);
+}
+
+TEST_F(YetiTest, ResourceOverloadTest)
+{
+    ResourceRedisConnection conn("resourceTest");
+    AmConfigReader cfg;
+    cfg.setParameter("write_redis_host", yeti_test::instance()->redis.host.c_str());
+    cfg.setParameter("write_redis_port", int2str(yeti_test::instance()->redis.port));
+    cfg.setParameter("read_redis_host", yeti_test::instance()->redis.host.c_str());
+    cfg.setParameter("read_redis_port", int2str(yeti_test::instance()->redis.port));
+    cfg.setParameter("read_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
+    cfg.setParameter("write_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
+    conn.configure(cfg);
+    conn.registerOperationResultCallback(GetPutCallback);
+    conn.init();
+    conn.start();
+
+    time_t time_ = time(0);
+    while(!conn.get_write_conn()->wait_connected() &&
+          !conn.get_read_conn()->wait_connected()) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+
+    server->addCommandResponse("HVALS r:1:472", REDIS_REPLY_ARRAY, "0");
+    server->addCommandResponse("MULTI", REDIS_REPLY_STATUS, AmArg());
+    server->addCommandResponse("HINCRBY r:1:472 1 3", REDIS_REPLY_STATUS, AmArg());
+    server->addCommandResponse("EXEC", REDIS_REPLY_ARRAY, AmArg());
+    getPutSuccess.set(false);
+    ResourceList rl;
+    ResourceList::iterator rit;
+    rl.parse("1:472:2:3");
+    ASSERT_EQ(conn.get(rl, rit), RES_SUCC);
+
+    time_ = time(0);
+    while(!getPutSuccess.wait_for_to(500)) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+
+    server->addCommandResponse("HVALS r:1:472", REDIS_REPLY_ARRAY, "3");
+    ASSERT_EQ(conn.get(rl, rit), RES_BUSY);
+
+    server->addCommandResponse("HVALS r:1:472", REDIS_REPLY_ARRAY, "3");
+    server->addCommandResponse("HVALS r:0:472", REDIS_REPLY_ARRAY, "0");
+    server->addCommandResponse("HVALS r:2:472", REDIS_REPLY_ARRAY, "0");
+    server->addCommandResponse("HVALS r:3:472", REDIS_REPLY_ARRAY, "0");
+    server->addCommandResponse("MULTI", REDIS_REPLY_STATUS, AmArg());
+    server->addCommandResponse("HINCRBY r:0:472 1 3", REDIS_REPLY_STATUS, AmArg());
+    server->addCommandResponse("HINCRBY r:2:472 1 3", REDIS_REPLY_STATUS, AmArg());
+    server->addCommandResponse("HINCRBY r:3:472 1 3", REDIS_REPLY_STATUS, AmArg());
+    server->addCommandResponse("EXEC", REDIS_REPLY_ARRAY, AmArg());
+    getPutSuccess.set(false);
+    rl.parse("1:472:2:3|0:472:2:3|2:472:2:3;3:472:2:3");
+    ASSERT_EQ(conn.get(rl, rit), RES_SUCC);
+    time_ = time(0);
+    while(!getPutSuccess.wait_for_to(500)) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+
+    server->addCommandResponse("HVALS r:1:472", REDIS_REPLY_ARRAY, "3");
+    server->addCommandResponse("HVALS r:0:472", REDIS_REPLY_ARRAY, "0");
+    server->addCommandResponse("HVALS r:2:472", REDIS_REPLY_ARRAY, "0");
+    server->addCommandResponse("HVALS r:3:472", REDIS_REPLY_ARRAY, "3");
+    ASSERT_EQ(conn.get(rl, rit), RES_BUSY);
+
+    server->addCommandResponse("HVALS r:3:472", REDIS_REPLY_ARRAY, "3");
+    rl.parse("3:472:2:3");
+    ASSERT_EQ(conn.get(rl, rit), RES_BUSY);
+
+    conn.stop(true);
+}
+
+TEST_F(YetiTest, ResourceTimeoutTest)
+{
+    ResourceRedisConnection conn("resourceTest");
+    AmConfigReader cfg;
+    cfg.setParameter("write_redis_host", yeti_test::instance()->redis.host.c_str());
+    cfg.setParameter("write_redis_port", int2str(yeti_test::instance()->redis.port));
+    cfg.setParameter("read_redis_host", yeti_test::instance()->redis.host.c_str());
+    cfg.setParameter("read_redis_port", int2str(yeti_test::instance()->redis.port));
+    conn.configure(cfg);
+    conn.init();
+    conn.start();
+
+    time_t time_ = time(0);
+    while(!conn.get_write_conn()->wait_connected() &&
+          !conn.get_read_conn()->wait_connected()) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+
+    getPutSuccess.set(false);
+    ResourceList rl;
+    ResourceList::iterator rit;
+    rl.parse("1:472:2:3");
+    server->addTail("HVALS r:1:472", 1);
+    ASSERT_EQ(conn.get(rl, rit), RES_ERR);
 
     conn.stop(true);
 }

@@ -34,6 +34,17 @@ public:
             addResponse(cmd, response);
     }
 
+    void addTail(const string& cmd, int sec, ...)
+    {
+        va_list args;
+        va_start(args, sec);
+        char* command;
+        redis::redisvFormatCommand(&command, cmd.c_str(), args);
+        TestServer::addTail(command, sec);
+        redis::redisFreeCommand(command);
+        va_end(args);
+    }
+
     int getStatus(const string& cmd)
     {
         if(statuses.find(cmd) != statuses.end()) {
@@ -44,6 +55,7 @@ public:
 
     bool getResponse(const string& cmd, AmArg& res)
     {
+        while(checkTail(cmd)){}
         return TestServer::getResponse(cmd, res);
     }
 
