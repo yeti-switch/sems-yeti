@@ -1,3 +1,7 @@
+sems-yeti (1.13.8) stable; urgency=medium
+  * async redis for resources
+ -- dev <dev@yeti-switch.org>  Fri, 30 Dec 2022 14:36:14 +0200
+
 sems-yeti (1.13.7) stable; urgency=medium
   * fix deadlock in active calls rpc methods
  -- dev <dev@yeti-switch.org>  Mon, 14 Nov 2022 16:52:12 +0200
