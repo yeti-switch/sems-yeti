@@ -4,7 +4,7 @@
 #include "../src/RedisConnection.h"
 #include "../src/resources/ResourceRedisConnection.h"
 
-TEST_F(YetiTest, FormatRedisTest)
+TEST_F(YetiTest, RedisFormatTest)
 {
     char *cmd, *cmd1;
     redis::redisFormatCommand(&cmd,"HSET %s %d %d","r:471",8,0);
@@ -14,7 +14,7 @@ TEST_F(YetiTest, FormatRedisTest)
     ::redisFreeCommand(cmd1);
 }
 
-TEST_F(YetiTest, SimpleRedisTest)
+TEST_F(YetiTest, RedisSimpleTest)
 {
     timeval timeout = { DEFAULT_REDIS_TIMEOUT_MSEC, 0 };
     redisContext* ctx = redis::redisConnectWithTimeout(yeti_test::instance()->redis.host.c_str(), yeti_test::instance()->redis.port, timeout);
@@ -27,18 +27,21 @@ TEST_F(YetiTest, SimpleRedisTest)
     redis::redisFree(ctx);
 }
 
-class TestRedisConnection : public RedisConnectionPool
+class TestRedisConnection
+  : public RedisConnectionPool
 {
     AmCondition<bool> gotreply;
     AmArg result;
     RedisConnection* conn;
     RedisReplyEvent::result_type rstatus;
-public:
+
+  public:
     TestRedisConnection()
-    : RedisConnectionPool("test", "regTest")
-    , gotreply(false)
-    , rstatus(RedisReplyEvent::SuccessReply){}
-    ~TestRedisConnection(){}
+      : RedisConnectionPool("test", "regTest"),
+        gotreply(false),
+        rstatus(RedisReplyEvent::SuccessReply)
+    {}
+    ~TestRedisConnection() {}
 
     void process_reply_event(RedisReplyEvent & event) override {
         gotreply.set(true);
@@ -52,12 +55,14 @@ public:
         if(ret || !conn) return -1;
         return 0;
     }
+
     bool is_connected() {return conn->is_connected(); }
     bool wait_connected() { return conn->wait_connected(); }
     bool is_gotreply() {return gotreply.get(); }
     bool wait_reply() { return gotreply.wait_for_to(500); }
-    RedisReplyEvent::result_type get_result_type() {return rstatus;}
-    AmArg& get_result() {return result;}
+
+    RedisReplyEvent::result_type get_result_type() { return rstatus; }
+    AmArg& get_result() { return result; }
     RedisConnection* get_connection() { return conn; }
 
     void post(AmEvent* ev) {
@@ -68,7 +73,7 @@ public:
     }
 };
 
-TEST_F(YetiTest, AsyncRedisTest)
+TEST_F(YetiTest, RedisConnectionTest)
 {
     TestRedisConnection conn;
     conn.init(yeti_test::instance()->redis.host.c_str(), yeti_test::instance()->redis.port);
@@ -105,7 +110,7 @@ TEST_F(YetiTest, AsyncRedisTest)
     conn.stop(true);
 }
 
-TEST_F(YetiTest, MultiRedisTest)
+TEST_F(YetiTest, RedisMultiTest)
 {
     timeval timeout = { DEFAULT_REDIS_TIMEOUT_MSEC, 0 };
     redisContext* ctx = redis::redisConnectWithTimeout(yeti_test::instance()->redis.host.c_str(), yeti_test::instance()->redis.port, timeout);

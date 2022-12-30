@@ -8,7 +8,7 @@ static void InitCallback() {
     inited.set(true);
 }
 
-TEST_F(YetiTest, ResourceInitTest)
+TEST_F(YetiTest, ResourceInit)
 {
     ResourceRedisConnection conn("resourceTest");
     AmConfigReader cfg;
@@ -37,7 +37,7 @@ static void GetPutCallback(bool success) {
     getPutSuccess.set(success);
 }
 
-TEST_F(YetiTest, ResourceGetPutTest)
+TEST_F(YetiTest, ResourceGetPut)
 {
     ResourceRedisConnection conn("resourceTest");
     AmConfigReader cfg;
@@ -78,7 +78,7 @@ TEST_F(YetiTest, ResourceGetPutTest)
     conn.stop(true);
 }
 
-TEST_F(YetiTest, ResourceCheckTest)
+TEST_F(YetiTest, ResourceCheck)
 {
     ResourceRedisConnection conn("resourceTest");
     AmConfigReader cfg;
@@ -127,7 +127,7 @@ static bool isArgNumber(const AmArg& arg)
     return isArgInt(arg) || isArgLongLong(arg) || isArgDouble(arg);
 }
 
-TEST_F(YetiTest, ResourceGetAllTest)
+TEST_F(YetiTest, ResourceGetAll)
 {
     ResourceRedisConnection conn("resourceTest");
     AmConfigReader cfg;
@@ -227,7 +227,7 @@ TEST_F(YetiTest, ResourceGetAllTest)
     conn.stop(true);
 }
 
-TEST_F(YetiTest, ResourceOverloadTest)
+TEST_F(YetiTest, ResourceOverload)
 {
     ResourceRedisConnection conn("resourceTest");
     AmConfigReader cfg;
@@ -296,7 +296,7 @@ TEST_F(YetiTest, ResourceOverloadTest)
     conn.stop(true);
 }
 
-TEST_F(YetiTest, ResourceTimeoutTest)
+TEST_F(YetiTest, ResourceTimeout)
 {
     ResourceRedisConnection conn("resourceTest");
     AmConfigReader cfg;

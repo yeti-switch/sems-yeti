@@ -1,7 +1,7 @@
 #include "YetiTest.h"
 #include "../src/HeaderFilter.h"
 
-TEST_F(YetiTest, inplaceHeaderFilterTest)
+TEST_F(YetiTest, inplaceHeaderFilter)
 {
     {
         vector<FilterEntry> filters;
@@ -37,7 +37,7 @@ TEST_F(YetiTest, inplaceHeaderFilterTest)
     }
 }
 
-TEST_F(YetiTest, inplaceHeaderFilterPatternTest)
+TEST_F(YetiTest, inplaceHeaderFilterPattern)
 {
     {
         vector<FilterEntry> filters;
