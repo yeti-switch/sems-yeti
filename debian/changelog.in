@@ -1,3 +1,7 @@
+sems-yeti (1.13.10) stable; urgency=medium
+  * ResourceSequences: fix sequence states racings
+ -- dev <dev@yeti-switch.org>  Wed, 11 Jan 2023 23:10:01 +0200
+
 sems-yeti (1.13.9) stable; urgency=medium
   * ResourceRedisConnection: fix segfault on RedisReplyEvent processing 
  -- dev <dev@yeti-switch.org>  Wed, 11 Jan 2023 19:36:11 +0200
