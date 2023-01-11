@@ -92,11 +92,11 @@ void InvalidateResources::cleanup()
 bool InvalidateResources::perform()
 {
     if(state == INITIAL) {
+        state = GET_KEYS;
         if(!SEQ_REDIS_WRITE("KEYS r:*:*")) {
             on_error("error on post redis request: state INITIAL");
             return false;
         }
-        state = GET_KEYS;
     } else {
         on_error("perform called in the not INITIAL state: %d", state);
         return false;
@@ -116,14 +116,15 @@ bool InvalidateResources::processRedisReply(RedisReplyEvent &reply)
             INFO("empty database. skip resources initialization");
             state = FINISH;
         } else if(isArgArray(reply.data)) {
+            state = CLEAN_RES;
+
+            commands_count = reply.data.size() + 2;
             SEQ_REDIS_WRITE("MULTI");
-            for(size_t i = 0;i < reply.data.size(); i++) {
+            for(size_t i = 0; i < reply.data.size(); i++) {
                 SEQ_REDIS_WRITE("HSET %s %d 0",
                                 reply.data[i].asCStr(), AmConfig.node_id);
             }
             SEQ_REDIS_WRITE("EXEC");
-            state = CLEAN_RES;
-            commands_count = 2 + reply.data.size();
         } else {
             on_error("unexpected type of the result data: state GET_KEYS");
         }
@@ -164,6 +165,8 @@ OperationResources::OperationResources(ResourceRedisConnection* conn, const Reso
 bool OperationResources::perform()
 {
     if(state == INITIAL) {
+        state = MULTI_START;
+
         for(auto res = res_list.begin(); res != res_list.end();) {
             //filter out inactive and taken resources
             if((res->op == ResourceOperation::RES_GET && !res->active) ||
@@ -182,7 +185,6 @@ bool OperationResources::perform()
             on_error("failed to post redis request");
             return false;
         }
-        state = MULTI_START;
     } else {
         on_error("perform called in the not INITIAL state: %d", state);
         return false;
@@ -196,16 +198,16 @@ bool OperationResources::processRedisReply(RedisReplyEvent &reply)
     if(state == INITIAL) {
         on_error("redis reply in the INITIAL state");
     } else if(state == MULTI_START) {
+        state = OP_RES;
+
+        commands_count = res_list.size() + 1;
         for(auto& res : res_list) {
             if(res.op == ResourceOperation::RES_GET && res.active)
                 SEQ_REDIS_WRITE("HINCRBY %s %d %d", get_key(res).c_str(), AmConfig.node_id, res.takes);
             else if(res.op == ResourceOperation::RES_PUT && res.taken)
                 SEQ_REDIS_WRITE("HINCRBY %s %d -%d", get_key(res).c_str(), AmConfig.node_id, res.takes);
-            commands_count++;
         }
         SEQ_REDIS_WRITE("EXEC");
-        commands_count++;
-        state = OP_RES;
     } else if(state == OP_RES) {
         commands_count--;
         if((commands_count && reply.result != RedisReplyEvent::StatusReply) ||
@@ -270,19 +272,21 @@ GetAllResources::GetAllResources(ResourceRedisConnection* conn,
 bool GetAllResources::perform()
 {
     if(state == INITIAL) {
+        state = GET_KEYS;
+
         if(!SEQ_REDIS_READ("KEYS %s",res_key.c_str())) {
             on_error(500, "failed to post redis request");
             return false;
         }
-        state = GET_KEYS;
     } else if(state == GET_SINGLE_KEY) {
+        state = GET_DATA;
+
         keys.push_back(res_key);
+        commands_count++;
         if(!SEQ_REDIS_READ("HGETALL %s", res_key.c_str())) {
             on_error(500, "failed to post redis request");
             return false;
         }
-        commands_count++;
-        state = GET_DATA;
     } else {
         on_error(500, "perform called in the not INITIAL or GET_SINGLE_KEY state: %d", state);
         return false;
@@ -304,12 +308,14 @@ bool GetAllResources::processRedisReply(RedisReplyEvent &reply)
             on_error(404, "no resources matched");
             state = FINISH;
         } else if(isArgArray(reply.data)) {
-            for(size_t i = 0;i < reply.data.size(); i++) {
-                keys.push_back(reply.data[i].asCStr());
-                SEQ_REDIS_READ("HGETALL %s", keys.back().c_str());
-            }
             state = GET_DATA;
+
             commands_count = reply.data.size();
+            for(size_t i = 0;i < reply.data.size(); i++)
+                keys.push_back(reply.data[i].asCStr());
+
+            for(auto const &key : keys)
+                SEQ_REDIS_READ("HGETALL %s", key.data());
         } else {
             on_error(500, "unexpected type of the result data");
             state = FINISH;
@@ -382,11 +388,12 @@ CheckResources::CheckResources(ResourceRedisConnection* conn, const ResourceList
 bool CheckResources::perform()
 {
     if(state == INITIAL) {
+        state = GET_VALS;
+
+        commands_count = resources.size();
         for(auto& res : resources) {
-            commands_count++;
             SEQ_REDIS_READ("HVALS %s", get_key(res).c_str());
         }
-        state = GET_VALS;
     } else {
         on_error("perform called in the not INITIAL state: %d", state);
         return false;
