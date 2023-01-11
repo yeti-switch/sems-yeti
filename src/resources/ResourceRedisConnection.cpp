@@ -154,7 +154,8 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
 
         if(seq->is_finish()) {
             //DBG("resources operation finished %s errors", seq->is_error() ? "with" : "without");
-            operation_result_cb(!seq->is_error());
+            if(operation_result_cb)
+                operation_result_cb(!seq->is_error());
             write_async_is_busy = false;
             if(seq->is_error()) {
                 // on error have to reset the connection and invalidate resources
