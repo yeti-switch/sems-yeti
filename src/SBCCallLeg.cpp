@@ -3545,15 +3545,17 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
         to_void(this),getLocalTag().c_str(),a_leg);
 
     {
-        AmControlledLock call_ctx_lock(*call_ctx_mutex);
         switch(status) {
         case CallLeg::Ringing: {
             if(!a_leg) {
-                if(call_profile.ringing_timeout > 0)
+                if(call_profile.ringing_timeout > 0) {
                     setTimer(YETI_RINGING_TIMEOUT_TIMER,call_profile.ringing_timeout);
+                }
             } else {
                 if(call_profile.fake_ringing_timeout)
                     removeTimer(YETI_FAKE_RINGING_TIMER);
+
+                AmControlledLock call_ctx_lock(*call_ctx_mutex);
                 if(call_profile.force_one_way_early_media && call_ctx) {
                     DBG("force one-way audio for early media (mute legB)");
                     AmB2BMedia *m = getMediaSession();
@@ -3571,6 +3573,8 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
             } else {
                 if(call_profile.fake_ringing_timeout)
                     removeTimer(YETI_FAKE_RINGING_TIMER);
+
+                AmControlledLock call_ctx_lock(*call_ctx_mutex);
                 if(call_ctx && call_ctx->bleg_early_media_muted) {
                     AmB2BMedia *m = getMediaSession();
                     if(m) {
@@ -3674,14 +3678,6 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
 {
     DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
 
-    AmControlledLock call_ctx_lock(*call_ctx_mutex);
-    getCtx_void;
-
-    Cdr* cdr = call_ctx->cdr;
-    CodesTranslator *ct = CodesTranslator::instance();
-    unsigned int intermediate_code;
-    string intermediate_reason;
-
     if(!a_leg) return;
 
     if(getOtherId().size() && reply.from_tag != getOtherId()) {
@@ -3692,11 +3688,20 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     removeTimer(YETI_FAKE_RINGING_TIMER);
     clearCallTimer(YETI_CALL_DURATION_TIMER);
 
+    AmControlledLock call_ctx_lock(*call_ctx_mutex);
+    getCtx_void;
+
+    Cdr* cdr = call_ctx->cdr;
+
     cdr->update_with_sip_reply(reply);
     cdr->update_bleg_reason(reply.reason,static_cast<int>(reply.code));
 
     //save original destination reply code for stop_hunting lookup
     auto destination_reply_code = reply.code;
+
+    CodesTranslator *ct = CodesTranslator::instance();
+    unsigned int intermediate_code;
+    string intermediate_reason;
 
     ct->rewrite_response(reply.code,reply.reason,
         intermediate_code,intermediate_reason,
@@ -4118,12 +4123,15 @@ bool SBCCallLeg::getSdpOffer(AmSdp& offer){
 void SBCCallLeg::b2bInitial1xx(AmSipReply& reply, bool forward)
 {
     if(a_leg) {
-        AmLock call_ctx_lock(*call_ctx_mutex);
         if(reply.code==100) {
-            if(call_profile.fake_ringing_timeout)
+            if(call_profile.fake_ringing_timeout) {
                 setTimer(YETI_FAKE_RINGING_TIMER,call_profile.fake_ringing_timeout);
+            }
         } else {
-            call_ctx->ringing_sent = true;
+            AmLock call_ctx_lock(*call_ctx_mutex);
+            if(call_ctx) {
+                call_ctx->ringing_sent = true;
+            }
         }
     }
     return CallLeg::b2bInitial1xx(reply,forward);
