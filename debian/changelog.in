@@ -1,3 +1,8 @@
+sems-yeti (1.13.11) stable; urgency=medium
+  * relay DTMF volume level
+  * SBCCallLeg: fix deadlock on timer operations
+ -- dev <dev@yeti-switch.org>  Tue, 07 Feb 2023 21:56:02 +0200
+
 sems-yeti (1.13.10) stable; urgency=medium
   * ResourceSequences: fix sequence states racings
  -- dev <dev@yeti-switch.org>  Wed, 11 Jan 2023 23:10:01 +0200
