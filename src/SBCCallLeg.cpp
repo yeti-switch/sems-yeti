@@ -2164,9 +2164,10 @@ void SBCCallLeg::onOtherBye(const AmSipRequest& req)
 
 void SBCCallLeg::onDtmf(AmDtmfEvent* e)
 {
-    DBG("received DTMF on %cleg (%i;%i) source:%d",
+    DBG("received DTMF on %cleg (%i;%i;%i) source:%d",
         a_leg ? 'A': 'B',
-        e->event(), e->duration(), e->event_id);
+        e->event(), e->duration(), e->volume(),
+        e->event_id);
 
     AmControlledLock call_ctx_lock(*call_ctx_mutex);
     getCtx_void;
@@ -2219,8 +2220,11 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
         if(ms) {
             DBG("sending DTMF (%i;%i)", e->event(), e->duration());
             call_ctx_lock.release();
-            ms->sendDtmf(!a_leg,
-                e->event(),static_cast<unsigned int>(e->duration()));
+            ms->sendDtmf(
+                !a_leg,
+                e->event(),
+                static_cast<unsigned int>(e->duration()),
+                e->volume());
         }
     } break;
     case DTMF_TX_MODE_INFO_DTMF_RELAY:
