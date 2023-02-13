@@ -208,8 +208,8 @@ void CodesTranslator::load_disconnect_code_rewrite_overrides(const AmArg &data)
 	if(isArgArray(data)) {
 		for(size_t i = 0; i < data.size(); i++) {
 			auto &row = data[i];
-			int override_id = DbAmArg_hash_get_int(row, "policy_id");
-			int code =	DbAmArg_hash_get_int(row, "received_code", 0);
+			int override_id = DbAmArg_hash_get_int(row, "o_policy_id");
+			int code = DbAmArg_hash_get_int(row, "o_code", 0);
 			string rewrited_reason = DbAmArg_hash_get_str(row, "o_rewrited_reason");
 			if(rewrited_reason.empty()){
 				rewrited_reason = DbAmArg_hash_get_str(row,"o_reason");
