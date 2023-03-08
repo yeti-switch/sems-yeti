@@ -1,7 +1,12 @@
+sems-yeti (1.13.13) stable; urgency=medium
+  * libsems1.99
+  * ResourceRedisConnection: initialize resources_initialized_cb
+ -- dev <dev@yeti-switch.org>  Wed, 08 Mar 2023 22:19:58 +0200
+
 sems-yeti (1.13.12) stable; urgency=medium
   * libsems1.98
-  * CodesTranslator: fix load_disconnect_code_rewrite_overrides() response processing
- -- dev <dev@yeti-switch.org>  Wed, 08 Mar 2023 15:09:12 +0200
+  * codestranslator: fix load_disconnect_code_rewrite_overrides() response processing
+ -- dev <dev@yeti-switch.org>  wed, 08 mar 2023 15:09:12 +0200
 
 sems-yeti (1.13.11) stable; urgency=medium
   * relay DTMF volume level
