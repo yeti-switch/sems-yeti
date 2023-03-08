@@ -2502,7 +2502,8 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
     }
 }
 
-void SBCCallLeg::updateLocalSdp(AmSdp &sdp, unsigned int sip_msg_cseq)
+void SBCCallLeg::updateLocalSdp(AmSdp &sdp,
+                                const string &sip_msg_method, unsigned int sip_msg_cseq)
 {
     normalizeSDP(sdp);
     anonymizeSDP(sdp);
@@ -2511,7 +2512,7 @@ void SBCCallLeg::updateLocalSdp(AmSdp &sdp, unsigned int sip_msg_cseq)
     //if (call_profile.transcoder.isActive()) savePayloadIDs(sdp);
     DBG("updateLocalSdp: transport: %s",
         transport_p_2_str(sdp.media.begin()->transport).data());
-    CallLeg::updateLocalSdp(sdp, sip_msg_cseq);
+    CallLeg::updateLocalSdp(sdp, sip_msg_method, sip_msg_cseq);
 }
 
 void SBCCallLeg::onControlCmd(string& cmd, AmArg& params)
@@ -3911,7 +3912,7 @@ void SBCCallLeg::alterHoldRequest(AmSdp &sdp)
 
 void SBCCallLeg::processLocalRequest(AmSipRequest &req) {
     DBG("%s() local_tag = %s",FUNC_NAME,getLocalTag().c_str());
-    updateLocalBody(req.body, req.cseq);
+    updateLocalBody(req.body, req.method, req.cseq);
     dlg->reply(req,200,"OK",&req.body,"",SIP_FLAGS_VERBATIM);
 }
 
