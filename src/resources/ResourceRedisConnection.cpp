@@ -13,7 +13,8 @@ ResourceRedisConnection::ResourceRedisConnection(const string& queue_name)
     write_async_is_busy(false),
     inv_seq(this),
     resources_inited(false),
-    resources_initialized_cb(nullptr)
+    resources_initialized_cb(nullptr),
+    operation_result_cb(nullptr)
 {}
 
 ResourceRedisConnection::~ResourceRedisConnection() {}
