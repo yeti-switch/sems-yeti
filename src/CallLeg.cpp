@@ -500,7 +500,7 @@ void CallLeg::onB2BConnect(ConnectLegEvent* co_ev)
 
   AmMimeBody body(co_ev->body);
   try {
-    updateLocalBody(body, dlg->cseq);
+    updateLocalBody(body, SIP_METH_INVITE, dlg->cseq);
   } catch (const string& s) {
     relayError(SIP_METH_INVITE, co_ev->r_cseq, true, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     throw;
@@ -699,7 +699,7 @@ void CallLeg::putOnHold()
 
   AmSdp sdp;
   createHoldRequest(sdp);
-  updateLocalSdp(sdp, dlg->cseq);
+  updateLocalSdp(sdp, SIP_METH_INVITE, dlg->cseq);
 
   AmMimeBody body;
   sdp2body(sdp, body);
@@ -731,7 +731,7 @@ void CallLeg::resumeHeld(/*bool send_reinvite*/)
       offerRejected();
       return;
     }
-    updateLocalSdp(sdp, dlg->cseq);
+    updateLocalSdp(sdp, SIP_METH_INVITE, dlg->cseq);
 
     AmMimeBody body(established_body);
     sdp2body(sdp, body);
@@ -1414,7 +1414,7 @@ void CallLeg::acceptPendingInvite(AmSipRequest *invite)
   s.print(body_str);
   body.parse(SIP_APPLICATION_SDP, (const unsigned char*)body_str.c_str(), body_str.length());
   try {
-    updateLocalBody(body, invite->cseq);
+    updateLocalBody(body, invite->method, invite->cseq);
   } catch (...) { /* throw ? */  }
 
   TRACE("replying pending INVITE with body: %s\n", body_str.c_str());
@@ -1428,7 +1428,7 @@ void CallLeg::reinvite(const string &hdrs, const AmMimeBody &body, bool relayed,
   int res;
   try {
     AmMimeBody r_body(body);
-    updateLocalBody(r_body, dlg->cseq);
+    updateLocalBody(r_body, SIP_METH_INVITE, dlg->cseq);
     res = dlg->sendRequest(SIP_METH_INVITE, &r_body, hdrs, SIP_FLAGS_VERBATIM);
   } catch (const string& s) { res = -500; }
 
@@ -1491,7 +1491,8 @@ void CallLeg::adjustOffer(AmSdp &sdp)
   }
 }
 
-void CallLeg::updateLocalSdp(AmSdp &sdp, unsigned int sip_msg_cseq)
+void CallLeg::updateLocalSdp(AmSdp &sdp,
+                             const string &sip_msg_method, unsigned int sip_msg_cseq)
 {
   TRACE("%s: updateLocalSdp (OA: %d, oa_cseq: %u, msg_cseq: %u)\n",
     getLocalTag().c_str(),
@@ -1503,7 +1504,7 @@ void CallLeg::updateLocalSdp(AmSdp &sdp, unsigned int sip_msg_cseq)
   if(dlg->getOAState() == AmOfferAnswer::OA_None ||
      dlg->getOAState() == AmOfferAnswer::OA_Completed)
   {
-    if(!dlg->isOASubsequentSDP(sip_msg_cseq)) {
+    if(!dlg->isOASubsequentSDP(sip_msg_cseq, sip_msg_method)) {
       adjustOffer(sdp);
     } else {
       DBG("skip hold detection for subsequent SDP within the same transaction");
@@ -1515,7 +1516,7 @@ void CallLeg::updateLocalSdp(AmSdp &sdp, unsigned int sip_msg_cseq)
     non_hold_sdp = sdp;
   }
 
-  AmB2BSession::updateLocalSdp(sdp, sip_msg_cseq);
+  AmB2BSession::updateLocalSdp(sdp, sip_msg_method, sip_msg_cseq);
 }
 
 void CallLeg::offerRejected()
