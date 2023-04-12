@@ -69,7 +69,9 @@ CallLeg::CallLeg(const CallLeg* caller, AmSipDialog* p_dlg, AmSipSubscription* p
 
   const AmSipDialog* caller_dlg = caller->dlg;
 
-  dlg->setLocalTag(AmSession::getNewId());
+  //will be set in A leg after the dialog creation
+  //dlg->setLocalTag(AmSession::getNewId());
+
   dlg->setCallid(AmSession::getNewId());
 
   // take important data from A leg

@@ -636,6 +636,8 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
 
     unique_ptr<AmSipDialog> callee_dlg(new AmSipDialog());
 
+    callee_dlg->setLocalTag(AmSession::getNewId());
+
     if(!call_profile.evaluate_routing(ctx, orig_req, *callee_dlg)) {
         ERROR("call profile routing evaluation failed");
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
@@ -2862,6 +2864,8 @@ void SBCCallLeg::onRoutingReady()
     }
 
     unique_ptr<AmSipDialog> callee_dlg(new AmSipDialog());
+
+    callee_dlg->setLocalTag(AmSession::getNewId());
 
     if(!call_profile.evaluate_routing(ctx, aleg_modified_req, *callee_dlg)) {
         ERROR("call profile routing evaluation failed");
