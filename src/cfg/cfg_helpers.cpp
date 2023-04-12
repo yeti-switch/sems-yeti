@@ -48,6 +48,7 @@ void apply_db_cfg(
     add2hash(c,prefix+"name","name",out);
     add2hash(c,prefix+"user","user",out);
     add2hash(c,prefix+"pass","pass",out);
+    add2hash(c,prefix+"connect_timeout","connect_timeout",out);
 }
 
 void apply_pool_cfg(

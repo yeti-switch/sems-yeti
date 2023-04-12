@@ -8,4 +8,5 @@
 	DCFG_STR(host), \
 	DCFG_STR(name), \
 	DCFG_STR(user), \
-	DCFG_STR(pass)
+	DCFG_STR(pass), \
+	DCFG_INT(connect_timeout)
