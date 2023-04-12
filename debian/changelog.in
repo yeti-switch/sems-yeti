@@ -1,3 +1,8 @@
+sems-yeti (1.12.41) stable; urgency=medium
+  * add 'connect_timeout' option for db sections 
+  * increase default db timeout 2 -> 5 seconds
+ -- dev <dev@yeti-switch.org>  Wed, 12 Apr 2023 20:21:06 +0300
+
 sems-yeti (1.12.40) stable; urgency=medium
   * libsems1.99
  -- dev <dev@yeti-switch.org>  Wed, 08 Mar 2023 22:29:33 +0200
