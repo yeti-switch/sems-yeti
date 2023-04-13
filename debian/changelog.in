@@ -1,3 +1,7 @@
+sems-yeti (1.12.42) stable; urgency=medium
+  * set callee local_tag in the A leg (fixes logs with empty local_tag)
+ -- dev <dev@yeti-switch.org>  Thu, 13 Apr 2023 23:22:11 +0300
+
 sems-yeti (1.12.41) stable; urgency=medium
   * add 'connect_timeout' option for db sections 
   * increase default db timeout 2 -> 5 seconds
