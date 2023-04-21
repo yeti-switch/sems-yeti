@@ -253,19 +253,25 @@ void ResourceRedisConnection::put(ResourceList& rl)
 {
     ResourceOperationList rol;
     for(auto& res : rl) {
+        if(!res.taken) continue;
         rol.emplace_back(ResourceOperation::RES_PUT, res);
     }
-    process_operations_list(rol);
+
+    if(!rol.empty())
+        process_operations_list(rol);
 }
 
 void ResourceRedisConnection::get(ResourceList& rl)
 {
     ResourceOperationList rol;
     for(auto& res : rl) {
+        if(!res.active || res.taken) continue;
         res.taken = true;
         rol.emplace_back(ResourceOperation::RES_GET, res);
     }
-    process_operations_list(rol);
+
+    if(!rol.empty())
+        process_operations_list(rol);
 }
 
 #define CHECK_STATE_NORMAL 0

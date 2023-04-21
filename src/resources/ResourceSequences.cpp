@@ -168,12 +168,19 @@ bool OperationResources::perform()
         state = MULTI_START;
 
         for(auto res = res_list.begin(); res != res_list.end();) {
-            //filter out inactive and taken resources
-            if((res->op == ResourceOperation::RES_GET && !res->active) ||
-               (res->op == ResourceOperation::RES_PUT && !res->taken) ||
-               res->op == ResourceOperation::RES_NONE) {
-                    res = res_list.erase(res);
-            } else res++;
+            //filter out inactive and not taken resources
+            if(res->op == ResourceOperation::RES_GET && !res->active) {
+                DBG("found RES_GET with inactive resource. filter out");
+                res = res_list.erase(res);
+            } else if(res->op == ResourceOperation::RES_PUT && !res->taken) {
+                DBG("found RES_PUT with not taken resource. filter out");
+                res = res_list.erase(res);
+            } else if(res->op == ResourceOperation::RES_NONE) {
+                DBG("found RES_NONE. filter out");
+                res = res_list.erase(res);
+            } else {
+                res++;
+            }
         }
 
         if(res_list.empty()) {
