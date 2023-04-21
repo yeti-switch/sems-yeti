@@ -345,6 +345,7 @@ bool SqlCallProfile::readFromTuple(const AmArg &t,const DynFieldsT &df){
 	auth_required = DbAmArg_hash_get_bool(t, "aleg_auth_required", false);
 
 	registered_aor_id = DbAmArg_hash_get_int(t,"registered_aor_id",0);
+	registered_aor_mode_id = DbAmArg_hash_get_int(t,"registered_aor_mode_id", REGISTERED_AOR_MODE_AS_IS);
 
 	aleg_media_encryption_mode_id = DbAmArg_hash_get_int(t,"aleg_media_encryption_mode_id",0);
 	bleg_media_encryption_mode_id = DbAmArg_hash_get_int(t,"bleg_media_encryption_mode_id",0);
@@ -510,6 +511,7 @@ void SqlCallProfile::infoPrint(const DynFieldsT &df){
 
 		DBG("auth_required: %d",auth_required);
 		DBG("registered_aor_id: %d",registered_aor_id);
+		DBG("registered_aor_mode_id: %d",registered_aor_mode_id);
 		DBG("resources: %s", resources.c_str());
 		for(ResourceList::const_iterator i = rl.begin();i!=rl.end();++i)
 			DBG("   resource: <%s>",(*i).print().c_str());
@@ -889,6 +891,14 @@ bool SqlCallProfile::eval()
 	if(0!=disconnect_code_id){
 		DBG("skip evals for refusing profile");
 		return true;
+	}
+
+	if(registered_aor_mode_id < REGISTERED_AOR_MODE_AS_IS ||
+			registered_aor_mode_id > REGISTERED_AOR_MODE_REPLACE_USERPART)
+	{
+		DBG("incorrect registered_aor_mode_id value. replace %d -> %d",
+			registered_aor_mode_id, REGISTERED_AOR_MODE_AS_IS);
+		registered_aor_mode_id = REGISTERED_AOR_MODE_AS_IS;
 	}
 
 	return

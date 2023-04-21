@@ -1064,6 +1064,46 @@ struct aor_lookup_reply {
           : contact(contact),
             path(path)
         {}
+
+        void replace_profile_fields(SqlCallProfile &p)
+        {
+            //replace ruri
+            switch(p.registered_aor_mode_id) {
+            case SqlCallProfile::REGISTERED_AOR_MODE_AS_IS:
+                p.ruri = contact;
+                break;
+            case SqlCallProfile::REGISTERED_AOR_MODE_REPLACE_USERPART: {
+                AmUriParser parser;
+                string ruri_user;
+
+                parser.uri = p.ruri;
+                if(parser.parse_uri()) {
+                    ruri_user = parser.uri_user;
+
+                    //parse AoR and replace userpart
+                    parser.uri = contact;
+                    if(parser.parse_uri()) {
+                        DBG("replace AoR user '%s' -> '%s'",
+                            parser.uri_user.data(), ruri_user.data());
+
+                        parser.uri_user = ruri_user;
+                        p.ruri = parser.uri_str();
+                    } else {
+                        ERROR("failed to parse AoR Contact. fallback to the full replace");
+                        p.ruri = contact;
+                    }
+                } else {
+                    ERROR("failed to parse RURI. fallback to the full replace");
+                    p.ruri = contact;
+                }
+            } break;
+            }
+
+            //replace route
+            if(!path.empty()) {
+                p.route = path;
+            }
+        }
     };
 
     std::map<int, std::list<aor_data> > aors;
@@ -1173,12 +1213,13 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
 
         sub_profile_idx = 0;
         auto aor_it = aors_list.begin();
-        //replace ruri in profile
-        p.ruri = aor_it->contact;
+
+        aor_it->replace_profile_fields(p);
+
         DBG("< set profile %d.%d ruri to: %s",
             profile_idx, sub_profile_idx, p.ruri.data());
+
         if(!aor_it->path.empty()) {
-            p.route = aor_it->path;
             DBG("< set profile %d.%d route to: %s",
                 profile_idx, sub_profile_idx, p.route.data());
         }
@@ -1192,12 +1233,12 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
             DBG("< clone profile %d.0 to %d.%d because user resolved to the multiple AoRs",
                 profile_idx, profile_idx, sub_profile_idx);
 
-            cloned_p->ruri = aor_it->contact;
+            aor_it->replace_profile_fields(*cloned_p);
+
             DBG("< set profile %d.%d ruri to: %s",
                 profile_idx, sub_profile_idx, cloned_p->ruri.data());
 
             if(!aor_it->path.empty()) {
-                cloned_p->route = aor_it->path;
                 DBG("< set profile %d.%d route to: %s",
                     profile_idx, sub_profile_idx, cloned_p->route.data());
             }
