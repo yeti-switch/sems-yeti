@@ -1,3 +1,8 @@
+sems-yeti (1.13.15) stable; urgency=medium
+  * add 'registered_aor_mode_id' processing
+  * fix resources releasing
+ -- dev <dev@yeti-switch.org>  Fri, 21 Apr 2023 15:42:58 +0300
+
 sems-yeti (1.13.14) stable; urgency=medium
   * fix redis segfault after the disconnect
  -- dev <dev@yeti-switch.org>  Tue, 18 Apr 2023 18:29:12 +0300
