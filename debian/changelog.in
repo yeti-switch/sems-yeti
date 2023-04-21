@@ -1,3 +1,7 @@
+sems-yeti (1.12.43) stable; urgency=medium
+  * add 'registered_aor_mode_id' processing
+ -- dev <dev@yeti-switch.org>  Fri, 21 Apr 2023 17:26:18 +0300
+
 sems-yeti (1.12.42) stable; urgency=medium
   * set callee local_tag in the A leg (fixes logs with empty local_tag)
  -- dev <dev@yeti-switch.org>  Thu, 13 Apr 2023 23:22:11 +0300
