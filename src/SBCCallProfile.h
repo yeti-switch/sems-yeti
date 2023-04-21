@@ -106,7 +106,13 @@ typedef pair<unsigned int, std::string> ReplyCodeReasonPair;
 typedef map<unsigned int, ReplyCodeReasonPair> ReplyTranslationMap;
 
 struct SBCCallProfile
-  : public AmObject {
+  : public AmObject
+{
+  enum {
+    REGISTERED_AOR_MODE_AS_IS = 1,
+    REGISTERED_AOR_MODE_REPLACE_USERPART = 2
+  };
+
   string md5hash;
   //string profile_file;
 
@@ -281,6 +287,7 @@ struct SBCCallProfile
   bool auth_required;
 
   int registered_aor_id;
+  int registered_aor_mode_id;
   int skip_code_id;
 
   int aleg_media_encryption_mode_id;
@@ -406,6 +413,7 @@ struct SBCCallProfile
 	bleg_max_transfers(0),
 	auth_required(false),
 	registered_aor_id(0),
+	registered_aor_mode_id(REGISTERED_AOR_MODE_AS_IS),
 	skip_code_id(0),
 	force_transcoding(false),
     aleg_media_encryption_mode_id(0),
