@@ -820,7 +820,7 @@ int CdrThread::writecdr(cdr_queue_t &cdr_queue, cdr_writer_connection* conn, siz
         }
 
     } catch(const pqxx::pqxx_exception &e) {
-        DBG("SQL exception on CdrWriter thread: %s",e.base().what());
+        ERROR("SQL exception on CdrWriter thread: %s",e.base().what());
         conn->disconnect();
         stats.db_exceptions.inc();
     }
