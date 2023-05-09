@@ -2,7 +2,7 @@
 
 bool DbAmArg_hash_get_bool(
     const AmArg &a,
-    const string &key,
+    const std::string &key,
     bool default_value)
 {
     if(!a.hasMember(key)) return default_value;
@@ -17,7 +17,7 @@ bool DbAmArg_hash_get_bool(
 
 bool DbAmArg_hash_get_bool_any(
     const AmArg &a,
-    const string &key,
+    const std::string &key,
     bool default_value)
 {
     if(!a.hasMember(key)) return default_value;
@@ -26,13 +26,14 @@ bool DbAmArg_hash_get_bool_any(
     if(isArgUndef(v)) return default_value;
     if(isArgInt(v)) return 0!=v.asInt();
     if(isArgCStr(v)) {
-        string s = v.asCStr();
+        std::string s = v.asCStr();
         return (s=="t" || s=="yes" || s=="true" || s=="1") ? true : false;
     }
     return default_value;
 }
 
-string DbAmArg_hash_get_str(const AmArg &a, const string &key, const string &default_string)
+std::string DbAmArg_hash_get_str(const AmArg &a, const std::string &key,
+                            const std::string &default_string)
 {
     if(!a.hasMember(key)) return default_string;
     AmArg &v = a[key];
@@ -44,10 +45,10 @@ string DbAmArg_hash_get_str(const AmArg &a, const string &key, const string &def
     return v.asCStr();
 }
 
-string DbAmArg_hash_get_str_any(
+std::string DbAmArg_hash_get_str_any(
     const AmArg &a,
-    const string &key,
-    const string &default_string)
+    const std::string &key,
+    const std::string &default_string)
 {
     if(!a.hasMember(key)) return default_string;
     AmArg &v = a[key];
@@ -56,7 +57,7 @@ string DbAmArg_hash_get_str_any(
     return AmArg::print(v);
 }
 
-int DbAmArg_hash_get_int(const AmArg &a, const string &key, int default_value)
+int DbAmArg_hash_get_int(const AmArg &a, const std::string &key, int default_value)
 {
     if(!a.hasMember(key)) return default_value;
     AmArg &v = a[key];
@@ -69,7 +70,7 @@ int DbAmArg_hash_get_int(const AmArg &a, const string &key, int default_value)
 }
 
 int DbAmArg_hash_get_int(
-    const AmArg &a, const string &key,
+    const AmArg &a, const std::string &key,
     int default_value, int failover_value)
 {
     if(!a.hasMember(key)) return failover_value;

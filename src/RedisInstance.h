@@ -63,26 +63,26 @@ void redisFreeCommand(char* cmd);
 }
 
 struct GetReplyException {
-	string what;
+	std::string what;
 	int status;
-	GetReplyException(string w, int s): what(w), status(s) {}
+	GetReplyException(std::string w, int s): what(w), status(s) {}
 };
 
 struct ReplyTypeException {
-	string what;
+	std::string what;
 	int type;
-	ReplyTypeException(string w, int t): what(w), type(t) {}
+	ReplyTypeException(std::string w, int t): what(w), type(t) {}
 };
 
 struct ReplyDataException {
-	string what;
-	ReplyDataException(string w): what(w) {}
+	std::string what;
+	ReplyDataException(std::string w): what(w) {}
 };
 
 void makeRedisInstance(bool test, RedisTestServer* server = 0);
 void freeRedisInstance();
 
-AmArg runMultiCommand(redisContext * ctx, const vector<string>& commands, const char* log) noexcept(false);
+AmArg runMultiCommand(redisContext * ctx, const std::vector<std::string>& commands, const char* log) noexcept(false);
 void redisReply2Amarg(AmArg &a, redisReply *r);
 void Amarg2redisReply(const AmArg &a, redisReply **r);
 
