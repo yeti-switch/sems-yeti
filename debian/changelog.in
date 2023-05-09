@@ -1,3 +1,8 @@
+sems-yeti (1.12.44) stable; urgency=medium
+  * Cdr: remove IPv6 reference brackets for legB_local_ip
+  * CdrThread::writecdr: show exceptions on ERROR log level
+ -- dev <dev@yeti-switch.org>  Tue, 09 May 2023 23:20:38 +0300
+
 sems-yeti (1.12.43) stable; urgency=medium
   * add 'registered_aor_mode_id' processing
  -- dev <dev@yeti-switch.org>  Fri, 21 Apr 2023 17:26:18 +0300
