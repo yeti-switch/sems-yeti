@@ -218,6 +218,20 @@ void Cdr::update_with_isup(const AmISUP &isup)
     isup_propagation_delay = isup.propagation_delay;
 }
 
+inline void remove_ipv6_reference_inplace(string &s)
+{
+    //detect ipv6 reference
+    if(s.size() < 4) {
+        //minimal ref is "[::]"
+        return;
+    }
+
+    if(s.front() == '[' && s.back() == ']') {
+        s.pop_back();
+        s.erase(s.begin());
+    }
+}
+
 void Cdr::update_with_sip_reply(const AmSipReply &reply){
     size_t pos1,pos2,pos;
 
@@ -234,9 +248,12 @@ void Cdr::update_with_sip_reply(const AmSipReply &reply){
         return; //local reply
 
     legB_transport_protocol_id = reply.transport_id;
+
     legB_remote_ip = reply.remote_ip;
     legB_remote_port = reply.remote_port;
+
     legB_local_ip = reply.actual_ip;
+    remove_ipv6_reference_inplace(legB_local_ip);
     legB_local_port = reply.actual_port;
 
     if(findHeader(reply.hdrs,server_hdr,0,pos1,pos2,pos))
