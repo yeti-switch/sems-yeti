@@ -1,3 +1,7 @@
+sems-yeti (1.13.17) stable; urgency=medium
+  * libsems1.102
+ -- dev <dev@yeti-switch.org>  Tue, 16 May 2023 14:26:05 +0300
+
 sems-yeti (1.13.16) stable; urgency=medium
   * Cdr: remove IPv6 reference brackets for legB_local_ip
  -- dev <dev@yeti-switch.org>  Tue, 09 May 2023 22:58:53 +0300
