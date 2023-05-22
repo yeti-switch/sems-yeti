@@ -1,3 +1,7 @@
+sems-yeti (1.13.19) stable; urgency=medium
+  * fix radius placeholders
+ -- dev <dev@yeti-switch.org>  Mon, 22 May 2023 19:59:18 +0300
+
 sems-yeti (1.13.18) stable; urgency=medium
   * add registration error reply reason
  -- dev <dev@yeti-switch.org>  Wed, 17 May 2023 16:12:29 +0300
