@@ -928,6 +928,7 @@ void SBCCallLeg::onProfilesReady()
     }
 
     call_profile = *call_ctx->getCurrentProfile();
+    placeholders_hash = call_ctx->getCurrentProfile()->placeholders_hash;
 
     set_sip_relay_only(false);
 
