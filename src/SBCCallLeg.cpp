@@ -759,6 +759,15 @@ void SBCCallLeg::onPostgresResponse(PGResponse &e)
         for(size_t i = 0; i < e.result.size(); i++) {
             AmArg &a = e.result.get(i);
 
+            if(yeti.config.postgresql_debug) {
+                for(auto &it : *a.asStruct()) {
+                    DBG("%s/profile[%d]: %s %s",
+                        getLocalTag().data(), i,
+                        it.first.data(),
+                        arg2json(it.second).data());
+                }
+            }
+
             //skip profiles without 'ruri' field
             if(!a.hasMember("ruri") || isArgUndef(a["ruri"]))
                 continue;
