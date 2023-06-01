@@ -129,7 +129,7 @@ class CertCache
     //returns if cert is presented in cache and ready to be used
     bool checkAndFetch(const string& cert_url,
                        const string& session_id);
-    Botan::Public_Key *getPubKey(const string& cert_url, bool &cert_is_valid);
+    std::unique_ptr<Botan::Public_Key> getPubKey(const string& cert_url, bool &cert_is_valid);
     bool isTrustedRepository(const string& cert_url);
 
     void processHttpReply(const HttpGetResponseEvent& resp);

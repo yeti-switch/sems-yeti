@@ -2950,7 +2950,7 @@ void SBCCallLeg::onIdentityReady()
             a["payload"] = e.identity.get_parsed_payload();
 
             bool cert_is_valid;
-            std::unique_ptr<Botan::Public_Key> key(yeti.cert_cache.getPubKey(
+            auto key(yeti.cert_cache.getPubKey(
                 e.identity.get_x5u_url(), cert_is_valid));
             if(key.get()) {
                 if(cert_is_valid) {
