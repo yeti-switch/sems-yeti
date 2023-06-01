@@ -105,7 +105,7 @@ bool CertCache::checkAndFetch(const string& cert_url,
     return true;
 }
 
-Botan::Public_Key *CertCache::getPubKey(const string& cert_url, bool &cert_is_valid)
+std::unique_ptr<Botan::Public_Key> CertCache::getPubKey(const string& cert_url, bool &cert_is_valid)
 {
     AmLock lock(mutex);
     auto it = entries.find(cert_url);
@@ -250,7 +250,7 @@ void CertCache::reloadDatabaseSettings(pqxx::connection &c,
                     while(!in.end_of_data()) {
                         try {
                             cert_entry.certs.emplace_back(new Botan::X509_Certificate(in));
-                            trusted_certs_store.add_certificate(cert_entry.certs.back());
+                            trusted_certs_store.add_certificate(*cert_entry.certs.back().get());
                         } catch(Botan::Exception &e) {
                             ERROR("CertCache entry %lu '%s' Botan::exception: %s",
                                 cert_entry.id, cert_entry.name.data(),
