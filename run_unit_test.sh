@@ -13,7 +13,7 @@ SEMS_TESTER=/usr/bin/sems-tester
 SEMS_TESTER_CFG=./unit_tests/etc/sems_test.cfg
 
 MODULE_PREFIX=YetiTest
-DEFAULT_FILTER=$MODULE_PREFIX.*
+DEFAULT_FILTER=$MODULE_PREFIX.*:$MODULE_PREFIX/*
 
 for d in rsr logs lib dump record; do
     mkdir -p $TEST_TMP_DIR/$d
@@ -42,7 +42,7 @@ if [ $# -gt 0 ]; then
         if [[ $filter == *"."* ]]; then
             cmd="$SEMS_TESTER -c $SEMS_TESTER_CFG --gtest_also_run_disabled_tests --gtest_filter=$filter $@"
         else
-            cmd="$SEMS_TESTER -c $SEMS_TESTER_CFG --gtest_also_run_disabled_tests --gtest_filter=$MODULE_PREFIX.$filter $@"
+            cmd="$SEMS_TESTER -c $SEMS_TESTER_CFG --gtest_also_run_disabled_tests --gtest_filter=$MODULE_PREFIX.$filter:$MODULE_PREFIX/$filter $@"
         fi
     fi
 else

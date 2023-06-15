@@ -28,7 +28,13 @@ class UsedHeaderField {
     bool hashkey;       //this header used in routing logic
     string sql_type_name;
 
+    //concatenate all headers values to the comma-separated list
+    bool multiple_headers;
+
     void applyFormat(const string &format);
+
+    bool process_uri(const sip_uri &uri, string &ret) const;
+
   public:
     UsedHeaderField(const string &hdr_name);
     UsedHeaderField(const AmArg &a);
