@@ -28,6 +28,11 @@ class UsedHeaderField {
     NeededPart part;    //needed part of parsed value
     bool hashkey;       //this header used in routing logic
 
+    //concatenate all headers values to the comma-separated list
+    bool multiple_headers;
+
+    bool process_uri(const sip_uri &uri, string &ret) const;
+
   public:
     UsedHeaderField(const string &hdr_name);
     UsedHeaderField(const pqxx::row &t);

@@ -46,22 +46,23 @@ void UsedHeaderField::readFromTuple(const pqxx::row &t)
     hashkey = t["varhashkey"].as<bool>(false);
     format = t["varformat"].c_str();
 
+    multiple_headers = false;
+
     if(format.empty()){
         type = Raw;
         return;
     }
-
-    if(format=="uri_user"){
+    if(format.starts_with("uri_user")) {
         type = Uri;
         part = uri_user;
-    } else if(format=="uri_domain"){
+    } else if(format.starts_with("uri_domain")) {
         type = Uri;
         part = uri_domain;
-    } else if(format=="uri_port"){
+    } else if(format.starts_with("uri_port")) {
         type = Uri;
         part = uri_port;
-    } else if(format=="uri_param"){
-        if(param.empty()){
+    } else if(format.starts_with("uri_param")) {
+        if(param.empty()) {
             WARN("empty mandatory param for fromat '%s' for header field '%s'. use Raw",
                  format.c_str(),name.c_str());
             type = Raw;
@@ -74,13 +75,53 @@ void UsedHeaderField::readFromTuple(const pqxx::row &t)
             format.c_str(),name.c_str());
         type = Raw;
     }
+
+    if(format.ends_with("_array"))
+        multiple_headers = true;
+}
+
+bool UsedHeaderField::process_uri(const sip_uri &uri, string &ret) const
+{
+    if(!ret.empty()) ret += ',';
+
+    switch(part) {
+    case uri_user:
+        ret += c2stlstr(uri.user);
+        return true;
+    case uri_domain:
+        ret += c2stlstr(uri.host);
+        return true;
+    case uri_port:
+        ret += int2str(uri.port);
+        return true;
+    case uri_param: {
+        for(list<sip_avp*>::const_iterator i = uri.params.begin();
+             i!=uri.params.end();++i)
+        {
+            const cstring &s = (*i)->name;
+            if(param.length()==s.len &&
+                strncmp(s.s,param.c_str(),s.len)==0)
+            {
+                ret += c2stlstr((*i)->value);
+                return true;
+            }
+        }
+        DBG("uri option '%s' not found in header '%s'",
+            param.c_str(),name.c_str());
+        return false;
+    }
+    default:
+        ERROR("unknown part type for header '%s'",
+              name.c_str());
+        return false;
+    } //switch(part)
 }
 
 bool UsedHeaderField::getValue(const AmSipRequest &req,string &val) const
 {
     string hdr;
     sip_nameaddr na;
-    sip_uri uri;
+    list<cstring> na_list;
 
     if(!getInternalHeader(req,name,hdr))
         hdr = getHeader(req.hdrs,name);
@@ -95,54 +136,46 @@ bool UsedHeaderField::getValue(const AmSipRequest &req,string &val) const
         val = hdr;
         goto succ;
     case Uri:
-        if(parse_first_nameaddr(&na,hdr.c_str(),hdr.length()) < 0) {
-            ERROR("invalid first nameaddr '%s' in header '%s'",
+        if(parse_nameaddr_list(na_list, hdr.c_str(),hdr.length()) < 0) {
+            ERROR("wrong nameaddr list '%s' in header '%s'",
                   hdr.c_str(),name.c_str());
             return false;
         }
-        if(parse_uri(&uri,na.addr.s,na.addr.len) < 0) {
-            ERROR("invalid uri '%.*s' in header '%s'",
-                  na.addr.len,na.addr.s,name.c_str());
-            return false;
-        }
-        switch(part) {
-        case uri_user:
-            val = c2stlstr(uri.user);
-            goto succ;
-        case uri_domain:
-            val = c2stlstr(uri.host);
-            goto succ;
-        case uri_port:
-            val = int2str(uri.port);
-            goto succ;
-        case uri_param: {
-            for(list<sip_avp*>::const_iterator i = uri.params.begin();
-                i!=uri.params.end();++i)
-            {
-                const cstring &s = (*i)->name;
-                if(param.length()==s.len &&
-                   strncmp(s.s,param.c_str(),s.len)==0)
-                {
-                    val = c2stlstr((*i)->value);
-                    goto succ;
-                }
+        DBG("got %zd nameaddr entries. multiple_headers:%d",
+            na_list.size(), multiple_headers);
+
+        for(const auto &na_str : na_list) {
+            const char *s = na_str.s;
+
+            if(multiple_headers) {
+                na.params.clear();
+                na.uri.params.clear();
+                na.uri.uri_params.clear();
+                na.uri.hdrs.clear();
             }
-            DBG("uri option '%s' not found in header '%s'",
-                param.c_str(),name.c_str());
-            return false;
+
+            if(parse_nameaddr_uri(&na, &s, na_str.len) < 0) {
+                ERROR("invalid nameaddr '%.*s' in header '%s'. skip value",
+                      na_str.len, na_str.s, name.c_str());
+
+                if(multiple_headers) continue;
+                return false;
+            }
+
+            if(!process_uri(na.uri, val)) {
+                if(multiple_headers) continue;
+                return false;
+            }
+
+            if(!multiple_headers) break;
         }
-        default:
-            ERROR("unknown part type for header '%s'",
-                  name.c_str());
-            return false;
-        } //switch(part)
         break;
     default:
         ERROR("unknown value type for header '%s'",
               name.c_str());
         return false;
     } //switch(type)
-    return false;
+
 succ:
     if(val.empty()) {
         DBG("%s[%s:%s:%s] processed. got empty value. return null",
@@ -171,6 +204,7 @@ void UsedHeaderField::getInfo(AmArg &arg) const
             arg["param"] = param;
         }
     }
+    arg["multiple_headers"] = true;
 }
 
 const char* UsedHeaderField::type2str() const
