@@ -39,7 +39,7 @@ if [ $# -gt 0 ]; then
     if [ $filter == "all" ]; then
         cmd="$SEMS_TESTER -c $SEMS_TESTER_CFG --gtest_filter=$DEFAULT_FILTER $@"
     else
-        if [[ $filter == *"."* ]]; then
+        if [[ $filter == *"."* || $filter == *"/"* ]]; then
             cmd="$SEMS_TESTER -c $SEMS_TESTER_CFG --gtest_also_run_disabled_tests --gtest_filter=$filter $@"
         else
             cmd="$SEMS_TESTER -c $SEMS_TESTER_CFG --gtest_also_run_disabled_tests --gtest_filter=$MODULE_PREFIX.$filter:$MODULE_PREFIX/$filter $@"
