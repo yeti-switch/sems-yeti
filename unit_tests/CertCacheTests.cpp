@@ -1,0 +1,34 @@
+#include "YetiTest.h"
+#include "../src/CertCache.h"
+#include <botan/data_src.h>
+
+string cert_with_TNAuthList =
+"-----BEGIN CERTIFICATE-----\
+MIIDBDCCAqqgAwIBAgIUYTCTlxQtIe18LLsPvlgefvARxdswCgYIKoZIzj0EAwIw\
+gYUxCzAJBgNVBAYTAlVTMSkwJwYDVQQKDCBOZXVzdGFyIEluZm9ybWF0aW9uIFNl\
+cnZpY2VzIEluYzEZMBcGA1UECwwQd3d3LmNjaWQubmV1c3RhcjEwMC4GA1UEAwwn\
+TmV1c3RhciBDZXJ0aWZpZWQgQ2FsbGVyIElEIFNIQUtFTiBDQS0yMB4XDTIyMTIw\
+NjE5NDM0M1oXDTIzMTIwNjE5NDM0M1owPjELMAkGA1UEBhMCVVMxGTAXBgNVBAoM\
+EFBlZXJsZXNzIE5ldHdvcmsxFDASBgNVBAMMC1NIQUtFTiAwNjNFMFkwEwYHKoZI\
+zj0CAQYIKoZIzj0DAQcDQgAEbjJCYP8dmbmYa06ZXwJZn9faG+F+Ir7OfS0dDCn0\
+TErI+GpFqsuDlBguI0EWxo/Maijcmn8ePguOrQBPSdFybqOCATwwggE4MBYGCCsG\
+AQUFBwEaBAowCKAGFgQwNjNFMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUgk4V\
+//6famdR5MiXx210w/xlRXgwFwYDVR0gBBAwDjAMBgpghkgBhv8JAQEDMIGmBgNV\
+HR8EgZ4wgZswgZigOqA4hjZodHRwczovL2F1dGhlbnRpY2F0ZS1hcGkuaWNvbmVj\
+dGl2LmNvbS9kb3dubG9hZC92MS9jcmyiWqRYMFYxFDASBgNVBAcMC0JyaWRnZXdh\
+dGVyMQswCQYDVQQIDAJOSjETMBEGA1UEAwwKU1RJLVBBIENSTDELMAkGA1UEBhMC\
+VVMxDzANBgNVBAoMBlNUSS1QQTAdBgNVHQ4EFgQUx02JRjhN+ZkafxzquOZHuSXI\
+4L0wDgYDVR0PAQH/BAQDAgeAMAoGCCqGSM49BAMCA0gAMEUCIQCetzGpSQBLwHP+\
+KChWuu7YJFa6QKJQMaZw5NO3GkJlIgIgSW5romYNlkhZhBs9U11Emk6jS+iPy20C\
+sOJ3a2u10F4=\
+-----END CERTIFICATE-----";
+
+TEST_F(YetiTest, parseTNAuthList) {
+    AmArg a;
+
+    Botan::DataSource_Memory in(cert_with_TNAuthList);
+    Botan::X509_Certificate cert(in);
+
+    CertCache::serialize_cert_to_amarg(cert, a);
+    ASSERT_EQ(a["tn_auth_list"][0]["spc"], "063E");
+}
