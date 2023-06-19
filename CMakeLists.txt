@@ -58,4 +58,4 @@ message(STATUS "build user: " ${BUILD_USER})
 add_subdirectory(src)
 add_subdirectory(etc)
 
-add_custom_target(test /bin/bash ${CMAKE_SOURCE_DIR}/run_unit_test.sh YetiTest.*-YetiTest.Re*)
+add_custom_target(test /bin/bash ${CMAKE_SOURCE_DIR}/run_unit_test.sh YetiTest.*:YetiTest/*-YetiTest.Re*)
