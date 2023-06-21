@@ -115,7 +115,7 @@ static inline void radius_accounting_interim(SBCCallLeg *call, const Cdr &cdr)
 	const struct timeval *leg_connect_time;
 	timeval duration, now;
 
-	SBCCallProfile &call_profile = call->getCallProfile();
+	//SBCCallProfile &call_profile = call->getCallProfile();
 	PlaceholdersHash &v = call->getPlaceholders();
 
 	if(call->isALeg()){
@@ -163,7 +163,7 @@ static inline void radius_accounting_interim_post_event_set_timer(SBCCallLeg *ca
 
 static inline void radius_accounting_stop(SBCCallLeg *call, const Cdr &cdr)
 {
-	int profile_id;
+	//int profile_id;
 	const struct timeval *leg_connect_time;
 	timeval duration, now;
 

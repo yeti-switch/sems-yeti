@@ -313,7 +313,7 @@ int CertCache::ClearCerts(const AmArg& args)
         entries.clear();
         return ret;
     }
-    for(int i = 0; i < args.size(); i++) {
+    for(unsigned int i = 0; i < args.size(); i++) {
         AmArg& x5urlarg = args[i];
         AmLock lock(mutex);
         auto it = entries.find(x5urlarg.asCStr());
@@ -348,7 +348,7 @@ int CertCache::RenewCerts(const AmArg& args)
     }
 
     int ret = 0;
-    for(int i = 0; i < args.size(); i++) {
+    for(unsigned int i = 0; i < args.size(); i++) {
         string cert_url(args[i].asCStr());
         bool repository_is_trusted = isTrustedRepositoryUnsafe(cert_url);
         auto it = entries.find(cert_url);

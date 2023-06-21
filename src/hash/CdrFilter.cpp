@@ -350,36 +350,37 @@ cmp_functor::cmp_functor(const timeval &value, cmp_field_t cmp_field, cmp_cond_t
 
 //dynamic fields with type int
 cmp_functor::cmp_functor(int value,const string &field_name,cmp_cond_t cmp_cond)
-	: cmp_type(c_type_int), cmp_field(c_field_dynamic), cmp_cond(cmp_cond),
-	  v_int(value), dyn_field_name(field_name)
+  : cmp_type(c_type_int), cmp_field(c_field_dynamic), cmp_cond(cmp_cond),
+    dyn_field_name(field_name), v_int(value)
 {
-	DYN_FIELD_CASE(int)
-	DBG("created functor %s",info().c_str());
+    DYN_FIELD_CASE(int)
+    DBG("created functor %s",info().c_str());
 }
 
 //dynamic fields with type bigint (long long int)
 cmp_functor::cmp_functor(long long int value,const string &field_name,cmp_cond_t cmp_cond)
-	: cmp_type(c_type_long_long_int), cmp_field(c_field_dynamic), cmp_cond(cmp_cond),
-	  v_long_long_int(value), dyn_field_name(field_name)
+  : cmp_type(c_type_long_long_int), cmp_field(c_field_dynamic), cmp_cond(cmp_cond),
+    dyn_field_name(field_name), v_long_long_int(value)
 {
-	DYN_FIELD_CASE(long_long_int)
-	DBG("created functor %s",info().c_str());
+    DYN_FIELD_CASE(long_long_int)
+    DBG("created functor %s",info().c_str());
 }
 
 
 //dynamic fields with type string
 cmp_functor::cmp_functor(const string &value,const string &field_name,cmp_cond_t cmp_cond)
-	: cmp_type(c_type_string), cmp_field(c_field_dynamic), cmp_cond(cmp_cond),
-	  v_string(value), dyn_field_name(field_name)
+  : cmp_type(c_type_string), cmp_field(c_field_dynamic), cmp_cond(cmp_cond),
+    dyn_field_name(field_name), v_string(value)
 {
-	switch(cmp_cond){
-	DYN_FIELD_PTR_CASE(string,eq)
-	DYN_FIELD_PTR_CASE(string,neq)
-	default:
-		throw string(string("condition ")+get_cmp_cond_name(cmp_cond)+
-							" for dynamic field "+dyn_field_name + " is not implemented"); \
-	}
-	DBG("created functor %s",info().c_str());
+    switch(cmp_cond){
+    DYN_FIELD_PTR_CASE(string,eq)
+    DYN_FIELD_PTR_CASE(string,neq)
+    default:
+        throw string(
+            string("condition ")+get_cmp_cond_name(cmp_cond)+
+            " for dynamic field "+dyn_field_name + " is not implemented");
+    }
+    DBG("created functor %s",info().c_str());
 }
 
 //match function

@@ -77,7 +77,7 @@ class SBCFactory: public AmSessionFactory,
 
   bool core_options_handling;
 
-  auto_ptr<CallLegCreator> callLegCreator;
+  unique_ptr<CallLegCreator> callLegCreator;
 
   void postControlCmd(const AmArg& args, AmArg& ret);
 

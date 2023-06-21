@@ -121,7 +121,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   AmArg identity_data;
 
   // Rate limiting
-  auto_ptr<RateLimit> rtp_relay_rate_limit;
+  unique_ptr<RateLimit> rtp_relay_rate_limit;
   
   // Measurements
   list<::atomic_int*> rtp_pegs;

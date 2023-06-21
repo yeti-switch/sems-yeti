@@ -117,9 +117,9 @@ struct Cdr
         struct timeval time;
         dtmf_event_info(int e,struct timeval &now, int r, int t)
           : event(e),
-            time(now),
             rx_proto(r),
-            tx_proto(t)
+            tx_proto(t),
+            time(now)
         {}
         cJSON *serialize2json(const struct timeval *t);
     };

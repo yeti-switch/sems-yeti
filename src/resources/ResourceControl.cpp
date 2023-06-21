@@ -283,7 +283,6 @@ void ResourceControl::GetConfig(AmArg& ret,bool types_only){
 	DBG("types_only = %d, size = %ld",types_only,type2cfg.size());
 
 	if(types_only) {
-		map<int,ResourceConfig>::const_iterator it = type2cfg.begin();
 		for(map<int,ResourceConfig>::const_iterator it = type2cfg.begin();
 			it!=type2cfg.end();++it)
 		{

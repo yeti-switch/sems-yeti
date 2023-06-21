@@ -18,7 +18,7 @@ bool add2hash(
     case CFGT_STR:
         if(opt->flags&CFGF_LIST){
             std::string s;
-            for(int i = 0; i < cfg_size(c, cfg_key.c_str()); i++){
+            for(unsigned int i = 0; i < cfg_size(c, cfg_key.c_str()); i++){
                 if(!s.empty()) s.append(",");
                 s.append(cfg_getnstr(c, cfg_key.c_str(), i));
             }

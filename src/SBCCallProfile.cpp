@@ -703,7 +703,7 @@ static bool readPayload(SdpPayload &p, const string &src)
   return true;
 }
 
-static bool read(const std::string &src, vector<SdpPayload> &codecs)
+[[maybe_unused]] static bool read(const std::string &src, vector<SdpPayload> &codecs)
 {
   vector<string> elems = explode(src, ",");
 

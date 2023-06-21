@@ -1,4 +1,4 @@
-#pragma on
+#pragma once
 
 #include "db/DbConfig.h"
 

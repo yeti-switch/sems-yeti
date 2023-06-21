@@ -11,12 +11,12 @@
 #define EPOLL_MAX_EVENTS 2048
 
 CdrList::CdrList()
-  : stopped(false),
-    epoll_fd(0),
+  : epoll_fd(0),
     snapshots_enabled(false),
     snapshots_buffering(false),
     snapshots_interval(0),
-    last_snapshot_ts(0)
+    last_snapshot_ts(0),
+    stopped(false)
 { }
 
 CdrList::~CdrList()
@@ -322,7 +322,7 @@ void CdrList::onTimer()
     PostponedCdrsContainer local_postponed_calls;
 
     static struct tm t;
-    static struct timeval tv; //fake call interval end value
+    //static struct timeval tv; //fake call interval end value
     u_int64_t now = wheeltimer::instance()->unix_clock.get();
     u_int64_t snapshot_ts = now - (now % snapshots_interval);
 
@@ -337,8 +337,8 @@ void CdrList::onTimer()
 
     last_snapshot_ts = snapshot_ts;
 
-    tv.tv_usec = 0;
-    tv.tv_sec = snapshot_ts;
+    /*tv.tv_usec = 0;
+    tv.tv_sec = snapshot_ts;*/
     ts = snapshot_ts;
     localtime_r(&ts,&t);
 
@@ -432,7 +432,7 @@ void CdrList::onTimer()
 
     //serialize to json body for clickhouse
     data = snapshots_body_header;
-    for(int i = 0;i< calls.size();i++)
+    for(unsigned int i = 0;i < calls.size();i++)
         data+=arg2json(calls[i])+"\n";
 
     //DBG("data:\n%s",data.c_str());

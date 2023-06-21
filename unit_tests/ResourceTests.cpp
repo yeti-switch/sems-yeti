@@ -109,7 +109,7 @@ TEST_F(YetiTest, ResourceCheck)
     }
     AmArg result = cr->get_result();
     ASSERT_TRUE(isArgArray(result));
-    ASSERT_EQ(result.size(), 2);
+    ASSERT_EQ(result.size(), size_t{2});
     delete cr;
 
     conn.stop(true);

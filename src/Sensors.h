@@ -13,35 +13,39 @@
 using namespace std;
 
 class sensor {
-	msg_sensor *_sensor;
-public:
-	typedef enum {
-		SENS_TYPE_IPIP = 1,
-		SENS_TYPE_ETHERNET = 2,
-		SENS_TYPE_HEP = 3,
-		SENS_TYPE_MAX
-	} sensor_mode;
+    msg_sensor *_sensor;
+  public:
+    typedef enum {
+        SENS_TYPE_IPIP = 1,
+        SENS_TYPE_ETHERNET = 2,
+        SENS_TYPE_HEP = 3,
+        SENS_TYPE_MAX
+    } sensor_mode;
 
-	sensor(sensor_mode mode, msg_sensor *sensor_ptr):
-		_mode(mode), _sensor(sensor_ptr)
-	{
-		//INFO("sensor(%p) _sensor = %p",this,_sensor);
-		if(_sensor) inc_ref(_sensor);
-	}
-	sensor(const sensor &obj):
-		_mode(obj._mode), _sensor(obj._sensor)
-	{
-		//INFO("sensor(%p from %p)",this,&obj);
-		if(_sensor) inc_ref(_sensor);
-	}
-	~sensor() {
-		//INFO("~sensor(%p) _sensor = %p",this,_sensor);
-		if(_sensor) dec_ref(_sensor);
-	}
-	void getConfig(AmArg& ret) const;
-	msg_sensor *getSensor() { return _sensor; }
-private:
-	sensor_mode _mode;
+    sensor(sensor_mode mode, msg_sensor *sensor_ptr):
+        _sensor(sensor_ptr), _mode(mode)
+    {
+        //INFO("sensor(%p) _sensor = %p",this,_sensor);
+        if(_sensor) inc_ref(_sensor);
+    }
+
+    sensor(const sensor &obj):
+        _sensor(obj._sensor), _mode(obj._mode)
+    {
+        //INFO("sensor(%p from %p)",this,&obj);
+        if(_sensor) inc_ref(_sensor);
+    }
+
+    ~sensor() {
+        //INFO("~sensor(%p) _sensor = %p",this,_sensor);
+        if(_sensor) dec_ref(_sensor);
+    }
+
+    void getConfig(AmArg& ret) const;
+    msg_sensor *getSensor() { return _sensor; }
+
+  private:
+    sensor_mode _mode;
 };
 
 class _Sensors {

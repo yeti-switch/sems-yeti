@@ -52,10 +52,10 @@ ReliableB2BEvent::~ReliableB2BEvent()
 CallLeg::CallLeg(const CallLeg* caller, AmSipDialog* p_dlg, AmSipSubscription* p_subs)
   : AmB2BSession(caller->getLocalTag(),p_dlg,p_subs),
     call_status(Disconnected),
+    allow_1xx_without_to_tag(false),
     on_hold(false),
-	hold(PreserveHoldStatus),
-	allow_1xx_without_to_tag(false),
-	redirects_allowed(0)
+    hold(PreserveHoldStatus),
+    redirects_allowed(0)
 {
   a_leg = !caller->a_leg; // we have to be the complement
 
@@ -102,10 +102,10 @@ CallLeg::CallLeg(const CallLeg* caller, AmSipDialog* p_dlg, AmSipSubscription* p
 CallLeg::CallLeg(AmSipDialog* p_dlg, AmSipSubscription* p_subs)
   : AmB2BSession("",p_dlg,p_subs),
     call_status(Disconnected),
+    allow_1xx_without_to_tag(false),
     on_hold(false),
-	hold(PreserveHoldStatus),
-	allow_1xx_without_to_tag(false),
-	redirects_allowed(0)
+    hold(PreserveHoldStatus),
+    redirects_allowed(0)
 {
   a_leg = true;
 

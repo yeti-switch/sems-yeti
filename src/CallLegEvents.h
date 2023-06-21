@@ -1,6 +1,8 @@
 #ifndef __CALL_LEG_EVENTS_H
 #define __CALL_LEG_EVENTS_H
 
+#include "AmB2BSession.h"
+
 // TODO: global event numbering
 enum {
   ConnectLeg = B2BDtmfEvent + 16,
@@ -85,10 +87,20 @@ struct ReliableB2BEvent: public B2BEvent
 
   public:
 
-    ReliableB2BEvent(int ev_id, B2BEvent *_processed, B2BEvent *_unprocessed):
-      B2BEvent(ev_id), processed(false), processed_reply(_processed), unprocessed_reply(_unprocessed) { }
-    ReliableB2BEvent(int ev_id, B2BEventType ev_type, B2BEvent *_processed, B2BEvent *_unprocessed):
-      B2BEvent(ev_id, ev_type), processed(false), processed_reply(_processed), unprocessed_reply(_unprocessed) { }
+    ReliableB2BEvent(int ev_id, B2BEvent *_processed, B2BEvent *_unprocessed)
+      : B2BEvent(ev_id),
+        processed(false),
+        unprocessed_reply(_unprocessed),
+        processed_reply(_processed)
+    { }
+
+    ReliableB2BEvent(int ev_id, B2BEventType ev_type, B2BEvent *_processed, B2BEvent *_unprocessed)
+      : B2BEvent(ev_id, ev_type),
+        processed(false),
+        unprocessed_reply(_unprocessed),
+        processed_reply(_processed)
+    { }
+
     void markAsProcessed() { processed = true; }
     void setSender(const string &tag) { sender = tag; }
     virtual ~ReliableB2BEvent();
