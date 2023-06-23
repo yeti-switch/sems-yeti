@@ -40,7 +40,7 @@ class _alarms {
   public:
 
 	struct InvalidAlarmIdException: public std::exception {
-		const char* what(){ return "invalid alarm id"; }
+		const char* what() const noexcept override { return "invalid alarm id"; }
 	};
 
 	enum {

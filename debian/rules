@@ -5,7 +5,7 @@
 BUILD_DIR=build
 DEB_BUILD_OPTIONS:=$(DEB_BUILD_OPTIONS) reproducible=-fixfilepath
 
-dh_args=--buildsystem=cmake --builddirectory=$(BUILD_DIR) --parallel
+dh_args=--buildsystem=cmake+ninja --builddirectory=$(BUILD_DIR) --parallel
 %:
 	dh $@ $(dh_args)
 

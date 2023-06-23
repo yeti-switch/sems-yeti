@@ -248,7 +248,7 @@ string SBCCallProfile::print() const {
   res += "auth_aleg_user:       " + auth_aleg_credentials.user+"\n";
   res += "auth_aleg_pwd:        " + auth_aleg_credentials.pwd+"\n";
   res += "rtprelay_enabled:     " + string(rtprelay_enabled?"true":"false") + "\n";
-  res += "force_symmetric_rtp:  " + force_symmetric_rtp;
+  res += "force_symmetric_rtp:  " + int2str(force_symmetric_rtp);
 
   res += transcoder.print();
 

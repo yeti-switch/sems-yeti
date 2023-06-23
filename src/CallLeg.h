@@ -198,7 +198,7 @@ class CallLeg: public AmB2BSession
 
     /** Clears other leg, eventually removes it from the list of other legs if
      * it is there. It neither updates call state nor sip_relay_only flag! */
-    virtual void clear_other();
+    virtual void clear_other() override;
 
     /*void changeRtpMode(RTPRelayMode new_mode, AmB2BMedia *new_media);
     void changeOtherLegsRtpMode(RTPRelayMode new_mode);*/
@@ -232,21 +232,23 @@ class CallLeg: public AmB2BSession
 		       bool relayed_invite=false, unsigned int r_cseq = 0);
 
     // @see AmSession
-    virtual void onInvite(const AmSipRequest& req);
-    virtual void onInvite2xx(const AmSipReply& reply);
-    virtual void onCancel(const AmSipRequest& req);
-    virtual void onBye(const AmSipRequest& req);
-    virtual void onRemoteDisappeared(const AmSipReply& reply);
-    virtual void onNoAck(unsigned int cseq);
-    virtual void onNoPrack(const AmSipRequest &req, const AmSipReply &rpl);
-    virtual void onRtpTimeout();
-    virtual void onSessionTimeout();
+    virtual void onInvite(const AmSipRequest& req) override;
+    virtual void onInvite2xx(const AmSipReply& reply) override;
+    virtual void onCancel(const AmSipRequest& req) override;
+    virtual void onBye(const AmSipRequest& req) override;
+    virtual void onRemoteDisappeared(const AmSipReply& reply) override;
+    virtual void onNoAck(unsigned int cseq) override;
+    virtual void onNoPrack(const AmSipRequest &req, const AmSipReply &rpl) override;
+    virtual void onRtpTimeout() override;
+    virtual void onSessionTimeout() override;
 
     // @see AmB2BSession
-    virtual void onOtherBye(const AmSipRequest& req);
+    virtual void onOtherBye(const AmSipRequest& req) override;
 
-    virtual void onSipRequest(const AmSipRequest& req);
-    virtual void onSipReply(const AmSipRequest& req, const AmSipReply& reply, AmSipDialog::Status old_dlg_status);
+    virtual void onSipRequest(const AmSipRequest& req) override;
+    virtual void onSipReply(const AmSipRequest& req,
+                            const AmSipReply& reply,
+                            AmSipDialog::Status old_dlg_status) override;
 
     virtual void onInitialReply(B2BSipReplyEvent *e);
 
@@ -274,8 +276,8 @@ class CallLeg: public AmB2BSession
     virtual void resumeAccepted();
     virtual void resumeRejected() { }
 
-    virtual void terminateOtherLeg();
-    virtual void terminateLeg();
+    virtual void terminateOtherLeg() override;
+    virtual void terminateLeg() override;
     /** terminate all other B legs than the connected one (should not be used
      * directly by successors, right?) */
     void terminateNotConnectedLegs();
@@ -299,7 +301,7 @@ class CallLeg: public AmB2BSession
 	void setAllow1xxWithoutToTag(bool allow) { allow_1xx_without_to_tag = allow; }
 
   public:
-    virtual void onB2BEvent(B2BEvent* ev);
+    virtual void onB2BEvent(B2BEvent* ev) override;
 
     /** does all the job around disconnecting from the other leg (updates call
      * status, disconnects RTP from the other, puts remote on hold (if
@@ -358,8 +360,8 @@ class CallLeg: public AmB2BSession
     const char* getCallStatusStr() const;
 
     // AmMediaSession interface from AmMediaProcessor
-    int readStreams(unsigned long long ts, unsigned char *buffer);
-    int writeStreams(unsigned long long ts, unsigned char *buffer);
+    int readStreams(unsigned long long ts, unsigned char *buffer) override;
+    int writeStreams(unsigned long long ts, unsigned char *buffer) override;
 
   public:
     /** creates A leg */
@@ -372,11 +374,11 @@ class CallLeg: public AmB2BSession
     virtual ~CallLeg();
 
     // OA callbacks
-    virtual int onSdpCompleted(const AmSdp& local, const AmSdp& remote);
-    virtual bool getSdpOffer(AmSdp& offer) { return false; }
-    virtual bool getSdpAnswer(const AmSdp& offer, AmSdp& answer) { return false; }
-    virtual void onEarlySessionStart() { }
-    virtual void onSessionStart() { }
+    virtual int onSdpCompleted(const AmSdp& local, const AmSdp& remote) override;
+    virtual bool getSdpOffer(AmSdp& offer) override { return false; }
+    virtual bool getSdpAnswer(const AmSdp& offer, AmSdp& answer) override { return false; }
+    virtual void onEarlySessionStart() override { }
+    virtual void onSessionStart() override { }
 
 };
 

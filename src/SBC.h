@@ -57,6 +57,7 @@ struct CallLegCreator {
                              OriginationPreAuth::Reply &ip_auth_data,
                              Auth::auth_id_type auth_result_id);
   virtual SBCCallLeg* create(SBCCallLeg* caller, AmSipDialog* dlg);
+  virtual ~CallLegCreator() {}
 };
 
 class SBCFactory: public AmSessionFactory,
@@ -95,7 +96,7 @@ class SBCFactory: public AmSessionFactory,
   SBCFactory(const string& _app_name);
   ~SBCFactory();
 
-  int onLoad();
+  int onLoad() override;
   int configure(const std::string& config) override;
   int reconfigure(const std::string& config) override;
 
@@ -103,9 +104,9 @@ class SBCFactory: public AmSessionFactory,
   CallLegCreator* getCallLegCreator() { return callLegCreator.get(); }
 
   AmSession* onInvite(const AmSipRequest& req, const string& app_name,
-		      const map<string,string>& app_params);
+                      const map<string,string>& app_params) override;
 
-  void onOoDRequest(const AmSipRequest& req);
+  void onOoDRequest(const AmSipRequest& req) override;
 
   AmSessionEventHandlerFactory* session_timer_fact;
 
@@ -116,10 +117,10 @@ class SBCFactory: public AmSessionFactory,
 
   // DI
   // DI factory
-  AmDynInvoke* getInstance() { return yeti_invoke; }
+  AmDynInvoke* getInstance() override { return yeti_invoke; }
   // DI API
-  void invoke(const string& method, 
-	      const AmArg& args, AmArg& ret);
+  void invoke(const string& method,
+              const AmArg& args, AmArg& ret) override;
 
 };
 

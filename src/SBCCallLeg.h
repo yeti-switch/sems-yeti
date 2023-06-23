@@ -147,7 +147,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void setLogger(msg_logger *_logger);
 
   /** handler called when call is stopped (see AmSession) */
-  virtual void onStop();
+  virtual void onStop() override;
 
   /** apply A leg configuration from call profile */
   //void applyAProfile();
@@ -155,21 +155,21 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   /** apply B leg configuration from call profile */
   void applyBProfile();
 
-  virtual void onCallStatusChange(const StatusChangeCause &cause);
-  virtual void onBLegRefused(AmSipReply& reply);
+  virtual void onCallStatusChange(const StatusChangeCause &cause) override;
+  virtual void onBLegRefused(AmSipReply& reply) override;
 
   /** handler called when the call is refused with a non-ok reply or canceled */
-  virtual void onCallFailed(CallFailureReason reason, const AmSipReply *reply);
+  virtual void onCallFailed(CallFailureReason reason, const AmSipReply *reply) override;
 
   /** handler called when the second leg is connected */
-  virtual void onCallConnected(const AmSipReply& reply);
+  virtual void onCallConnected(const AmSipReply& reply) override;
 
   /** Call-backs used by RTP stream(s)
    *  Note: these methods will be called from the RTP receiver thread.
    */
-  virtual bool onBeforeRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr);
-  virtual void onAfterRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr);
-  virtual void onRTPStreamDestroy(AmRtpStream *stream);
+  virtual bool onBeforeRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr) override;
+  virtual void onAfterRTPRelay(AmRtpPacket* p, sockaddr_storage* remote_addr) override;
+  virtual void onRTPStreamDestroy(AmRtpStream *stream) override;
 
   void alterHoldRequestImpl(AmSdp &sdp); // do the SDP update (called by alterHoldRequest)
 
@@ -229,21 +229,21 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
              AmSipDialog* dlg=NULL, AmSipSubscription* p_subs=NULL);
   ~SBCCallLeg();
 
-  void process(AmEvent* ev);
-  void onInvite(const AmSipRequest& req);
+  void process(AmEvent* ev) override;
+  void onInvite(const AmSipRequest& req) override;
   void onIdentityReady();
   void onRoutingReady();
   void onFailure() override;
-  void onInviteException(int code,string reason,bool no_reply);
-  bool onException(int code,const string &reason) noexcept;
+  void onInviteException(int code,string reason,bool no_reply) override;
+  bool onException(int code,const string &reason) noexcept override;
   void onOtherException(int code,const string &reason) noexcept;
   void onEarlyEventException(unsigned int code,const string &reason);
   void normalizeSdpVersion(unsigned int &sdp_session_version_in, unsigned int cseq, bool offer);
 
-  void onDtmf(AmDtmfEvent* e);
+  void onDtmf(AmDtmfEvent* e) override;
 
-  virtual void onStart();
-  virtual void onBeforeDestroy();
+  virtual void onStart() override;
+  virtual void onBeforeDestroy() override;
   void finalize() override;
 
   //int filterSdp(AmMimeBody &body, const string &method);
@@ -254,7 +254,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void applyAProfile();
   int applySSTCfg(AmConfigReader& sst_cfg, const AmSipRequest* p_req);
 
-  UACAuthCred* getCredentials();
+  UACAuthCred* getCredentials() override;
 
   void setAuthHandler(AmSessionEventHandler* h) { auth = h; }
 
@@ -306,11 +306,11 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   bool reinvite(const AmSdp &sdp, unsigned &request_cseq);
 
-  int relayEvent(AmEvent* ev);
-  void onSipRequest(const AmSipRequest& req);
+  int relayEvent(AmEvent* ev) override;
+  void onSipRequest(const AmSipRequest& req) override;
   bool isALeg() { return a_leg; }
 
-  virtual void setMediaSession(AmB2BMedia *new_session);
+  virtual void setMediaSession(AmB2BMedia *new_session) override;
   virtual void computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &mask, PayloadRelayMap& map) override;
   virtual void processLocalRequest(AmSipRequest &req);
 
@@ -320,22 +320,24 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   msg_sensor *getSensor() { return sensor; }
   bool getMemoryLoggerEnabled() { return memory_logger_enabled; }
 
-  void b2bInitial1xx(AmSipReply& reply, bool forward);
-  void b2bConnectedErr(AmSipReply& reply);
+  void b2bInitial1xx(AmSipReply& reply, bool forward) override;
+  void b2bConnectedErr(AmSipReply& reply) override;
 
  protected:
 
   void setOtherId(const AmSipReply& reply);
-  void setOtherId(const string& n_other_id) { CallLeg::setOtherId(n_other_id); }
+  void setOtherId(const string& n_other_id) override { CallLeg::setOtherId(n_other_id); }
 
-  void onSipReply(const AmSipRequest& req, const AmSipReply& reply, AmSipDialog::Status old_dlg_status);
-  void onSendRequest(AmSipRequest& req, int &flags);
+  void onSipReply(const AmSipRequest& req,
+                  const AmSipReply& reply,
+                  AmSipDialog::Status old_dlg_status) override;
+  void onSendRequest(AmSipRequest& req, int &flags) override;
 
-  virtual void onInitialReply(B2BSipReplyEvent *e);
+  virtual void onInitialReply(B2BSipReplyEvent *e) override;
 
-  void onRemoteDisappeared(const AmSipReply& reply);
-  void onBye(const AmSipRequest& req);
-  void onOtherBye(const AmSipRequest& req);
+  void onRemoteDisappeared(const AmSipReply& reply) override;
+  void onBye(const AmSipRequest& req) override;
+  void onOtherBye(const AmSipRequest& req) override;
 
   void onControlCmd(string& cmd, AmArg& params);
 
@@ -348,17 +350,17 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   void createCalleeSession();
 
-  virtual void createHoldRequest(AmSdp &sdp);
-  virtual void alterHoldRequest(AmSdp &sdp);
-  virtual void holdRequested();
-  virtual void holdAccepted();
-  virtual void holdRejected();
-  virtual void resumeRequested();
-  virtual void resumeAccepted();
-  virtual void resumeRejected();
+  virtual void createHoldRequest(AmSdp &sdp) override;
+  virtual void alterHoldRequest(AmSdp &sdp) override;
+  virtual void holdRequested() override;
+  virtual void holdAccepted() override;
+  virtual void holdRejected() override;
+  virtual void resumeRequested() override;
+  virtual void resumeAccepted() override;
+  virtual void resumeRejected() override;
 
-  virtual int onSdpCompleted(const AmSdp& local, const AmSdp& remote);
-  virtual bool getSdpOffer(AmSdp& offer);
+  virtual int onSdpCompleted(const AmSdp& local, const AmSdp& remote) override;
+  virtual bool getSdpOffer(AmSdp& offer) override;
   //int applySSTCfg(AmConfigReader& sst_cfg, const AmSipRequest* p_req);
 
   bool openLogger(const std::string &path);

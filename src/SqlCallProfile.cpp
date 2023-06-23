@@ -30,7 +30,7 @@ static void readMediaAcl(const AmArg &t, const char key[], std::vector<AmSubnet>
 	for(size_t i = 0; i < v.size(); i++) {
 		AmArg &a = v[i];
 		if(!isArgCStr(a)) {
-			ERROR("skip unexpected array entry: %s", AmArg::print(a));
+			ERROR("skip unexpected array entry: %s", a.print().data());
 			continue;
 		}
 		AmSubnet subnet;
