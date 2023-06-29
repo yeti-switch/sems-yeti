@@ -1,3 +1,8 @@
+sems-yeti (1.13.22) stable; urgency=medium
+  * libsems1.107
+  * switch to clang-14 + ninja
+ -- dev <dev@yeti-switch.org>  Thu, 29 Jun 2023 22:47:46 +0300
+
 sems-yeti (1.13.21) stable; urgency=medium
   * load_interface_in(): support _array suffix for the 'varformat'
  -- dev <dev@yeti-switch.org>  Fri, 16 Jun 2023 22:50:39 +0300
