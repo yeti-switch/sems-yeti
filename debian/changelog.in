@@ -1,3 +1,8 @@
+sems-yeti (1.13.23) stable; urgency=medium
+  * libsems1.111
+  * add STIR/SHAKEN Identity generation
+ -- dev <dev@yeti-switch.org>  Sun, 09 Jul 2023 13:26:17 +0300
+
 sems-yeti (1.13.22) stable; urgency=medium
   * libsems1.107
   * switch to clang-14 + ninja
