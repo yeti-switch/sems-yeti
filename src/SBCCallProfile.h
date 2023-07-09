@@ -301,6 +301,11 @@ struct SBCCallProfile
   std::vector<AmSubnet> aleg_rtp_acl;
   std::vector<AmSubnet> bleg_rtp_acl;
 
+  int ss_crt_id;
+  int ss_attest_id;
+  string ss_dtn;
+  string ss_otn;
+
   struct TranscoderSettings {
     enum { DTMFAlways, DTMFNever } dtmf_mode;
 
@@ -418,6 +423,8 @@ struct SBCCallProfile
       bleg_media_encryption_mode_id(0),
       aleg_media_allow_zrtp(false),
       bleg_media_allow_zrtp(false),
+      ss_crt_id(0),
+      ss_attest_id(0),
       log_rtp(false),
       log_sip(false)
   { }

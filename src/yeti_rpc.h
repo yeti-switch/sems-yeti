@@ -116,6 +116,7 @@ class YetiRpc
     rpc_handler requestCertCacheTrustedCertsReload;
     rpc_handler showCertCacheTrustedRepositories;
     rpc_handler requestCertCacheTrustedRepositoriesReload;
+    rpc_handler showCertCacheSigningKeys;
 
     rpc_handler showTrustedBalancers;
     rpc_handler requestTrustedBalancersReload;

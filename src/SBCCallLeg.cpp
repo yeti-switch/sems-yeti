@@ -1679,6 +1679,37 @@ void SBCCallLeg::applyBProfile()
     setInviteRetransmitTimeout(call_profile.inv_srv_failover_timeout);
 }
 
+void SBCCallLeg::addIdentityHeader(AmSipRequest& req)
+{
+    if(!yeti.config.identity_enabled || !call_profile.ss_crt_id)
+        return;
+
+    AmIdentity identity;
+
+    AmIdentity::ident_attest attest_level;
+    switch(call_profile.ss_attest_id) {
+    case SS_ATTEST_A:
+        attest_level = AmIdentity::AT_A;
+    case SS_ATTEST_B:
+        attest_level = AmIdentity::AT_B;
+    case SS_ATTEST_C:
+        attest_level = AmIdentity::AT_C;
+    default:
+        WARN("unexpected ss_attest_id:%d. failover to the level C",
+            call_profile.ss_attest_id);
+        attest_level = AmIdentity::AT_C;
+    }
+
+    identity.set_attestation(attest_level);
+    identity.add_orig_tn(call_profile.ss_otn);
+    identity.add_dest_tn(call_profile.ss_dtn);
+
+    auto ret = yeti.cert_cache.getIdentityHeader(identity, call_profile.ss_crt_id);
+    if(ret) {
+        req.hdrs += "Identity: " + ret.value() + CRLF;
+    }
+}
+
 int SBCCallLeg::relayEvent(AmEvent* ev)
 {
     B2BSipReplyEvent* reply_ev;
@@ -2369,6 +2400,12 @@ void SBCCallLeg::onSendRequest(AmSipRequest& req, int &flags)
                 removeHeader(req.hdrs,hdr_name);
             }
         }
+
+        if(req.method==SIP_METH_INVITE && req.to_tag.empty()) {
+            //initial INVITE on Bleg
+            addIdentityHeader(req);
+        }
+
         if (!call_profile.append_headers_req.empty()) {
             DBG("appending '%s' to outbound request (B leg)",
                 call_profile.append_headers_req.c_str());

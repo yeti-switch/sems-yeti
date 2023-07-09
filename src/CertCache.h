@@ -3,6 +3,7 @@
 #include <ampi/HttpClientAPI.h>
 #include <AmSipMsg.h>
 #include <AmConfigReader.h>
+#include <AmIdentity.h>
 
 #include "db/DbConfig.h"
 #include "cfg/YetiCfg.h"
@@ -12,6 +13,7 @@
 
 #include <botan/x509_ca.h>
 #include <botan/certstor.h>
+#include <botan/pkcs8.h>
 
 #include <unordered_map>
 #include <regex>
@@ -90,6 +92,23 @@ class CertCache
     };
     vector<TrustedCertEntry> trusted_certs;
     Botan::Certificate_Store_In_Memory trusted_certs_store;
+
+    struct SigningKeyEntry {
+        string name;
+        string x5u;
+        std::unique_ptr<Botan::Private_Key> key;
+
+        SigningKeyEntry(
+            const string &name,
+            const string &x5u,
+            std::unique_ptr<Botan::Private_Key> &key)
+          : name(name),
+            x5u(x5u),
+            key(std::move(key))
+        {}
+    };
+    std::map<unsigned long, SigningKeyEntry> signing_keys;
+
     std::chrono::system_clock::time_point db_refresh_expire;
 
     struct TrustedRepositoryEntry {
@@ -97,7 +116,7 @@ class CertCache
         string url_pattern;
         bool validate_https_certificate;
         std::regex regex;
-        TrustedRepositoryEntry(
+            TrustedRepositoryEntry(
             unsigned long id,
             string url_pattern,
             bool validate_https_certificate)
@@ -132,10 +151,14 @@ class CertCache
     std::unique_ptr<Botan::Public_Key> getPubKey(const string& cert_url, bool &cert_is_valid);
     bool isTrustedRepository(const string& cert_url);
 
+    std::optional<std::string> getIdentityHeader(
+        AmIdentity &identity, unsigned long signing_key_id);
+
     void processHttpReply(const HttpGetResponseEvent& resp);
     void onTimer(const std::chrono::system_clock::time_point &now);
     void reloadTrustedCertificates(const AmArg &data);
     void reloadTrustedRepositories(const AmArg &data);
+    void reloadSigningKeys(const AmArg &data);
 
     //rpc methods
     void ShowCerts(AmArg& ret, const std::chrono::system_clock::time_point &now);
@@ -144,6 +167,7 @@ class CertCache
 
     void ShowTrustedCerts(AmArg& ret);
     void ShowTrustedRepositories(AmArg& ret);
+    void ShowSigningKeys(AmArg& ret);
 
     static void serialize_cert_to_amarg(const Botan::X509_Certificate &cert, AmArg &a);
 };

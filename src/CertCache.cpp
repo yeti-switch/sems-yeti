@@ -127,6 +127,29 @@ bool CertCache::isTrustedRepository(const string& cert_url)
     return isTrustedRepositoryUnsafe(cert_url);
 }
 
+std::optional<std::string> CertCache::getIdentityHeader(
+    AmIdentity &identity, unsigned long signing_key_id)
+{
+    AmLock lock(mutex);
+
+    auto it = signing_keys.find(signing_key_id);
+    if(it ==  signing_keys.end()) {
+        AmArg orig, dest;
+        identity.get_orig().serialize(orig);
+        identity.get_dest().serialize(dest);
+        ERROR("no signing key %lu on signing identity: %s -> %s",
+            signing_key_id,
+            orig.print().data(),
+            dest.print().data());
+
+        return std::nullopt;
+    }
+
+    const auto &key_data = it->second;
+    identity.set_x5u_url(key_data.x5u);
+    return identity.generate(key_data.key.get());
+}
+
 void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
 {
     AmLock lock(mutex);
@@ -243,7 +266,7 @@ void CertCache::reloadTrustedCertificates(const AmArg &data)
                 cert_entry.certs.emplace_back(new Botan::X509_Certificate(in));
                 trusted_certs_store.add_certificate(*cert_entry.certs.back().get());
             } catch(Botan::Exception &e) {
-                ERROR("CertCache entry %lu '%s' Botan::exception: %s",
+                ERROR("CertCache trusted entry %lu '%s' Botan::exception: %s",
                     cert_entry.id, cert_entry.name.data(),
                     e.what());
             }
@@ -265,6 +288,32 @@ void CertCache::reloadTrustedRepositories(const AmArg &data)
                 a["validate_https_certificate"].asBool());
         } catch(std::regex_error& e) {
             ERROR("CertCache row regex_error: %s", e.what());
+        }
+    }
+}
+
+void CertCache::reloadSigningKeys(const AmArg &data)
+{
+    AmLock l(mutex);
+    signing_keys.clear();
+    if(!isArgArray(data)) return;
+    for(size_t i = 0; i < data.size(); i++) {
+        AmArg &a = data[i];
+
+        auto id = a["id"].asNumber<unsigned long>();
+        string name = a["name"].asCStr();
+        try {
+            Botan::DataSource_Memory key_data(a["key"].asCStr());
+            auto key = Botan::PKCS8::load_key(key_data, std::string_view());
+            signing_keys.try_emplace(
+                id,
+                name,
+                a["x5u"].asCStr(),
+                key);
+        } catch(Botan::Exception &e) {
+            ERROR("CertCache signing entry %lu '%s' Botan::exception: %s",
+                id, name.data(),
+                e.what());
         }
     }
 }
@@ -414,6 +463,27 @@ void CertCache::ShowTrustedRepositories(AmArg& ret)
         a["id"] = r.id;
         a["url_pattern"] = r.url_pattern;
         a["validate_https_certificate"] = r.validate_https_certificate;
+    }
+}
+
+void CertCache::ShowSigningKeys(AmArg& ret)
+{
+    ret.assertArray();
+
+    AmLock lock(mutex);
+
+    for(const auto &it: signing_keys) {
+        const auto &key_entry = it.second;
+
+        ret.push(AmArg());
+        auto &a = ret.back();
+
+        a["id"] = it.first;
+        a["name"] = key_entry.name;
+        a["x5u"] = key_entry.x5u;
+        a["fingerprint_sha256"] = key_entry.key->fingerprint_public();
+        a["fingerprint_sha1"] = key_entry.key->fingerprint_public("SHA-1");
+        a["algorithm_name"] = key_entry.key->algo_name();
     }
 }
 

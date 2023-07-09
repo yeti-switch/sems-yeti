@@ -353,6 +353,11 @@ bool SqlCallProfile::readFromTuple(const AmArg &t,const DynFieldsT &df){
 	readMediaAcl(t, "aleg_rtp_acl", aleg_rtp_acl);
 	readMediaAcl(t, "bleg_rtp_acl", bleg_rtp_acl);
 
+	ss_crt_id = DbAmArg_hash_get_int(t, "ss_crt_id", 0);
+	ss_attest_id = DbAmArg_hash_get_int(t, "ss_attest_id", 3 /* attest level C */);
+	ss_otn = DbAmArg_hash_get_str(t, "ss_otn");
+	ss_dtn = DbAmArg_hash_get_str(t, "ss_dtn");
+
 	DBG("Yeti: loaded SQL profile");
 
 	return true;

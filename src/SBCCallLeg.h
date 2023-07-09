@@ -12,6 +12,12 @@
 
 #include "SBCCallControlAPI.h"
 
+enum stir_shaken_attest_level_id {
+    SS_ATTEST_A = 1,
+    SS_ATTEST_B,
+    SS_ATTEST_C
+};
+
 class in_memory_msg_logger: public msg_logger {
 
     struct log_entry {
@@ -154,6 +160,8 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   /** apply B leg configuration from call profile */
   void applyBProfile();
+
+  void addIdentityHeader(AmSipRequest& req);
 
   virtual void onCallStatusChange(const StatusChangeCause &cause) override;
   virtual void onBLegRefused(AmSipReply& reply) override;

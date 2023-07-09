@@ -1,4 +1,5 @@
 #include "DbHelpers.h"
+#include "log.h"
 
 bool DbAmArg_hash_get_bool(
     const AmArg &a,

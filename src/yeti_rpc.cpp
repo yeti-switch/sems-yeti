@@ -178,7 +178,7 @@ void YetiRpc::init_rpc_tree()
 			method(show_cert_cache, "cached_certificates", "show cached certificates", showCertCacheEntries, "");
 			method(show_cert_cache, "trusted_certificates", "show trusted certificates", showCertCacheTrustedCerts, "");
 			method(show_cert_cache, "trusted_repositories", "show trusted repositories", showCertCacheTrustedRepositories, "");
-
+			method(show_cert_cache, "signing_keys", "show signing keys", showCertCacheSigningKeys, "");
 		method(show, "trusted_balancers", "show trusted balancers list", showTrustedBalancers, "");
 		method(show, "ip_auth", "show ip auth list", showIPAuth, "");
 
@@ -1007,6 +1007,11 @@ void YetiRpc::showCertCacheTrustedCerts(const AmArg&, AmArg& ret)
 void YetiRpc::showCertCacheTrustedRepositories(const AmArg&, AmArg& ret)
 {
     cert_cache.ShowTrustedRepositories(ret);
+}
+
+void YetiRpc::showCertCacheSigningKeys(const AmArg&, AmArg& ret)
+{
+    cert_cache.ShowSigningKeys(ret);
 }
 
 void YetiRpc::showTrustedBalancers(const AmArg&, AmArg& ret)

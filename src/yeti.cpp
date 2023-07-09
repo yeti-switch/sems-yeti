@@ -630,6 +630,17 @@ void Yeti::initCfgTimerMappings()
                 cert_cache.reloadTrustedRepositories(e.result);
             }}
         },
+        { "stir_shaken_signing_certificates", {
+            [&](const string &key) {
+                if(!config.identity_enabled)
+                    return;
+                yeti_routing_db_query(
+                    "SELECT * FROM load_stir_shaken_signing_certificates()", key);
+            },
+            [&](const PGResponse &e) {
+                cert_cache.reloadSigningKeys(e.result);
+            }}
+        },
 
         //orig_pre_auth
         { "ip_auth", {
