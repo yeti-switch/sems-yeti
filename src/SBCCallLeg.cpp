@@ -1690,10 +1690,13 @@ void SBCCallLeg::addIdentityHeader(AmSipRequest& req)
     switch(call_profile.ss_attest_id) {
     case SS_ATTEST_A:
         attest_level = AmIdentity::AT_A;
+        break;
     case SS_ATTEST_B:
         attest_level = AmIdentity::AT_B;
+        break;
     case SS_ATTEST_C:
         attest_level = AmIdentity::AT_C;
+        break;
     default:
         WARN("unexpected ss_attest_id:%d. failover to the level C",
             call_profile.ss_attest_id);
