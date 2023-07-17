@@ -448,7 +448,7 @@ void CdrList::onTimer()
     }
 }
 
-inline void CdrList::cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const noexcept
+void CdrList::cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const noexcept
 {
     #define add_field(val)\
         arg[#val] = cdr->val;
@@ -526,7 +526,7 @@ inline void CdrList::cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ct
     #undef add_field
 }
 
-inline void CdrList::cdr2arg_filtered(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const noexcept
+void CdrList::cdr2arg_filtered(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const noexcept
 {
     #define filter(val)\
         if(::find(wanted_fields.begin(),wanted_fields.end(),val)!=wanted_fields.end())
