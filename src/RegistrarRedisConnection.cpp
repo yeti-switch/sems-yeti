@@ -11,7 +11,7 @@ static const string REGISTAR_QUEUE_NAME("registrar");
 
 RegistrarRedisConnection::ContactsSubscriptionConnection::ContactsSubscriptionConnection(
     KeepAliveContexts &keepalive_contexts)
-  : RedisConnectionPool("reg_subscription", "reg_async_redis_sub"),
+  : RedisConnectionPool("reg_sub", "reg_async_redis_sub"),
     keepalive_contexts(keepalive_contexts),
     load_contacts_data("load_contacts_data", get_queue_name())
 {}
