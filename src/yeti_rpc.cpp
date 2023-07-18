@@ -661,7 +661,7 @@ static void SBCCallLeg2AmArg(SBCCallLeg *leg, AmArg &s)
 
 	CallCtx *ctx = leg->getCallCtx();
 	if(ctx) {
-		if(Cdr *cdr = ctx->cdr) cdr->info(s);
+		if(Cdr *cdr = ctx->cdr.get()) cdr->info(s);
 		if(SqlCallProfile *profile = ctx->getCurrentProfile()) profile->info(s);
 		leg->putCallCtx();
 	}

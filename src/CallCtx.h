@@ -27,7 +27,7 @@ struct CallCtx
 	//instead of atomic_int. guarded by SBCCallLeg::call_ctx_mutex
 	unsigned int references;
 
-	Cdr *cdr;
+	std::unique_ptr<Cdr> cdr;
 	list<SqlCallProfile> profiles;
 	list<SqlCallProfile>::iterator current_profile;
 	AmSipRequest *initial_invite;

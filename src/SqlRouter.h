@@ -97,7 +97,7 @@ class SqlRouter
     void stop();
 
     void align_cdr(Cdr &cdr);
-    void write_cdr(Cdr *cdr, bool last);
+    void write_cdr(std::unique_ptr<Cdr> &cdr, bool last);
     void write_auth_log(const AuthCdr &auth_log);
 
     void log_auth(

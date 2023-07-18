@@ -69,7 +69,7 @@ int CdrList::getCall(const string &local_tag,AmArg &call,const SqlRouter *router
 
         if(call_ctx->cdr) {
             found = true;
-            cdr2arg(call,call_ctx->cdr,ctx);
+            cdr2arg(call,call_ctx->cdr.get(),ctx);
         }
 
         leg->putCallCtx();
@@ -106,7 +106,7 @@ void CdrList::getCalls(AmArg &calls, const SqlRouter *router)
 
         if(call_ctx->cdr && !call_ctx->profiles.empty()) {
             calls.push(AmArg());
-            cdr2arg(calls.back(),call_ctx->cdr,ctx);
+            cdr2arg(calls.back(),call_ctx->cdr.get(),ctx);
         }
 
         leg->putCallCtx();
@@ -147,9 +147,9 @@ void CdrList::getCallsFields(
         if(!call_ctx) return;
 
         if(call_ctx->cdr && !call_ctx->profiles.empty()) {
-            if(apply_filter_rules(call_ctx->cdr,filter_rules)) {
+            if(apply_filter_rules(call_ctx->cdr.get(),filter_rules)) {
                 calls.push(AmArg());
-                cdr2arg_filtered(calls.back(),call_ctx->cdr,ctx);
+                cdr2arg_filtered(calls.back(),call_ctx->cdr.get(),ctx);
             }
         }
 

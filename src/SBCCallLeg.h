@@ -196,7 +196,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void onPostgresResponse(PGResponse &e);
   void onPostgresResponseError(PGResponseError &e);
   void onPostgresTimeout(PGTimeout &e);
-  void onProfilesReady();
+  void onProfilesReady(AmControlledLock &call_ctx_lock);
 
   void onRadiusReply(const RadiusReplyEvent &ev);
   void onRedisReply(const RedisReplyEvent &e);

@@ -80,12 +80,7 @@ static const char *callStatus2str(const CallLeg::CallStatus state)
     if(!call_ctx) break; \
 
 #define with_cdr_for_read \
-    Cdr *cdr = call_ctx->cdr; \
-    if(cdr)
-
-#define with_cdr_for_write \
-    Cdr *cdr = call_ctx->cdr; \
-    call_ctx->cdr = nullptr; \
+    Cdr *cdr = call_ctx->cdr.get(); \
     if(cdr)
 
 in_memory_msg_logger::log_entry::log_entry(const char* buf_arg, int len_arg,
@@ -247,7 +242,7 @@ SBCCallLeg::SBCCallLeg(
 
 void SBCCallLeg::init()
 {
-    Cdr *cdr = call_ctx->cdr;
+    Cdr &cdr = *call_ctx->cdr.get();
 
     if(a_leg) {
         ostringstream ss;
@@ -256,9 +251,9 @@ void SBCCallLeg::init()
               int2str(AmConfig.node_id) << ".pcap";
         call_profile.set_logger_path(ss.str());
 
-        cdr->update_sbc(call_profile);
+        cdr.update_sbc(call_profile);
         setSensor(Sensors::instance()->getSensor(call_profile.aleg_sensor_id));
-        cdr->update_init_aleg(getLocalTag(),
+        cdr.update_init_aleg(getLocalTag(),
                               global_tag,
                               getCallID());
     } else {
@@ -267,7 +262,7 @@ void SBCCallLeg::init()
             replace(call_profile.callid,"%uuid",id);
         }
         setSensor(Sensors::instance()->getSensor(call_profile.bleg_sensor_id));
-        cdr->update_init_bleg(
+        cdr.update_init_bleg(
             call_profile.callid.empty()? getCallID() : call_profile.callid,
             getLocalTag());
     }
@@ -357,7 +352,7 @@ void SBCCallLeg::processResourcesAndSdp()
     int attempt = 0;
 
     AmControlledLock call_ctx_lock(*call_ctx_mutex);
-    Cdr *cdr = call_ctx->cdr;
+    Cdr *cdr = call_ctx->cdr.get();
 
     PROF_START(func);
 
@@ -527,24 +522,19 @@ bool SBCCallLeg::chooseNextProfile()
     /*string refuse_reason;
     int refuse_code;*/
     ResourceConfig resource_config;
-    Cdr *cdr;
     SqlCallProfile *profile = nullptr;
     ResourceCtlResponse rctl_ret;
     ResourceList::iterator ri;
     bool has_profile = false;
 
-    cdr = call_ctx->cdr;
     profile = call_ctx->getNextProfile(false);
-
-    if(nullptr==profile){
+    if(nullptr==profile) {
         //pretend that nothing happen. we were never called
         DBG("%s() no more profiles or refuse profile on serial fork. ignore it",FUNC_NAME);
         return false;
     }
 
-    //write cdr and replace ctx pointer with new
-    router.write_cdr(cdr,false);
-    cdr = call_ctx->cdr;
+    auto cdr = call_ctx->cdr.get();
 
     do {
         DBG("%s() choosed next profile. check it for refuse",FUNC_NAME);
@@ -747,6 +737,8 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
 
 void SBCCallLeg::onPostgresResponse(PGResponse &e)
 {
+    AmControlledLock call_ctx_lock(*call_ctx_mutex);
+
     bool ret;
     //cast result to call profiles here
     try {
@@ -817,7 +809,7 @@ void SBCCallLeg::onPostgresResponse(PGResponse &e)
         call_ctx->SQLexception = true;
     }
 
-    onProfilesReady();
+    onProfilesReady(call_ctx_lock);
 }
 
 void SBCCallLeg::onPostgresResponseError(PGResponseError &e)
@@ -848,12 +840,13 @@ void SBCCallLeg::onPostgresTimeout(PGTimeout &)
     return;
 }
 
-void SBCCallLeg::onProfilesReady()
+void SBCCallLeg::onProfilesReady(AmControlledLock &call_ctx_lock)
 {
     SqlCallProfile *profile = call_ctx->getFirstProfile();
     if(nullptr == profile) {
         delete call_ctx;
         call_ctx = nullptr;
+        call_ctx_lock.release();
 
         AmSipDialog::reply_error(uac_req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
         dlg->drop();
@@ -862,15 +855,16 @@ void SBCCallLeg::onProfilesReady()
         return;
     }
 
-    Cdr *cdr = call_ctx->cdr;
+    Cdr *cdr = call_ctx->cdr.get();
     if(cdr && !isArgUndef(identity_data)) {
         cdr->identity_data = identity_data;
     }
 
     if(profile->auth_required) {
-        delete cdr;
+        call_ctx->cdr.reset();
         delete call_ctx;
         call_ctx = nullptr;
+        call_ctx_lock.release();
 
         if(auth_result_id <= 0) {
             DBG("auth required for not authorized request. send auth challenge");
@@ -901,12 +895,13 @@ void SBCCallLeg::onProfilesReady()
             }
             cdr->update_init_aleg(getLocalTag(),global_tag,uac_req.callid);
 
-            router.write_cdr(cdr,true);
+            router.write_cdr(call_ctx->cdr,true);
         } else {
-            delete cdr;
+            call_ctx->cdr.reset();
         }
         delete call_ctx;
         call_ctx = nullptr;
+        call_ctx_lock.release();
 
         //AmSipDialog::reply_error(req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
         dlg->drop();
@@ -914,6 +909,8 @@ void SBCCallLeg::onProfilesReady()
         setStopped();
         return;
     }
+
+    call_ctx_lock.release();
 
     //check for registered_aor_id in profiles
     std::set<int> aor_ids;
@@ -1308,9 +1305,10 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
             }
 
             call_ctx->current_profile = next_profile;
-            with_cdr_for_write {
-                call_ctx->cdr = new Cdr(*cdr,*next_profile);
-                router.write_cdr(cdr, false);
+            if(call_ctx->cdr) {
+                std::unique_ptr<Cdr> new_cdr(new Cdr(*call_ctx->cdr,*next_profile));
+                router.write_cdr(call_ctx->cdr, false);
+                call_ctx->cdr.reset(new_cdr.release());
             }
 
         } while((*next_profile).skip_code_id != 0);
@@ -2007,10 +2005,7 @@ void SBCCallLeg::onBeforeDestroy()
         DBG("last leg destroy. a_leg: %d",a_leg);
         SqlCallProfile *p = call_ctx->getCurrentProfile();
         if(nullptr!=p) rctl.put(p->resource_handler);
-        Cdr *cdr = call_ctx->cdr;
-        if(cdr) {
-            router.write_cdr(cdr,true);
-        }
+        router.write_cdr(call_ctx->cdr, true);
         delete call_ctx;
     }
 
@@ -2498,11 +2493,10 @@ void SBCCallLeg::onOtherBye(const AmSipRequest& req)
         if(getCallStatus()!=CallLeg::Connected) {
             //avoid considering of bye in not connected state as succ call
             DBG("received OtherBye in not connected state");
-            with_cdr_for_write {
-                cdr->update_internal_reason(DisconnectByDST,"EarlyBye",500);
-                cdr->update_aleg_reason("Request terminated",487);
-                //cdr_list.remove(cdr);
-                router.write_cdr(cdr,true);
+            if(call_ctx->cdr) {
+                call_ctx->cdr->update_internal_reason(DisconnectByDST,"EarlyBye",500);
+                call_ctx->cdr->update_aleg_reason("Request terminated",487);
+                router.write_cdr(call_ctx->cdr, true);
             }
         }
     }
@@ -3787,10 +3781,10 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     AmControlledLock call_ctx_lock(*call_ctx_mutex);
     getCtx_void;
 
-    Cdr* cdr = call_ctx->cdr;
+    Cdr &cdr = *call_ctx->cdr.get();
 
-    cdr->update_with_sip_reply(reply);
-    cdr->update_bleg_reason(reply.reason,static_cast<int>(reply.code));
+    cdr.update_with_sip_reply(reply);
+    cdr.update_bleg_reason(reply.reason,static_cast<int>(reply.code));
 
     //save original destination reply code for stop_hunting lookup
     auto destination_reply_code = reply.code;
@@ -3805,10 +3799,10 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     ct->rewrite_response(intermediate_code,intermediate_reason,
         reply.code,reply.reason,
         call_ctx->getOverrideId(true)); //aleg_override_id
-    cdr->update_internal_reason(
+    cdr.update_internal_reason(
         reply.local_reply ? DisconnectByTS : DisconnectByDST,
         intermediate_reason,intermediate_code);
-    cdr->update_aleg_reason(reply.reason,static_cast<int>(reply.code));
+    cdr.update_aleg_reason(reply.reason,static_cast<int>(reply.code));
 
     if(ct->stop_hunting(destination_reply_code,call_ctx->getOverrideId(false))){
         DBG("stop hunting");

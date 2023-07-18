@@ -38,13 +38,16 @@ int fake_logger::relog(msg_logger *logger){
         cstring(),code);
 }
 
-SqlCallProfile *CallCtx::getFirstProfile(){
-	//DBG("%s() this = %p",FUNC_NAME,this);
-	if(profiles.empty())
-		return NULL;
-	current_profile = profiles.begin();
-	cdr = new Cdr(*current_profile);
-	return &(*current_profile);
+SqlCallProfile *CallCtx::getFirstProfile()
+{
+    //DBG("%s() this = %p",FUNC_NAME,this);
+    if(profiles.empty())
+        return nullptr;
+    current_profile = profiles.begin();
+
+    cdr.reset(new Cdr(*current_profile));
+
+    return &(*current_profile);
 }
 
 /*
@@ -73,7 +76,7 @@ SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover
 						p.aleg_override_id);
 
 			if(write_cdr) {
-				Cdr *skip_cdr = new Cdr(*cdr,p);
+				std::unique_ptr<Cdr> skip_cdr(new Cdr(*cdr,p));
 				skip_cdr->attempt_num = attempts_counter;
 				skip_cdr->update_internal_reason(DisconnectByTS,internal_reason,internal_code);
 				router.write_cdr(skip_cdr, false);
@@ -99,7 +102,9 @@ SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover
 			return nullptr;
 		}
 		if(!resource_failover) {
-			cdr = new Cdr(*cdr,*next_profile);
+			std::unique_ptr<Cdr> new_cdr(new Cdr(*cdr,*next_profile));
+			router.write_cdr(cdr, false);
+			cdr.reset(new_cdr.release());
 			attempts_counter++;
 		} else {
 			cdr->update_sql(*next_profile);
@@ -146,7 +151,6 @@ vector<SdpMedia> &CallCtx::get_other_negotiated_media(bool a_leg){
 
 CallCtx::CallCtx(SqlRouter &router):
 	references(0),
-	cdr(NULL),
 	initial_invite(NULL),
 	SQLexception(false),
 	on_hold(false),
