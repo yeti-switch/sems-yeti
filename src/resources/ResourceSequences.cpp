@@ -428,12 +428,18 @@ bool CheckResources::processRedisReply(RedisReplyEvent &reply)
     }
 
     if(!commands_count) {
-        finished.set(true);
         state = FINISH;
+        finished.set(true);
     }
 
+    /* never delete user_data.
+     * CheckResources ptr is managed by ResourceRedisConnection::get
+     * FIXME: possible memory leak here on wait_finish() timeouts */
+    return false;
+#if 0
     //do not delete on finish without errors because result is used in ResourceRedisConnection::get
     return state==FINISH && iserror;
+#endif
 }
 
 void CheckResources::on_error(const char* error, ...)
@@ -448,12 +454,9 @@ void CheckResources::on_error(const char* error, ...)
     ERROR("failed to check resources(%s)", err);
 
     iserror = true;
-    finished.set(true);
 }
 
 bool CheckResources::wait_finish(int timeout)
 {
-    bool ret = finished.wait_for_to(timeout);
-    if(!ret) iserror = true;
-    return ret;
+    return finished.wait_for_to(timeout);
 }

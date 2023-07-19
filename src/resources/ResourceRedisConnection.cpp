@@ -296,6 +296,9 @@ ResourceResponse ResourceRedisConnection::get(ResourceList &rl, ResourceList::it
         return ret;
     }
 
+    if(cr_seq->is_error())
+        return ret;
+
     bool resources_available = true;
     int check_state = CHECK_STATE_NORMAL;
     AmArg result = cr_seq->get_result();
