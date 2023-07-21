@@ -137,6 +137,8 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   msg_sensor *sensor;
   bool memory_logger_enabled;
 
+  struct timeval profile_request_start_time;
+
   struct identity_entry {
     AmIdentity identity;
     string raw_header_value;

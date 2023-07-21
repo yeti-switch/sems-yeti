@@ -458,12 +458,15 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
     return 0;
 }
 
-void SqlRouter::update_counters(struct timeval &start_time){
+void SqlRouter::update_counters(struct timeval &start_time)
+{
     struct timeval now_time,diff_time;
     int intervals;
     double diff,gps;
 
     gettimeofday(&now_time,NULL);
+
+    db_hits.inc();
 
     //per second
     diff = difftime(now_time.tv_sec,mi_start);

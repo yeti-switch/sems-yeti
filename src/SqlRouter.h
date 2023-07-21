@@ -78,8 +78,6 @@ class SqlRouter
       Auth::auth_id_type auth_id,
       AmArg *identity_data);
 
-    void update_counters(struct timeval &start_time);
-
   public:
     SqlRouter();
     ~SqlRouter();
@@ -121,4 +119,6 @@ class SqlRouter
         SqlCallProfile *profile,Cdr *cdr,
         const AmSipRequest& req,ParamReplacerCtx& ctx,
         bool send_reply = false);
+
+    void update_counters(struct timeval &start_time);
 };

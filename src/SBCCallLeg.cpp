@@ -737,6 +737,8 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
 
 void SBCCallLeg::onPostgresResponse(PGResponse &e)
 {
+    router.update_counters(profile_request_start_time);
+
     AmControlledLock call_ctx_lock(*call_ctx_mutex);
 
     bool ret;
@@ -3038,6 +3040,7 @@ void SBCCallLeg::onIdentityReady()
 
     //PROF_START(gprof);
 
+    gettimeofday(&profile_request_start_time, nullptr);
     router.getprofiles(getLocalTag(), uac_req,*call_ctx,auth_result_id,identity_data_ptr);
 #if 0
     SqlCallProfile *profile = call_ctx->getFirstProfile();
