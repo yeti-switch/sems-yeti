@@ -72,22 +72,16 @@ class SqlRouter
 
     int load_db_interface_in_out();
 
-    AmArg db_async_get_profiles(
-      const std::string &local_tag,
-      const AmSipRequest&,
-      Auth::auth_id_type auth_id,
-      AmArg *identity_data);
-
   public:
     SqlRouter();
     ~SqlRouter();
 
     int configure(cfg_t *confuse_cfg, AmConfigReader &cfg);
 
-    void getprofiles(
+    AmArg db_async_get_profiles(
+        AmControlledLock &call_ctx_lock,
         const std::string &local_tag,
         const AmSipRequest&,
-        CallCtx &ctx,
         Auth::auth_id_type auth_id,
         AmArg *identity_data);
 

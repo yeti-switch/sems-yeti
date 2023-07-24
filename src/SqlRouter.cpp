@@ -493,122 +493,104 @@ void SqlRouter::update_counters(struct timeval &start_time)
     db_hits_time.inc(diff_time.tv_sec + diff_time.tv_usec/1000);
 }
 
-void SqlRouter::getprofiles(
-	const std::string &local_tag,
-	const AmSipRequest &req,CallCtx &ctx,
-	Auth::auth_id_type auth_id, AmArg *identity_data)
-{
-	hits.inc();
-
-	try {
-		db_async_get_profiles(local_tag, req, auth_id, identity_data);
-	} catch(GetProfileException &e) {
-		DBG("GetProfile exception on %s thread: fatal = %d code  = '%d'",
-			e.fatal,e.code);
-		ERROR("SQL cant get profiles. Drop request");
-		ctx.profiles.clear();
-		ctx.profiles.emplace_back();
-		ctx.profiles.back().disconnect_code_id = e.code;
-		ctx.SQLexception = true;
-	}
-}
-
 AmArg SqlRouter::db_async_get_profiles(
-	const std::string &local_tag,
-	const AmSipRequest &req,
-	Auth::auth_id_type auth_id,
-	AmArg *identity_data)
+    AmControlledLock &call_ctx_lock,
+    const std::string &local_tag,
+    const AmSipRequest &req,
+    Auth::auth_id_type auth_id,
+    AmArg *identity_data)
 {
-	AmArg ret;
+    AmArg ret;
 
+    hits.inc();
 
-	std::unique_ptr<PGParamExecute> pg_getprofile_event;
-	pg_getprofile_event.reset(new PGParamExecute(
-		PGQueryData(
-			yeti_routing_pg_worker, /* pg worker name */
-			getprofile_sql_statement_name, /* prepared stmt name */
-			false /*single*/,
-			local_tag /* session_id */),
-		PGTransactionData(), true /* prepared */));
+    std::unique_ptr<PGParamExecute> pg_getprofile_event;
+    pg_getprofile_event.reset(new PGParamExecute(
+        PGQueryData(
+            yeti_routing_pg_worker, /* pg worker name */
+            getprofile_sql_statement_name, /* prepared stmt name */
+            false /*single*/,
+            local_tag /* session_id */),
+        PGTransactionData(), true /* prepared */));
 
-	auto &query_info = pg_getprofile_event.get()->qdata.info[0];
+    auto &query_info = pg_getprofile_event.get()->qdata.info[0];
 
 #define invoc_field(field_value)\
-	query_info.addParam(field_value);
+    query_info.addParam(field_value);
 
 #define invoc_typed_field(type,field_value)\
-	query_info.addTypedParam(type, field_value);
+    query_info.addTypedParam(type, field_value);
 
 #define invoc_null() \
-	query_info.addParam(AmArg());
+    query_info.addParam(AmArg());
 
-	auto &gc = Yeti::instance().config;
+    auto &gc = Yeti::instance().config;
 
-	const char *sptr;
-	sip_nameaddr na;
-	sip_uri from_uri,to_uri,contact_uri;
+    const char *sptr;
+    sip_nameaddr na;
+    sip_uri from_uri,to_uri,contact_uri;
 
-	sptr = req.to.c_str();
-	if(	parse_nameaddr(&na,&sptr,req.to.length()) < 0 ||
-		parse_uri(&to_uri,na.addr.s,na.addr.len) < 0){
-		throw GetProfileException(FC_PARSE_TO_FAILED,false);
-	}
-	sptr = req.contact.c_str();
-	if(	parse_nameaddr(&na,&sptr,req.contact.length()) < 0 ||
-		parse_uri(&contact_uri,na.addr.s,na.addr.len) < 0){
-		throw GetProfileException(FC_PARSE_CONTACT_FAILED,false);
-	}
-	sptr = req.from.c_str();
-	if(	parse_nameaddr(&na,&sptr,req.from.length()) < 0 ||
-		parse_uri(&from_uri,na.addr.s,na.addr.len) < 0){
-		throw GetProfileException(FC_PARSE_FROM_FAILED,false);
-	}
+    sptr = req.to.c_str();
+    if(	parse_nameaddr(&na,&sptr,req.to.length()) < 0 ||
+        parse_uri(&to_uri,na.addr.s,na.addr.len) < 0){
+        throw GetProfileException(FC_PARSE_TO_FAILED,false);
+    }
+    sptr = req.contact.c_str();
+    if(	parse_nameaddr(&na,&sptr,req.contact.length()) < 0 ||
+        parse_uri(&contact_uri,na.addr.s,na.addr.len) < 0){
+        throw GetProfileException(FC_PARSE_CONTACT_FAILED,false);
+    }
+    sptr = req.from.c_str();
+    if(	parse_nameaddr(&na,&sptr,req.from.length()) < 0 ||
+        parse_uri(&from_uri,na.addr.s,na.addr.len) < 0){
+        throw GetProfileException(FC_PARSE_FROM_FAILED,false);
+    }
 
-	string from_name = c2stlstr(na.name);
-	from_name.erase(std::remove(from_name.begin(), from_name.end(), '"'),from_name.end());
-	if(fixup_utf8_inplace(from_name))
-		WARN("From display name contained at least one invalid utf8 sequence. wrong bytes erased");
+    string from_name = c2stlstr(na.name);
+    from_name.erase(std::remove(from_name.begin(), from_name.end(), '"'),from_name.end());
+    if(fixup_utf8_inplace(from_name))
+        WARN("From display name contained at least one invalid utf8 sequence. wrong bytes erased");
 
-	invoc_field(AmConfig.node_id);			//"node_id", "integer"
-	invoc_field(gc.pop_id);					//"pop_id", "integer"
-	invoc_typed_field("smallint", (int)req.transport_id); //"transport_id", "smallint"
-	invoc_field(req.remote_ip);				//"remote_ip", "inet"
-	invoc_field(req.remote_port);			//"remote_port", "integer"
-	invoc_field(req.local_ip);				//"local_ip", "inet"
-	invoc_field(req.local_port);			//"local_port", "integer"
-	invoc_field(from_name);					//"from_dsp", "varchar"
-	invoc_field(c2stlstr(from_uri.user));	//"from_name", "varchar"
-	invoc_field(c2stlstr(from_uri.host));	//"from_domain", "varchar"
-	invoc_field(from_uri.port);				//"from_port", "integer"
-	invoc_field(c2stlstr(to_uri.user));		//"to_name", "varchar"
-	invoc_field(c2stlstr(to_uri.host));		//"to_domain", "varchar"
-	invoc_field(to_uri.port);				//"to_port", "integer"
-	invoc_field(c2stlstr(contact_uri.user));//"contact_name", "varchar"
-	invoc_field(c2stlstr(contact_uri.host));//"contact_domain", "varchar"
-	invoc_field(contact_uri.port);			//"contact_port", "integer"
-	invoc_field(req.user);					//"uri_name", "varchar"
-	invoc_field(req.domain);				//"uri_domain", "varchar"
+    invoc_field(AmConfig.node_id);			//"node_id", "integer"
+    invoc_field(gc.pop_id);					//"pop_id", "integer"
+    invoc_typed_field("smallint", (int)req.transport_id); //"transport_id", "smallint"
+    invoc_field(req.remote_ip);				//"remote_ip", "inet"
+    invoc_field(req.remote_port);			//"remote_port", "integer"
+    invoc_field(req.local_ip);				//"local_ip", "inet"
+    invoc_field(req.local_port);			//"local_port", "integer"
+    invoc_field(from_name);					//"from_dsp", "varchar"
+    invoc_field(c2stlstr(from_uri.user));	//"from_name", "varchar"
+    invoc_field(c2stlstr(from_uri.host));	//"from_domain", "varchar"
+    invoc_field(from_uri.port);				//"from_port", "integer"
+    invoc_field(c2stlstr(to_uri.user));		//"to_name", "varchar"
+    invoc_field(c2stlstr(to_uri.host));		//"to_domain", "varchar"
+    invoc_field(to_uri.port);				//"to_port", "integer"
+    invoc_field(c2stlstr(contact_uri.user));//"contact_name", "varchar"
+    invoc_field(c2stlstr(contact_uri.host));//"contact_domain", "varchar"
+    invoc_field(contact_uri.port);			//"contact_port", "integer"
+    invoc_field(req.user);					//"uri_name", "varchar"
+    invoc_field(req.domain);				//"uri_domain", "varchar"
 
-	if(auth_id!=0) { invoc_field(auth_id) }
-	else { invoc_null(); }
+    if(auth_id!=0) { invoc_field(auth_id) }
+    else { invoc_null(); }
 
-	if(identity_data) {
-		string identity_data_str(arg2json(*identity_data));
-		invoc_field(identity_data_str);
-	} else {
-		invoc_null();
-	}
+    if(identity_data) {
+        string identity_data_str(arg2json(*identity_data));
+        invoc_field(identity_data_str);
+    } else {
+        invoc_null();
+    }
 
-	//invoc headers from sip request
-	for(vector<UsedHeaderField>::const_iterator it = used_header_fields.begin();
-			it != used_header_fields.end(); ++it){
-		string value;
-		if(it->getValue(req,value)){
-			invoc_field(value);
-		} else {
-			invoc_null();
-		}
-	}
+    //invoc headers from sip request
+    for(vector<UsedHeaderField>::const_iterator it = used_header_fields.begin();
+            it != used_header_fields.end(); ++it){
+        string value;
+        if(it->getValue(req,value)){
+            invoc_field(value);
+        } else {
+            invoc_null();
+        }
+    }
 
 #undef invoc_field
 
@@ -625,12 +607,13 @@ AmArg SqlRouter::db_async_get_profiles(
         }
     }
 
-	if(!AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_getprofile_event.release())) {
-		ERROR("failed to post getprofile query event");
-		return 1;
-	}
+    call_ctx_lock.release();
+    if(!AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_getprofile_event.release())) {
+        ERROR("failed to post getprofile query event");
+        return 1;
+    }
 
-	return ret;
+    return ret;
 }
 
 void SqlRouter::align_cdr(Cdr &cdr){

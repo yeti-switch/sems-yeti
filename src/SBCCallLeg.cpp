@@ -3038,179 +3038,26 @@ void SBCCallLeg::onIdentityReady()
     call_ctx = new CallCtx(router);
     call_ctx->references++;
 
-    //PROF_START(gprof);
-
     gettimeofday(&profile_request_start_time, nullptr);
-    router.getprofiles(getLocalTag(), uac_req,*call_ctx,auth_result_id,identity_data_ptr);
-#if 0
-    SqlCallProfile *profile = call_ctx->getFirstProfile();
-    if(nullptr == profile) {
-        delete call_ctx;
-        call_ctx = nullptr;
-        call_ctx_lock.release();
+    try {
+        router.db_async_get_profiles(
+            call_ctx_lock,
+            getLocalTag(),
+            uac_req,
+            auth_result_id,
+            identity_data_ptr);
+    } catch(GetProfileException &e) {
+        DBG("GetProfile exception on %s thread: fatal = %d code  = '%d'",
+            e.fatal, e.code);
+        ERROR("SQL cant get profiles. Drop request");
 
-        AmSipDialog::reply_error(uac_req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
-        dlg->drop();
-        dlg->dropTransactions();
-        setStopped();
-        return;
+        call_ctx->profiles.clear();
+        call_ctx->profiles.emplace_back();
+        call_ctx->profiles.back().disconnect_code_id = e.code;
+        call_ctx->SQLexception = true;
+
+        onProfilesReady(call_ctx_lock);
     }
-
-    PROF_END(gprof);
-    PROF_PRINT("get profiles",gprof);
-
-    Cdr *cdr = call_ctx->cdr;
-    if(cdr && identity_data_ptr) {
-        cdr->identity_data = *identity_data_ptr;
-    }
-
-    if(profile->auth_required) {
-        delete cdr;
-        delete call_ctx;
-        call_ctx = nullptr;
-        call_ctx_lock.release();
-
-        if(auth_result_id <= 0) {
-            DBG("auth required for not authorized request. send auth challenge");
-            send_and_log_auth_challenge(uac_req,"no Authorization header", !router.is_skip_logging_invite_challenge());
-        } else {
-            ERROR("got callprofile with auth_required "
-                  "for already authorized request. reply internal error. i:%s",
-                  dlg->getCallid().data());
-            AmSipDialog::reply_error(uac_req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
-        }
-
-        dlg->drop();
-        dlg->dropTransactions();
-        setStopped();
-        return;
-    }
-
-    cdr->set_start_time(call_start_time);
-
-    ctx.call_profile = profile;
-    if(router.check_and_refuse(profile,cdr,uac_req,ctx,true)) {
-        if(!call_ctx->SQLexception) { //avoid to write cdr on failed getprofile()
-            cdr->dump_level_id = 0; //override dump_level_id. we have no logging at this stage
-            if(call_profile.global_tag.empty()) {
-                global_tag = getLocalTag();
-            } else {
-                global_tag = call_profile.global_tag;
-            }
-            cdr->update_init_aleg(getLocalTag(),global_tag,uac_req.callid);
-
-            router.write_cdr(cdr,true);
-        } else {
-            delete cdr;
-        }
-        delete call_ctx;
-        call_ctx = nullptr;
-        call_ctx_lock.release();
-
-        //AmSipDialog::reply_error(req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
-        dlg->drop();
-        dlg->dropTransactions();
-        setStopped();
-        return;
-    }
-
-    //check for registered_aor_id in profiles
-    std::set<int> aor_ids;
-    for(const auto &p : call_ctx->profiles) {
-        if(0!=p.registered_aor_id) {
-            aor_ids.emplace(p.registered_aor_id);
-        }
-    }
-
-    if(!aor_ids.empty()) {
-        DBG("got %zd AoR ids to resolve", aor_ids.size());
-    }
-
-    call_profile = *call_ctx->getCurrentProfile();
-
-    set_sip_relay_only(false);
-
-    if(call_profile.aleg_rel100_mode_id!=-1) {
-        dlg->setRel100State(static_cast<Am100rel::State>(call_profile.aleg_rel100_mode_id));
-    } else {
-        dlg->setRel100State(Am100rel::REL100_IGNORED);
-    }
-
-    if(call_profile.rtprelay_bw_limit_rate > 0
-       && call_profile.rtprelay_bw_limit_peak > 0)
-    {
-            RateLimit* limit = new RateLimit(
-                static_cast<unsigned int>(call_profile.rtprelay_bw_limit_rate),
-                static_cast<unsigned int>(call_profile.rtprelay_bw_limit_peak),
-                1000);
-        rtp_relay_rate_limit.reset(limit);
-    }
-
-    if(call_profile.global_tag.empty()) {
-        global_tag = getLocalTag();
-    } else {
-        global_tag = call_profile.global_tag;
-    }
-
-    ctx.call_profile = &call_profile;
-    ctx.app_param = getHeader(uac_req.hdrs, PARAM_HDR, true);
-
-    init();
-
-    modified_req = uac_req;
-    aleg_modified_req = uac_req;
-
-    if (!logger) {
-        if(!call_profile.get_logger_path().empty() &&
-           (call_profile.log_sip || call_profile.log_rtp))
-        {
-            DBG("pcap logging requested by call_profile");
-            // open the logger if not already opened
-            ParamReplacerCtx ctx(&call_profile);
-            string log_path = ctx.replaceParameters(call_profile.get_logger_path(), "msg_logger_path",uac_req);
-            if(!openLogger(log_path)){
-                WARN("can't open msg_logger_path: '%s'",log_path.c_str());
-            }
-        } else if(yeti.config.pcap_memory_logger) {
-            DBG("no pcap logging by call_profile, but pcap_memory_logger enabled. set in-memory logger");
-            setLogger(new in_memory_msg_logger());
-            memory_logger_enabled = true;
-        } else {
-            DBG("continue without pcap logger");
-        }
-    }
-
-    uac_req.log((call_profile.log_sip || memory_logger_enabled) ? getLogger(): nullptr,
-            call_profile.aleg_sensor_level_id&LOG_SIP_MASK?getSensor():nullptr);
-
-    uac_ruri.uri = uac_req.r_uri;
-    if(!uac_ruri.parse_uri()) {
-        DBG("Error parsing R-URI '%s'",uac_ruri.uri.c_str());
-        throw AmSession::Exception(400,"Failed to parse R-URI");
-    }
-
-    call_ctx->cdr->update_with_sip_request(uac_req, yeti.config.aleg_cdr_headers);
-    call_ctx->initial_invite = new AmSipRequest(aleg_modified_req);
-
-    if(yeti.config.early_100_trying) {
-        msg_logger *logger = getLogger();
-        if(logger){
-            early_trying_logger->relog(logger);
-        }
-    } else {
-        dlg->reply(uac_req,100,"Connecting");
-    }
-
-
-    radius_auth(this,*call_ctx->cdr,call_profile,uac_req);
-
-    call_ctx_lock.release();
-
-    httpCallStartedHook();
-    if(!radius_auth_post_event(this,call_profile)) {
-        processAorResolving();
-    }
-#endif
 }
 
 void SBCCallLeg::onRoutingReady()
