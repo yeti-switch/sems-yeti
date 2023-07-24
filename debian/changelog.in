@@ -1,3 +1,7 @@
+sems-yeti (1.13.27) stable; urgency=medium
+  * fix reordering deadlock on getprofile
+ -- dev <dev@yeti-switch.org>  Mon, 24 Jul 2023 21:16:04 +0300
+
 sems-yeti (1.13.26) stable; urgency=medium
   * fix sql router stats
  -- dev <dev@yeti-switch.org>  Fri, 21 Jul 2023 22:41:52 +0300
