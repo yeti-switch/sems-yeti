@@ -1,3 +1,7 @@
+sems-yeti (1.12.49) stable; urgency=medium
+  * statistics.active-calls.clickhouse: queue(str) -> destinations(list)
+ -- dev <dev@yeti-switch.org>  Tue, 01 Aug 2023 10:46:58 +0000
+
 sems-yeti (1.12.48) stable; urgency=medium
   * load_interface_in(): support _array suffix for the 'varformat'
  -- dev <dev@yeti-switch.org>  Fri, 16 Jun 2023 22:54:58 +0300
