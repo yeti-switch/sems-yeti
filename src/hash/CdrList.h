@@ -73,7 +73,7 @@ class CdrList
     void getFields(AmArg &ret,SqlRouter *r);
     void validate_fields(const vector<string> &wanted_fields, const SqlRouter *router);
 
-    int configure(AmConfigReader &cfg);
+    int configure(cfg_t *confuse_cfg);
     void run();
     void on_stop();
     void onTimer();

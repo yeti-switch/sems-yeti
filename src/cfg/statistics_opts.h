@@ -1,23 +1,16 @@
 #pragma once
 
 #include <confuse.h>
-#include "opts_helpers.h"
 
-cfg_opt_t sig_yeti_statistics_acive_calls_clickhouse_opts[] = {
-	DCFG_STR(table),
-	DCFG_STR(queue),
-	DCFG_BOOL(buffering),
-	DCFG_STR_LIST(allowed_fields),
-	CFG_END()
-};
+extern char section_name_active_calls[];
+extern char section_name_clickhouse[];
 
-cfg_opt_t sig_yeti_statistics_acive_calls_opts[] = {
-	DCFG_INT(period),
-	DCFG_SEC(clickhouse,sig_yeti_statistics_acive_calls_clickhouse_opts,CFGF_NONE),
-	CFG_END()
-};
+extern char opt_name_table[];
+extern char opt_name_queue[];
+extern char opt_name_buffering[];
+extern char opt_name_allowed_fields[];
+extern char opt_name_period[];
 
-cfg_opt_t sig_yeti_statistics_opts[] = {
-	DCFG_SEC(active-calls,sig_yeti_statistics_acive_calls_opts,CFGF_NONE),
-	CFG_END()
-};
+extern cfg_opt_t sig_yeti_statistics_acive_calls_clickhouse_opts[];
+extern cfg_opt_t sig_yeti_statistics_acive_calls_opts[];
+extern cfg_opt_t sig_yeti_statistics_opts[];

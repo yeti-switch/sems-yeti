@@ -167,14 +167,4 @@ void YetiCfg::serialize_to_amconfig(cfg_t *y, AmConfigReader &out)
 		//rpc
 		c = cfg_getsec(y,"rpc");
 		add2hash(c,"calls_show_limit","calls_show_limit",out);
-
-		//statistics
-		c = cfg_getsec(y,"statistics");
-			c = cfg_getsec(c,"active-calls");
-			add2hash(c,"active_calls_period","period",out);
-				c = cfg_getsec(c,"clickhouse");
-				add2hash(c,"active_calls_clickhouse_table","table",out);
-				add2hash(c,"active_calls_clickhouse_queue","queue",out);
-				add2hash(c,"active_calls_clickhouse_buffering","buffering",out);
-				add2hash(c,"active_calls_clickhouse_allowed_fields","allowed_fields",out);
 }
