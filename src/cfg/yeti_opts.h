@@ -16,6 +16,7 @@ extern char opt_name_http_events_destination[];
 
 extern char section_name_lega_cdr_headers[];
 extern char section_name_identity[];
+extern char section_name_statistics[];
 
 extern char opt_name_core_options_handling[];
 extern char opt_name_pcap_memory_logger[];

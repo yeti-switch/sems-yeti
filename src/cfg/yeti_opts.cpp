@@ -18,6 +18,7 @@ char opt_name_http_events_destination[] = "http_events_destination";
 char section_name_lega_cdr_headers[] = "lega_cdr_headers";
 char section_name_legb_reply_cdr_headers[] = "legb_response_cdr_headers";
 char section_name_identity[] = "identity";
+char section_name_statistics[] = "statistics";
 
 char opt_name_core_options_handling[] = "core_options_handling";
 char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
@@ -165,7 +166,7 @@ cfg_opt_t yeti_opts[] = {
     DCFG_SEC(registrations,sig_yeti_reg_opts,CFGF_NONE),
     DCFG_SEC(registrar,sig_yeti_registrar_opts,CFGF_NONE),
     DCFG_SEC(rpc,sig_yeti_rpc_opts,CFGF_NONE),
-    DCFG_SEC(statistics,sig_yeti_statistics_opts,CFGF_NONE),
+    CFG_SEC(section_name_statistics, sig_yeti_statistics_opts, CFGF_NONE),
     DCFG_SEC(auth,sig_yeti_auth_opts,CFGF_NONE),
     CFG_SEC(section_name_identity, identity_opts, CFGF_NODEFAULT),
     CFG_SEC(section_name_lega_cdr_headers,lega_cdr_headers_opts, CFGF_NONE),

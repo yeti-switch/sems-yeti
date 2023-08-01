@@ -1,13 +1,16 @@
 #include "CdrList.h"
 #include "log.h"
+
 #include "../yeti.h"
+#include "../cfg/yeti_opts.h"
+#include "../cfg/statistics_opts.h"
 #include "../SBCCallLeg.h"
+
 #include "jsonArg.h"
 #include "AmSessionContainer.h"
 #include "AmEventDispatcher.h"
 #include "ampi/HttpClientAPI.h"
 
-#define SNAPSHOTS_PERIOD_DEFAULT 60
 #define EPOLL_MAX_EVENTS 2048
 
 CdrList::CdrList()
@@ -207,10 +210,19 @@ void CdrList::validate_fields(const vector<string> &wanted_fields, const SqlRout
     }
 }
 
-int CdrList::configure(AmConfigReader &cfg)
+int CdrList::configure(cfg_t *confuse_cfg)
 {
-    if(!cfg.hasParameter("active_calls_clickhouse_queue")
-       || !cfg.hasParameter("active_calls_clickhouse_table"))
+    auto statistics_sec = cfg_getsec(confuse_cfg, section_name_statistics);
+    if(!statistics_sec) return 0;
+
+    auto active_calls_sec = cfg_getsec(statistics_sec, section_name_active_calls);
+    if(!active_calls_sec) return 0;
+
+    auto clickhouse_sec = cfg_getsec(active_calls_sec, section_name_clickhouse);
+    if(!clickhouse_sec) return 0;
+
+    if(!cfg_size(clickhouse_sec, opt_name_queue) ||
+       !cfg_size(clickhouse_sec, opt_name_table))
     {
         DBG("need both table and queue parameters "
             "to enable active calls snapshots for clickhouse");
@@ -220,20 +232,20 @@ int CdrList::configure(AmConfigReader &cfg)
     snapshots_enabled = true;
     router = &Yeti::instance().router;
 
-    snapshots_destination = cfg.getParameter("active_calls_clickhouse_queue");
-    snapshots_table = cfg.getParameter("active_calls_clickhouse_table","active_calls");
-    snapshots_interval = cfg.getParameterInt("active_calls_period",
-                                             SNAPSHOTS_PERIOD_DEFAULT);
-    snapshots_buffering = 1==cfg.getParameterInt("active_calls_clickhouse_buffering");
-
+    snapshots_interval = cfg_getint(active_calls_sec, opt_name_period);
     if(0==snapshots_interval) {
-        ERROR("invalid active calls snapshots period: %d",snapshots_interval);
+        ERROR("invalid active calls snapshots period: %d", snapshots_interval);
         return -1;
     }
 
-    auto allowed_fields = explode(cfg.getParameter("active_calls_clickhouse_allowed_fields"),",");
-    for(const auto &f: allowed_fields)
-        snapshots_fields_whitelist.emplace(f);
+    snapshots_destination = cfg_getstr(clickhouse_sec, opt_name_queue);
+    snapshots_table = cfg_getstr(clickhouse_sec, opt_name_table);
+    snapshots_buffering = cfg_getbool(clickhouse_sec, opt_name_buffering);
+
+    for(unsigned int i = 0; i < cfg_size(clickhouse_sec, opt_name_allowed_fields); i++) {
+        snapshots_fields_whitelist.emplace(
+            cfg_getnstr(clickhouse_sec, opt_name_allowed_fields, i));
+    }
 
     DBG("use queue '%s', table '%s' for active calls snapshots "
         "with interval %d (seconds). "
