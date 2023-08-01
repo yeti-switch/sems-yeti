@@ -221,10 +221,10 @@ int CdrList::configure(cfg_t *confuse_cfg)
     auto clickhouse_sec = cfg_getsec(active_calls_sec, section_name_clickhouse);
     if(!clickhouse_sec) return 0;
 
-    if(!cfg_size(clickhouse_sec, opt_name_queue) ||
+    if(!cfg_size(clickhouse_sec, opt_name_destinations) ||
        !cfg_size(clickhouse_sec, opt_name_table))
     {
-        DBG("need both table and queue parameters "
+        DBG("need both 'table' and 'destinations' parameters "
             "to enable active calls snapshots for clickhouse");
         return 0;
     }
@@ -238,22 +238,29 @@ int CdrList::configure(cfg_t *confuse_cfg)
         return -1;
     }
 
-    snapshots_destination = cfg_getstr(clickhouse_sec, opt_name_queue);
     snapshots_table = cfg_getstr(clickhouse_sec, opt_name_table);
     snapshots_buffering = cfg_getbool(clickhouse_sec, opt_name_buffering);
+
+    for(unsigned int i = 0; i < cfg_size(clickhouse_sec, opt_name_destinations); i++) {
+        snapshots_destinations.emplace_back(
+            cfg_getnstr(clickhouse_sec, opt_name_destinations, i));
+    }
 
     for(unsigned int i = 0; i < cfg_size(clickhouse_sec, opt_name_allowed_fields); i++) {
         snapshots_fields_whitelist.emplace(
             cfg_getnstr(clickhouse_sec, opt_name_allowed_fields, i));
     }
 
-    DBG("use queue '%s', table '%s' for active calls snapshots "
+    DBG("use table '%s' for active calls snapshots "
         "with interval %d (seconds). "
         "buffering is %sabled",
-        snapshots_destination.c_str(),
         snapshots_table.c_str(),
         snapshots_interval,
         snapshots_buffering?"en":"dis");
+
+    for(const auto &f: snapshots_destinations) {
+        DBG("clickhouse destination: %s",f.c_str());
+    }
 
     for(const auto &f: snapshots_fields_whitelist) {
         DBG("clickhouse allowed_field: %s",f.c_str());
@@ -449,14 +456,16 @@ void CdrList::onTimer()
 
     //DBG("data:\n%s",data.c_str());
 
-    if(!AmSessionContainer::instance()->postEvent(
-      HTTP_EVENT_QUEUE,
-      new HttpPostEvent(
-        snapshots_destination,
-        data,
-        string())))
-    {
-        ERROR("can't post http event. disable active calls snapshots or add http_client module loading");
+    for(const auto &destination: snapshots_destinations) {
+        if(!AmSessionContainer::instance()->postEvent(
+            HTTP_EVENT_QUEUE,
+            new HttpPostEvent(
+                destination,
+                data,
+                string())))
+        {
+            ERROR("can't post http event. disable active calls snapshots or add http_client module loading");
+        }
     }
 }
 
