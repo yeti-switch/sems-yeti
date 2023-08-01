@@ -20,7 +20,7 @@ class CdrList
     bool snapshots_enabled;
     bool snapshots_buffering;
     unsigned int snapshots_interval;
-    string snapshots_destination;
+    vector<string> snapshots_destinations;
     string snapshots_table;
     string snapshots_body_header;
     unordered_set<string> snapshots_fields_whitelist;

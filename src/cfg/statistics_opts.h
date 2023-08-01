@@ -6,7 +6,7 @@ extern char section_name_active_calls[];
 extern char section_name_clickhouse[];
 
 extern char opt_name_table[];
-extern char opt_name_queue[];
+extern char opt_name_destinations[];
 extern char opt_name_buffering[];
 extern char opt_name_allowed_fields[];
 extern char opt_name_period[];
