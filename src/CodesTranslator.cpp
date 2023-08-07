@@ -153,9 +153,10 @@ void CodesTranslator::load_disconnect_code_refuse_overrides(const AmArg &data)
 	if(isArgArray(data)) {
 		for(size_t i = 0; i < data.size(); i++) {
 			auto &row = data[i];
+			DBG("process row: %s", row.print().data());
 			int override_id = DbAmArg_hash_get_int(row, "policy_id");
 
-			unsigned int code =	DbAmArg_hash_get_int(row["o_id"], 0); //database internal code
+			unsigned int code =	DbAmArg_hash_get_int(row, "o_id", 0); //database internal code
 
 			int internal_code = DbAmArg_hash_get_int(row, "o_code", 0);
 			string internal_reason = DbAmArg_hash_get_str(row, "o_reason");

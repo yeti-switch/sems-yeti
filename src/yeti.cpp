@@ -445,6 +445,9 @@ void Yeti::process(AmEvent *ev)
                     } catch(AmArg::TypeMismatchException &) {
                         ERROR("AmArg::TypeMismatchException in cfg timer handler: %s",
                             e->token.data());
+                    } catch(std::exception &exception) {
+                        ERROR("std::exception in cfg timer handler '%s': %s",
+                            e->token.data(), exception.what());
                     } catch(std::string &s) {
                         ERROR("cfg timer handler %s exception: %s",
                             e->token.data(), s.data());
@@ -452,7 +455,7 @@ void Yeti::process(AmEvent *ev)
                         ERROR("exception in cfg timer handler: %s", e->token.data());
                     }
                 } else {
-                    ERROR("uknown db response token: %s", e->token.data());
+                    ERROR("unknown db response token: %s", e->token.data());
                 }
             }
         } else {
