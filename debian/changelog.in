@@ -1,3 +1,8 @@
+sems-yeti (1.13.29) stable; urgency=medium
+  * add metric 'sems_yeti_config_exceptions'
+  * fix 'translations.dc_refuse_override' cfg loading
+ -- dev <dev@yeti-switch.org>  Tue, 08 Aug 2023 12:29:39 +0300
+
 sems-yeti (1.13.28) stable; urgency=medium
   * statistics.active-calls.clickhouse: queue(str) -> destinations(list)
  -- dev <dev@yeti-switch.org>  Tue, 01 Aug 2023 13:28:59 +0300
