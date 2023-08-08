@@ -78,6 +78,12 @@ Yeti& Yeti::instance() {
     return *_instance;
 }
 
+void Yeti::cfg_timer_mapping_entry::init_exceptions_counter(const string &key)
+{
+    exceptions_counter = &stat_group(Counter, MOD_NAME, "config_exceptions").addAtomicCounter()
+        .addLabel("type", key);
+}
+
 Yeti::Counters::Counters()
   : identity_success(stat_group(Counter,MOD_NAME, "identity_headers_success").addAtomicCounter()),
     identity_failed_parse(stat_group(Counter,MOD_NAME, "identity_headers_failed").addAtomicCounter()
@@ -436,9 +442,11 @@ void Yeti::process(AmEvent *ev)
             } else {
                 auto it = db_config_timer_mappings.find(e->token);
                 if(it != db_config_timer_mappings.end()) {
+                    bool exception = true;
                     try {
                         DBG("call on_db_response() for '%s'", e->token.data());
                         it->second.on_db_response(*e);
+                        exception = false;
                     } catch(AmArg::OutOfBoundsException &) {
                         ERROR("AmArg::OutOfBoundsException in cfg timer handler: %s",
                             e->token.data());
@@ -453,6 +461,10 @@ void Yeti::process(AmEvent *ev)
                             e->token.data(), s.data());
                     } catch(...) {
                         ERROR("exception in cfg timer handler: %s", e->token.data());
+                    }
+
+                    if(exception) {
+                        it->second.exceptions_counter->inc();
                     }
                 } else {
                     ERROR("unknown db response token: %s", e->token.data());
@@ -834,6 +846,9 @@ void Yeti::initCfgTimerMappings()
             }}
         },
     };
+
+    for(auto &mapping: db_config_timer_mappings)
+        mapping.second.init_exceptions_counter(mapping.first);
 }
 
 void Yeti::onDbCfgReloadTimer() noexcept

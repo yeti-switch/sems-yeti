@@ -33,12 +33,15 @@ class Yeti
     struct cfg_timer_mapping_entry {
         std::function<void (const string &key)> on_reload;
         std::function<void (const PGResponse &e)> on_db_response;
+        AtomicCounter *exceptions_counter;
         cfg_timer_mapping_entry(
             std::function<void (const string &key)> on_reload,
             std::function<void (const PGResponse &e)> on_db_response)
           : on_reload(on_reload),
             on_db_response(on_db_response)
         {}
+
+        void init_exceptions_counter(const string &key);
     };
     map<string, cfg_timer_mapping_entry> db_config_timer_mappings;
 
