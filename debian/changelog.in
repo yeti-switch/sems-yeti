@@ -1,3 +1,7 @@
+sems-yeti (1.13.30) stable; urgency=medium
+  * fix RTP timeout monitoring for the calls with early media
+ -- dev <dev@yeti-switch.org>  Wed, 09 Aug 2023 19:35:14 +0300
+
 sems-yeti (1.13.29) stable; urgency=medium
   * add metric 'sems_yeti_config_exceptions'
   * fix 'translations.dc_refuse_override' cfg loading
