@@ -3419,8 +3419,6 @@ void SBCCallLeg::onCallConnected(const AmSipReply&)
 
     if (a_leg) { // FIXME: really?
         m_state = BB_Connected;
-        AmB2BMedia *m = getMediaSession();
-        if(m) m->setRtpTimeout(dead_rtp_time);
         if (!startCallTimers())
             return;
     }
@@ -4022,8 +4020,8 @@ int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote){
 
     m->updateStreams(false /* recompute relay and other parameters in direction A -> B*/,this);
 
-    if(CallLeg::Ringing==getCallStatus())
-        m->setRtpTimeout(0);
+    //disable RTP timeout monitoring for early media
+    m->setMonitorRtpTimeout(AmBasicSipDialog::Connected==dlg->getStatus());
 
     return ret;
 }
