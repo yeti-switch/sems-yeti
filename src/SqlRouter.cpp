@@ -379,7 +379,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         cdr_cfg.check_interval /* reconnect_interval */,
         cdr_cfg.batch_size, /* batch_size */
         cdr_cfg.batch_timeout /* batch timeout */,
-        1000000 /* max_queue_length */,
+        0 /* max_queue_length */,
         cdr_cfg.connection_lifetime /* connection_lifetime*/ );
     pg_config_cdr_writer->addSearchPath(writecdr_schema);
     pg_config_cdr_writer->addSearchPath("public");
@@ -441,7 +441,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         cdr_cfg.check_interval /* reconnect_interval */,
         cdr_cfg.batch_size, /* batch_size */
         cdr_cfg.batch_timeout /* batch timeout */,
-        1000000 /* max_queue_length */,
+        0 /* max_queue_length */,
         cdr_cfg.connection_lifetime /* connection lifetime */);
     pg_config_auth_log->addSearchPath(writecdr_schema);
     pg_config_auth_log->addSearchPath("public");
