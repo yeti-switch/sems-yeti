@@ -20,7 +20,11 @@ CdrList::CdrList()
     snapshots_interval(0),
     last_snapshot_ts(0),
     stopped(false)
-{ }
+{
+    snapshot_id.fields.sign = 0;
+    snapshot_id.fields.node_id = AmConfig.node_id;
+    snapshot_id.fields.counter = 0;
+}
 
 CdrList::~CdrList()
 { }
@@ -373,6 +377,8 @@ void CdrList::onTimer()
     AmArg calls;
     calls.assertArray();
 
+    snapshot_id.fields.timestamp = snapshot_ts;
+
     //serialize to AmArg
     AmEventDispatcher::instance()->iterate(
         [&](const string &,
@@ -393,6 +399,9 @@ void CdrList::onTimer()
 
         calls.push(AmArg());
         AmArg &call = calls.back();
+
+        snapshot_id.fields.counter++;
+        call["id"] = snapshot_id.v;
 
         call["snapshot_timestamp"] = snapshot_timestamp_str;
         call["snapshot_date"] = snapshot_date_str;
@@ -425,6 +434,9 @@ void CdrList::onTimer()
 
             calls.push(AmArg());
             AmArg &call = calls.back();
+
+            snapshot_id.fields.counter++;
+            call["id"] = snapshot_id.v;
 
             call["snapshot_timestamp"] = snapshot_timestamp_str;
             call["snapshot_date"] = snapshot_date_str;
