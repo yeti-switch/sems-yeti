@@ -586,10 +586,9 @@ void YetiRpc::RemoveCall(const AmArg& args, AmArg& ret){
 
 		ret.push(ret_prefix + p->resource_handler);
 
-		leg->rctl.put(p->resource_handler);
-
+		string resource_handler = p->resource_handler;
 		leg->putCallCtx();
-
+		leg->rctl.put(resource_handler);
 	});
 
 	if (AmSessionContainer::instance()->postEvent(

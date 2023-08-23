@@ -351,7 +351,6 @@ void SBCCallLeg::processResourcesAndSdp()
     int refuse_code;*/
     int attempt = 0;
 
-    AmControlledLock call_ctx_lock(*call_ctx_mutex);
     Cdr *cdr = call_ctx->cdr.get();
 
     PROF_START(func);
@@ -366,7 +365,7 @@ void SBCCallLeg::processResourcesAndSdp()
                             getLocalTag(),
                             resource_config,ri);
 
-        if(rctl_ret == RES_CTL_OK){
+        if(rctl_ret == RES_CTL_OK) {
             DBG("%s() check resources succ",FUNC_NAME);
             break;
         } else if(	rctl_ret ==  RES_CTL_REJECT ||
@@ -375,10 +374,13 @@ void SBCCallLeg::processResourcesAndSdp()
             DBG("%s() check resources failed with code %d. internal code: %d",FUNC_NAME,
                 rctl_ret,resource_config.internal_code_id);
             if(rctl_ret == RES_CTL_REJECT) {
+                AmLock l(*call_ctx_mutex);
                 cdr->update_failed_resource(*ri);
             }
             break;
-        } else if(	rctl_ret == RES_CTL_NEXT){
+        } else if(	rctl_ret == RES_CTL_NEXT) {
+            AmLock l(*call_ctx_mutex);
+
             DBG("%s() check resources failed with code %d. internal code: %d",FUNC_NAME,
                 rctl_ret,resource_config.internal_code_id);
             profile = call_ctx->getNextProfile(true);
@@ -425,7 +427,8 @@ void SBCCallLeg::processResourcesAndSdp()
     } while(rctl_ret != RES_CTL_OK);
 
     if(rctl_ret != RES_CTL_OK) {
-        //throw AmSession::Exception(refuse_code,refuse_reason);
+        AmLock l(*call_ctx_mutex);
+
         unsigned int internal_code, response_code;
         string internal_reason, response_reason;
 
@@ -446,6 +449,8 @@ void SBCCallLeg::processResourcesAndSdp()
 
     PROF_END(rchk);
     PROF_PRINT("check and grab resources",rchk);
+
+    AmControlledLock call_ctx_lock(*call_ctx_mutex);
 
     profile = call_ctx->getCurrentProfile();
     cdr->update_with_resource_list(profile->rl);
@@ -519,19 +524,20 @@ bool SBCCallLeg::chooseNextProfile()
 {
     DBG("%s()",FUNC_NAME);
 
-    /*string refuse_reason;
-    int refuse_code;*/
     ResourceConfig resource_config;
     SqlCallProfile *profile = nullptr;
     ResourceCtlResponse rctl_ret;
     ResourceList::iterator ri;
     bool has_profile = false;
 
-    profile = call_ctx->getNextProfile(false);
-    if(nullptr==profile) {
-        //pretend that nothing happen. we were never called
-        DBG("%s() no more profiles or refuse profile on serial fork. ignore it",FUNC_NAME);
-        return false;
+    {
+        AmLock l(*call_ctx_mutex);
+        profile = call_ctx->getNextProfile(false);
+        if(nullptr==profile) {
+            //pretend that nothing happen. we were never called
+            DBG("%s() no more profiles or refuse profile on serial fork. ignore it",FUNC_NAME);
+            return false;
+        }
     }
 
     auto cdr = call_ctx->cdr.get();
@@ -539,43 +545,49 @@ bool SBCCallLeg::chooseNextProfile()
     do {
         DBG("%s() choosed next profile. check it for refuse",FUNC_NAME);
 
-        ParamReplacerCtx rctx(profile);
-        if(router.check_and_refuse(profile,cdr,*call_ctx->initial_invite,rctx)){
-            DBG("%s() profile contains refuse code",FUNC_NAME);
-            break;
+        {
+            AmLock l(*call_ctx_mutex);
+            ParamReplacerCtx rctx(profile);
+            if(router.check_and_refuse(profile,cdr,*call_ctx->initial_invite,rctx)) {
+                DBG("%s() profile contains refuse code",FUNC_NAME);
+                break;
+            }
         }
 
         DBG("%s() no refuse field. check it for resources",FUNC_NAME);
         ResourceList &rl = profile->rl;
-        if(rl.empty()){
+        if(rl.empty()) {
             rctl_ret = RES_CTL_OK;
         } else {
-            rctl_ret = rctl.get(rl,
-                                profile->resource_handler,
-                                getLocalTag(),
-                                resource_config,ri);
+            rctl_ret = rctl.get(
+                rl,
+                profile->resource_handler,
+                getLocalTag(),
+                resource_config, ri);
         }
 
-        if(rctl_ret == RES_CTL_OK){
+        if(rctl_ret == RES_CTL_OK) {
             DBG("%s() check resources  successed",FUNC_NAME);
             has_profile = true;
             break;
         } else {
-            DBG("%s() check resources failed with code %d. internal code: %d",FUNC_NAME,
+            DBG("%s() check resources failed with code %d. internal code: %d", FUNC_NAME,
                 rctl_ret,resource_config.internal_code_id);
             if(rctl_ret ==  RES_CTL_ERROR) {
                 break;
             } else if(rctl_ret ==  RES_CTL_REJECT) {
+                AmLock l(*call_ctx_mutex);
                 cdr->update_failed_resource(*ri);
                 break;
-            } else if(	rctl_ret == RES_CTL_NEXT){
+            } else if(rctl_ret == RES_CTL_NEXT) {
+                AmLock l(*call_ctx_mutex);
                 profile = call_ctx->getNextProfile(false,true);
                 if(nullptr==profile){
                     cdr->update_failed_resource(*ri);
                     DBG("%s() there are no profiles more",FUNC_NAME);
                     break;
                 }
-                if(profile->disconnect_code_id!=0){
+                if(profile->disconnect_code_id!=0) {
                     cdr->update_failed_resource(*ri);
                     DBG("%s() failovered to refusing profile %d",FUNC_NAME,
                         profile->disconnect_code_id);
@@ -585,8 +597,9 @@ bool SBCCallLeg::chooseNextProfile()
         }
     } while(rctl_ret != RES_CTL_OK);
 
-    if(!has_profile) {
+    AmLock l(*call_ctx_mutex);
 
+    if(!has_profile) {
         unsigned int internal_code, response_code;
         string internal_reason, response_reason;
 
@@ -1451,10 +1464,12 @@ void SBCCallLeg::onSystemEventOverride(AmSystemEvent* event)
 void SBCCallLeg::onServerShutdown()
 {
     DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
-    AmLock l(*call_ctx_mutex);
-    getCtx_void
-    with_cdr_for_read {
-        cdr->update_internal_reason(DisconnectByTS,"ServerShutdown",200);
+    {
+        AmLock l(*call_ctx_mutex);
+        getCtx_void
+        with_cdr_for_read {
+            cdr->update_internal_reason(DisconnectByTS,"ServerShutdown",200);
+        }
     }
     //may never reach onDestroy callback so free resources here
     rctl.put(call_profile.resource_handler);
@@ -3626,13 +3641,14 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     removeTimer(YETI_FAKE_RINGING_TIMER);
     clearCallTimer(YETI_CALL_DURATION_TIMER);
 
+    if(!call_ctx) return;
+
     AmControlledLock call_ctx_lock(*call_ctx_mutex);
-    getCtx_void;
 
     Cdr &cdr = *call_ctx->cdr.get();
 
     cdr.update_with_sip_reply(reply);
-    cdr.update_bleg_reason(reply.reason,static_cast<int>(reply.code));
+    cdr.update_bleg_reason(reply.reason, static_cast<int>(reply.code));
 
     //save original destination reply code for stop_hunting lookup
     auto destination_reply_code = reply.code;
@@ -3657,6 +3673,10 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
         return;
     }
 
+    /* we have to release call_ctx_mutex before rctl.put()
+     * to avoid reordering deadlock with AmEventDispatcher queue mutex */
+    call_ctx_lock.release();
+
     DBG("continue hunting");
     //put current resources
     rctl.put(call_ctx->getCurrentProfile()->resource_handler);
@@ -3674,17 +3694,16 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
     if(profile->time_limit) {
         DBG("%s() save timer %d with timeout %d",FUNC_NAME,
             YETI_CALL_DURATION_TIMER, profile->time_limit);
-        saveCallTimer(YETI_CALL_DURATION_TIMER,profile->time_limit);
+        saveCallTimer(YETI_CALL_DURATION_TIMER, profile->time_limit);
     }
 
     DBG("%s() has new profile, so create new callee",FUNC_NAME);
     AmSipRequest req = *call_ctx->initial_invite;
-    call_ctx_lock.release();
 
     try {
         connectCalleeRequest(req);
-    } catch(InternalException &e){
-        AmControlledLock l(*call_ctx_mutex);
+    } catch(InternalException &e) {
+        AmLock l(*call_ctx_mutex);
         if(call_ctx && call_ctx->cdr) {
             call_ctx->cdr->update_internal_reason(DisconnectByTS,e.internal_reason,e.internal_code);
         }
