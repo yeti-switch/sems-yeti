@@ -1,3 +1,9 @@
+sems-yeti (1.13.31) stable; urgency=medium
+  * fix deadlock
+  * disable cdr,auth_log queue length limit
+  * disable auth_log transaction timeout
+ -- dev <dev@yeti-switch.org>  Wed, 23 Aug 2023 23:26:12 +0300
+
 sems-yeti (1.13.30) stable; urgency=medium
   * fix RTP timeout monitoring for the calls with early media
  -- dev <dev@yeti-switch.org>  Wed, 09 Aug 2023 19:35:14 +0300
