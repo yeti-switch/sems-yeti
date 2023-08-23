@@ -436,7 +436,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         cdr_cfg.failover_to_slave,
         true, /*retransmit_enable*/
         true, /* use pipeline */
-        PG_DEFAULT_WAIT_TIME, /* transaction timeout */
+        0, //PG_DEFAULT_WAIT_TIME, /* transaction timeout */
         cdr_cfg.retry_interval /* retransmit_interval */,
         cdr_cfg.check_interval /* reconnect_interval */,
         cdr_cfg.batch_size, /* batch_size */
