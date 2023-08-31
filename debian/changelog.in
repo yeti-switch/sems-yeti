@@ -1,3 +1,7 @@
+sems-yeti (1.13.33) stable; urgency=medium
+  * fix symmetric RTP call profile configuration processing
+ -- dev <dev@yeti-switch.org>  Thu, 31 Aug 2023 17:11:54 +0300
+
 sems-yeti (1.13.32) stable; urgency=medium
   * add 'id' to the active calls clickhouse snapshots
  -- dev <dev@yeti-switch.org>  Thu, 24 Aug 2023 18:58:05 +0300
