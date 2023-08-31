@@ -388,11 +388,6 @@ bool SBCCallProfile::evaluate(ParamReplacerCtx& ctx, const AmSipRequest& req)
   if (!transcoder.evaluate(ctx,req)) return false;
 
   if (rtprelay_enabled || transcoder.isActive()) {
-    // evaluate other RTP relay related params only if enabled
-    // FIXME: really not evaluate rtprelay_enabled itself?
-    /*REPLACE_BOOL(force_symmetric_rtp, force_symmetric_rtp_value);
-    REPLACE_BOOL(aleg_force_symmetric_rtp, aleg_force_symmetric_rtp_value);*/
-
     REPLACE_IFACE_RTP(rtprelay_interface, rtprelay_interface_value);
     REPLACE_IFACE_RTP(aleg_rtprelay_interface, aleg_rtprelay_interface_value);
   }

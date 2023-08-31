@@ -233,8 +233,6 @@ struct SBCCallProfile
   bool rtprelay_enabled;
   bool force_symmetric_rtp;
   bool aleg_force_symmetric_rtp;
-  bool force_symmetric_rtp_value;
-  bool aleg_force_symmetric_rtp_value;
 
   bool aleg_symmetric_rtp_nonstop;
   bool bleg_symmetric_rtp_nonstop;
@@ -401,7 +399,7 @@ struct SBCCallProfile
       sst_enabled(false),
       sst_aleg_enabled(false),
       auth_enabled(false), rtprelay_enabled(false),
-      force_symmetric_rtp_value(false), aleg_force_symmetric_rtp_value(false),
+      force_symmetric_rtp(false), aleg_force_symmetric_rtp(false),
       force_transcoding(false),
       rtprelay_interface_value(-1),
       aleg_rtprelay_interface_value(-1),
