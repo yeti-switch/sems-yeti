@@ -13,7 +13,6 @@
 
 class SBCCallLeg;
 
-
 class CdrList
   : public AmThread,
     private AmMutex/*,
@@ -94,6 +93,7 @@ class CdrList
 
     void getFields(AmArg &ret,SqlRouter *r);
     void validate_fields(const vector<string> &wanted_fields, const SqlRouter *router);
+    void sendSnapshot(const AmArg& calls);
 
     int configure(cfg_t *confuse_cfg);
     void run();

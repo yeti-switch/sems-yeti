@@ -467,6 +467,16 @@ bool YetiRpc::getCallsFields(const string& connection_id,
 		}
 	}, [](const AmArg& ret, void* user_data)
 	{
+		AmArg send_ret;
+		send_ret.assertArray();
+		for(int i = 0 ; i < ret.size(); i++) {
+			for(int j = 0 ; j < ret[i].size(); j++)
+			send_ret.push(ret[i][j]);
+		}
+
+		CallFields* call_fields = (CallFields*)user_data;
+		postJsonRpcReply(call_fields->connection_id, call_fields->request_id, send_ret);
+		delete call_fields;
 	}, call_fields);
 	return true;
 }

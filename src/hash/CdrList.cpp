@@ -1,3 +1,4 @@
+#include "AmSessionProcessor.h"
 #include "CdrList.h"
 #include "log.h"
 
@@ -302,11 +303,18 @@ void CdrList::onTimer()
     auto &gc = Yeti::instance().config;
     const DynFieldsT &df = router->getDynFields();
 
-    AmArg parameters;
-    parameters.assertStruct();
-    parameters["calls"] = AmArg(new AmArg(), true);
-    AmArg& calls = parameters["calls"].getReferencedValue();
-    calls.assertArray();
+    struct SnapshotInfo
+    {
+        AmArg calls;
+        string snapshot_timestamp_str;
+        string snapshot_date_str;
+        CdrList* cdr_list;
+    };
+    SnapshotInfo *info = new SnapshotInfo;
+    AmArg &calls = info->calls;
+    info->snapshot_timestamp_str = snapshot_timestamp_str;
+    info->snapshot_date_str = snapshot_date_str;
+    info->cdr_list = this;
 
     snapshot_id.fields.timestamp = snapshot_ts;
 
@@ -348,55 +356,53 @@ void CdrList::onTimer()
         }
     }
 
-    int i= 0;
-    //serialize to AmArg
-    AmEventDispatcher::instance()->iterate(
-        [&](const string &,
-            const AmEventDispatcher::QueueEntry &entry)
+    AmSessionProcessor::sendIterateRequest([](AmSession* session, void* user_data, AmArg& ret)
     {
-        auto leg = dynamic_cast<SBCCallLeg *>(entry.q);
+        SnapshotInfo* info = (SnapshotInfo*)user_data;
+        SBCCallLeg* leg = dynamic_cast<SBCCallLeg*>(session);
         if(!leg) return;
 
         if(!leg->isALeg()) return;
 
-        parameters["count"] = ++i;
-        leg->postEvent(GetSnapshotInfoEvent(parameters));
-
         auto call_ctx = leg->getCallCtx();
         if(!call_ctx) return;
+        if(!call_ctx->cdr) return;
 
-        if(!call_ctx->cdr) {
-            leg->putCallCtx();
-            return;
-        }
+        info->cdr_list->snapshot_id.fields.counter++;
+        auto &gc = Yeti::instance().config;
+        ret.push(AmArg());
+        AmArg &call = ret.back();
+        call["id"] = info->cdr_list->snapshot_id.v;
 
-        calls.push(AmArg());
-        AmArg &call = calls.back();
-
-        snapshot_id.fields.counter++;
-        call["id"] = snapshot_id.v;
-
-        call["snapshot_timestamp"] = snapshot_timestamp_str;
-        call["snapshot_date"] = snapshot_date_str;
+        call["snapshot_timestamp"] = info->snapshot_timestamp_str;
+        call["snapshot_date"] = info->snapshot_date_str;
         call["node_id"] = AmConfig.node_id;
         call["pop_id"] = gc.pop_id;
 
-        if(snapshots_buffering)
+        if(info->cdr_list->snapshots_buffering)
             call["buffered"] = false;
 
-        if(snapshots_fields_whitelist.empty()) {
+        const DynFieldsT &df = info->cdr_list->router->getDynFields();
+        if(info->cdr_list->snapshots_fields_whitelist.empty()) {
             call_ctx->cdr->snapshot_info(call,df);
-            call[end_time_key] = snapshot_timestamp_str;
+            call[end_time_key] = info->snapshot_timestamp_str;
         } else {
-            call_ctx->cdr->snapshot_info_filtered(call,df,snapshots_fields_whitelist);
-            if(snapshots_fields_whitelist.count(end_time_key))
-                call[end_time_key] = snapshot_timestamp_str;
+            call_ctx->cdr->snapshot_info_filtered(call,df,info->cdr_list->snapshots_fields_whitelist);
+            if(info->cdr_list->snapshots_fields_whitelist.count(end_time_key))
+                call[end_time_key] = info->snapshot_timestamp_str;
         }
-
-        leg->putCallCtx();
-    });
+    }, [](const AmArg& ret, void* user_data)
+	{
+        SnapshotInfo* info = (SnapshotInfo*)user_data;
+		for(int i = 0 ; i < ret.size(); i++) {
+			for(int j = 0 ; j < ret[i].size(); j++)
+			info->calls.push(ret[i][j]);
+		}
+        info->cdr_list->sendSnapshot(info->calls);
+        delete info;
+    }, info);
 }
-/*
+
 void CdrList::sendSnapshot(const AmArg& calls) {
     //serialize to json body for clickhouse
     string data = snapshots_body_header;
@@ -416,7 +422,7 @@ void CdrList::sendSnapshot(const AmArg& calls) {
             ERROR("can't post http event. disable active calls snapshots or add http_client module loading");
         }
     }
-}*/
+}
 
 void CdrList::cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const noexcept
 {
