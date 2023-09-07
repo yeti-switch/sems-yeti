@@ -200,6 +200,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void onPostgresTimeout(PGTimeout &e);
   void onProfilesReady(AmControlledLock &call_ctx_lock);
 
+  void onJsonRpcRequest(JsonRpcRequestEvent& ev);
   void onRadiusReply(const RadiusReplyEvent &ev);
   void onRedisReply(const RedisReplyEvent &e);
   void onCertCacheReply(const CertCacheResponseEvent &e);
@@ -302,7 +303,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   SharedMutex *getSharedMutex() { return call_ctx_mutex; }
   CallCtx *getCallCtxUnsafe() { return call_ctx; }
   CallCtx *getCallCtx();
-  void putCallCtx();
+  // void putCallCtx();
 
   void setRTPMeasurements(const list<::atomic_int*>& rtp_meas) { rtp_pegs = rtp_meas; }
   const RateLimit* getRTPRateLimit() { return rtp_relay_rate_limit.get(); }

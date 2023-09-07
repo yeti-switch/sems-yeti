@@ -1044,6 +1044,25 @@ void SBCCallLeg::onProfilesReady(AmControlledLock &call_ctx_lock)
     }
 }
 
+void SBCCallLeg::onJsonRpcRequest(JsonRpcRequestEvent& request)
+{
+    switch(request.method_id) {
+    case MethodRemoveCall: {
+        AmArg ret;
+        Yeti::instance().RemoveCall(this, ret);
+        postJsonRpcReply(request, ret);
+    } break;
+    case MethodShowSessionInfo: {
+        Yeti::instance().ShowSessionInfo(this, request);
+    } break;
+    case MethodGetCall: {
+        AmArg ret;
+        Yeti::instance().GetCall(this, ret);
+        postJsonRpcReply(request, ret);
+    } break;
+    }
+}
+
 void SBCCallLeg::onRadiusReply(const RadiusReplyEvent &ev)
 {
     DBG("got radius reply for %s",getLocalTag().c_str());
@@ -2103,18 +2122,18 @@ UACAuthCred* SBCCallLeg::getCredentials()
 }
 
 CallCtx *SBCCallLeg::getCallCtx() {
-    call_ctx_mutex->lock();
+    // call_ctx_mutex->lock();
     if(!call_ctx) {
-        call_ctx_mutex->unlock();
+        // call_ctx_mutex->unlock();
         return nullptr;
     }
     return call_ctx;
 }
-
+/*
 void SBCCallLeg::putCallCtx()
 {
     call_ctx_mutex->unlock();
-}
+}*/
 
 void SBCCallLeg::onSipRequest(const AmSipRequest& req)
 {
@@ -2723,6 +2742,12 @@ void SBCCallLeg::process(AmEvent* ev)
             }
 
             ERROR("unexpected pg event: %d", pg_event->event_id);
+            return;
+        }
+
+        JsonRpcRequestEvent* jsonrpc_event = dynamic_cast<JsonRpcRequestEvent *>(ev);
+        if(jsonrpc_event) {
+            onJsonRpcRequest(*jsonrpc_event);
             return;
         }
 

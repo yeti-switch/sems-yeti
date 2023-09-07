@@ -58,113 +58,41 @@ long int CdrList::getCallsCount()
     return calls_count;
 }
 
-int CdrList::getCall(const string &local_tag,AmArg &call,const SqlRouter *router)
-{
+bool CdrList::getCall(SBCCallLeg* leg, AmArg& call, const SqlRouter *router) {
     auto &gc = Yeti::instance().config;
     const get_calls_ctx ctx(AmConfig.node_id,gc.pop_id,router);
-    bool found = false;
 
-    if(!AmEventDispatcher::instance()->apply(local_tag,[&](const AmEventDispatcher::QueueEntry &entry)
-    {
-        auto leg = dynamic_cast<SBCCallLeg *>(entry.q);
-        if(!leg) return;
+    if(!leg->isALeg()) return false;
 
-        if(!leg->isALeg()) return;
+    auto call_ctx = leg->getCallCtx();
+    if(!call_ctx) return false;
 
-        auto call_ctx = leg->getCallCtx();
-        if(!call_ctx) return;
-
-        if(call_ctx->cdr) {
-            found = true;
-            cdr2arg(call,call_ctx->cdr.get(),ctx);
-        }
-
-        leg->putCallCtx();
-    })) {
-        //session not found by local_tag
-        return 0;
-    }
-
-    if(found) return 1;
-    return 0;
+    if(!call_ctx->cdr) return false;
+    cdr2arg(call,call_ctx->cdr.get(),ctx);
+    return true;
 }
 
-void CdrList::getCalls(AmArg &calls, const SqlRouter *router)
+bool CdrList::getCallsFields(SBCCallLeg* leg, AmArg &call,
+                             const SqlRouter *router,
+                             cmp_rules& filter_rules,
+                             const vector<string>& fields)
 {
     auto &gc = Yeti::instance().config;
-
-    const get_calls_ctx ctx(AmConfig.node_id,gc.pop_id,router);
-
-    calls.assertArray();
-
-    PROF_START(calls_serialization);
-
-    AmEventDispatcher::instance()->iterate(
-        [&](const string &,
-            const AmEventDispatcher::QueueEntry &entry)
-    {
-        auto leg = dynamic_cast<SBCCallLeg *>(entry.q);
-        if(!leg) return;
-
-        if(!leg->isALeg()) return;
-
-        auto call_ctx = leg->getCallCtx();
-        if(!call_ctx) return;
-
-        if(call_ctx->cdr && !call_ctx->profiles.empty()) {
-            calls.push(AmArg());
-            cdr2arg(calls.back(),call_ctx->cdr.get(),ctx);
-        }
-
-        leg->putCallCtx();
-    });
-
-    PROF_END(calls_serialization);
-    PROF_PRINT("active calls serialization",calls_serialization);
-}
-
-void CdrList::getCallsFields(
-    AmArg &calls,
-    const SqlRouter *router, const AmArg &params)
-{
-    calls.assertArray();
-    auto &gc = Yeti::instance().config;
-
-    cmp_rules filter_rules;
-    vector<string> fields;
-
-    parse_fields(filter_rules, params, fields);
-
-    validate_fields(fields,router);
-
     const get_calls_ctx ctx(AmConfig.node_id,gc.pop_id,router,&fields);
 
-    PROF_START(calls_serialization);
+    if(!leg) return false;
+    if(!leg->isALeg()) return false;
 
-    AmEventDispatcher::instance()->iterate(
-        [&](const string &,
-            const AmEventDispatcher::QueueEntry &entry)
-    {
-        auto leg = dynamic_cast<SBCCallLeg *>(entry.q);
-        if(!leg) return;
+    auto call_ctx = leg->getCallCtx();
+    if(!call_ctx) return false;
 
-        if(!leg->isALeg()) return;
-
-        auto call_ctx = leg->getCallCtx();
-        if(!call_ctx) return;
-
-        if(call_ctx->cdr && !call_ctx->profiles.empty()) {
-            if(apply_filter_rules(call_ctx->cdr.get(),filter_rules)) {
-                calls.push(AmArg());
-                cdr2arg_filtered(calls.back(),call_ctx->cdr.get(),ctx);
-            }
+    if(call_ctx->cdr && !call_ctx->profiles.empty()) {
+        if(apply_filter_rules(call_ctx->cdr.get(),filter_rules)) {
+            cdr2arg_filtered(call,call_ctx->cdr.get(),ctx);
+            return true;
         }
-
-        leg->putCallCtx();
-    });
-
-    PROF_END(calls_serialization);
-    PROF_PRINT("active calls serialization",calls_serialization);
+    }
+    return false;
 }
 
 void CdrList::getFields(AmArg &ret,SqlRouter *r)
@@ -349,7 +277,7 @@ void CdrList::onTimer()
     u_int64_t now = wheeltimer::instance()->unix_clock.get();
     u_int64_t snapshot_ts = now - (now % snapshots_interval);
 
-    string data, snapshot_timestamp_str, snapshot_date_str;
+    string snapshot_timestamp_str, snapshot_date_str;
 
     if(last_snapshot_ts && last_snapshot_ts==snapshot_ts){
         ERROR("duplicate snapshot %lu timestamp. "
@@ -374,54 +302,13 @@ void CdrList::onTimer()
     auto &gc = Yeti::instance().config;
     const DynFieldsT &df = router->getDynFields();
 
-    AmArg calls;
+    AmArg parameters;
+    parameters.assertStruct();
+    parameters["calls"] = AmArg(new AmArg(), true);
+    AmArg& calls = parameters["calls"].getReferencedValue();
     calls.assertArray();
 
     snapshot_id.fields.timestamp = snapshot_ts;
-
-    //serialize to AmArg
-    AmEventDispatcher::instance()->iterate(
-        [&](const string &,
-            const AmEventDispatcher::QueueEntry &entry)
-    {
-        auto leg = dynamic_cast<SBCCallLeg *>(entry.q);
-        if(!leg) return;
-
-        if(!leg->isALeg()) return;
-
-        auto call_ctx = leg->getCallCtx();
-        if(!call_ctx) return;
-
-        if(!call_ctx->cdr) {
-            leg->putCallCtx();
-            return;
-        }
-
-        calls.push(AmArg());
-        AmArg &call = calls.back();
-
-        snapshot_id.fields.counter++;
-        call["id"] = snapshot_id.v;
-
-        call["snapshot_timestamp"] = snapshot_timestamp_str;
-        call["snapshot_date"] = snapshot_date_str;
-        call["node_id"] = AmConfig.node_id;
-        call["pop_id"] = gc.pop_id;
-
-        if(snapshots_buffering)
-            call["buffered"] = false;
-
-        if(snapshots_fields_whitelist.empty()) {
-            call_ctx->cdr->snapshot_info(call,df);
-            call[end_time_key] = snapshot_timestamp_str;
-        } else {
-            call_ctx->cdr->snapshot_info_filtered(call,df,snapshots_fields_whitelist);
-            if(snapshots_fields_whitelist.count(end_time_key))
-                call[end_time_key] = snapshot_timestamp_str;
-        }
-
-        leg->putCallCtx();
-    });
 
     if(snapshots_buffering) {
         {
@@ -461,8 +348,58 @@ void CdrList::onTimer()
         }
     }
 
+    int i= 0;
+    //serialize to AmArg
+    AmEventDispatcher::instance()->iterate(
+        [&](const string &,
+            const AmEventDispatcher::QueueEntry &entry)
+    {
+        auto leg = dynamic_cast<SBCCallLeg *>(entry.q);
+        if(!leg) return;
+
+        if(!leg->isALeg()) return;
+
+        parameters["count"] = ++i;
+        leg->postEvent(GetSnapshotInfoEvent(parameters));
+
+        auto call_ctx = leg->getCallCtx();
+        if(!call_ctx) return;
+
+        if(!call_ctx->cdr) {
+            leg->putCallCtx();
+            return;
+        }
+
+        calls.push(AmArg());
+        AmArg &call = calls.back();
+
+        snapshot_id.fields.counter++;
+        call["id"] = snapshot_id.v;
+
+        call["snapshot_timestamp"] = snapshot_timestamp_str;
+        call["snapshot_date"] = snapshot_date_str;
+        call["node_id"] = AmConfig.node_id;
+        call["pop_id"] = gc.pop_id;
+
+        if(snapshots_buffering)
+            call["buffered"] = false;
+
+        if(snapshots_fields_whitelist.empty()) {
+            call_ctx->cdr->snapshot_info(call,df);
+            call[end_time_key] = snapshot_timestamp_str;
+        } else {
+            call_ctx->cdr->snapshot_info_filtered(call,df,snapshots_fields_whitelist);
+            if(snapshots_fields_whitelist.count(end_time_key))
+                call[end_time_key] = snapshot_timestamp_str;
+        }
+
+        leg->putCallCtx();
+    });
+}
+/*
+void CdrList::sendSnapshot(const AmArg& calls) {
     //serialize to json body for clickhouse
-    data = snapshots_body_header;
+    string data = snapshots_body_header;
     for(unsigned int i = 0;i < calls.size();i++)
         data+=arg2json(calls[i])+"\n";
 
@@ -479,7 +416,7 @@ void CdrList::onTimer()
             ERROR("can't post http event. disable active calls snapshots or add http_client module loading");
         }
     }
-}
+}*/
 
 void CdrList::cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const noexcept
 {

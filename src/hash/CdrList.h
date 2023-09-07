@@ -11,6 +11,9 @@
 #include <unordered_set>
 #include <unordered_map>
 
+class SBCCallLeg;
+
+
 class CdrList
   : public AmThread,
     private AmMutex/*,
@@ -83,9 +86,9 @@ class CdrList
     ~CdrList();
 
     long int getCallsCount();
-    void getCalls(AmArg &calls, const SqlRouter *router);
-    void getCallsFields(AmArg &calls, const SqlRouter *router, const AmArg &params);
-    int getCall(const string &local_tag, AmArg &call, const SqlRouter *router);
+    bool getCall(SBCCallLeg* leg, AmArg& call, const SqlRouter *router);
+    bool getCallsFields(SBCCallLeg* leg, AmArg &calls, const SqlRouter *router,
+                        cmp_rules& rules, const vector<string>& fields);
 
     void onSessionFinalize(Cdr *cdr);
 

@@ -7,6 +7,15 @@
 #include "yeti_radius.h"
 #include "RpcTreeHandler.h"
 
+class SBCCallLeg;
+
+enum RpcMethodId {
+    MethodGetResourceState,
+    MethodRemoveCall,
+    MethodShowSessionInfo,
+    MethodGetCall
+};
+
 class YetiRpc
   : public RpcTreeHandler<YetiRpc>,
     virtual YetiBase,
@@ -24,14 +33,22 @@ class YetiRpc
     void init_rpc_tree();
 
   private:
+    friend class SBCCallLeg;
+    async_rpc_handler removeCall;
+    void RemoveCall(SBCCallLeg* leg, AmArg& ret);
+
+    async_rpc_handler showSessionsInfo;
+    void ShowSessionInfo(SBCCallLeg* leg, const JsonRpcRequestEvent& request);
+
+    async_rpc_handler getCall;
+    void GetCall(SBCCallLeg* leg, AmArg& ret);
+    async_rpc_handler getCalls;
+    async_rpc_handler getCallsFields;
+
     rpc_handler DropCall;
-    rpc_handler RemoveCall;
     rpc_handler ClearStats;
     rpc_handler GetStats;
     rpc_handler GetConfig;
-    rpc_handler GetCall;
-    rpc_handler GetCalls;
-    rpc_handler GetCallsFields;
     rpc_handler GetCallsCount;
     rpc_handler GetRegistration;
     rpc_handler GetRegistrations;
@@ -84,7 +101,6 @@ class YetiRpc
     rpc_handler requestReloadSensors;
     rpc_handler showSensorsState;
 
-    rpc_handler showSessionsInfo;
     rpc_handler showSessionsCount;
 
     rpc_handler showRadiusAuthProfiles;
