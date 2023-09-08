@@ -695,7 +695,7 @@ static void filterSdpAnswerMedia(
 	bool single_codec)
 {
 	int override_id = 0;
-	auto call_ctx = call->getCallCtxUnsafe();
+	auto call_ctx = call->getCallCtx();
 	if(call_ctx) {
 		override_id = call_ctx->getOverrideId();
 	}
@@ -851,7 +851,7 @@ int processSdpAnswer(SBCCallLeg *call,
 	SBCCallProfile &call_profile = call->getCallProfile();
 
 	int override_id = 0;
-	auto call_ctx = call->getCallCtxUnsafe();
+	auto call_ctx = call->getCallCtx();
 	if(call_ctx) {
 		override_id = call_ctx->getOverrideId();
 	}

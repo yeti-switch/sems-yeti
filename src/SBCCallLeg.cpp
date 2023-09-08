@@ -205,7 +205,7 @@ SBCCallLeg::SBCCallLeg(
     sdp_session_offer_last_cseq(0),
     sdp_session_answer_last_cseq(0),
     global_tag(caller->getGlobalTag()),
-    call_ctx(caller->getCallCtxUnsafe()),
+    call_ctx(caller->getCallCtx()),
     call_ctx_mutex(caller->getSharedMutex()),
     early_trying_logger(nullptr),
     auth(nullptr),
@@ -2120,20 +2120,6 @@ UACAuthCred* SBCCallLeg::getCredentials()
     if (a_leg) return &call_profile.auth_aleg_credentials;
     else return &call_profile.auth_credentials;
 }
-
-CallCtx *SBCCallLeg::getCallCtx() {
-    // call_ctx_mutex->lock();
-    if(!call_ctx) {
-        // call_ctx_mutex->unlock();
-        return nullptr;
-    }
-    return call_ctx;
-}
-/*
-void SBCCallLeg::putCallCtx()
-{
-    call_ctx_mutex->unlock();
-}*/
 
 void SBCCallLeg::onSipRequest(const AmSipRequest& req)
 {

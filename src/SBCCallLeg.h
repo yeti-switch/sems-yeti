@@ -301,9 +301,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   const string &getGlobalTag() const { return global_tag; }
 
   SharedMutex *getSharedMutex() { return call_ctx_mutex; }
-  CallCtx *getCallCtxUnsafe() { return call_ctx; }
-  CallCtx *getCallCtx();
-  // void putCallCtx();
+  CallCtx *getCallCtx() { return call_ctx; }
 
   void setRTPMeasurements(const list<::atomic_int*>& rtp_meas) { rtp_pegs = rtp_meas; }
   const RateLimit* getRTPRateLimit() { return rtp_relay_rate_limit.get(); }
