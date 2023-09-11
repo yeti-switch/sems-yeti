@@ -11,8 +11,8 @@
 #define YETI_SCTP_DEFAULT_PORT 4444
 
 #define IP_AUTH_DEFAULT_HEADER "X-ORIG-IP"
-
 #define DEFAULT_REGISTRAR_KEEPALIVE_INTERVAL 60
+#define YETI_DEFAULT_AUDIO_RECORDER_DIR "/var/spool/sems/record"
 
 char opt_name_auth_feedback[] = "enable_auth_feedback";
 char opt_name_http_events_destination[] = "http_events_destination";
@@ -33,6 +33,9 @@ char opt_name_ip_auth_reject_if_no_matched[] = "ip_auth_reject_if_no_matched";
 char opt_name_ip_auth_header[] = "ip_auth_header";
 char opt_name_postgresql_debug[] = "postgresql_debug";
 char opt_name_connection_lifetime[] = "connection_lifetime";
+char opt_name_audio_recorder_dir[] = "audio_recorder_dir";
+char opt_name_audio_recorder_compress[] = "audio_recorder_compress";
+char opt_name_audio_recorder_http_destination[] = "audio_recorder_http_destination";
 
 char opt_identity_expires[] = "expires";
 char opt_identity_http_destination[] = "http_destination";
@@ -178,8 +181,9 @@ cfg_opt_t identity_opts[] {
 cfg_opt_t yeti_opts[] = {
     DCFG_INT(pop_id),
     DCFG_STR(msg_logger_dir),
-    DCFG_STR(audio_recorder_dir),
-    DCFG_BOOL(audio_recorder_compress),
+    CFG_STR(opt_name_audio_recorder_dir, YETI_DEFAULT_AUDIO_RECORDER_DIR, CFGF_NONE),
+    CFG_STR(opt_name_audio_recorder_http_destination, "", CFGF_NONE),
+    CFG_BOOL(opt_name_audio_recorder_compress, cfg_true, CFGF_NONE),
     CFG_SEC(section_name_routing, sig_yeti_routing_opts, CFGF_NONE),
     CFG_SEC(section_name_cdr, sig_yeti_cdr_opts, CFGF_NONE),
     DCFG_SEC(resources,sig_yeti_resources_opts,CFGF_NONE),

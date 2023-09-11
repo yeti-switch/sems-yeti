@@ -11,8 +11,6 @@
 
 #define LOG_BUF_SIZE 2048
 
-#define YETI_DEFAULT_AUDIO_RECORDER_DIR "/var/spool/sems/record"
-
 cdr_headers_t cfg_aleg_cdr_headers;
 cdr_headers_t cfg_bleg_reply_cdr_headers;
 
@@ -108,10 +106,12 @@ int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
     if(check_dir_write_permissions(msg_logger_dir))
         return -1;
 
-    audio_recorder_dir = am_cfg.getParameter("audio_recorder_dir",YETI_DEFAULT_AUDIO_RECORDER_DIR);
+    audio_recorder_dir = cfg_getstr(cfg, opt_name_audio_recorder_dir);
     if(check_dir_write_permissions(audio_recorder_dir))
         return -1;
-    audio_recorder_compress = am_cfg.getParameterInt("audio_recorder_compress",1)==1;
+
+    audio_recorder_http_destination = cfg_getstr(cfg, opt_name_audio_recorder_http_destination);
+    audio_recorder_compress = cfg_getbool(cfg, opt_name_audio_recorder_compress);
 
     routing_db_master.cfg2dbcfg(am_cfg, "master");
 

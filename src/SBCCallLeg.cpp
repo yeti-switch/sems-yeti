@@ -25,6 +25,7 @@
 #include <algorithm>
 
 #include "AmAudioFileRecorder.h"
+#include "AmAudioFileRecorderStereo.h"
 #include "radius_hooks.h"
 #include "Sensors.h"
 #include "RedisConnection.h"
@@ -268,20 +269,38 @@ void SBCCallLeg::init()
     }
 
     if(call_profile.record_audio){
-        ostringstream ss;
-        ss  << yeti.config.audio_recorder_dir << '/'
+        if(yeti.config.audio_recorder_compress) {
+            ostringstream ss;
+            ss << yeti.config.audio_recorder_dir << '/'
             << global_tag << "_"
             << int2str(AmConfig.node_id) <<  "_leg"
             << (a_leg ? "a" : "b")
-            << (yeti.config.audio_recorder_compress ?
-                FILE_RECORDER_COMPRESSED_EXT :
-                FILE_RECORDER_RAW_EXT);
-        call_profile.audio_record_path = ss.str();
+            << FILE_RECORDER_COMPRESSED_EXT;
 
-        AmAudioFileRecorderProcessor::instance()->addRecorder(
-            getLocalTag(),
-            call_profile.audio_record_path);
-        setRecordAudio(true);
+            call_profile.audio_record_path = ss.str();
+
+            AmAudioFileRecorderProcessor::instance()->addRecorder(
+                getLocalTag(),
+                call_profile.audio_record_path);
+
+            setRecordAudio(true);
+        } else {
+            // start recorder if leg is A
+            if (a_leg) {
+                call_profile.audio_record_path = global_tag + FILE_RECORDER_COMPRESSED_EXT;
+                AmAudioFileRecorderProcessor::instance()->putEvent(
+                    new AudioRecorderCtlEvent(
+                        global_tag,
+                        AudioRecorderEvent::addStereoRecorder,
+                        AmAudioFileRecorder::RecorderStereoRaw,
+                        call_profile.audio_record_path,
+                        getLocalTag()));
+
+                addStereoRecorder(AudioRecorderChannelLeft, global_tag);
+            } else {
+                addStereoRecorder(AudioRecorderChannelRight, global_tag);
+            }
+        }
     }
 }
 
@@ -2012,7 +2031,38 @@ void SBCCallLeg::onBeforeDestroy()
     }
 
     if(call_profile.record_audio) {
-        AmAudioFileRecorderProcessor::instance()->removeRecorder(getLocalTag());
+        if(yeti.config.audio_recorder_compress) {
+            AmAudioFileRecorderProcessor::instance()->removeRecorder(getLocalTag());
+        } else {
+            // stop recorder and upload audio file if leg is A
+            if (a_leg) {
+                // stop recorder
+                AmAudioFileRecorderProcessor::instance()->putEvent(
+                    new AudioRecorderCtlEvent(
+                        global_tag,
+                        AudioRecorderEvent::delStereoRecorder)
+                );
+
+                // upload audio file
+                if(!yeti.config.audio_recorder_http_destination.empty()) {
+                    string audio_record_path(AmConfig.rsr_path);
+                    audio_record_path += "/" + global_tag + ".rsr";
+
+                    if(!AmSessionContainer::instance()->postEvent(
+                        HTTP_EVENT_QUEUE,
+                        new HttpUploadEvent(
+                            yeti.config.audio_recorder_http_destination,
+                            string(), // file_name
+                            audio_record_path,
+                            string(), // token
+                            string(), // session_id
+                            getLocalTag())))
+                    {
+                        ERROR("can't post http upload event. disable uploading or enable http_client module loading");
+                    }
+                }
+            }
+        }
     }
 
     if(call_ctx->references)

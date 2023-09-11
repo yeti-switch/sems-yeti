@@ -19,6 +19,7 @@ struct YetiCfg {
 
     string msg_logger_dir;
     string audio_recorder_dir;
+    string audio_recorder_http_destination;
     bool audio_recorder_compress;
     string log_dir;
     bool pcap_memory_logger;
