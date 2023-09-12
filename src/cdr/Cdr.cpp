@@ -179,7 +179,7 @@ void Cdr::update_sbc(const SBCCallProfile &profile)
     audio_record_enabled = profile.record_audio;
 }
 
-void Cdr::update_with_sip_request(const AmSipRequest &req, const cdr_headers_t &aleg_headers)
+void Cdr::update_with_aleg_sip_request(const AmSipRequest &req)
 {
     size_t pos1,pos2,pos;
 
@@ -208,14 +208,9 @@ void Cdr::update_with_sip_request(const AmSipRequest &req, const cdr_headers_t &
                 update_with_isup(isup);
             }
         }
-        aleg_headers_amarg = aleg_headers.serialize_headers(req.hdrs);
+        aleg_headers_amarg =
+            Yeti::instance().config.aleg_cdr_headers.serialize_headers(req.hdrs);
     }
-}
-
-void Cdr::update_with_isup(const AmISUP &isup)
-{
-    DBG("Cdr::%s(AmISUP)",FUNC_NAME);
-    isup_propagation_delay = isup.propagation_delay;
 }
 
 inline void remove_ipv6_reference_inplace(string &s)
@@ -232,7 +227,8 @@ inline void remove_ipv6_reference_inplace(string &s)
     }
 }
 
-void Cdr::update_with_sip_reply(const AmSipReply &reply){
+void Cdr::update_with_bleg_sip_reply(const AmSipReply &reply)
+{
     size_t pos1,pos2,pos;
 
     DBG("Cdr::%s(AmSipReply)",FUNC_NAME);
@@ -246,6 +242,10 @@ void Cdr::update_with_sip_reply(const AmSipReply &reply){
 
     if(reply.remote_port==0)
         return; //local reply
+
+    if(reply.code >= 300) {
+        bleg_reasons.parse_headers(reply.hdrs);
+    }
 
     legB_transport_protocol_id = reply.transport_id;
 
@@ -277,6 +277,18 @@ void Cdr::update_with_sip_reply(const AmSipReply &reply){
             }
         }
     }
+}
+
+void Cdr::update_reasons_with_sip_request(const AmSipRequest &req, bool a_leg)
+{
+    auto &reasons = a_leg ? aleg_reasons : bleg_reasons;
+    reasons.parse_headers(req.hdrs);
+}
+
+void Cdr::update_with_isup(const AmISUP &isup)
+{
+    DBG("Cdr::%s(AmISUP)",FUNC_NAME);
+    isup_propagation_delay = isup.propagation_delay;
 }
 
 void Cdr::update_init_aleg(
@@ -990,9 +1002,11 @@ void Cdr::apply_params(
     free(s); \
 } while(0)
 
+    const auto &cfg = Yeti::instance().config;
+
     invoc(true); //is_master
     invoc(AmConfig.node_id);
-    invoc(Yeti::instance().config.pop_id);
+    invoc(cfg.pop_id);
 
     invoc(attempt_num);
     invoc(is_last);
@@ -1067,12 +1081,25 @@ void Cdr::apply_params(
     //invoc_json(serialize_dynamic(df));
 
     /*if(Yeti::instance().config.aleg_cdr_headers.enabled()) {*/
+    //aleg_reasons.serialize()
+    if(aleg_reasons.has_data(cfg.headers_processing.aleg)) {
+        aleg_headers_amarg.assertStruct();
+        aleg_reasons.serialize_flat(
+            aleg_headers_amarg["reason"],
+            cfg.headers_processing.aleg);
+    }
     invoc_cond(arg2json(aleg_headers_amarg), isArgStruct(aleg_headers_amarg) && aleg_headers_amarg.size());
     //}
 
     /* invocate trusted hdrs  */
     /*for(const auto &h : trusted_hdrs)
         invoc_AmArg(invoc,h);*/
+    if(bleg_reasons.has_data(cfg.headers_processing.bleg)) {
+        bleg_reply_headers_amarg.assertStruct();
+        bleg_reasons.serialize_flat(
+            bleg_reply_headers_amarg["reason"],
+            cfg.headers_processing.bleg);
+    }
     invoc_cond(arg2json(bleg_reply_headers_amarg), isArgStruct(bleg_reply_headers_amarg) && bleg_reply_headers_amarg.size());
 
     //i_lega_identity  will be here

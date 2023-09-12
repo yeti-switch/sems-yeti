@@ -18,6 +18,7 @@ extern char section_name_routing[];
 extern char section_name_cdr[];
 extern char section_name_auth[];
 extern char section_name_lega_cdr_headers[];
+extern char section_name_legb_reply_cdr_headers[];
 extern char section_name_identity[];
 extern char section_name_statistics[];
 
@@ -36,6 +37,8 @@ extern char opt_identity_certs_cache_failed_ttl[];
 extern char opt_identity_certs_cache_failed_verify_ttl[];
 
 extern char opt_func_name_header[];
+extern char opt_name_cdr_headers_add_sip_reason[];
+extern char opt_name_cdr_headers_add_q850_reason[];
 
 //extern int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 

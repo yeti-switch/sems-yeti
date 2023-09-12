@@ -1,9 +1,10 @@
 #ifndef CDR_H
 #define CDR_H
 
-#include "time.h"
 #include "../SqlCallProfile.h"
 #include "../resources/Resource.h"
+#include "../ReasonParser.h"
+
 #include "AmRtpStream.h"
 #include "AmISUP.h"
 #include "cJSON.h"
@@ -130,6 +131,9 @@ struct Cdr
     AmArg bleg_reply_headers_amarg;
     AmArg identity_data;
 
+    ReasonParser aleg_reasons;
+    ReasonParser bleg_reasons;
+
     Cdr();
     Cdr(const Cdr& cdr,const SqlCallProfile &profile);
     Cdr(const Cdr& cdr);
@@ -140,20 +144,30 @@ struct Cdr
 
     void update_sql(const SqlCallProfile &profile);
     void update_sbc(const SBCCallProfile &profile);
-    void update_with_sip_request(const AmSipRequest &req, const cdr_headers_t &aleg_headers);
+
+    void update_with_aleg_sip_request(const AmSipRequest &req);
+    void update_with_bleg_sip_reply(const AmSipReply &reply);
+    void update_reasons_with_sip_request(const AmSipRequest &req, bool a_leg);
     void update_with_isup(const AmISUP &isup);
-    void update_with_sip_reply(const AmSipReply &reply);
+
     void update_init_aleg(const string &leg_local_tag, const string &leg_global_tag, const string &leg_orig_call_id);
     void update_init_bleg(const string &leg_term_call_id, const string &leg_local_tag);
+
     void update_with_action(UpdateAction act);
+
     void update_with_resource_list(const ResourceList &rl);
     void update_failed_resource(const Resource &r);
+
     void add_dtmf_event(bool aleg, int event, struct timeval &now, int rx_proto, int tx_proto);
+
     void set_start_time(const timeval &t);
+
     void update_bleg_reason(string reason, int code);
     void update_aleg_reason(string reason, int code);
     void update_internal_reason(DisconnectInitiator initiator,string reason, unsigned int code);
+
     void setSuppress(bool s);
+
     void replace(ParamReplacerCtx &ctx,const AmSipRequest &req);
     void replace(string& s, const string& from, const string& to);
     void refuse(const SBCCallProfile &profile);

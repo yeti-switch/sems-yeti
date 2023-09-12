@@ -796,7 +796,7 @@ bool SqlRouter::check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
     }
     if(send_reply && need_reply){
         if(write_cdr){
-            cdr->update_with_sip_request(req, Yeti::instance().config.aleg_cdr_headers);
+            cdr->update_with_aleg_sip_request(req);
             cdr->update_sbc(*profile);
         }
         //prepare & send sip response

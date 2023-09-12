@@ -58,6 +58,23 @@ static int check_dir_write_permissions(const string &dir)
     return 0;
 }
 
+void YetiCfg::headers_processing_config::leg_reasons::configure(cfg_t *cfg)
+{
+    add_sip_reason =
+        cfg_getbool(cfg, opt_name_cdr_headers_add_sip_reason);
+
+    add_q850_reason =
+        cfg_getbool(cfg, opt_name_cdr_headers_add_q850_reason);
+}
+
+void YetiCfg::headers_processing_config::configure(cfg_t *cfg)
+{
+    if(cfg_t* lega_cdr_headers_sec = cfg_getsec(cfg, section_name_lega_cdr_headers))
+        aleg.configure(lega_cdr_headers_sec);
+    if(cfg_t* legb_cdr_headers_sec = cfg_getsec(cfg, section_name_legb_reply_cdr_headers))
+        bleg.configure(legb_cdr_headers_sec);
+}
+
 int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
 {
     core_options_handling = cfg_getbool(cfg, opt_name_core_options_handling);
@@ -67,9 +84,11 @@ int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
     ip_auth_reject_if_no_matched = cfg_getbool(cfg, opt_name_ip_auth_reject_if_no_matched);
     ip_auth_hdr = cfg_getstr(cfg, opt_name_ip_auth_header);
     http_events_destination = cfg_getstr(cfg, opt_name_http_events_destination);
+    postgresql_debug = cfg_getbool(cfg, opt_name_postgresql_debug);
+
     aleg_cdr_headers = cfg_aleg_cdr_headers;
     bleg_reply_cdr_headers = cfg_bleg_reply_cdr_headers;
-    postgresql_debug = cfg_getbool(cfg, opt_name_postgresql_debug);
+    headers_processing.configure(cfg);
 
     serialize_to_amconfig(cfg, am_cfg);
 

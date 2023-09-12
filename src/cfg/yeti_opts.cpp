@@ -38,6 +38,8 @@ char opt_identity_certs_cache_failed_ttl[] = "certs_cache_failed_ttl";
 char opt_identity_certs_cache_failed_verify_ttl[] = "certs_cache_failed_verify_ttl";
 
 char opt_func_name_header[] = "header";
+char opt_name_cdr_headers_add_sip_reason[] = "add_sip_reason";
+char opt_name_cdr_headers_add_q850_reason[] = "add_q850_reason";
 
 int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 int add_bleg_reply_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
@@ -144,11 +146,15 @@ cfg_opt_t sig_yeti_auth_opts[] = {
 
 cfg_opt_t lega_cdr_headers_opts[] = {
     CFG_FUNC(opt_func_name_header, add_aleg_cdr_header),
+    CFG_BOOL(opt_name_cdr_headers_add_sip_reason, cfg_false, CFGF_NONE),
+    CFG_BOOL(opt_name_cdr_headers_add_q850_reason, cfg_false, CFGF_NONE),
     CFG_END()
 };
 
 cfg_opt_t legb_reply_cdr_headers_opts[] = {
     CFG_FUNC(opt_func_name_header, add_bleg_reply_cdr_header),
+    CFG_BOOL(opt_name_cdr_headers_add_sip_reason, cfg_false, CFGF_NONE),
+    CFG_BOOL(opt_name_cdr_headers_add_q850_reason, cfg_false, CFGF_NONE),
     CFG_END()
 };
 

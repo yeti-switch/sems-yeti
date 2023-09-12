@@ -293,7 +293,7 @@ void SBCCallLeg::terminateLegOnReplyException(const AmSipReply& reply,const Inte
     if(!getOtherId().empty()) { //ignore not connected B legs
         with_cdr_for_read {
             cdr->update_internal_reason(DisconnectByTS, e.internal_reason, e.internal_code);
-            cdr->update_with_sip_reply(reply);
+            cdr->update_with_bleg_sip_reply(reply);
         }
     }
 
@@ -1003,7 +1003,7 @@ void SBCCallLeg::onProfilesReady(AmControlledLock &call_ctx_lock)
         throw AmSession::Exception(400,"Failed to parse R-URI");
     }
 
-    call_ctx->cdr->update_with_sip_request(uac_req, yeti.config.aleg_cdr_headers);
+    call_ctx->cdr->update_with_aleg_sip_request(uac_req);
     call_ctx->initial_invite = new AmSipRequest(aleg_modified_req);
 
     if(yeti.config.early_100_trying) {
@@ -2283,11 +2283,11 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
             return;
         }
 
-        if(a_leg){
-            if(req.method==SIP_METH_CANCEL){
-                with_cdr_for_read {
-                    cdr->update_internal_reason(DisconnectByORG,"Request terminated (Cancel)",487);
-                }
+        if(a_leg && req.method==SIP_METH_CANCEL) {
+            with_cdr_for_read {
+                cdr->update_internal_reason(
+                    DisconnectByORG, "Request terminated (Cancel)", 487);
+                cdr->update_reasons_with_sip_request(req, true);
             }
         }
     } while(0);
@@ -2351,7 +2351,7 @@ void SBCCallLeg::onSipReply(const AmSipRequest& req, const AmSipReply& reply,
                 }
             } else {
                 with_cdr_for_read
-                    cdr->update_with_sip_reply(reply);
+                    cdr->update_with_bleg_sip_reply(reply);
             }
         }
     }
@@ -2479,6 +2479,7 @@ void SBCCallLeg::onBye(const AmSipRequest& req)
     AmControlledLock call_ctx_lock(*call_ctx_mutex);
     if(!call_ctx) return;
     with_cdr_for_read {
+        cdr->update_reasons_with_sip_request(req, a_leg);
         if(getCallStatus()!=CallLeg::Connected) {
             if(a_leg) {
                 DBG("received Bye in not connected state");
@@ -3647,7 +3648,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
 
     Cdr &cdr = *call_ctx->cdr.get();
 
-    cdr.update_with_sip_reply(reply);
+    cdr.update_with_bleg_sip_reply(reply);
     cdr.update_bleg_reason(reply.reason, static_cast<int>(reply.code));
 
     //save original destination reply code for stop_hunting lookup

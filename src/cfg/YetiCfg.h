@@ -43,6 +43,20 @@ struct YetiCfg {
 
     int identity_enabled;
 
+    struct headers_processing_config {
+        struct leg_reasons {
+            bool add_sip_reason;
+            bool add_q850_reason;
+            leg_reasons()
+              : add_sip_reason(false),
+                add_q850_reason(false)
+            {}
+            bool enabled() { return add_sip_reason || add_q850_reason; }
+            void configure(cfg_t *cfg);
+        } aleg, bleg;
+        void configure(cfg_t *cfg);
+    } headers_processing;
+
     int configure(cfg_t *cfg, AmConfigReader &am_cfg);
 
 private:
