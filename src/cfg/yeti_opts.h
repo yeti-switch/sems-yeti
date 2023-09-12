@@ -21,6 +21,7 @@ extern char section_name_lega_cdr_headers[];
 extern char section_name_legb_reply_cdr_headers[];
 extern char section_name_identity[];
 extern char section_name_statistics[];
+extern char section_name_registrar[];
 
 extern char opt_name_core_options_handling[];
 extern char opt_name_pcap_memory_logger[];
@@ -39,6 +40,8 @@ extern char opt_identity_certs_cache_failed_verify_ttl[];
 extern char opt_func_name_header[];
 extern char opt_name_cdr_headers_add_sip_reason[];
 extern char opt_name_cdr_headers_add_q850_reason[];
+
+extern char opt_registrar_keepalive_interval[];
 
 //extern int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 

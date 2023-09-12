@@ -35,7 +35,6 @@
 
 #define DEFAULT_REDIS_HOST "127.0.0.1"
 #define DEFAULT_REDIS_PORT 6379
-#define DEFAULT_REGISTRAR_KEEPALIVE_INTERVAL 60
 
 #define DEFAULT_REGISTRAR_EXPIRES 1800
 
@@ -296,6 +295,10 @@ int Yeti::configure_registrar()
     if(!config.registrar_enabled)
         return 0;
 
+    auto reg_cfg = cfg_getsec(confuse_cfg, section_name_registrar);
+    if(!reg_cfg)
+        return 0;
+
     config.registrar_redis_host = cfg.getParameter("registrar_redis_host");
     if(config.registrar_redis_host.empty()) config.registrar_redis_host = DEFAULT_REDIS_HOST;
 
@@ -303,9 +306,9 @@ int Yeti::configure_registrar()
     if(!config.registrar_redis_port) config.registrar_redis_port = DEFAULT_REDIS_PORT;
 
     config.registrar_keepalive_interval =
-        cfg.getParameterInt("registrar_keepalive_interval", DEFAULT_REGISTRAR_KEEPALIVE_INTERVAL);
-    if(config.registrar_keepalive_interval) config.registrar_keepalive_interval =
-        config.registrar_keepalive_interval * 1000000;
+        cfg_getint(reg_cfg, opt_registrar_keepalive_interval);
+    DBG("registrar_keepalive_interval: %d", config.registrar_keepalive_interval);
+    config.registrar_keepalive_interval *= 1000000; //convert sec -> usec
 
     config.registrar_expires_min = cfg.getParameterInt("registrar_expires_min");
     DBG("registrar_expires_min: %d", config.registrar_expires_min);

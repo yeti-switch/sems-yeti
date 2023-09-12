@@ -12,6 +12,8 @@
 
 #define IP_AUTH_DEFAULT_HEADER "X-ORIG-IP"
 
+#define DEFAULT_REGISTRAR_KEEPALIVE_INTERVAL 60
+
 char opt_name_auth_feedback[] = "enable_auth_feedback";
 char opt_name_http_events_destination[] = "http_events_destination";
 
@@ -22,6 +24,7 @@ char section_name_lega_cdr_headers[] = "lega_cdr_headers";
 char section_name_legb_reply_cdr_headers[] = "legb_response_cdr_headers";
 char section_name_identity[] = "identity";
 char section_name_statistics[] = "statistics";
+char section_name_registrar[] = "registrar";
 
 char opt_name_core_options_handling[] = "core_options_handling";
 char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
@@ -40,6 +43,8 @@ char opt_identity_certs_cache_failed_verify_ttl[] = "certs_cache_failed_verify_t
 char opt_func_name_header[] = "header";
 char opt_name_cdr_headers_add_sip_reason[] = "add_sip_reason";
 char opt_name_cdr_headers_add_q850_reason[] = "add_q850_reason";
+
+char opt_registrar_keepalive_interval[] = "keepalive_interval";
 
 int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 int add_bleg_reply_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
@@ -132,6 +137,8 @@ cfg_opt_t sig_yeti_registrar_opts[] = {
     DCFG_INT(expires_min),
     DCFG_INT(expires_max),
     DCFG_INT(expires_default),
+    CFG_INT(opt_registrar_keepalive_interval,
+            DEFAULT_REGISTRAR_KEEPALIVE_INTERVAL, CFGF_NONE),
     DCFG_SEC(redis,sig_yeti_registrar_redis_opts,CFGF_NONE),
     CFG_END()
 };
@@ -177,7 +184,7 @@ cfg_opt_t yeti_opts[] = {
     CFG_SEC(section_name_cdr, sig_yeti_cdr_opts, CFGF_NONE),
     DCFG_SEC(resources,sig_yeti_resources_opts,CFGF_NONE),
     DCFG_SEC(registrations,sig_yeti_reg_opts,CFGF_NONE),
-    DCFG_SEC(registrar,sig_yeti_registrar_opts,CFGF_NONE),
+    CFG_SEC(section_name_registrar, sig_yeti_registrar_opts, CFGF_NONE),
     DCFG_SEC(rpc,sig_yeti_rpc_opts,CFGF_NONE),
     CFG_SEC(section_name_statistics, sig_yeti_statistics_opts, CFGF_NONE),
     DCFG_SEC(auth,sig_yeti_auth_opts,CFGF_NONE),
