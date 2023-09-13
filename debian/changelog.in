@@ -1,3 +1,14 @@
+sems-yeti (1.13.34) stable; urgency=medium
+  * save Reason header values to the CDRs. new options:
+      - lega_cdr_headers.add_sip_reason
+      - lega_cdr_headers.add_q850_reason
+      - legb_response_cdr_headers.add_sip_reason
+      - legb_response_cdr_headers.add_q850_reason
+  * add option: registrar.keepalive_interval
+  * RSR recording on (audio_recorder_compress = false)
+    new option: audio_recorder_http_destination
+ -- dev <dev@yeti-switch.org>  Wed, 13 Sep 2023 21:36:05 +0300
+
 sems-yeti (1.13.33) stable; urgency=medium
   * fix symmetric RTP call profile configuration processing
  -- dev <dev@yeti-switch.org>  Thu, 31 Aug 2023 17:11:54 +0300
