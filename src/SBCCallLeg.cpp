@@ -294,7 +294,8 @@ void SBCCallLeg::init()
                         AudioRecorderEvent::addStereoRecorder,
                         AmAudioFileRecorder::RecorderStereoRaw,
                         call_profile.audio_record_path,
-                        getLocalTag()));
+                        yeti.config.audio_recorder_http_destination.empty() ?
+                            string() : getLocalTag()));
 
                 addStereoRecorder(AudioRecorderChannelLeft, global_tag);
             } else {
