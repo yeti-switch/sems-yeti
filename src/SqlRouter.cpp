@@ -494,7 +494,6 @@ void SqlRouter::update_counters(struct timeval &start_time)
 }
 
 AmArg SqlRouter::db_async_get_profiles(
-    AmControlledLock &call_ctx_lock,
     const std::string &local_tag,
     const AmSipRequest &req,
     Auth::auth_id_type auth_id,
@@ -607,7 +606,6 @@ AmArg SqlRouter::db_async_get_profiles(
         }
     }
 
-    call_ctx_lock.release();
     if(!AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_getprofile_event.release())) {
         ERROR("failed to post getprofile query event");
         return 1;

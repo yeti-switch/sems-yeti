@@ -24,7 +24,6 @@ class fake_logger: public msg_logger {
 
 struct CallCtx
 {
-	//instead of atomic_int. guarded by SBCCallLeg::call_ctx_mutex
 	unsigned int references;
 
 	std::unique_ptr<Cdr> cdr;
