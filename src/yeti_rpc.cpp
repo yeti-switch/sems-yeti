@@ -442,6 +442,8 @@ bool YetiRpc::getCallsFields(const string& connection_id,
 	};
 
 	CallFields *call_fields = new CallFields;
+	call_fields->connection_id = connection_id;
+	call_fields->request_id = request_id;
 
 	try {
 		parse_fields(call_fields->filter_rules, args, call_fields->fields);
