@@ -841,7 +841,7 @@ void Yeti::initCfgTimerMappings()
                     YETI_QUEUE_NAME,
                     key),
                 PGTransactionData(), false);
-                query->addParam(config.pop_id).addParam(AmConfig.node_id);
+                query->addParam(AmConfig.node_id);
                 AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, query);
             },
             [&](const PGResponse &e) {
