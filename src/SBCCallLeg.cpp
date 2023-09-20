@@ -172,6 +172,7 @@ SBCCallLeg::SBCCallLeg(
     sdp_session_version(0),
     sdp_session_offer_last_cseq(0),
     sdp_session_answer_last_cseq(0),
+    thread_id(0),
     call_ctx(nullptr),
     early_trying_logger(early_logger),
     ip_auth_data(ip_auth_data),
@@ -596,7 +597,6 @@ bool SBCCallLeg::chooseNextProfile()
     if(!has_profile) {
         unsigned int internal_code, response_code;
         string internal_reason, response_reason;
-
         CodesTranslator::instance()->translate_db_code(
             static_cast<unsigned int>(resource_config.internal_code_id),
             internal_code,internal_reason,
@@ -1474,6 +1474,7 @@ void SBCCallLeg::onServerShutdown()
 
 void SBCCallLeg::onStart()
 {
+    thread_id = pthread_self();
     // this should be the first thing called in session's thread
     CallLeg::onStart();
     if (!a_leg) applyBProfile(); // A leg needs to evaluate profile first
@@ -3682,6 +3683,11 @@ void SBCCallLeg::onAfterRTPRelay(AmRtpPacket* p, sockaddr_storage*)
 }
 
 void SBCCallLeg::onRTPStreamDestroy(AmRtpStream *stream) {
+    if(pthread_self() != thread_id) {
+        ERROR("onRTPStreamDestroy: another thread(%d) calls the leg instead thread(%d) that was created it", pthread_self(), thread_id);
+        return;
+    }
+
     DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
 
     if(!call_ctx) return;
