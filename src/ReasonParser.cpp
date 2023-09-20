@@ -320,9 +320,9 @@ void ReasonParser::serialize_flat(
 
     if(q850_reason.parsed && cfg.add_q850_reason) {
         ret["q850_cause"] = q850_reason.cause;
-        if(!sip_reason.text.empty())
+        if(!q850_reason.text.empty())
             ret["q850_text"] = q850_reason.text;
-        if(!sip_reason.params.empty())
+        if(!q850_reason.params.empty())
             ret["q850_params"] = q850_reason.params;
     }
 }
