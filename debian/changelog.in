@@ -1,3 +1,11 @@
+sems-yeti (1.13.37) stable; urgency=medium
+  * fix escaped comma parsing in Reason attribute values
+  * add option 'write_internal_disconnect_code'
+  [refactoring]
+  * use asynchronous sessions iteration for RPC methods which show active calls
+  * remove call_ctx mutex
+ -- dev <dev@yeti-switch.org>  Fri, 22 Sep 2023 02:13:46 +0300
+
 sems-yeti (1.13.36) stable; urgency=medium
   * fix parsed Reason serialization for Q850
  -- dev <dev@yeti-switch.org>  Wed, 20 Sep 2023 11:19:09 +0300
