@@ -207,10 +207,12 @@ void ReasonParser::parse_reason(const std::string &hdrs, size_t reason_begin, si
                 return;
             break;
         case ',':
-            if(!process_attribute_end(false))
-                return;
-            wait_for_proto_name = true;
-            current_reason = nullptr;
+            if(st != ST_ESCAPED_VALUE) {
+                if(!process_attribute_end(false))
+                    return;
+                wait_for_proto_name = true;
+                current_reason = nullptr;
+            }
             break;
         case ' ':
             switch(st) {

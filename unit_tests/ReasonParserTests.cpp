@@ -208,13 +208,13 @@ TEST_F(YetiTest, ReasonParserQ850Flat)
 
     ReasonParser p;
     p.parse_headers(
-        "Reason: Q.850;cause=16;text=\"Normal call clearing\"");
+        "Reason: Q.850;cause=31;text=\"Normal, unspecified\"");
 
     AmArg serialized_reasons;
     p.serialize_flat(serialized_reasons, cfg);
     ASSERT_EQ(serialized_reasons, (AmArg{
-        { "q850_cause", 16 },
-        { "q850_text", "Normal call clearing" }
+        { "q850_cause", 31 },
+        { "q850_text", "Normal, unspecified" }
     }));
 }
 
