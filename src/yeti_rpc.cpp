@@ -1,4 +1,5 @@
 #include "sems.h"
+#include "AmSessionProcessor.h"
 #include "yeti.h"
 #include "yeti_rpc.h"
 #include "Registration.h"
@@ -120,12 +121,13 @@ void YetiRpc::init_rpc_tree()
 		leaf(show,show_media,"media","media processor instance");
 			method(show_media,"streams","active media streams info",showMediaStreams,"");
 
-		leaf_method_arg(show,show_calls,"calls","active calls",GetCalls,"show current active calls",
+		leaf_method_arg(show,show_calls,"calls","active calls",getCalls,"show current active calls",
 						"<LOCAL-TAG>","retreive call by local_tag");
 			method(show_calls,"count","active calls count",GetCallsCount,"");
 			method(show_calls,"fields","show available call fields",showCallsFields,"");
-			method_arg(show_calls,"filtered","active calls. specify desired fields",GetCallsFields,"",
+			method_arg(show_calls,"filtered","active calls. specify desired fields",getCallsFields,"",
 					   "<field1> <field2> ...","active calls. send only certain fields");
+		method_arg(show,"call","active call",getCall,"show current active call", "<LOCAL-TAG>","retreive call by local_tag");
 
 		method(show,"configuration","actual settings",GetConfig,"");
 
@@ -213,7 +215,7 @@ void YetiRpc::init_rpc_tree()
 		leaf(request,request_call,"call","active calls control");
 			method_arg(request_call,"disconnect","drop call",DropCall,
 					   "","<LOCAL-TAG>","drop call by local_tag");
-			method_arg(request_call,"remove","remove call from container",RemoveCall,
+			method_arg(request_call,"remove","remove call from container",removeCall,
 					   "","<LOCAL-TAG>","remove call by local_tag");
 
 		leaf(request,request_session,"session","sessions operations");
@@ -311,12 +313,6 @@ void YetiRpc::invoke(const string& method, const AmArg& args, AmArg& ret)
 	if (method == "dropCall"){
 		INFO ("dropCall received via rpc2di");
 		DropCall(args,ret);
-	} else if (method == "getCall"){
-		INFO ("getCall received via rpc2di");
-		GetCall(args,ret);
-	} else if (method == "getCalls"){
-		INFO ("getCalls received via rpc2di");
-		GetCalls(args,ret);
 	} else if (method == "getCallsCount"){
 		INFO ("getCallsCount received via rpc2di");
 		GetCallsCount(args,ret);
@@ -341,27 +337,6 @@ void YetiRpc::invoke(const string& method, const AmArg& args, AmArg& ret)
 	} else if (method == "showVersion"){
 		INFO ("showVersion received via rpc2di");
 		showVersion(args, ret);
-	/*} else if(method == "_list"){
-		ret.push(AmArg("showVersion"));
-		ret.push(AmArg("getConfig"));
-		ret.push(AmArg("getStats"));
-		ret.push(AmArg("clearStats"));
-		ret.push(AmArg("clearCache"));
-		ret.push(AmArg("showCache"));
-		ret.push(AmArg("dropCall"));
-		ret.push(AmArg("getCall"));
-		ret.push(AmArg("getCalls"));
-		ret.push(AmArg("getCallsCount"));
-		ret.push(AmArg("getRegistration"));
-		ret.push(AmArg("renewRegistration"));
-		ret.push(AmArg("getRegistrations"));
-		ret.push(AmArg("getRegistrationsCount"));
-		ret.push(AmArg("reload"));
-		ret.push(AmArg("closeCdrFiles"));
-
-		ret.push(AmArg("show"));
-		ret.push(AmArg("request"));
-		//ret.push(AmArg("set"));*/
 	} else {
 		RpcTreeHandler::invoke(method,args,ret);
 	}
@@ -376,43 +351,137 @@ void YetiRpc::GetCallsCount(const AmArg& args, AmArg& ret) {
 	ret = cdr_list.getCallsCount();
 }
 
-void YetiRpc::GetCall(const AmArg& args, AmArg& ret) {
-	string local_tag;
+bool YetiRpc::getCall(const string& connection_id,
+					  const AmArg& request_id,
+					  const AmArg& args)
+{
 	handler_log();
-
+	string local_tag;
 	if (!args.size()) {
 		throw AmSession::Exception(500,"Parameters error: expected local tag of requested cdr");
 	}
 
 	local_tag = args[0].asCStr();
-	if(!cdr_list.getCall(local_tag,ret,&router)){
+	if (!AmSessionContainer::instance()->postEvent(
+		local_tag,
+		new JsonRpcRequestEvent(connection_id, request_id, false,
+								MethodGetCall, args)))
+	{
 		throw CallNotFoundException(local_tag);
 	}
+
+	return true;
 }
 
-void YetiRpc::GetCalls(const AmArg& args, AmArg& ret) {
-	handler_log();
-	if(args.size()) {
-		string local_tag = args[0].asCStr();
-		if(!cdr_list.getCall(local_tag,ret,&router))
-			throw CallNotFoundException(local_tag);
-	} else {
-		cdr_list.getCalls(ret,&router);
+void YetiRpc::GetCall(SBCCallLeg* leg, AmArg& ret) {
+	if(!cdr_list.getCall(leg, ret, &router)) {
+		CallNotFoundException e(leg->getLocalTag());
+		ret["error"] = AmArg(); 
+		ret["error"]["code"] = e.code;
+		ret["error"]["message"] = e.reason;
 	}
 }
 
-void YetiRpc::GetCallsFields(const AmArg &args, AmArg &ret){
+bool YetiRpc::getCalls(const string& connection_id,
+					  const AmArg& request_id,
+					  const AmArg& args)
+{
+	handler_log();
+	AmSessionProcessor::sendIterateRequest([](AmSession* session, void* user_data, AmArg& ret)
+	{
+		JsonRpcRequestEvent* event = (JsonRpcRequestEvent*)user_data;
+		YetiRpc& rpc = Yeti::instance();
+		SBCCallLeg* leg = dynamic_cast<SBCCallLeg*>(session);
+		if(!leg) return;
+		if(event->params.size()) {
+			bool find = false;
+			for(int i = 0 ; i < event->params.size(); i++) {
+				if(leg->getLocalTag() == event->params[i].asCStr()) {
+					find = true;
+				}
+			}
+			if(!find) return;
+		}
+
+		ret.push(AmArg());
+		if(!rpc.cdr_list.getCall(leg, ret.back(), &rpc.router)) {
+			ret.pop_back();
+		}
+	}, [](const AmArg& ret, void* user_data)
+	{
+		 AmArg send_ret;
+		 send_ret.assertArray();
+		 for(int i = 0 ; i < ret.size(); i++) {
+			if(isArgUndef(ret[i])) continue;
+		 	for(int j = 0 ; j < ret[i].size(); j++)
+				send_ret.push(ret[i][j]);
+		 }
+
+		JsonRpcRequestEvent* request = (JsonRpcRequestEvent*)user_data;
+		postJsonRpcReply(*request, send_ret);
+		delete request;
+	}, new JsonRpcRequestEvent(connection_id, request_id, false, MethodGetCall, args));
+	return true;
+}
+
+bool YetiRpc::getCallsFields(const string& connection_id,
+							const AmArg& request_id,
+							const AmArg& args){
 	handler_log();
 
 	if(!args.size()){
 		throw AmSession::Exception(500,"you should specify at least one field");
 	}
 
+	struct CallFields
+	{
+		cmp_rules filter_rules;
+		vector<string> fields;
+		string connection_id;
+		AmArg request_id;
+	};
+
+	CallFields *call_fields = new CallFields;
+	call_fields->connection_id = connection_id;
+	call_fields->request_id = request_id;
+
 	try {
-		cdr_list.getCallsFields(ret,&router,args);
-	} catch(std::string &s){
-		throw AmSession::Exception(500,s);
+		parse_fields(call_fields->filter_rules, args, call_fields->fields);
+		cdr_list.validate_fields(call_fields->fields, &router);
+	} catch(std::string& s) {
+		throw AmSession::Exception(500, s);
 	}
+
+	AmSessionProcessor::sendIterateRequest([](AmSession* session, void* user_data, AmArg& ret)
+	{
+		SBCCallLeg* leg = dynamic_cast<SBCCallLeg*>(session);
+		if(!leg) return;
+
+		CallFields *call_fields = (CallFields*)user_data;
+		YetiRpc& rpc = Yeti::instance();
+		cmp_rules& filter_rules = call_fields->filter_rules;
+		vector<string> fields = call_fields->fields;
+
+		ret.assertArray();
+		ret.push(AmArg());
+		if(!rpc.cdr_list.getCallsFields(leg, ret.back(), &rpc.router, filter_rules, fields)) {
+			ret.pop_back();
+		}
+	}, [](const AmArg& ret, void* user_data)
+	{
+		AmArg send_ret;
+		send_ret.assertArray();
+		for(int i = 0 ; i < ret.size(); i++) {
+			if(isArgUndef(ret[i])) continue;
+			for(int j = 0 ; j < ret[i].size(); j++)
+				send_ret.push(ret[i][j]);
+		}
+
+		CallFields* call_fields = (CallFields*)user_data;
+		postJsonRpcReply(call_fields->connection_id, call_fields->request_id, send_ret);
+		delete call_fields;
+	}, call_fields);
+	return true;
 }
 
 void YetiRpc::showCallsFields(const AmArg &, AmArg &ret){
@@ -540,56 +609,57 @@ void YetiRpc::DropCall(const AmArg& args, AmArg& ret){
 	ret = "Dropped from sessions container";
 }
 
-void YetiRpc::RemoveCall(const AmArg& args, AmArg& ret){
-	string local_tag;
-	handler_log();
-
-	if (!args.size()){
+bool YetiRpc::removeCall(const string& connection_id,
+                           const AmArg& request_id,
+                           const AmArg& params)
+{
+	if (!params.size()){
 		throw AmSession::Exception(500,"Parameters error: expected local tag of active call");
 	}
 
-	local_tag = args[0].asCStr();
+	string local_tag = params[0].asCStr();
 
+	if (!AmSessionContainer::instance()->postEvent(
+			local_tag,
+			new JsonRpcRequestEvent(connection_id, request_id, false,
+									MethodRemoveCall, params)))
+	{
+		throw CallNotFoundException(local_tag);
+	}
+    return true;
+}
+
+void YetiRpc::RemoveCall(SBCCallLeg* leg, AmArg& ret){
+	AmArg args;
+	handler_log();
 	ret.assertArray();
 
-	AmEventDispatcher::instance()->apply(
-		local_tag,
-		[&ret](const AmEventDispatcher::QueueEntry &entry)
-	{
-		static const string ret_prefix("put resource handler: ");
-		SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q);
-		if(!leg) return;
+	const string& local_tag = leg->getLocalTag();
+	auto call_ctx = leg->getCallCtx();
+	if(!call_ctx) {
+		ERROR("no call_ctx for leg: %s", local_tag.data());
+		return;
+	}
 
-		auto &local_tag = leg->getLocalTag();
+	SqlCallProfile *p = call_ctx->getCurrentProfile();
+	if(!p) {
+		ERROR("no current profile for leg: %s", local_tag.data());
+		return;
+	}
 
-		auto call_ctx = leg->getCallCtx();
-		if(!call_ctx) {
-			ERROR("no call_ctx for leg: %s", local_tag.data());
-			return;
-		}
+	if(p->resource_handler.empty()) {
+		ret.push("empty resource handler");
+		return;
+	}
 
-		SqlCallProfile *p = call_ctx->getCurrentProfile();
-		if(!p) {
-			ERROR("no current profile for leg: %s", local_tag.data());
-			leg->putCallCtx();
-			return;
-		}
+	INFO("put resource_handler:'%s' for local_tag:'%s'",
+		p->resource_handler.data(), local_tag.data());
 
-		if(p->resource_handler.empty()) {
-			leg->putCallCtx();
-			ret.push("empty resource handler");
-			return;
-		}
+	static const string ret_prefix("put resource handler: ");
+	ret.push(ret_prefix + p->resource_handler);
 
-		INFO("put resource_handler:'%s' for local_tag:'%s'",
-			p->resource_handler.data(), local_tag.data());
-
-		ret.push(ret_prefix + p->resource_handler);
-
-		string resource_handler = p->resource_handler;
-		leg->putCallCtx();
-		leg->rctl.put(resource_handler);
-	});
+	string resource_handler = p->resource_handler;
+	leg->rctl.put(resource_handler);
 
 	if (AmSessionContainer::instance()->postEvent(
 		local_tag,
@@ -662,53 +732,67 @@ static void SBCCallLeg2AmArg(SBCCallLeg *leg, AmArg &s)
 	if(ctx) {
 		if(Cdr *cdr = ctx->cdr.get()) cdr->info(s);
 		if(SqlCallProfile *profile = ctx->getCurrentProfile()) profile->info(s);
-		leg->putCallCtx();
 	}
 }
- 
-void YetiRpc::showSessionsInfo(const AmArg& args, AmArg& ret){
+
+bool YetiRpc::showSessionsInfo(const string& connection_id,
+							   const AmArg& request_id,
+							   const AmArg& args)
+{
 	handler_log();
-	ret.assertStruct();
 	if(!args.size()){
-		AmEventDispatcher::instance()->iterate(
-			[&ret](const string &key,
-					const AmEventDispatcher::QueueEntry &entry)
+		AmSessionProcessor::sendIterateRequest([](AmSession* session, void* user_data, AmArg& ret)
 		{
-			if(SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q)) {
-				SBCCallLeg2AmArg(leg,ret[key]);
+			SBCCallLeg* leg = dynamic_cast<SBCCallLeg*>(session);
+			if(!leg) return;
+
+			AmArg &session_info = ret[leg->getLocalTag()];
+			SBCCallLeg2AmArg(leg, session_info);
+		}, [](const AmArg& ret, void* user_data)
+		{
+			JsonRpcRequestEvent* request = (JsonRpcRequestEvent*)user_data;
+			AmArg send_ret;
+			for(int i = 0; i < ret.size(); i++) {
+				if(isArgUndef(ret[i])) continue;
+				for(auto &it : ret[i])
+					send_ret[it.first] = it.second;
 			}
-		});
+			postJsonRpcReply(*request, send_ret);
+			delete request;
+		}, new JsonRpcRequestEvent(connection_id, request_id, false, MethodShowSessionInfo, args));
 	} else {
+		AmArg* ret = new AmArg();
+		ret->assertStruct();
 		const string local_tag = args[0].asCStr();
-		AmArg &session_info = ret[local_tag];
-
-		AmEventDispatcher::instance()->apply(
-			local_tag,
-			[&session_info](const AmEventDispatcher::QueueEntry &entry)
+		if (!AmSessionContainer::instance()->postEvent(
+				local_tag,
+				new JsonRpcRequestEvent(connection_id, request_id, false,
+										MethodShowSessionInfo, AmArg(ret, true))))
 		{
-			session_info.assertStruct();
-			if(SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q)) {
-				SBCCallLeg2AmArg(leg,session_info);
-			}
-		});
-
-		if(isArgStruct(session_info) &&
-			session_info.hasMember("other_id"))
-		{
-			const string other_local_tag = session_info["other_id"].asCStr();
-			AmArg &other_session_info = ret[other_local_tag];
-
-			AmEventDispatcher::instance()->apply(
-				other_local_tag,
-				[&other_session_info](const AmEventDispatcher::QueueEntry &entry)
-			{
-					other_session_info.assertStruct();
-					if(SBCCallLeg *leg = dynamic_cast<SBCCallLeg *>(entry.q)) {
-						SBCCallLeg2AmArg(leg,other_session_info);
-					}
-			});
+			throw CallNotFoundException(local_tag);
 		}
 	}
+    return true;
+}
+
+void YetiRpc::ShowSessionInfo(SBCCallLeg* leg, const JsonRpcRequestEvent& request){
+	AmArg& ret = request.params.getReferencedValue();
+	AmArg &session_info = ret[leg->getLocalTag()];
+	SBCCallLeg2AmArg(leg, session_info);
+
+	if(isArgStruct(session_info) &&
+		session_info.hasMember("other_id") &&
+		ret.size() == 1)
+	{
+		const string other_local_tag = session_info["other_id"].asCStr();
+		if (!AmSessionContainer::instance()->postEvent(
+				other_local_tag,
+				new JsonRpcRequestEvent(request.connection_id, request.id, false,
+										MethodShowSessionInfo, request.params))) {
+			return;
+		}
+	}
+	postJsonRpcReply(request, ret);
 }
 
 void YetiRpc::requestSessionDump(const AmArg& args, AmArg& ret)

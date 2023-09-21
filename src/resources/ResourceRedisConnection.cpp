@@ -1,10 +1,6 @@
 #include "ResourceRedisConnection.h"
 #include "../yeti.h"
 
-enum RpcMethodId {
-    MethodGetResourceState
-};
-
 const string RESOURCE_QUEUE_NAME("resource");
 
 ResourceRedisConnection::ResourceRedisConnection(const string& queue_name)

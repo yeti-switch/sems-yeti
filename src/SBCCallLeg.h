@@ -84,24 +84,12 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   unsigned int sdp_session_version;
   unsigned int sdp_session_offer_last_cseq;
   unsigned int sdp_session_answer_last_cseq;
+  // for tests, thread id of session processor
+  pthread_t thread_id;
 
   string global_tag;
 
   CallCtx *call_ctx;
-  class SharedMutex
-    : public AmMutex,
-      public atomic_ref_cnt
-  {
-    public:
-      SharedMutex(const SharedMutex &) = delete;
-      SharedMutex& operator=(const SharedMutex&) = delete;
-      SharedMutex(SharedMutex &&) = delete;
-      SharedMutex& operator=(SharedMutex &&) = delete;
-
-      SharedMutex()
-        : AmMutex(true)
-      {}
-  } *call_ctx_mutex;
 
   fake_logger *early_trying_logger;
   std::queue< unique_ptr<B2BSipReplyEvent> > postponed_replies;
@@ -198,8 +186,9 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void onPostgresResponse(PGResponse &e);
   void onPostgresResponseError(PGResponseError &e);
   void onPostgresTimeout(PGTimeout &e);
-  void onProfilesReady(AmControlledLock &call_ctx_lock);
+  void onProfilesReady();
 
+  void onJsonRpcRequest(JsonRpcRequestEvent& ev);
   void onRadiusReply(const RadiusReplyEvent &ev);
   void onRedisReply(const RedisReplyEvent &e);
   void onCertCacheReply(const CertCacheResponseEvent &e);
@@ -299,10 +288,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   const string &getGlobalTag() const { return global_tag; }
 
-  SharedMutex *getSharedMutex() { return call_ctx_mutex; }
-  CallCtx *getCallCtxUnsafe() { return call_ctx; }
-  CallCtx *getCallCtx();
-  void putCallCtx();
+  CallCtx *getCallCtx() { return call_ctx; }
 
   void setRTPMeasurements(const list<::atomic_int*>& rtp_meas) { rtp_pegs = rtp_meas; }
   const RateLimit* getRTPRateLimit() { return rtp_relay_rate_limit.get(); }
