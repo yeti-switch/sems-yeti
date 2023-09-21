@@ -83,6 +83,7 @@ int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
     ip_auth_hdr = cfg_getstr(cfg, opt_name_ip_auth_header);
     http_events_destination = cfg_getstr(cfg, opt_name_http_events_destination);
     postgresql_debug = cfg_getbool(cfg, opt_name_postgresql_debug);
+    write_internal_disconnect_code = cfg_getbool(cfg, opt_name_write_internal_disconnect_code);
 
     aleg_cdr_headers = cfg_aleg_cdr_headers;
     bleg_reply_cdr_headers = cfg_bleg_reply_cdr_headers;

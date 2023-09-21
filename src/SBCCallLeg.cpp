@@ -305,7 +305,7 @@ void SBCCallLeg::terminateLegOnReplyException(const AmSipReply& reply,const Inte
 
     if(!getOtherId().empty()) { //ignore not connected B legs
         with_cdr_for_read {
-            cdr->update_internal_reason(DisconnectByTS, e.internal_reason, e.internal_code);
+            cdr->update_internal_reason(DisconnectByTS, e.internal_reason, e.internal_code, e.icode);
             cdr->update_with_bleg_sip_reply(reply);
         }
     }
@@ -419,7 +419,8 @@ void SBCCallLeg::processResourcesAndSdp()
                 rctl.replace(internal_reason, *ri, resource_config);
                 rctl.replace(response_reason, *ri, resource_config);
 
-                cdr->update_internal_reason(DisconnectByTS, internal_reason, internal_code);
+                cdr->update_internal_reason(DisconnectByTS,
+                    internal_reason, internal_code, resource_config.internal_code_id);
 
                 throw AmSession::Exception(
                     static_cast<int>(response_code),response_reason);
@@ -447,7 +448,8 @@ void SBCCallLeg::processResourcesAndSdp()
         rctl.replace(internal_reason, *ri, resource_config);
         rctl.replace(response_reason, *ri, resource_config);
 
-        cdr->update_internal_reason(DisconnectByTS,internal_reason, internal_code);
+        cdr->update_internal_reason(DisconnectByTS,
+            internal_reason, internal_code, resource_config.internal_code_id);
 
         throw AmSession::Exception(
             static_cast<int>(response_code),response_reason);
@@ -504,7 +506,8 @@ void SBCCallLeg::processResourcesAndSdp()
         DBG("%s() catched InternalException(%d)",FUNC_NAME,
             e.icode);
         rctl.put(call_profile.resource_handler);
-        cdr->update_internal_reason(DisconnectByTS,e.internal_reason,e.internal_code);
+        cdr->update_internal_reason(DisconnectByTS,
+            e.internal_reason,e.internal_code, e.icode);
         throw AmSession::Exception(
             static_cast<int>(e.response_code),e.response_reason);
     } catch(AmSession::Exception &e) {
@@ -512,7 +515,7 @@ void SBCCallLeg::processResourcesAndSdp()
             e.code,e.reason.c_str());
         rctl.put(call_profile.resource_handler);
         cdr->update_internal_reason(DisconnectByTS,
-            e.reason,static_cast<unsigned int>(e.code));
+            e.reason, static_cast<unsigned int>(e.code), 0);
         throw e;
     }
 
@@ -606,7 +609,8 @@ bool SBCCallLeg::chooseNextProfile()
         rctl.replace(internal_reason, *ri, resource_config);
         rctl.replace(response_reason, *ri, resource_config);
 
-        cdr->update_internal_reason(DisconnectByTS, response_reason, response_code);
+        cdr->update_internal_reason(DisconnectByTS,
+            response_reason, response_code, resource_config.internal_code_id);
 
         return false;
     } else {
@@ -1307,7 +1311,8 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
 
             if(write_cdr) {
                 with_cdr_for_read {
-                    cdr->update_internal_reason(DisconnectByTS,internal_reason,internal_code);
+                    cdr->update_internal_reason(DisconnectByTS,
+                        internal_reason, internal_code, p.skip_code_id);
                     cdr->update_aleg_reason(response_reason,response_code);
                 }
             }
@@ -1370,7 +1375,8 @@ void SBCCallLeg::onRtpTimeoutOverride(const AmRtpTimeoutEvent &)
         response_code,response_reason,
         call_ctx->getOverrideId(a_leg));
     with_cdr_for_read {
-        cdr->update_internal_reason(DisconnectByTS,internal_reason,internal_code);
+        cdr->update_internal_reason(DisconnectByTS,
+            internal_reason, internal_code, DC_RTP_TIMEOUT);
         cdr->update_aleg_reason("Bye",200);
         cdr->update_bleg_reason("Bye",200);
     }
@@ -1389,7 +1395,8 @@ bool SBCCallLeg::onTimerEvent(int timer_id)
     with_cdr_for_read {
         switch(timer_id){
         case YETI_CALL_DURATION_TIMER:
-            cdr->update_internal_reason(DisconnectByTS,"Call duration limit reached",200);
+            cdr->update_internal_reason(DisconnectByTS,
+                "Call duration limit reached",200, 0);
             cdr->update_aleg_reason("Bye",200);
             cdr->update_bleg_reason("Bye",200);
             stopCall("Call duration limit reached");
@@ -1445,7 +1452,7 @@ void SBCCallLeg::onTearDown()
     DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
     getCtx_void
     with_cdr_for_read {
-        cdr->update_internal_reason(DisconnectByTS,"Teardown",200);
+        cdr->update_internal_reason(DisconnectByTS,"Teardown",200,0);
         cdr->update_aleg_reason("Bye",200);
         cdr->update_bleg_reason("Bye",200);
     }
@@ -1465,7 +1472,7 @@ void SBCCallLeg::onServerShutdown()
     {
         getCtx_void
         with_cdr_for_read {
-            cdr->update_internal_reason(DisconnectByTS,"ServerShutdown",200);
+            cdr->update_internal_reason(DisconnectByTS,"ServerShutdown",200,0);
         }
     }
     //may never reach onDestroy callback so free resources here
@@ -2270,7 +2277,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
         if(a_leg && req.method==SIP_METH_CANCEL) {
             with_cdr_for_read {
                 cdr->update_internal_reason(
-                    DisconnectByORG, "Request terminated (Cancel)", 487);
+                    DisconnectByORG, "Request terminated (Cancel)", 487, 0);
                 cdr->update_reasons_with_sip_request(req, true);
             }
         }
@@ -2432,14 +2439,15 @@ void SBCCallLeg::onRemoteDisappeared(const AmSipReply& reply)
                 ERROR("intial_invite == NULL");
             }
             with_cdr_for_read {
-                cdr->update_internal_reason(DisconnectByTS,reply.reason,reply.code);
+                cdr->update_internal_reason(DisconnectByTS,
+                    reply.reason, reply.code, 0);
             }
         }
         if(getCallStatus()==CallLeg::Connected) {
             with_cdr_for_read {
                 cdr->update_internal_reason(
                     DisconnectByTS,
-                    reinvite_failed, 200
+                    reinvite_failed, 200, 0
                 );
                 cdr->update_bleg_reason("Bye",200);
             }
@@ -2458,7 +2466,7 @@ void SBCCallLeg::onBye(const AmSipRequest& req)
         if(getCallStatus()!=CallLeg::Connected) {
             if(a_leg) {
                 DBG("received Bye in not connected state");
-                cdr->update_internal_reason(DisconnectByORG,"EarlyBye",500);
+                cdr->update_internal_reason(DisconnectByORG,"EarlyBye",500,0);
                 cdr->update_aleg_reason("EarlyBye",200);
                 cdr->update_bleg_reason("Cancel",487);
             } else {
@@ -2469,7 +2477,7 @@ void SBCCallLeg::onBye(const AmSipRequest& req)
                 return;
             }
         } else {
-            cdr->update_internal_reason(a_leg ? DisconnectByORG : DisconnectByDST,"Bye",200);
+            cdr->update_internal_reason(a_leg ? DisconnectByORG : DisconnectByDST,"Bye",200,0);
             cdr->update_bleg_reason("Bye",200);
         }
     }
@@ -2484,7 +2492,7 @@ void SBCCallLeg::onOtherBye(const AmSipRequest& req)
             //avoid considering of bye in not connected state as succ call
             DBG("received OtherBye in not connected state");
             if(call_ctx->cdr) {
-                call_ctx->cdr->update_internal_reason(DisconnectByDST,"EarlyBye",500);
+                call_ctx->cdr->update_internal_reason(DisconnectByDST,"EarlyBye",500,0);
                 call_ctx->cdr->update_aleg_reason("Request terminated",487);
                 router.write_cdr(call_ctx->cdr, true);
             }
@@ -3196,7 +3204,7 @@ void SBCCallLeg::onFailure()
     if(a_leg) {
         if(call_ctx) {
             with_cdr_for_read {
-                cdr->update_internal_reason(DisconnectByTS, reason, code);
+                cdr->update_internal_reason(DisconnectByTS, reason, code, 0);
                 if(cdr->local_tag.empty()) {
                     cdr->update_init_aleg(getLocalTag(), global_tag, getCallID());
                 }
@@ -3237,7 +3245,7 @@ bool SBCCallLeg::onException(int code,const string &reason) noexcept
         if(!call_ctx) return false;
         with_cdr_for_read {
             cdr->update_internal_reason(DisconnectByTS,
-                reason,static_cast<unsigned int>(code));
+                reason,static_cast<unsigned int>(code), 0);
             if(!a_leg) {
                 switch(dlg->getStatus()) {
                 case AmBasicSipDialog::Connected:
@@ -3570,7 +3578,8 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
                     internal_code,internal_reason,
                     response_code,response_reason,
                     call_ctx->getOverrideId(a_leg));
-                cdr->update_internal_reason(DisconnectByTS,internal_reason,internal_code);
+                cdr->update_internal_reason(DisconnectByTS,
+                    internal_reason, internal_code, internal_disconnect_code);
             }
             radius_accounting_stop(this, *cdr);
             radius_accounting_stop_post_event(this);
@@ -3621,7 +3630,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
         call_ctx->getOverrideId(true)); //aleg_override_id
     cdr.update_internal_reason(
         reply.local_reply ? DisconnectByTS : DisconnectByDST,
-        intermediate_reason,intermediate_code);
+        intermediate_reason, intermediate_code, 0);
     cdr.update_aleg_reason(reply.reason,static_cast<int>(reply.code));
 
     if(ct->stop_hunting(destination_reply_code,call_ctx->getOverrideId(false))){
@@ -3656,7 +3665,8 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
         connectCalleeRequest(req);
     } catch(InternalException &e) {
         if(call_ctx && call_ctx->cdr) {
-            call_ctx->cdr->update_internal_reason(DisconnectByTS,e.internal_reason,e.internal_code);
+            call_ctx->cdr->update_internal_reason(DisconnectByTS,
+                e.internal_reason, e.internal_code, e.icode);
         }
         throw AmSession::Exception(
             static_cast<int>(e.response_code),e.response_reason);

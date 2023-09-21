@@ -60,6 +60,7 @@ Cdr::Cdr()
     attempt_num(1),
     dump_level_id(0),
     audio_record_enabled(false),
+    disconnect_internal_code_id(0),
     disconnect_initiator(DisconnectUndefined),
     disconnect_initiator_writed(false),
     disconnect_code(0),
@@ -430,7 +431,10 @@ void Cdr::update_aleg_reason(string reason, int code)
     aleg_reason_writed = true;
 }
 
-void Cdr::update_internal_reason(DisconnectInitiator initiator,string reason, unsigned int code)
+void Cdr::update_internal_reason(
+    DisconnectInitiator initiator,
+    string reason, unsigned int code,
+    unsigned int internal_code_id)
 {
     DBG("Cdr[%p]::%s(initiator = %d,reason = '%s',code = %d) cdr.disconnect_initiator_writed = %d",
         this,FUNC_NAME,initiator,reason.c_str(),code,disconnect_initiator_writed);
@@ -440,6 +444,7 @@ void Cdr::update_internal_reason(DisconnectInitiator initiator,string reason, un
     update_with_action(End);
 
     if(!disconnect_initiator_writed) {
+        disconnect_internal_code_id = internal_code_id;
         disconnect_initiator = initiator;
         disconnect_internal_reason = reason;
         disconnect_internal_code = code;
@@ -456,36 +461,6 @@ void Cdr::setSuppress(bool s)
 {
     if(writed) return;
     suppress = s;
-}
-
-void Cdr::refuse(const SBCCallProfile &profile)
-{
-    if(writed) return;
-
-    unsigned int refuse_with_code;
-    string refuse_with = profile.refuse_with;
-    size_t spos = refuse_with.find(' ');
-    disconnect_initiator = DisconnectByDB;
-    if (spos == string::npos || spos == refuse_with.size() ||
-        str2i(refuse_with.substr(0, spos), refuse_with_code))
-    {
-        ERROR("can't parse refuse_with in profile");
-        disconnect_reason = refuse_with;
-        disconnect_code = 0;
-    } else {
-        disconnect_reason = refuse_with.substr(spos+1);
-        disconnect_code = refuse_with_code;
-    }
-    disconnect_rewrited_reason = disconnect_reason;
-    disconnect_rewrited_code = disconnect_code;
-}
-
-void Cdr::refuse(int code, string reason)
-{
-    if(writed) return;
-
-    disconnect_code = code;
-    disconnect_reason = reason;
 }
 
 void Cdr::setSdpCompleted(bool a_leg)
@@ -1044,6 +1019,12 @@ void Cdr::apply_params(
     } else {
         invoc(0);
         invoc("");
+    }
+
+    if(cfg.write_internal_disconnect_code) {
+        invoc_cond_typed(
+            "smallint", disconnect_internal_code_id,
+            disconnect_internal_code_id!=0);
     }
 
     invoc(orig_call_id);

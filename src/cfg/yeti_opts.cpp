@@ -32,6 +32,7 @@ char opt_name_db_refresh_interval[] = "db_refresh_interval";
 char opt_name_ip_auth_reject_if_no_matched[] = "ip_auth_reject_if_no_matched";
 char opt_name_ip_auth_header[] = "ip_auth_header";
 char opt_name_postgresql_debug[] = "postgresql_debug";
+char opt_name_write_internal_disconnect_code[] = "write_internal_disconnect_code";
 char opt_name_connection_lifetime[] = "connection_lifetime";
 char opt_name_audio_recorder_dir[] = "audio_recorder_dir";
 char opt_name_audio_recorder_compress[] = "audio_recorder_compress";
@@ -203,6 +204,7 @@ cfg_opt_t yeti_opts[] = {
     CFG_STR(opt_name_http_events_destination,"",CFGF_NONE),
     CFG_STR(opt_name_ip_auth_header,IP_AUTH_DEFAULT_HEADER,CFGF_NONE),
     CFG_BOOL(opt_name_postgresql_debug, cfg_false, CFGF_NONE),
+    CFG_BOOL(opt_name_write_internal_disconnect_code, cfg_false, CFGF_NONE),
 
     CFG_END()
 };

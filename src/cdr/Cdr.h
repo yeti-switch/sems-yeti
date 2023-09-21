@@ -50,6 +50,7 @@ struct Cdr
     int dump_level_id;
     bool audio_record_enabled;
 
+    int disconnect_internal_code_id;
     int disconnect_initiator;
     bool disconnect_initiator_writed;
 
@@ -164,14 +165,15 @@ struct Cdr
 
     void update_bleg_reason(string reason, int code);
     void update_aleg_reason(string reason, int code);
-    void update_internal_reason(DisconnectInitiator initiator,string reason, unsigned int code);
+    void update_internal_reason(
+        DisconnectInitiator initiator,
+        string reason, unsigned int code,
+        unsigned int internal_code_id);
 
     void setSuppress(bool s);
 
     void replace(ParamReplacerCtx &ctx,const AmSipRequest &req);
     void replace(string& s, const string& from, const string& to);
-    void refuse(const SBCCallProfile &profile);
-    void refuse(int code, string reason);
 
     void setSdpCompleted(bool a_leg);
 

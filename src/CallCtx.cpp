@@ -78,7 +78,8 @@ SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover
 			if(write_cdr) {
 				std::unique_ptr<Cdr> skip_cdr(new Cdr(*cdr,p));
 				skip_cdr->attempt_num = attempts_counter;
-				skip_cdr->update_internal_reason(DisconnectByTS,internal_reason,internal_code);
+				skip_cdr->update_internal_reason(
+					DisconnectByTS,internal_reason,internal_code, p.skip_code_id);
 				router.write_cdr(skip_cdr, false);
 				attempts_counter++;
 			}

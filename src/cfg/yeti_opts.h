@@ -29,6 +29,7 @@ extern char opt_name_db_refresh_interval[];
 extern char opt_name_ip_auth_reject_if_no_matched[];
 extern char opt_name_ip_auth_header[];
 extern char opt_name_postgresql_debug[];
+extern char opt_name_write_internal_disconnect_code[];
 extern char opt_name_connection_lifetime[];
 extern char opt_name_audio_recorder_dir[];
 extern char opt_name_audio_recorder_compress[];

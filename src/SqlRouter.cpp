@@ -208,7 +208,9 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         return 1;
     }
 
-    routing_schema = Yeti::instance().config.routing_schema;
+    auto &ycfg = Yeti::instance().config;
+
+    routing_schema = ycfg.routing_schema;
     GET_VARIABLE(routing_function);
 
     GET_VARIABLE(writecdr_schema);
@@ -385,7 +387,21 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
     pg_config_cdr_writer->addSearchPath("public");
 
     PreparedQueryArgs cdr_types;
-    for(int i = 0;i<WRITECDR_STATIC_FIELDS_COUNT;i++)
+    int n = WRITECDR_STATIC_FIELDS_COUNT;
+    if (ycfg.write_internal_disconnect_code) {
+        n++;
+        //shift all fields after the disconnect_rewrited_reason
+        for(int i = WRITECDR_STATIC_FIELDS_COUNT;
+            i > 25 /* disconnect_rewrited_reason pos */; i--)
+        {
+            cdr_static_fields[i].name = cdr_static_fields[i-1].name;
+            cdr_static_fields[i].type = cdr_static_fields[i-1].type;
+        }
+        //patch 26 entry
+        cdr_static_fields[26].name = "disconnect_code_id";
+        cdr_static_fields[26].type = "smallint";
+    }
+    for(int i = 0;i<n;i++)
         cdr_types.push_back(cdr_static_fields[i].type);
 
     sql.str("");
@@ -787,7 +803,8 @@ bool SqlRouter::check_and_refuse(SqlCallProfile *profile,Cdr *cdr,
     need_reply = (response_code!=NO_REPLY_DISCONNECT_CODE);
 
     if(write_cdr){
-        cdr->update_internal_reason(DisconnectByDB,internal_reason,internal_code);
+        cdr->update_internal_reason(DisconnectByDB,
+            internal_reason,internal_code, profile->disconnect_code_id);
         cdr->update_aleg_reason(response_reason,response_code);
     } else {
         cdr->setSuppress(true);

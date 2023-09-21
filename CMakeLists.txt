@@ -22,6 +22,7 @@ list(APPEND CMAKE_C_FLAGS_DEBUG -D_DEBUG)
 
 add_compile_options(${SEMS_CFLAGS})
 add_compile_options(-std=c++2a -Wall -Werror -g)
+add_compile_options(--gcc-toolchain=/opt/gcc12)
 
 if(EXISTS ${CMAKE_SOURCE_DIR}/debian/changelog)
     file(STRINGS ${CMAKE_SOURCE_DIR}/debian/changelog CHANGELOG_LINE LIMIT_COUNT 1)

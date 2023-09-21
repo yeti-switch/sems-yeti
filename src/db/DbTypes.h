@@ -16,7 +16,7 @@ struct static_field {
     const char *type;   //field SQL type
 };
 
-extern const static_field cdr_static_fields[];
+extern static_field cdr_static_fields[];
 extern const static_field profile_static_fields[];
 
 using namespace std;

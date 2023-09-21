@@ -17,7 +17,7 @@
 #define DEFAULT_BATCH_SIZE 50
 #define DEFAULT_BATCH_TIMEOUT_MSEC 10000
 
-const static_field cdr_static_fields[] = {
+static_field cdr_static_fields[] = {
 	{ "is_master", "boolean" },
 	{ "node_id", "integer" },
 	{ "pop_id", "integer" },
@@ -64,7 +64,11 @@ const static_field cdr_static_fields[] = {
 	{ "i_dynamic_fields", "json" },
 	{ "i_aleg_cdr_headers", "json" },
 	{ "i_bleg_response_cdr_headers", "json" },
-	{ "i_lega_identity", "json" }
+	{ "i_lega_identity", "json" },
+	/* space to optionally add
+	 * { "disconnect_code", "smallint" }
+	 * at the index 26. see: SqlRouter::configure() */
+	{ nullptr, nullptr }
 };
 
 int CdrThreadCfg::cfg2CdrThCfg(cfg_t *cdr_sec, AmConfigReader& cfg)
