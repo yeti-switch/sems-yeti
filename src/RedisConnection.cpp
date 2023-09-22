@@ -35,6 +35,7 @@ int RedisScript::load(RedisConnection* c, const string &script_path, int reply_t
 RedisConnection::RedisConnection(const char* name, RedisConnectionPool* pool)
   : async_context(0),
     connected(false),
+    needAutorization(false),
     name(name),
     pool(pool)
 {
@@ -141,6 +142,34 @@ static void redisCleanup(void *ctx)
     return conn->cleanup();
 }
 
+static void authCallback_static(redisAsyncContext* c, void *r, void *privdata)
+{
+    RedisConnection *conn = static_cast<RedisConnection*>(privdata);
+    DBG("%p", conn);
+    conn->authCallback(c, r, privdata);
+}
+
+void RedisConnection::authCallback(struct redisAsyncContext*, void* r, void*)
+{
+    redisReply* reply = static_cast<redisReply *>(r);
+    //DBG("got reply from redis");
+    if(reply == nullptr) {
+        ERROR("auth I/O error");
+    } else if(redis::isReplyError(reply)) {
+        ERROR("auth error: %s", redis::getReplyError(reply));
+    } else {
+        AmArg result;
+        redisReply2Amarg(result, reply);
+        DBG("redis connection auth success: %s", AmArg::print(result).c_str());
+
+        connected = true;
+        pool->on_connect(this);
+        return;
+    }
+
+    redis::redisAsyncDisconnect(async_context);
+}
+
 int RedisConnection::init(int fd, const string &_host, int _port)
 {
     host = _host;
@@ -172,6 +201,13 @@ int RedisConnection::init(int fd, const string &_host, int _port)
     return 0;
 }
 
+void RedisConnection::setAuthData(const string& password_, const string& username_)
+{
+    needAutorization = true;
+    password = password_;
+    username = username_;
+}
+
 void RedisConnection::on_reconnect()
 {
     if(!connected.get()) {
@@ -180,8 +216,24 @@ void RedisConnection::on_reconnect()
 }
 
 void RedisConnection::on_connect() {
-    connected = true;
-    pool->on_connect(this);
+    if(needAutorization) {
+        char *cmd;
+        int ret;
+        if(username.empty())
+            ret = redis::redisFormatCommand(&cmd, "AUTH %s", password.c_str());
+        else
+            ret = redis::redisFormatCommand(&cmd, "AUTH %s %s", username.c_str(), password.c_str());
+        if(REDIS_OK!=redis::redisAsyncFormattedCommand(
+                async_context,
+                &authCallback_static, this,
+                cmd,ret)) {
+            ERROR("failed send auth request");
+        }
+        delete cmd;
+    } else {
+        connected = true;
+        pool->on_connect(this);
+    }
 }
 void RedisConnection::on_disconnect() {
     connected = false;

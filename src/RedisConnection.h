@@ -48,6 +48,10 @@ class RedisConnection
     AmCondition<bool> connected;
     int mask;
 
+    bool needAutorization;
+    string username;
+    string password;
+
   protected:
     string name;
     RedisConnectionPool* pool;
@@ -61,6 +65,7 @@ class RedisConnection
     RedisConnection(const char* name, RedisConnectionPool* pool);
     virtual ~RedisConnection();
     int init(int epoll_fd, const string &host, int port);
+    void setAuthData(const string& password, const string& username = "");
 
     redisAsyncContext* get_async_context() {return async_context; }
     void cleanup();
@@ -73,6 +78,7 @@ class RedisConnection
 
     redisConnectCallback connectCallback;
     redisDisconnectCallback disconnectCallback;
+    redisCallbackFn authCallback;
 
     int add_event(int flag);
     int del_event(int flag);

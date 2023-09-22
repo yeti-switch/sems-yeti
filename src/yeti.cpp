@@ -340,6 +340,12 @@ int Yeti::configure_registrar()
         return -1;
     }
 
+    if(cfg.hasParameter("registrar_redis_pass")) {
+        string pass = cfg.getParameter("registrar_redis_pass");
+        string user = cfg.getParameter("registrar_redis_user", "");
+        registrar_redis.setAuthData(pass, user);
+    }
+
     return 0;
 }
 

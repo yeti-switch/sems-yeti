@@ -183,6 +183,8 @@ void YetiCfg::serialize_to_amconfig(cfg_t *y, AmConfigReader &out)
 			c = cfg_getsec(c, "redis");
 			add2hash(c,"registrar_redis_host","host",out);
 			add2hash(c,"registrar_redis_port","port",out);
+            if(cfg_size(c, "user")) add2hash(c,"registrar_redis_user","user",out);
+            if(cfg_size(c, "pass")) add2hash(c,"registrar_redis_pass","pass",out);
 
 		//rpc
 		c = cfg_getsec(y,"rpc");

@@ -133,6 +133,8 @@ cfg_opt_t sig_yeti_reg_opts[] = {
 cfg_opt_t sig_yeti_registrar_redis_opts[] = {
     DCFG_STR(host),
     DCFG_INT(port),
+    DCFG_STR(user),
+    DCFG_STR(pass),
     CFG_END()
 };
 
