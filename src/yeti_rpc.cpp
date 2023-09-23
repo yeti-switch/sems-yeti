@@ -389,6 +389,8 @@ bool YetiRpc::getCalls(const string& connection_id,
 	handler_log();
 	AmSessionProcessor::sendIterateRequest([](AmSession* session, void* user_data, AmArg& ret)
 	{
+		ret.assertArray();
+
 		JsonRpcRequestEvent* event = (JsonRpcRequestEvent*)user_data;
 		YetiRpc& rpc = Yeti::instance();
 		SBCCallLeg* leg = dynamic_cast<SBCCallLeg*>(session);
@@ -454,6 +456,8 @@ bool YetiRpc::getCallsFields(const string& connection_id,
 
 	AmSessionProcessor::sendIterateRequest([](AmSession* session, void* user_data, AmArg& ret)
 	{
+		ret.assertArray();
+
 		SBCCallLeg* leg = dynamic_cast<SBCCallLeg*>(session);
 		if(!leg) return;
 

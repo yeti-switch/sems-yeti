@@ -358,6 +358,8 @@ void CdrList::onTimer()
 
     AmSessionProcessor::sendIterateRequest([](AmSession* session, void* user_data, AmArg& ret)
     {
+        ret.assertArray();
+
         SnapshotInfo* info = (SnapshotInfo*)user_data;
         SBCCallLeg* leg = dynamic_cast<SBCCallLeg*>(session);
         if(!leg) return;
