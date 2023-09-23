@@ -312,6 +312,8 @@ void CdrList::onTimer()
     };
     SnapshotInfo *info = new SnapshotInfo;
     AmArg &calls = info->calls;
+
+    calls.assertArray();
     info->snapshot_timestamp_str = snapshot_timestamp_str;
     info->snapshot_date_str = snapshot_date_str;
     info->cdr_list = this;
@@ -358,8 +360,6 @@ void CdrList::onTimer()
 
     AmSessionProcessor::sendIterateRequest([](AmSession* session, void* user_data, AmArg& ret)
     {
-        ret.assertArray();
-
         SnapshotInfo* info = (SnapshotInfo*)user_data;
         SBCCallLeg* leg = dynamic_cast<SBCCallLeg*>(session);
         if(!leg) return;
@@ -394,12 +394,13 @@ void CdrList::onTimer()
                 call[end_time_key] = info->snapshot_timestamp_str;
         }
     }, [](const AmArg& ret, void* user_data)
-	{
+    {
         SnapshotInfo* info = (SnapshotInfo*)user_data;
-		for(int i = 0 ; i < ret.size(); i++) {
-			for(int j = 0 ; j < ret[i].size(); j++)
-			info->calls.push(ret[i][j]);
-		}
+        for(int i = 0 ; i < ret.size(); i++) {
+            if (!isArgArray(ret[i])) continue;
+            for(int j = 0 ; j < ret[i].size(); j++)
+                info->calls.push(ret[i][j]);
+        }
         info->cdr_list->sendSnapshot(info->calls);
         delete info;
     }, info);
