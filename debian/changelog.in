@@ -1,3 +1,7 @@
+sems-yeti (1.13.39) stable; urgency=medium
+  * fix exception on active calls snapshotting without calls
+ -- dev <dev@yeti-switch.org>  Sat, 23 Sep 2023 15:30:04 +0300
+
 sems-yeti (1.13.38) stable; urgency=medium
   * fix exception on active calls snapshotting without calls
  -- dev <dev@yeti-switch.org>  Sat, 23 Sep 2023 15:03:01 +0300
