@@ -43,9 +43,9 @@ int ResourceRedisConnection::cfg2RedisCfg(const AmConfigReader &cfg, RedisConfig
         ERROR("no timeout for %s redis",prefix.c_str());
         return -1;
     }
-    rcfg.need_auth = cfg.hasParameter(prefix+"_redis_pass");
-    rcfg.pass = cfg.getParameter(prefix+"_redis_pass");
-    rcfg.user = cfg.getParameter(prefix+"_redis_user");
+    rcfg.need_auth = cfg.hasParameter(prefix+"_redis_password");
+    rcfg.password = cfg.getParameter(prefix+"_redis_password");
+    rcfg.username = cfg.getParameter(prefix+"_redis_username");
     return 0;
 }
 
@@ -220,9 +220,9 @@ int ResourceRedisConnection::init()
     read_async = addConnection(readcfg.server, readcfg.port);
     if(ret || !write_async || !read_async) return -1;
     if(write_async && writecfg.need_auth)
-        write_async->setAuthData(writecfg.pass, writecfg.user);
+        write_async->setAuthData(writecfg.password, writecfg.username);
     if(read_async && readcfg.need_auth)
-        read_async->setAuthData(readcfg.pass, readcfg.user); 
+        read_async->setAuthData(readcfg.password, readcfg.username); 
     return 0;
 }
 

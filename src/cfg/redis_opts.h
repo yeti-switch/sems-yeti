@@ -9,5 +9,5 @@
 	DCFG_INT(port), \
 	DCFG_INT(size), \
 	DCFG_INT(timeout), \
-	DCFG_STR(user), \
-	DCFG_STR(pass)
+	DCFG_STR(username), \
+	DCFG_STR(password)

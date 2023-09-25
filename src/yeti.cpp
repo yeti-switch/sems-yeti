@@ -340,10 +340,16 @@ int Yeti::configure_registrar()
         return -1;
     }
 
-    if(cfg.hasParameter("registrar_redis_pass")) {
-        string pass = cfg.getParameter("registrar_redis_pass");
-        string user = cfg.getParameter("registrar_redis_user", "");
-        registrar_redis.setAuthData(pass, user);
+    auto reg_redis = cfg_getsec(reg_cfg, section_name_redis);
+    if(!reg_redis)
+        return 0;
+
+    if(cfg_size(reg_redis, "password")) {
+        string username;
+        string password = cfg_getstr(reg_redis, "password");
+        if(cfg_size(reg_redis, "username"))
+            username = cfg_getstr(reg_redis, "username");
+        registrar_redis.setAuthData(password, username);
     }
 
     return 0;

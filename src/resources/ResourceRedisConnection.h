@@ -9,8 +9,8 @@ struct RedisConfig {
     string server;
     int timeout;
     bool need_auth;
-    string user;
-    string pass;
+    string username;
+    string password;
 };
 
 enum ResourceResponse {
