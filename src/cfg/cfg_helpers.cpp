@@ -67,10 +67,8 @@ void apply_redis_pool_cfg(
     cfg_t *c,std::string prefix,
     AmConfigReader &out)
 {
-    add2hash(c,prefix+"socket","socket",out);
     add2hash(c,prefix+"host","host",out);
     add2hash(c,prefix+"port","port",out);
-    add2hash(c,prefix+"size","size",out);
     add2hash(c,prefix+"timeout","timeout",out);
     if(cfg_size(c, "username")) add2hash(c,prefix+"username","username",out);
     if(cfg_size(c, "password")) add2hash(c,prefix+"password","password",out);

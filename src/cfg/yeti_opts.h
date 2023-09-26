@@ -23,6 +23,8 @@ extern char section_name_identity[];
 extern char section_name_statistics[];
 extern char section_name_registrar[];
 extern char section_name_redis[];
+extern char section_name_redis_write[];
+extern char section_name_redis_read[];
 
 extern char opt_name_core_options_handling[];
 extern char opt_name_pcap_memory_logger[];
@@ -60,8 +62,10 @@ extern cfg_opt_t sig_yeti_cdr_db_opts[];
 extern cfg_opt_t sig_yeti_cdr_opts[];
 
 //resources
-extern cfg_opt_t sig_yeti_resources_pool_opts[];
 extern cfg_opt_t sig_yeti_resources_opts[];
+
+//redis
+extern cfg_opt_t sig_yeti_redis_pool_opts[];
 
 //rpc
 extern cfg_opt_t sig_yeti_rpc_opts[];

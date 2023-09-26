@@ -33,9 +33,6 @@
 
 #define EPOLL_MAX_EVENTS 2048
 
-#define DEFAULT_REDIS_HOST "127.0.0.1"
-#define DEFAULT_REDIS_PORT 6379
-
 #define DEFAULT_REGISTRAR_EXPIRES 1800
 
 #define YETI_SIGNATURE "yeti-switch"
@@ -299,12 +296,6 @@ int Yeti::configure_registrar()
     if(!reg_cfg)
         return 0;
 
-    config.registrar_redis_host = cfg.getParameter("registrar_redis_host");
-    if(config.registrar_redis_host.empty()) config.registrar_redis_host = DEFAULT_REDIS_HOST;
-
-    config.registrar_redis_port = cfg.getParameterInt("registrar_redis_port");
-    if(!config.registrar_redis_port) config.registrar_redis_port = DEFAULT_REDIS_PORT;
-
     config.registrar_keepalive_interval =
         cfg_getint(reg_cfg, opt_registrar_keepalive_interval);
     DBG("registrar_keepalive_interval: %d", config.registrar_keepalive_interval);
@@ -332,24 +323,9 @@ int Yeti::configure_registrar()
         return -1;
     }
 
-    if(0!=registrar_redis.init(
-        config.registrar_redis_host,
-        config.registrar_redis_port,
-        0!=config.registrar_keepalive_interval))
+    if(0!=registrar_redis.configure(reg_cfg))
     {
         return -1;
-    }
-
-    auto reg_redis = cfg_getsec(reg_cfg, section_name_redis);
-    if(!reg_redis)
-        return 0;
-
-    if(cfg_size(reg_redis, "password")) {
-        string username;
-        string password = cfg_getstr(reg_redis, "password");
-        if(cfg_size(reg_redis, "username"))
-            username = cfg_getstr(reg_redis, "username");
-        registrar_redis.setAuthData(password, username);
     }
 
     return 0;
