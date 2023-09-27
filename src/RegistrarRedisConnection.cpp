@@ -10,9 +10,9 @@
 static const string REGISTAR_QUEUE_NAME("registrar");
 
 RegistrarRedisConnection::ContactsSubscriptionConnection::ContactsSubscriptionConnection(
-    KeepAliveContexts &keepalive_contexts)
+    RegistrarRedisConnection* registrar)
   : RedisConnectionPool("reg_sub", "reg_async_redis_sub"),
-    keepalive_contexts(keepalive_contexts),
+    registrar(registrar),
     load_contacts_data("load_contacts_data", get_queue_name())
 {}
 
@@ -58,6 +58,7 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_reply_eve
     } break;
     case REDIS_REPLY_CONTACTS_DATA:
         process_loaded_contacts(event.data);
+        registrar->onKeepAliveContextsChanged();
         break;
     default:
         ERROR("unexpected reply event with type: %d",event.user_type_id);
@@ -86,6 +87,7 @@ void RegistrarRedisConnection::keepalive_ctx_data::dump(const std::string &key, 
     ret["aor"] = aor;
     ret["path"] = path;
     ret["interface_id"] = interface_id;
+    ret["next_send"] = next_send;
 }
 
 void RegistrarRedisConnection::KeepAliveContexts::dump()
@@ -107,11 +109,24 @@ void RegistrarRedisConnection::KeepAliveContexts::dump(AmArg &ret)
     }
 }
 
+void RegistrarRedisConnection::onKeepAliveContextsChanged()
+{
+    for(auto& ctx : keepalive_contexts) {
+        if(ctx.second.next_send) continue;
+
+        ctx.second.next_send = time(0) + last_time_index;
+        DBG("index %lld, next_time %lld, address %s", last_time_index, ctx.second.next_send, ctx.second.aor.c_str());
+        last_time_index++;
+        if(last_time_index == keepalive_interval)
+            last_time_index = 0;
+    }
+}
+
 void RegistrarRedisConnection::ContactsSubscriptionConnection::process_loaded_contacts(const AmArg &data)
 {
-    AmLock l(keepalive_contexts.mutex);
+    AmLock l(registrar->keepalive_contexts.mutex);
 
-    keepalive_contexts.clear();
+    registrar->keepalive_contexts.clear();
 
     if(!isArgArray(data))
         return;
@@ -142,7 +157,7 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_loaded_co
         }
         pos++;
 
-        keepalive_contexts.emplace(std::make_pair(
+        registrar->keepalive_contexts.emplace(std::make_pair(
             key,
             keepalive_ctx_data(
                 key.substr(pos),  //aor
@@ -170,15 +185,17 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_expired_k
 
     DBG("process expired/removed key: '%s'", key_arg.asCStr());
 
-    keepalive_contexts.mutex.lock();
-    keepalive_contexts.erase(key_arg.asCStr());
+    registrar->keepalive_contexts.mutex.lock();
+    registrar->keepalive_contexts.erase(key_arg.asCStr());
+    registrar->onKeepAliveContextsChanged();
     //keepalive_contexts.dump();
-    keepalive_contexts.mutex.unlock();
+    registrar->keepalive_contexts.mutex.unlock();
 }
 
 RegistrarRedisConnection::RegistrarRedisConnection()
   : RedisConnectionPool("reg", REGISTAR_QUEUE_NAME),
-     contacts_subscription(keepalive_contexts),
+     last_time_index(0),
+     contacts_subscription(this),
      yeti_register("yeti_register", REGISTAR_QUEUE_NAME),
      yeti_aor_lookup("yeti_aor_lookup", REGISTAR_QUEUE_NAME),
      yeti_rpc_aor_lookup("yeti_rpc_aor_lookup", REGISTAR_QUEUE_NAME),
@@ -207,6 +224,9 @@ int RegistrarRedisConnection::init(const string &_host, int _port, bool _subscri
     ret = RedisConnectionPool::init();
     conn = addConnection(_host, _port);
     if(ret || !subscription_enabled || !conn) return -1;
+
+    //TODO: move to ``configure(cfg_t* cfg)` after finish YETI-69
+    keepalive_interval = Yeti::instance().config.registrar_keepalive_interval/1000000;
 
     return contacts_subscription.init(_host, _port);
 }
@@ -397,6 +417,7 @@ void RegistrarRedisConnection::updateKeepAliveContext(
         keepalive_contexts.emplace(std::make_pair(
             key,
             keepalive_ctx_data(aor, path, interface_id)));
+        onKeepAliveContextsChanged();
         return;
     }
 
@@ -405,14 +426,15 @@ void RegistrarRedisConnection::updateKeepAliveContext(
 
 void RegistrarRedisConnection::on_keepalive_timer()
 {
-    //DBG("on keepalive timer");
-
+    DBG("on keepalive timer");
     AmLock l(keepalive_contexts.mutex);
 
-    for(const auto &ctx_it : keepalive_contexts) {
+    uint64_t current = time(0);
+    for(auto &ctx_it : keepalive_contexts) {
         auto &ctx = ctx_it.second;
-        //send OPTIONS query for each ctx
+        if(ctx.next_send && current < ctx.next_send) continue;
 
+        //send OPTIONS query for each ctx
         std::unique_ptr<AmSipDialog> dlg(new AmSipDialog());
 
         dlg->setRemoteUri(ctx.aor);
@@ -436,6 +458,7 @@ void RegistrarRedisConnection::on_keepalive_timer()
             ERROR("failed to send keep alive OPTIONS request for %s",
                 ctx.aor.data());
         }
+        ctx.next_send += keepalive_interval;
     }
 }
 

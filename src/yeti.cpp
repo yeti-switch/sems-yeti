@@ -261,7 +261,7 @@ int Yeti::onLoad()
         registrar_redis.start();
         if(config.registrar_keepalive_interval) {
             keepalive_timer.link(epoll_fd);
-            keepalive_timer.set(config.registrar_keepalive_interval,true);
+            keepalive_timer.set(1000000,true);
         }
     }
 

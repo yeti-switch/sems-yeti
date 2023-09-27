@@ -15,11 +15,13 @@ class RegistrarRedisConnection
         string aor;
         string path;
         int interface_id;
+        uint64_t next_send;
 
         keepalive_ctx_data(const string &aor, const string &path, int interface_id)
           : aor(aor),
             path(path),
-            interface_id(interface_id)
+            interface_id(interface_id),
+            next_send(0)
         {}
 
         void update(const string &_aor, const string &_path, int _interface_id)
@@ -50,6 +52,10 @@ class RegistrarRedisConnection
         void dump();
         void dump(AmArg &ret);
     } keepalive_contexts;
+    uint64_t keepalive_interval;
+    uint64_t last_time_index;
+
+    void onKeepAliveContextsChanged();
 
     std::unordered_map<std::string, AmSipDialog* > uac_dlgs;
     AmMutex uac_dlgs_mutex;
@@ -58,7 +64,7 @@ class RegistrarRedisConnection
       : public RedisConnectionPool
     {
         RedisConnection* conn;
-        KeepAliveContexts &keepalive_contexts;
+        RegistrarRedisConnection* registrar;
         RedisScript load_contacts_data;
 
         void process_loaded_contacts(const AmArg &key_arg);
@@ -67,7 +73,7 @@ class RegistrarRedisConnection
         void on_connect(RedisConnection* c) override;
 
       public:
-        ContactsSubscriptionConnection(KeepAliveContexts &keepalive_contexts);
+        ContactsSubscriptionConnection(RegistrarRedisConnection* registrar);
         void process_reply_event(RedisReplyEvent &event) override;
         int init(const string& host, int port);
     } contacts_subscription;
@@ -82,7 +88,7 @@ class RegistrarRedisConnection
   protected:
     void on_connect(RedisConnection* c) override;
 
-  public:
+public:
     RegistrarRedisConnection();
 
     void start();
