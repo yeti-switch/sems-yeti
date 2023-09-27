@@ -115,7 +115,6 @@ void RegistrarRedisConnection::onKeepAliveContextsChanged()
         if(ctx.second.next_send) continue;
 
         ctx.second.next_send = time(0) + last_time_index;
-        DBG("index %lld, next_time %lld, address %s", last_time_index, ctx.second.next_send, ctx.second.aor.c_str());
         last_time_index++;
         if(last_time_index == keepalive_interval)
             last_time_index = 0;
@@ -426,7 +425,7 @@ void RegistrarRedisConnection::updateKeepAliveContext(
 
 void RegistrarRedisConnection::on_keepalive_timer()
 {
-    DBG("on keepalive timer");
+    //DBG("on keepalive timer");
     AmLock l(keepalive_contexts.mutex);
 
     uint64_t current = time(0);
