@@ -261,7 +261,7 @@ int Yeti::onLoad()
         registrar_redis.start();
         if(config.registrar_keepalive_interval) {
             keepalive_timer.link(epoll_fd);
-            keepalive_timer.set(1000000,true);
+            keepalive_timer.set(1000000 /* 1 seconds */,true);
         }
     }
 
@@ -308,7 +308,6 @@ int Yeti::configure_registrar()
     config.registrar_keepalive_interval =
         cfg_getint(reg_cfg, opt_registrar_keepalive_interval);
     DBG("registrar_keepalive_interval: %d", config.registrar_keepalive_interval);
-    config.registrar_keepalive_interval *= 1000000; //convert sec -> usec
 
     config.registrar_expires_min = cfg.getParameterInt("registrar_expires_min");
     DBG("registrar_expires_min: %d", config.registrar_expires_min);
@@ -592,7 +591,7 @@ void Yeti::processRedisRegisterReply(RedisReplyEvent &e)
 
         //update KeepAliveContexts
         if(config.registrar_keepalive_interval!=0) {
-            registrar_redis.updateKeepAliveContext(
+            registrar_redis.createOrUpdateKeepAliveContext(
                 d[2].asCStr(),  //key
                 contact,        //aor
                 d[3].asCStr(),  //path

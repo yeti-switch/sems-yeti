@@ -5,6 +5,7 @@
 #include "Auth.h"
 
 #include <unordered_map>
+#include <chrono>
 
 class RegistrarRedisConnection
   : public RedisConnectionPool
@@ -12,27 +13,40 @@ class RegistrarRedisConnection
   private:
     //contains data to generate correct keepalive OPTIONS requests
     struct keepalive_ctx_data {
-        string aor;
-        string path;
+        std::string aor;
+        std::string path;
         int interface_id;
-        uint64_t next_send;
+        std::chrono::system_clock::time_point next_send;
 
-        keepalive_ctx_data(const string &aor, const string &path, int interface_id)
+        keepalive_ctx_data(
+            const std::string &aor,
+            const std::string &path,
+            int interface_id,
+            const std::chrono::system_clock::time_point &next_send)
           : aor(aor),
             path(path),
             interface_id(interface_id),
-            next_send(0)
+            next_send(next_send)
         {}
 
-        void update(const string &_aor, const string &_path, int _interface_id)
+        void update(
+            const std::string &_aor,
+            const std::string &_path,
+            int _interface_id,
+            const std::chrono::system_clock::time_point &_next_send)
         {
             aor = _aor;
             path = _path;
             interface_id = _interface_id;
+            next_send = _next_send;
         }
 
-        void dump(const std::string &key) const;
-        void dump(const std::string &key, AmArg &ret) const;
+        void dump(
+            const std::string &key,
+            const std::chrono::system_clock::time_point &now) const;
+        void dump(
+            const std::string &key, AmArg &ret,
+            const std::chrono::system_clock::time_point &now) const;
 
     };
 
@@ -52,12 +66,10 @@ class RegistrarRedisConnection
         void dump();
         void dump(AmArg &ret);
     } keepalive_contexts;
-    uint64_t keepalive_interval;
-    uint32_t max_registrations_per_slot;
-    int32_t  max_interval_drift;
-    uint64_t last_time_index;
 
-    void onKeepAliveContextsChanged();
+    std::chrono::seconds keepalive_interval;
+    std::chrono::seconds max_interval_drift;
+    uint32_t max_registrations_per_slot;
 
     std::unordered_map<std::string, AmSipDialog* > uac_dlgs;
     AmMutex uac_dlgs_mutex;
@@ -138,11 +150,18 @@ public:
         const AmArg &arg,
         RpcAorLookupCtx &ctx);
 
-    void updateKeepAliveContext(
+    const std::chrono::seconds &getKeepAliveInterval() {
+        return keepalive_interval;
+    }
+    void createOrUpdateKeepAliveContext(
         const string &key,
         const string &aor,
         const string &path,
-        int interface_id);
+        int interface_id,
+        const std::chrono::seconds &keep_alive_interval_offset = std::chrono::seconds{0});
+    void removeKeepAliveContext(const std::string &key);
+    void clearKeepAliveContexts();
+
     void dumpKeepAliveContexts(AmArg &ret) { keepalive_contexts.dump(ret); }
     void on_keepalive_timer();
 };

@@ -2,6 +2,7 @@
 
 #include "yeti.h"
 #include "AmSipMsg.h"
+#include <chrono>
 
 #define REDIS_REPLY_SCRIPT_LOAD 0
 #define REDIS_REPLY_SUBSCRIPTION 1
@@ -58,7 +59,6 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_reply_eve
     } break;
     case REDIS_REPLY_CONTACTS_DATA:
         process_loaded_contacts(event.data);
-        registrar->onKeepAliveContextsChanged();
         break;
     default:
         ERROR("unexpected reply event with type: %d",event.user_type_id);
@@ -74,63 +74,62 @@ int RegistrarRedisConnection::ContactsSubscriptionConnection::init(const std::st
     return 0;
 }
 
-void RegistrarRedisConnection::keepalive_ctx_data::dump(const std::string &key) const
+void RegistrarRedisConnection::keepalive_ctx_data::dump(
+    const std::string &key,
+    const std::chrono::system_clock::time_point &now) const
 {
-    DBG("keepalive_context. key: '%s', aor: '%s', path: '%s', interface_id: %d",
+    DBG("keepalive_context. key: '%s', "
+        "aor: '%s', path: '%s', interface_id: %d, "
+        "next_send-now: %d",
         key.c_str(),
-        aor.data(), path.data(), interface_id);
+        aor.data(), path.data(), interface_id,
+        std::chrono::duration_cast<std::chrono::seconds>(
+            next_send - now).count());
 }
 
-void RegistrarRedisConnection::keepalive_ctx_data::dump(const std::string &key, AmArg &ret) const
+void RegistrarRedisConnection::keepalive_ctx_data::dump(
+    const std::string &key, AmArg &ret,
+    const std::chrono::system_clock::time_point &now) const
 {
     ret["key"] = key;
     ret["aor"] = aor;
     ret["path"] = path;
     ret["interface_id"] = interface_id;
-    ret["next_send"] = next_send;
+    ret["next_send_in"] =
+        std::chrono::duration_cast<std::chrono::seconds>(
+            next_send - now).count();
 }
 
 void RegistrarRedisConnection::KeepAliveContexts::dump()
 {
     //AmLock l(mutex);
+    auto now{std::chrono::system_clock::now()};
     DBG("%zd keepalive contexts", size());
     for(const auto &i : *this) {
-        i.second.dump(i.first);
+        i.second.dump(i.first, now);
     }
 }
 
 void RegistrarRedisConnection::KeepAliveContexts::dump(AmArg &ret)
 {
     ret.assertArray();
+    auto now{std::chrono::system_clock::now()};
     AmLock l(mutex);
     for(const auto &i : *this) {
         ret.push(AmArg());
-        i.second.dump(i.first, ret.back());
-    }
-}
-
-void RegistrarRedisConnection::onKeepAliveContextsChanged()
-{
-    for(auto& ctx : keepalive_contexts) {
-        if(ctx.second.next_send) continue;
-
-        ctx.second.next_send = time(0) + last_time_index;
-        last_time_index++;
-        if(last_time_index == keepalive_interval)
-            last_time_index = 0;
+        i.second.dump(i.first, ret.back(), now);
     }
 }
 
 void RegistrarRedisConnection::ContactsSubscriptionConnection::process_loaded_contacts(const AmArg &data)
 {
-    AmLock l(registrar->keepalive_contexts.mutex);
-
-    registrar->keepalive_contexts.clear();
+    registrar->clearKeepAliveContexts();
 
     if(!isArgArray(data))
         return;
 
-    KeepAliveContexts::iterator it;
+    std::chrono::seconds keepalive_interval_offset{0};
+    auto keepalive_interval = registrar->getKeepAliveInterval();
 
     DBG("process_loaded_contacts");
     int n = static_cast<int>(data.size());
@@ -156,12 +155,15 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_loaded_co
         }
         pos++;
 
-        registrar->keepalive_contexts.emplace(std::make_pair(
+        registrar->createOrUpdateKeepAliveContext(
             key,
-            keepalive_ctx_data(
-                key.substr(pos),  //aor
-                d[1].asCStr(),    //path
-                arg2int(d[2])))); // interface_id
+            key.substr(pos), //aor
+            d[1].asCStr(),   //path
+            arg2int(d[2]),   //interface_id
+            keepalive_interval_offset - keepalive_interval);
+
+        keepalive_interval_offset++;
+        keepalive_interval_offset %= keepalive_interval;
     }
 
     //keepalive_contexts.dump();
@@ -184,18 +186,13 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_expired_k
 
     DBG("process expired/removed key: '%s'", key_arg.asCStr());
 
-    registrar->keepalive_contexts.mutex.lock();
-    registrar->keepalive_contexts.erase(key_arg.asCStr());
-    registrar->onKeepAliveContextsChanged();
-    //keepalive_contexts.dump();
-    registrar->keepalive_contexts.mutex.unlock();
+    registrar->removeKeepAliveContext(key_arg.asCStr());
 }
 
 RegistrarRedisConnection::RegistrarRedisConnection()
   : RedisConnectionPool("reg", REGISTAR_QUEUE_NAME),
+     max_interval_drift(1),
      max_registrations_per_slot(1),
-     max_interval_drift(0),
-     last_time_index(0),
      contacts_subscription(this),
      yeti_register("yeti_register", REGISTAR_QUEUE_NAME),
      yeti_aor_lookup("yeti_aor_lookup", REGISTAR_QUEUE_NAME),
@@ -227,8 +224,9 @@ int RegistrarRedisConnection::init(const string &_host, int _port, bool _subscri
     if(ret || !subscription_enabled || !conn) return -1;
 
     //TODO: move to ``configure(cfg_t* cfg)` after finish YETI-69
-    keepalive_interval = Yeti::instance().config.registrar_keepalive_interval/1000000;
-    max_interval_drift = int(keepalive_interval * 0.1);
+    keepalive_interval = std::chrono::seconds{
+        Yeti::instance().config.registrar_keepalive_interval};
+    max_interval_drift = keepalive_interval/10; //allow 10% interval drift
 
     return contacts_subscription.init(_host, _port);
 }
@@ -406,37 +404,56 @@ void RegistrarRedisConnection::rpc_resolve_aors_blocking(
     ctx.cond.wait_for();
 }
 
-void RegistrarRedisConnection::updateKeepAliveContext(
+void RegistrarRedisConnection::createOrUpdateKeepAliveContext(
     const string &key,
     const string &aor,
     const string &path,
-    int interface_id)
+    int interface_id,
+    const std::chrono::seconds &keep_alive_interval_offset)
 {
+    auto next_time =
+        std::chrono::system_clock::now() +
+        keepalive_interval + keep_alive_interval_offset;
+
     AmLock l(keepalive_contexts.mutex);
 
     auto it = keepalive_contexts.find(key);
     if(it == keepalive_contexts.end()) {
-        keepalive_contexts.emplace(std::make_pair(
+        keepalive_contexts.try_emplace(
             key,
-            keepalive_ctx_data(aor, path, interface_id)));
-        onKeepAliveContextsChanged();
+            aor, path, interface_id, next_time);
         return;
     }
 
-    it->second.update(aor, path, interface_id);
+    it->second.update(aor, path, interface_id, next_time);
+}
+
+void RegistrarRedisConnection::removeKeepAliveContext(const std::string &key)
+{
+    AmLock l(keepalive_contexts.mutex);
+    keepalive_contexts.erase(key);
+}
+
+void RegistrarRedisConnection::clearKeepAliveContexts()
+{
+    AmLock l(keepalive_contexts.mutex);
+    keepalive_contexts.clear();
 }
 
 void RegistrarRedisConnection::on_keepalive_timer()
 {
+    auto now{std::chrono::system_clock::now()};
+    uint32_t sent = 0;
+    std::chrono::seconds drift_interval{0};
+    auto double_max_interval_drift = max_interval_drift*2;
+
     //DBG("on keepalive timer");
     AmLock l(keepalive_contexts.mutex);
 
-    uint64_t current = time(0);
-    uint32_t sent = 0;
-    uint32_t drift_interval_mapping = 0;
     for(auto &ctx_it : keepalive_contexts) {
         auto &ctx = ctx_it.second;
-        if(ctx.next_send && current < ctx.next_send) continue;
+
+        if(now < ctx.next_send) continue;
 
         sent++;
         //send OPTIONS query for each ctx
@@ -464,12 +481,17 @@ void RegistrarRedisConnection::on_keepalive_timer()
                 ctx.aor.data());
         }
 
-        int32_t drift_interval = 0;
+        ctx.next_send += keepalive_interval;
+
         if(sent > max_registrations_per_slot) {
-            drift_interval_mapping = (drift_interval_mapping + 1) % (max_interval_drift*2);
-            drift_interval = drift_interval_mapping - max_interval_drift;
+            //cycle drift_interval over the range: [ 0, 2*max_interval_drift ]
+            drift_interval++;
+            drift_interval %= double_max_interval_drift;
+
+            /* adjust around keepalive_interval
+             * within the range: [ -max_interval_drift, max_interval_drift ] */
+            ctx.next_send += drift_interval - max_interval_drift;
         }
-        ctx.next_send += keepalive_interval + drift_interval;
     }
 }
 
