@@ -77,6 +77,11 @@ int RegistrarRedisConnection::ContactsSubscriptionConnection::init(const std::st
     return 0;
 }
 
+void RegistrarRedisConnection::ContactsSubscriptionConnection::setAuthData(const std::string& password, const std::string& username)
+{
+    conn->setAuthData(password, username);
+}
+
 void RegistrarRedisConnection::keepalive_ctx_data::dump(
     const std::string &key,
     const std::chrono::system_clock::time_point &now) const
@@ -241,6 +246,12 @@ int RegistrarRedisConnection::configure(cfg_t* cfg)
     max_interval_drift = keepalive_interval/10; //allow 10% interval drift
 
     return 0;
+}
+
+void RegistrarRedisConnection::setAuthData(const std::string& password, const std::string& username)
+{
+    conn->setAuthData(password, username);
+    contacts_subscription.setAuthData(password, username);
 }
 
 void RegistrarRedisConnection::on_connect(RedisConnection* c) {

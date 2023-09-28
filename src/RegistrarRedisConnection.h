@@ -87,7 +87,7 @@ class RegistrarRedisConnection
         void on_connect(RedisConnection* c) override;
 
       public:
-        ContactsSubscriptionConnection(KeepAliveContexts &keepalive_contexts);
+        ContactsSubscriptionConnection(RegistrarRedisConnection* registrar);
         void process_reply_event(RedisReplyEvent &event) override;
         int init(const string& host, int port);
         void setAuthData(const string& password, const string& username = "");
@@ -112,6 +112,8 @@ class RegistrarRedisConnection
     void start();
     void stop();
     int configure(cfg_t* cfg);
+    void setAuthData(const string& password, const string& username = "");
+
 
     void process(AmEvent* ev) override;
     void process_reply_event(RedisReplyEvent &event) override;
