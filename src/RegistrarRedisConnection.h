@@ -79,17 +79,19 @@ class RegistrarRedisConnection
     RedisScript yeti_aor_lookup;
     RedisScript yeti_rpc_aor_lookup;
     RedisConnection* conn;
+    RedisConnection* read_conn;
 
   protected:
     void on_connect(RedisConnection* c) override;
+
+    int initConnection(cfg_t* cfg, RedisConnection*& c);
 
   public:
     RegistrarRedisConnection();
 
     void start();
     void stop();
-    int init(const string &host, int port, bool subscription_enabled);
-    void setAuthData(const string& password, const string& username = "");
+    int configure(cfg_t* cfg);
 
     void process(AmEvent* ev) override;
     void process_reply_event(RedisReplyEvent &event) override;

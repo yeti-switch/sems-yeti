@@ -29,8 +29,6 @@ struct YetiCfg {
     string http_events_destination;
 
     bool registrar_enabled;
-    string registrar_redis_host;
-    int registrar_redis_port;
     int registrar_keepalive_interval;
     int registrar_expires_min;
     int registrar_expires_max;

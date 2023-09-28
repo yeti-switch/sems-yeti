@@ -26,6 +26,8 @@ char section_name_identity[] = "identity";
 char section_name_statistics[] = "statistics";
 char section_name_registrar[] = "registrar";
 char section_name_redis[] = "redis";
+char section_name_redis_write[] = "write";
+char section_name_redis_read[] = "read";
 
 char opt_name_core_options_handling[] = "core_options_handling";
 char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
@@ -104,16 +106,16 @@ cfg_opt_t sig_yeti_cdr_opts[] = {
 	CFG_END()
 };
 
-//resources
-cfg_opt_t sig_yeti_resources_pool_opts[] = {
+//resources and registrar
+cfg_opt_t sig_yeti_redis_pool_opts[] = {
 	redis_pool_opts,
 	CFG_END()
 };
 
 cfg_opt_t sig_yeti_resources_opts[] = {
 	DCFG_BOOL(reject_on_error),
-	DCFG_SEC(write,sig_yeti_resources_pool_opts,CFGF_NONE),
-	DCFG_SEC(read,sig_yeti_resources_pool_opts,CFGF_NONE),
+	DCFG_SEC(write,sig_yeti_redis_pool_opts,CFGF_NONE),
+	DCFG_SEC(read,sig_yeti_redis_pool_opts,CFGF_NONE),
 	CFG_END()
 };
 
@@ -132,10 +134,8 @@ cfg_opt_t sig_yeti_reg_opts[] = {
 //registrar
 
 cfg_opt_t sig_yeti_registrar_redis_opts[] = {
-    DCFG_STR(host),
-    DCFG_INT(port),
-    DCFG_STR(username),
-    DCFG_STR(password),
+	DCFG_SEC(write,sig_yeti_redis_pool_opts,CFGF_NONE),
+	DCFG_SEC(read,sig_yeti_redis_pool_opts,CFGF_NONE),
     CFG_END()
 };
 

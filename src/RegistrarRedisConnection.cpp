@@ -2,10 +2,14 @@
 
 #include "yeti.h"
 #include "AmSipMsg.h"
+#include "cfg/yeti_opts.h"
 
 #define REDIS_REPLY_SCRIPT_LOAD 0
 #define REDIS_REPLY_SUBSCRIPTION 1
 #define REDIS_REPLY_CONTACTS_DATA 2
+
+#define DEFAULT_REDIS_HOST "127.0.0.1"
+#define DEFAULT_REDIS_PORT 6379
 
 static const string REGISTAR_QUEUE_NAME("registrar");
 
@@ -187,7 +191,8 @@ RegistrarRedisConnection::RegistrarRedisConnection()
      yeti_register("yeti_register", REGISTAR_QUEUE_NAME),
      yeti_aor_lookup("yeti_aor_lookup", REGISTAR_QUEUE_NAME),
      yeti_rpc_aor_lookup("yeti_rpc_aor_lookup", REGISTAR_QUEUE_NAME),
-     conn(0)
+     conn(0),
+     read_conn(0)
 { }
 
 void RegistrarRedisConnection::start()
@@ -204,28 +209,66 @@ void RegistrarRedisConnection::stop()
         contacts_subscription.stop();
 }
 
-int RegistrarRedisConnection::init(const string &_host, int _port, bool _subscription_enabled)
+int RegistrarRedisConnection::configure(cfg_t* cfg)
 {
-    int ret;
-    subscription_enabled = _subscription_enabled;
+    auto reg_redis = cfg_getsec(cfg, section_name_redis);
+    if(!reg_redis)
+        return -1;
 
-    ret = RedisConnectionPool::init();
-    conn = addConnection(_host, _port);
-    if(ret || !subscription_enabled || !conn) return -1;
+    auto reg_redis_write = cfg_getsec(reg_redis, section_name_redis_write);
+    auto reg_redis_read = cfg_getsec(reg_redis, section_name_redis_read);
+    if(!reg_redis_read || !reg_redis_write)
+        return -1;
 
-    return contacts_subscription.init(_host, _port);
-}
+    int ret = RedisConnectionPool::init();
+    subscription_enabled = (cfg_getint(cfg, opt_registrar_keepalive_interval) != 0);
+    if(ret || !subscription_enabled) return -1;
 
-void RegistrarRedisConnection::setAuthData(const std::string& password, const std::string& username)
-{
-    conn->setAuthData(password, username);
-    contacts_subscription.setAuthData(password, username);
+    if(initConnection(reg_redis_read, read_conn) ||
+       initConnection(reg_redis_write, conn))
+        return -1;
+
+    return 0;
 }
 
 void RegistrarRedisConnection::on_connect(RedisConnection* c) {
-    yeti_register.load(c, "/etc/yeti/scripts/register.lua", REDIS_REPLY_SCRIPT_LOAD);
-    yeti_aor_lookup.load(c, "/etc/yeti/scripts/aor_lookup.lua", REDIS_REPLY_SCRIPT_LOAD);
-    yeti_rpc_aor_lookup.load(c, "/etc/yeti/scripts/rpc_aor_lookup.lua", REDIS_REPLY_SCRIPT_LOAD);
+    if(c == conn)
+        yeti_register.load(c, "/etc/yeti/scripts/register.lua", REDIS_REPLY_SCRIPT_LOAD);
+    if(c == read_conn) {
+        yeti_aor_lookup.load(c, "/etc/yeti/scripts/aor_lookup.lua", REDIS_REPLY_SCRIPT_LOAD);
+        yeti_rpc_aor_lookup.load(c, "/etc/yeti/scripts/rpc_aor_lookup.lua", REDIS_REPLY_SCRIPT_LOAD);
+    }
+}
+
+int RegistrarRedisConnection::initConnection(cfg_t* cfg, RedisConnection*& c)
+{
+    string host = DEFAULT_REDIS_HOST;
+    if(cfg_size(cfg, "host"))
+        host = cfg_getstr(cfg, "host");
+    int port = DEFAULT_REDIS_PORT;
+    if(cfg_size(cfg, "port"))
+        port = cfg_getint(cfg, "port");
+
+    c = addConnection(host, port);
+    if(!c) return -1;
+
+    int ret = 0;
+    if(read_conn == c) {
+        ret = contacts_subscription.init(host, port);
+    }
+    if(ret) return -1;
+
+    if(cfg_size(cfg, "password")) {
+        string username;
+        string password = cfg_getstr(cfg, "password");
+        if(cfg_size(cfg, "username"))
+            username = cfg_getstr(cfg, "username");
+        c->setAuthData(password, username);
+        if(read_conn == c)
+            contacts_subscription.setAuthData(password, username);
+    }
+
+    return 0;
 }
 
 void RegistrarRedisConnection::process(AmEvent* ev)
@@ -340,7 +383,7 @@ void RegistrarRedisConnection::resolve_aors(
 
     //send request to redis
     if(false==postRedisRequest(
-        conn,
+        read_conn,
         get_queue_name(),
         local_tag,
         cmd.release(),cmd_size, false))
@@ -380,7 +423,7 @@ void RegistrarRedisConnection::rpc_resolve_aors_blocking(
     ss.str().copy(cmd.get(), cmd_size);
 
     if(false==postRedisRequest(
-        conn,
+        read_conn,
         get_queue_name(),
         YETI_QUEUE_NAME,
         cmd.release(),cmd_size, false,
