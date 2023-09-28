@@ -340,6 +340,18 @@ int Yeti::configure_registrar()
         return -1;
     }
 
+    auto reg_redis = cfg_getsec(reg_cfg, section_name_redis);
+    if(!reg_redis)
+        return 0;
+
+    if(cfg_size(reg_redis, "password")) {
+        string username;
+        string password = cfg_getstr(reg_redis, "password");
+        if(cfg_size(reg_redis, "username"))
+            username = cfg_getstr(reg_redis, "username");
+        registrar_redis.setAuthData(password, username);
+    }
+
     return 0;
 }
 

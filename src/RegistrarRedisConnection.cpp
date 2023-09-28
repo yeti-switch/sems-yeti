@@ -73,6 +73,11 @@ int RegistrarRedisConnection::ContactsSubscriptionConnection::init(const std::st
     return 0;
 }
 
+void RegistrarRedisConnection::ContactsSubscriptionConnection::setAuthData(const std::string& password, const std::string& username)
+{
+    conn->setAuthData(password, username);
+}
+
 void RegistrarRedisConnection::keepalive_ctx_data::dump(const std::string &key) const
 {
     DBG("keepalive_context. key: '%s', aor: '%s', path: '%s', interface_id: %d",
@@ -209,6 +214,12 @@ int RegistrarRedisConnection::init(const string &_host, int _port, bool _subscri
     if(ret || !subscription_enabled || !conn) return -1;
 
     return contacts_subscription.init(_host, _port);
+}
+
+void RegistrarRedisConnection::setAuthData(const std::string& password, const std::string& username)
+{
+    conn->setAuthData(password, username);
+    contacts_subscription.setAuthData(password, username);
 }
 
 void RegistrarRedisConnection::on_connect(RedisConnection* c) {

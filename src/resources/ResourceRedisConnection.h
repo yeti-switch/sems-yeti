@@ -8,6 +8,9 @@ struct RedisConfig {
     short port;
     string server;
     int timeout;
+    bool need_auth;
+    string username;
+    string password;
 };
 
 enum ResourceResponse {

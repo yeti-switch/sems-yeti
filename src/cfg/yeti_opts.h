@@ -22,6 +22,7 @@ extern char section_name_legb_reply_cdr_headers[];
 extern char section_name_identity[];
 extern char section_name_statistics[];
 extern char section_name_registrar[];
+extern char section_name_redis[];
 
 extern char opt_name_core_options_handling[];
 extern char opt_name_pcap_memory_logger[];

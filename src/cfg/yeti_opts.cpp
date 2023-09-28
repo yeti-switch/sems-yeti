@@ -25,6 +25,7 @@ char section_name_legb_reply_cdr_headers[] = "legb_response_cdr_headers";
 char section_name_identity[] = "identity";
 char section_name_statistics[] = "statistics";
 char section_name_registrar[] = "registrar";
+char section_name_redis[] = "redis";
 
 char opt_name_core_options_handling[] = "core_options_handling";
 char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
@@ -133,6 +134,8 @@ cfg_opt_t sig_yeti_reg_opts[] = {
 cfg_opt_t sig_yeti_registrar_redis_opts[] = {
     DCFG_STR(host),
     DCFG_INT(port),
+    DCFG_STR(username),
+    DCFG_STR(password),
     CFG_END()
 };
 
@@ -143,7 +146,7 @@ cfg_opt_t sig_yeti_registrar_opts[] = {
     DCFG_INT(expires_default),
     CFG_INT(opt_registrar_keepalive_interval,
             DEFAULT_REGISTRAR_KEEPALIVE_INTERVAL, CFGF_NONE),
-    DCFG_SEC(redis,sig_yeti_registrar_redis_opts,CFGF_NONE),
+    CFG_SEC(section_name_redis,sig_yeti_registrar_redis_opts,CFGF_NONE),
     CFG_END()
 };
 

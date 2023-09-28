@@ -70,6 +70,7 @@ class RegistrarRedisConnection
         ContactsSubscriptionConnection(KeepAliveContexts &keepalive_contexts);
         void process_reply_event(RedisReplyEvent &event) override;
         int init(const string& host, int port);
+        void setAuthData(const string& password, const string& username = "");
     } contacts_subscription;
 
     bool subscription_enabled;
@@ -88,6 +89,7 @@ class RegistrarRedisConnection
     void start();
     void stop();
     int init(const string &host, int port, bool subscription_enabled);
+    void setAuthData(const string& password, const string& username = "");
 
     void process(AmEvent* ev) override;
     void process_reply_event(RedisReplyEvent &event) override;
