@@ -53,6 +53,8 @@ class RegistrarRedisConnection
         void dump(AmArg &ret);
     } keepalive_contexts;
     uint64_t keepalive_interval;
+    uint32_t max_registrations_per_slot;
+    int32_t  max_interval_drift;
     uint64_t last_time_index;
 
     void onKeepAliveContextsChanged();

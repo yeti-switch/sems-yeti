@@ -193,6 +193,8 @@ void RegistrarRedisConnection::ContactsSubscriptionConnection::process_expired_k
 
 RegistrarRedisConnection::RegistrarRedisConnection()
   : RedisConnectionPool("reg", REGISTAR_QUEUE_NAME),
+     max_registrations_per_slot(1),
+     max_interval_drift(0),
      last_time_index(0),
      contacts_subscription(this),
      yeti_register("yeti_register", REGISTAR_QUEUE_NAME),
@@ -226,6 +228,7 @@ int RegistrarRedisConnection::init(const string &_host, int _port, bool _subscri
 
     //TODO: move to ``configure(cfg_t* cfg)` after finish YETI-69
     keepalive_interval = Yeti::instance().config.registrar_keepalive_interval/1000000;
+    max_interval_drift = int(keepalive_interval * 0.1);
 
     return contacts_subscription.init(_host, _port);
 }
@@ -429,10 +432,13 @@ void RegistrarRedisConnection::on_keepalive_timer()
     AmLock l(keepalive_contexts.mutex);
 
     uint64_t current = time(0);
+    uint32_t sent = 0;
+    uint32_t drift_interval_mapping = 0;
     for(auto &ctx_it : keepalive_contexts) {
         auto &ctx = ctx_it.second;
         if(ctx.next_send && current < ctx.next_send) continue;
 
+        sent++;
         //send OPTIONS query for each ctx
         std::unique_ptr<AmSipDialog> dlg(new AmSipDialog());
 
@@ -457,7 +463,13 @@ void RegistrarRedisConnection::on_keepalive_timer()
             ERROR("failed to send keep alive OPTIONS request for %s",
                 ctx.aor.data());
         }
-        ctx.next_send += keepalive_interval;
+
+        int32_t drift_interval = 0;
+        if(sent > max_registrations_per_slot) {
+            drift_interval_mapping = (drift_interval_mapping + 1) % (max_interval_drift*2);
+            drift_interval = drift_interval_mapping - max_interval_drift;
+        }
+        ctx.next_send += keepalive_interval + drift_interval;
     }
 }
 
