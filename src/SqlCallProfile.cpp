@@ -12,7 +12,8 @@
 
 SqlCallProfile::SqlCallProfile():
 	aleg_override_id(0),
-	bleg_override_id(0)
+	bleg_override_id(0),
+	legab_res_mode_enabled{false}
 {}
 
 SqlCallProfile::~SqlCallProfile(){ }
@@ -48,7 +49,15 @@ bool SqlCallProfile::readFromTuple(const AmArg &t,const DynFieldsT &df){
 
 	ruri = DbAmArg_hash_get_str(t, "ruri");
 	outbound_proxy = DbAmArg_hash_get_str(t, "outbound_proxy");
-	resources = DbAmArg_hash_get_str(t, "resources");
+
+        if(t.hasMember("lega_res") || t.hasMember("legb_res")) {
+		lega_res = DbAmArg_hash_get_str(t, "lega_res");
+		resources = DbAmArg_hash_get_str(t, "legb_res");
+		legab_res_mode_enabled = true;
+        } else {
+		resources = DbAmArg_hash_get_str(t, "resources");
+        }
+
 	append_headers = DbAmArg_hash_get_str(t, "append_headers");
 
 	time_limit = DbAmArg_hash_get_int(t,"time_limit",0);
@@ -361,6 +370,20 @@ bool SqlCallProfile::readFromTuple(const AmArg &t,const DynFieldsT &df){
 	DBG("Yeti: loaded SQL profile");
 
 	return true;
+}
+
+ResourceList& SqlCallProfile::getResourceList(bool a_leg)
+{
+	return legab_res_mode_enabled
+		? (a_leg ? lega_rl : rl)
+		: rl;
+}
+
+string& SqlCallProfile::getResourceHandler(bool a_leg)
+{
+        return legab_res_mode_enabled
+		? (a_leg ? lega_resource_handler: resource_handler)
+		: resource_handler;
 }
 
 inline void printFilterList(const char *name, const vector<FilterEntry>& filter_list)
@@ -733,6 +756,7 @@ bool SqlCallProfile::readDynFields(const AmArg &t,const DynFieldsT &df)
 
 bool SqlCallProfile::eval_resources(){
 	try {
+		lega_rl.parse(lega_res);
 		rl.parse(resources);
 	} catch(ResourceParseException &e){
 		ERROR("resources parse error:  %s <ctx = '%s'>",e.what.c_str(),e.ctx.c_str());

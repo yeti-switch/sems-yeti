@@ -35,6 +35,10 @@ struct SqlCallProfile
 
 	AmArg dyn_fields;
 
+	bool legab_res_mode_enabled;
+	string lega_res;
+	ResourceList lega_rl;
+	/* legb_res */
 	string resources;
 	ResourceList rl;
 
@@ -42,6 +46,8 @@ struct SqlCallProfile
 	~SqlCallProfile();
 
 	bool readFromTuple(const AmArg &t,const DynFieldsT &df);
+	ResourceList & getResourceList(bool a_leg = false);
+	string& getResourceHandler(bool a_leg = false);
 
 	bool readFilter(const AmArg &t, const char* cfg_key_filter,
 			vector<FilterEntry>& filter_list, bool keep_transparent_entry,
