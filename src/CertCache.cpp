@@ -135,8 +135,8 @@ std::optional<std::string> CertCache::getIdentityHeader(
     auto it = signing_keys.find(signing_key_id);
     if(it ==  signing_keys.end()) {
         AmArg orig, dest;
-        identity.get_orig().serialize(orig);
-        identity.get_dest().serialize(dest);
+        identity.get_orig().serialize(orig, false);
+        identity.get_dest().serialize(dest, true);
         ERROR("no signing key %lu on signing identity: %s -> %s",
             signing_key_id,
             orig.print().data(),
