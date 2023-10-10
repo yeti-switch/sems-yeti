@@ -1481,7 +1481,7 @@ void SBCCallLeg::onServerShutdown()
 
 void SBCCallLeg::onStart()
 {
-    thread_id = pthread_self();
+    thread_id = gettid();
     // this should be the first thing called in session's thread
     CallLeg::onStart();
     if (!a_leg) applyBProfile(); // A leg needs to evaluate profile first
@@ -3693,8 +3693,9 @@ void SBCCallLeg::onAfterRTPRelay(AmRtpPacket* p, sockaddr_storage*)
 }
 
 void SBCCallLeg::onRTPStreamDestroy(AmRtpStream *stream) {
-    if(pthread_self() != thread_id) {
-        ERROR("onRTPStreamDestroy: another thread(%d) calls the leg instead thread(%d) that was created it", pthread_self(), thread_id);
+    if(gettid() != thread_id) {
+        ERROR("onRTPStreamDestroy: another thread(%d) calls the leg instead thread(%d) that was created it", gettid(), thread_id);
+        log_stacktrace(L_ERR);
         return;
     }
 
