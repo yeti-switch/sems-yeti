@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
-set(CMAKE_C_COMPILER clang-14 CACHE STRING "c compiler" FORCE)
-set(CMAKE_CXX_COMPILER clang++-14 CACHE STRING "c++ compiler" FORCE)
+set(CMAKE_C_COMPILER clang CACHE STRING "c compiler" FORCE)
+set(CMAKE_CXX_COMPILER clang++ CACHE STRING "c++ compiler" FORCE)
 
 project(yeti)
 
