@@ -3,14 +3,12 @@
 #include "AmPlugIn.h"
 #include "AmSipDialog.h"
 #include "sip/defs.h"
-#include "md5.h"
 #include "AmUriParser.h"
-#include "yeti.h"
-
+#include "AmUtils.h"
 #include <unistd.h>
 
 #define MAX_HOSTNAME_LEN 255
-
+#define AUTH_MOCKING_ENABLED 0
 
 inline string find_attribute(const string& name, const string& header) {
     size_t pos1 = header.find(name);
@@ -129,6 +127,20 @@ Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req,  AmArg &ret
         ret = "no username in Authorization header";
         return -NO_USERNAME;
     }
+
+#if AUTH_MOCKING_ENABLED
+    int user_to_auth_id;
+    if(!str2int(username, user_to_auth_id))
+        return -NO_CREDENTIALS;
+
+    ret.push(200);
+    ret.push("OK");
+    ret.push("");
+    ret.push("Response matched");
+    ret.push(0);
+
+    return user_to_auth_id;
+#endif
 
     credentials_mutex.lock();
 
