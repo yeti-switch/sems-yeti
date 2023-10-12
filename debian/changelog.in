@@ -1,3 +1,11 @@
+sems-yeti (1.13.40) stable; urgency=medium
+  * fix zero value processing in the SDP sess-version parameter
+  * registrar,resources: support redis AUTH. new options: username,password in the related sections
+  * registar: fix grouped probing for active registrations
+  * registrar: add redis read-only connection. new sections: registar.redis.write, registar.redis.read
+  * add stacktrace on error in onRTPstreamDestroy. change pthread_self on gettid
+ -- dev <dev@yeti-switch.org>  Thu, 12 Oct 2023 22:15:06 +0300
+
 sems-yeti (1.13.39) stable; urgency=medium
   * fix exception on active calls snapshotting without calls
  -- dev <dev@yeti-switch.org>  Sat, 23 Sep 2023 15:30:04 +0300
