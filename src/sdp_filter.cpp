@@ -358,8 +358,6 @@ int filter_arrange_SDP(AmSdp& sdp,
 
 	bool media_line_filtered_out = false;
 	bool media_line_left = false;
-	int media_idx = 0;
-	int stream_idx = 0;
 
 	DBG_SDP(sdp,"filter_arrange_SDP_in");
 
@@ -370,7 +368,6 @@ int filter_arrange_SDP(AmSdp& sdp,
 		SdpMedia& media = *m_it;
 
 		if(media.type!=MT_AUDIO){	//skip non audio media
-			media_idx++;
 			continue;
 		}
 
@@ -412,8 +409,6 @@ int filter_arrange_SDP(AmSdp& sdp,
 		}
 
 		media.payloads = new_pl;
-		media_idx++;
-		stream_idx++;
 	}
 
 	DBG_SDP(sdp,"filter_arrange_SDP_out");
