@@ -82,6 +82,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   ParamReplacerCtx ctx;
   string last_refer_cseq;
   unsigned int sdp_session_version;
+  bool has_sdp_session_version;
   unsigned int sdp_session_offer_last_cseq;
   unsigned int sdp_session_answer_last_cseq;
   // for tests, thread id of session processor

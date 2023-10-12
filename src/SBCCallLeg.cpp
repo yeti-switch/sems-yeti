@@ -170,6 +170,7 @@ SBCCallLeg::SBCCallLeg(
     m_state(BB_Init),
     yeti(Yeti::instance()),
     sdp_session_version(0),
+    has_sdp_session_version(false),
     sdp_session_offer_last_cseq(0),
     sdp_session_answer_last_cseq(0),
     thread_id(0),
@@ -200,6 +201,7 @@ SBCCallLeg::SBCCallLeg(
   : CallLeg(caller,p_dlg,p_subs),
     yeti(Yeti::instance()),
     sdp_session_version(0),
+    has_sdp_session_version(false),
     sdp_session_offer_last_cseq(0),
     sdp_session_answer_last_cseq(0),
     global_tag(caller->getGlobalTag()),
@@ -3333,7 +3335,7 @@ void SBCCallLeg::onEarlyEventException(unsigned int code,const string &reason)
 void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in, unsigned int cseq, bool offer)
 {
     auto &sdp_session_last_cseq = offer ? sdp_session_offer_last_cseq : sdp_session_answer_last_cseq;
-    if(sdp_session_version) {
+    if(has_sdp_session_version) {
         if(sdp_session_last_cseq != cseq) {
             sdp_session_last_cseq = cseq;
             sdp_session_version++;
@@ -3341,6 +3343,7 @@ void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in, unsig
     } else {
         sdp_session_last_cseq = cseq;
         sdp_session_version = sdp_session_version_in;
+        has_sdp_session_version = true;
     }
 
     DBG("%s[%p]leg%s(%u, %u,%d) -> %u",
