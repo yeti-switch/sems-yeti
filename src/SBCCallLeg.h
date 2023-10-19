@@ -86,7 +86,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   unsigned int sdp_session_offer_last_cseq;
   unsigned int sdp_session_answer_last_cseq;
   // for tests, thread id of session processor
-  pthread_t thread_id;
+  __pid_t thread_id;
 
   string global_tag;
 

@@ -3697,8 +3697,9 @@ void SBCCallLeg::onAfterRTPRelay(AmRtpPacket* p, sockaddr_storage*)
 
 void SBCCallLeg::onRTPStreamDestroy(AmRtpStream *stream) {
     if(gettid() != thread_id) {
-        ERROR("onRTPStreamDestroy: another thread(%d) calls the leg instead thread(%d) that was created it", gettid(), thread_id);
-        log_stacktrace(L_ERR);
+        ERROR("called from the thread(%d) while owned by the thread(%d). ignore",
+            gettid(), thread_id);
+        log_demangled_stacktrace(L_ERR);
         return;
     }
 
