@@ -1,3 +1,7 @@
+sems-yeti (1.13.41) stable; urgency=medium
+  * fix To display name in the i_from_domain sql arg
+ -- dev <dev@yeti-switch.org>  Sun, 22 Oct 2023 13:04:35 +0300
+
 sems-yeti (1.13.40) stable; urgency=medium
   * fix zero value processing in the SDP sess-version parameter
   * registrar,resources: support redis AUTH. new options: username,password in the related sections
