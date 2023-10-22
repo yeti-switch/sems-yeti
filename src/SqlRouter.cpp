@@ -550,6 +550,8 @@ AmArg SqlRouter::db_async_get_profiles(
         parse_uri(&to_uri,na.addr.s,na.addr.len) < 0){
         throw GetProfileException(FC_PARSE_TO_FAILED,false);
     }
+    string from_name = c2stlstr(na.name);
+
     sptr = req.contact.c_str();
     if(	parse_nameaddr(&na,&sptr,req.contact.length()) < 0 ||
         parse_uri(&contact_uri,na.addr.s,na.addr.len) < 0){
@@ -561,7 +563,6 @@ AmArg SqlRouter::db_async_get_profiles(
         throw GetProfileException(FC_PARSE_FROM_FAILED,false);
     }
 
-    string from_name = c2stlstr(na.name);
     from_name.erase(std::remove(from_name.begin(), from_name.end(), '"'),from_name.end());
     if(fixup_utf8_inplace(from_name))
         WARN("From display name contained at least one invalid utf8 sequence. wrong bytes erased");
