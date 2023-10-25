@@ -1500,16 +1500,19 @@ void CallLeg::updateLocalSdp(AmSdp &sdp,
     sip_msg_cseq);
   // handle the body based on current offer-answer status
   // (possibly update the body before sending to remote)
-  // note: in case of 200ok/ACK unhold dlg->getOAState() equals to OA_OfferRecved
   if(dlg->getOAState() == AmOfferAnswer::OA_None ||
-     dlg->getOAState() == AmOfferAnswer::OA_Completed ||
-     (sip_msg_method == SIP_METH_ACK && dlg->getOAState() == AmOfferAnswer::OA_OfferRecved))
+     dlg->getOAState() == AmOfferAnswer::OA_Completed)
   {
     if(!dlg->isOASubsequentSDP(sip_msg_cseq, sip_msg_method)) {
       adjustOffer(sdp);
     } else {
       DBG("skip hold detection for subsequent SDP within the same transaction");
     }
+  } else if(sip_msg_method == SIP_METH_ACK &&
+            dlg->getOAState() == AmOfferAnswer::OA_OfferRecved)
+  {
+    //200ok/ACK offer/answer pair
+    adjustOffer(sdp);
   }
 
   if (hold == PreserveHoldStatus && !on_hold) {
