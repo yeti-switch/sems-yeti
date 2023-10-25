@@ -1,3 +1,7 @@
+sems-yeti (1.13.43) stable; urgency=medium
+  * fix 200ok/ACK unhold
+ -- dev <dev@yeti-switch.org>  Wed, 25 Oct 2023 21:42:51 +0300
+
 sems-yeti (1.13.42) stable; urgency=medium
   * libsems1.122
  -- dev <dev@yeti-switch.org>  Tue, 24 Oct 2023 19:00:41 +0300
