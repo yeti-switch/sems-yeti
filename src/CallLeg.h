@@ -1,5 +1,4 @@
-#ifndef __AMB2BCALL_H
-#define __AMB2BCALL_H
+#pragma once
 
 #include "AmB2BSession.h"
 #include "AmSessionContainer.h"
@@ -9,11 +8,11 @@
 
 struct PendingReinvite
 {
-  string hdrs;
-  AmMimeBody body;
-  unsigned r_cseq;
-  bool relayed_invite;
-  bool establishing;
+    string hdrs;
+    AmMimeBody body;
+    unsigned r_cseq;
+    bool relayed_invite;
+    bool establishing;
 };
 
 /** composed AmB2BCalleeSession & AmB2BCallerSession
@@ -51,52 +50,52 @@ class CallLeg: public AmB2BSession
      * appropriate call legs - for example the B2B call status can be
      * "Connected" though the legs have received BYE replies. */
     enum CallStatus {
-      Disconnected, //< there is no other call leg we are connected to
-      NoReply,      //< there is at least one call leg we are connected to but without any response
-      Ringing,      //< this leg or one of legs we are connected to rings
-      Connected,    //< there is exactly one call leg we are connected to, in this case AmB2BSession::other_id holds the other leg id
-      Disconnecting //< we were connected and now going to be disconnected (waiting for reINVITE reply for example)
+        Disconnected, //< there is no other call leg we are connected to
+        NoReply,      //< there is at least one call leg we are connected to but without any response
+        Ringing,      //< this leg or one of legs we are connected to rings
+        Connected,    //< there is exactly one call leg we are connected to, in this case AmB2BSession::other_id holds the other leg id
+        Disconnecting //< we were connected and now going to be disconnected (waiting for reINVITE reply for example)
     };
 
     /** reason reported in onCallFailed method */
     enum CallFailureReason {
-      CallRefused, //< non-ok reply received and no more B-legs exit
-      CallCanceled //< call canceled
+        CallRefused, //< non-ok reply received and no more B-legs exit
+        CallCanceled //< call canceled
     };
 
     /** reason for changing call status */
     struct StatusChangeCause
     {
-      enum Reason {
-        SipReply,
-        SipRequest,
-        Canceled,
-        NoAck,
-        NoPrack,
-        RtpTimeout,
-        SessionTimeout,
-        InternalError,
-        Other
-      } reason;
+        enum Reason {
+            SipReply,
+            SipRequest,
+            Canceled,
+            NoAck,
+            NoPrack,
+            RtpTimeout,
+            SessionTimeout,
+            InternalError,
+            Other
+        } reason;
 
-      union {
-        const AmSipReply *reply;
-        const AmSipRequest *request;
-        const char *desc;
-      } param;
-      StatusChangeCause(const AmSipReply *r): reason(SipReply) { param.reply = r; }
-      StatusChangeCause(const AmSipRequest *r): reason(SipRequest) { param.request = r; }
-      StatusChangeCause(): reason(Other) { param.desc = NULL; }
-      StatusChangeCause(const char *desc): reason(Other) { param.desc = desc; }
-      StatusChangeCause(const Reason r): reason(r) { param.reply = NULL; }
+        union {
+            const AmSipReply *reply;
+            const AmSipRequest *request;
+            const char *desc;
+        } param;
+
+        StatusChangeCause(const AmSipReply *r): reason(SipReply) { param.reply = r; }
+        StatusChangeCause(const AmSipRequest *r): reason(SipRequest) { param.request = r; }
+        StatusChangeCause(): reason(Other) { param.desc = nullptr; }
+        StatusChangeCause(const char *desc): reason(Other) { param.desc = desc; }
+        StatusChangeCause(const Reason r): reason(r) { param.reply = nullptr; }
     };
 
   private:
 
     CallStatus call_status; //< status of the call (replaces callee's status)
 
-	//unsigned int inv_tt; //INVITE request SIP transaction timeout
-	sip_timers_override inv_timers_override;
+    sip_timers_override inv_timers_override;
 
     class AmB2BMediaPtr {
         AmB2BMedia *m;
@@ -131,25 +130,27 @@ class CallLeg: public AmB2BSession
 
     bool on_hold; // remote is on hold
     AmSdp non_hold_sdp;
-    enum { HoldRequested, ResumeRequested, PreserveHoldStatus } hold;
+    enum {
+        HoldRequested,
+        ResumeRequested,
+        PreserveHoldStatus
+    } hold;
 
     std::queue<PendingReinvite> pending_reinvites;
 
-
-    // generate re-INVITE with given parameters (establishing means that the
-    // INVITE is establishing a connection between two legs)
-    void reinvite(const string &hdrs, const AmMimeBody &body, bool relayed, unsigned r_cseq, bool establishing);
+    /* generate re-INVITE with given parameters (establishing means that the
+     * INVITE is establishing a connection between two legs) */
+    void reinvite(
+        const string &hdrs, const AmMimeBody &body,
+        bool relayed, unsigned r_cseq, bool establishing);
 
     // generate 200 reply on a pending INVITE (uses fake body)
     void acceptPendingInvite(AmSipRequest *invite);
 
-    // methods just for make this stuff more readable, not intended to be
-    // overriden, override onB2BEvent instead!
+    /** methods just for make this stuff more readable, not intended to be
+     * overriden, override onB2BEvent instead! */
     void onB2BReply(B2BSipReplyEvent *e);
     void onB2BConnect(ConnectLegEvent *e);
-    /*void onB2BReconnect(ReconnectLegEvent *e);
-    void onB2BReplace(ReplaceLegEvent *e);
-    void onB2BReplaceInProgress(ReplaceInProgressEvent *e);*/
     void b2bInitial2xx(AmSipReply& reply, bool forward);
     void b2bInitialErr(AmSipReply& reply, bool forward);
 
@@ -158,28 +159,35 @@ class CallLeg: public AmB2BSession
     /** choose given B leg from the list of other B legs */
     bool setOther(const string &id, bool use_initial_sdp);
 
-    void updateCallStatus(CallStatus new_status, const StatusChangeCause &cause = StatusChangeCause());
+    void updateCallStatus(
+        CallStatus new_status,
+        const StatusChangeCause &cause = StatusChangeCause());
 
     //////////////////////////////////////////////////////////////////////
     // callbacks (intended to be redefined in successors but should not be
     // called by them directly)
 
     /* handler called when call status changes */
-    virtual void onCallStatusChange(const StatusChangeCause &cause) { }
+    virtual void onCallStatusChange(
+        [[maybe_unused]] const StatusChangeCause &cause)
+    { }
 
     /** handler called when the second leg is connected (FIXME: this is a hack,
      * use this method in SBCCallLeg only) */
-    virtual void onCallConnected(const AmSipReply& reply) { }
+    virtual void onCallConnected([[maybe_unused]] const AmSipReply& reply) { }
 
     /** Method called if given B leg couldn't establish the call (refused with
      * failure response)
      *
      * Redefine to implement serial fork or handle redirect. */
-	virtual void onBLegRefused(AmSipReply& reply) { }
+    virtual void onBLegRefused([[maybe_unused]] AmSipReply& reply) { }
 
     /** handler called when all B-legs failed or the call has been canceled. 
-	The reply passed is the last final reply. */
-    virtual void onCallFailed(CallFailureReason reason, const AmSipReply *reply) { }
+     * The reply passed is the last final reply. */
+    virtual void onCallFailed(
+        [[maybe_unused]] CallFailureReason reason,
+        [[maybe_unused]] const AmSipReply *reply)
+    { }
 
     /** add newly created callee with prepared ConnectLegEvent */
     void addNewCallee(CallLeg *callee, ConnectLegEvent *e)
@@ -192,23 +200,21 @@ class CallLeg: public AmB2BSession
      * RTP relay mode used for music on hold)
      * FIXME: throw this out once MoH will use another method than temporary RTP
      * Relay mode change */
-    void addNewCallee(CallLeg *callee, ConnectLegEvent *e, AmB2BSession::RTPRelayMode mode);
-
-    //void addExistingCallee(const string &session_tag, ReconnectLegEvent *e);
+    void addNewCallee(
+        CallLeg *callee,
+        ConnectLegEvent *e,
+        AmB2BSession::RTPRelayMode mode);
 
     /** Clears other leg, eventually removes it from the list of other legs if
      * it is there. It neither updates call state nor sip_relay_only flag! */
     virtual void clear_other() override;
 
-    /*void changeRtpMode(RTPRelayMode new_mode, AmB2BMedia *new_media);
-    void changeOtherLegsRtpMode(RTPRelayMode new_mode);*/
-
     // offer-answer handling
     void adjustOffer(AmSdp &sdp);
 
-     /* offer was rejected (called just for negative replies to an request
-      * carying offer (not always correct?), answer with disabled streams
-      * doesn't cause calling this */
+    /** offer was rejected (called just for negative replies to an request
+     * carying offer (not always correct?), answer with disabled streams
+     * doesn't cause calling this */
      void offerRejected();
 
   protected:
@@ -218,8 +224,8 @@ class CallLeg: public AmB2BSession
     virtual void b2bInitial1xx(AmSipReply& reply, bool forward);
     virtual void b2bConnectedErr(AmSipReply& reply) = 0;
 
-	void setInviteTransactionTimeout(unsigned int timeout) { inv_timers_override.stimer_b = timeout; }
-	void setInviteRetransmitTimeout(unsigned int timeout) { inv_timers_override.stimer_m = timeout; }
+    void setInviteTransactionTimeout(unsigned int timeout) { inv_timers_override.stimer_b = timeout; }
+    void setInviteRetransmitTimeout(unsigned int timeout) { inv_timers_override.stimer_m = timeout; }
     // functions offered to successors
 
     /** remove given leg from the list of other legs */
@@ -228,8 +234,10 @@ class CallLeg: public AmB2BSession
     virtual void setCallStatus(CallStatus new_status);
     CallStatus getCallStatus() const { return call_status; }
 
-    void queueReinvite(const string& hdrs, const AmMimeBody& body, bool establishing = false,
-		       bool relayed_invite=false, unsigned int r_cseq = 0);
+    void queueReinvite(
+        const string& hdrs, const AmMimeBody& body,
+        bool establishing = false, bool relayed_invite = false,
+        unsigned int r_cseq = 0);
 
     // @see AmSession
     virtual void onInvite(const AmSipRequest& req) override;
@@ -252,20 +260,17 @@ class CallLeg: public AmB2BSession
 
     virtual void onInitialReply(B2BSipReplyEvent *e);
 
-    /* callback method called when hold/resume request is replied */
-//    virtual void handleHoldReply(bool succeeded);
-
     /* called to create SDP of locally generated hold request */
     virtual void createHoldRequest(AmSdp &sdp) = 0;
 
     /** called to alter B2B hold request (i.e. the request from other peer) */
-    virtual void alterHoldRequest(AmSdp &sdp) { }
+    virtual void alterHoldRequest([[maybe_unused]] AmSdp &sdp) { }
 
     /* called to create SDP of locally generated resume request */
     virtual void createResumeRequest(AmSdp &sdp);
 
     /** called to alter B2B hold request (i.e. the request from other peer) */
-    virtual void alterResumeRequest(AmSdp &sdp) { }
+    virtual void alterResumeRequest([[maybe_unused]] AmSdp &sdp) { }
 
     /* hold requested (either from B2B peer leg or locally)
      * to be overridden */
@@ -282,34 +287,18 @@ class CallLeg: public AmB2BSession
      * directly by successors, right?) */
     void terminateNotConnectedLegs();
 
-    /** change RTP mode (and AmB2BMedia if needed) but do not send reINVITE
-     *
-     * Changes the mode for all peer legs as well.
-     *
-     * WARNING: really unsafe because possibly makes the object state
-     * inconsistent with sent SIP messages (sent/received SDPs).
-     *
-     * WARNING: might require several events exchanged between call legs, the
-     * AmB2BMedia will be valid after them!
-     *
-     * TODO: add parameter to trigger reINVITE */
-    //void changeRtpMode(RTPRelayMode new_mode);
+    virtual void updateLocalSdp(
+        AmSdp &sdp,
+        const string &sip_msg_method,
+        unsigned int sip_msg_cseq) override;
 
-    virtual void updateLocalSdp(AmSdp &sdp,
-                                const string &sip_msg_method, unsigned int sip_msg_cseq) override;
-
-	void setAllow1xxWithoutToTag(bool allow) { allow_1xx_without_to_tag = allow; }
+    void setAllow1xxWithoutToTag(bool allow)
+    {
+        allow_1xx_without_to_tag = allow;
+    }
 
   public:
     virtual void onB2BEvent(B2BEvent* ev) override;
-
-    /** does all the job around disconnecting from the other leg (updates call
-     * status, disconnects RTP from the other, puts remote on hold (if
-     * requested)
-     *
-     * The other leg is not affected by disconnect - it is neither terminated
-     * nor informed about the peer disconnection. */
-    //virtual void disconnect(bool hold_remote, bool preserve_media_session = false);
 
     /** Terminate the whole B2B call (if there is no other leg only this one is
      * stopped). */
@@ -335,25 +324,6 @@ class CallLeg: public AmB2BSession
         addNewCallee(callee, new ConnectLegEvent(relayed_invite));
     }
 
-    /** add given already existing session as our B leg */
-    /*void addCallee(const string &session_tag, const AmSipRequest &relayed_invite);
-    void addCallee(const string &session_tag, const string &hdrs)
-      { addExistingCallee(session_tag, new ReconnectLegEvent(a_leg ? ReconnectLegEvent::B : ReconnectLegEvent::A, getLocalTag(), hdrs, established_body)); }*/
-
-    /** add given call leg as our B leg (only stored SDP is used, we don't need
-     * to have INVITE request.
-     * Can be used in A leg and B leg as well.
-     * Additional headers may be specified - these are used in outgoing INVITE
-     * to the callee's destination. */
-    //void addCallee(CallLeg *callee, const string &hdrs);
-//    void addCallee(CallLeg *callee, const string &hdrs, AmB2BSession::RTPRelayMode mode) { addNewCallee(callee, new ConnectLegEvent(hdrs, established_body), mode); }
-
-
-    /** Replace given already existing session in a B2B call. We become new
-     * A leg there regardless if we are replacing original A or B leg. */
-    /*void replaceExistingLeg(const string &session_tag, const AmSipRequest &relayed_invite);
-    void replaceExistingLeg(const string &session_tag, const string &hdrs);*/
-
     /** generate debug information into log with overall call leg status */
     void debug();
 
@@ -365,23 +335,28 @@ class CallLeg: public AmB2BSession
 
   public:
     /** creates A leg */
-    CallLeg(AmSipDialog* p_dlg=NULL, AmSipSubscription* p_subs=NULL);
+    CallLeg(AmSipDialog* p_dlg = nullptr, AmSipSubscription* p_subs = nullptr);
 
     /** creates B leg using given session as A leg */
-    CallLeg(const CallLeg* caller, AmSipDialog* p_dlg=NULL,
-	    AmSipSubscription* p_subs=NULL);
+    CallLeg(
+        const CallLeg* caller, AmSipDialog* p_dlg = nullptr,
+        AmSipSubscription* p_subs = nullptr);
 
     virtual ~CallLeg();
 
     // OA callbacks
     virtual int onSdpCompleted(const AmSdp& local, const AmSdp& remote) override;
-    virtual bool getSdpOffer(AmSdp& offer) override { return false; }
-    virtual bool getSdpAnswer(const AmSdp& offer, AmSdp& answer) override { return false; }
+    virtual bool getSdpOffer([[maybe_unused]] AmSdp& offer) override
+    {
+        return false;
+    }
+    virtual bool getSdpAnswer(
+        [[maybe_unused]] const AmSdp& offer,
+        [[maybe_unused]] AmSdp& answer) override
+    {
+        return false;
+    }
     virtual void onEarlySessionStart() override { }
     virtual void onSessionStart() override { }
 
 };
-
-
-
-#endif
