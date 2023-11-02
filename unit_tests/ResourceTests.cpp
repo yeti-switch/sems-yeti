@@ -158,9 +158,8 @@ TEST_F(YetiTest, ResourceGetAll)
         ASSERT_FALSE(time(0) - time_ > 3);
     }
     ASSERT_TRUE(isArgStruct(getAllResult));
-    ASSERT_TRUE(isArgStruct(getAllResult["r:0:472"]));
-    ASSERT_TRUE(isArgNumber(getAllResult["r:0:472"]["1"]));
-    ASSERT_EQ(getAllResult["r:0:472"]["1"].asInt(), 0);
+    ASSERT_TRUE(isArgNumber(getAllResult["1"]));
+    ASSERT_EQ(getAllResult["1"].asInt(), 0);
 
     server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "1");
     server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "0");

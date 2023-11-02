@@ -257,6 +257,7 @@ GetAllResources::GetAllResources(ResourceRedisConnection* conn,
         r.id = id;
         res_key = get_key(r);
         state = GET_SINGLE_KEY;
+        single_key = true;
     } else {
         #define int2key(v) (v==ANY_VALUE) ? "*" : int2str(v)
         res_key = "r:";
@@ -265,6 +266,7 @@ GetAllResources::GetAllResources(ResourceRedisConnection* conn,
         res_key.append(int2key(id));
         #undef int2key
         state = INITIAL;
+        single_key = false;
     }
 }
 
@@ -335,12 +337,15 @@ bool GetAllResources::processRedisReply(RedisReplyEvent &reply)
             on_error(500, "undesired reply from the storage");
         } else if(isArgArray(reply.data)){
             string key = keys[keys.size() - commands_count - 1];
-            result.push(key,AmArg());
-            AmArg &q = result[key];
-            for(size_t j = 0; j < reply.data.size(); j+=2){
+
+            result.assertStruct();
+            AmArg &q = single_key ? result : result[key];
+
+            for(size_t j = 0; j < reply.data.size(); j+=2) {
                 try {
-                    q.push(int2str((unsigned int)Reply2Int(reply.data[j])),	//node_id
-                            AmArg(Reply2Int(reply.data[j+1])));				//value*/
+                    q.push(
+                        int2str((unsigned int)Reply2Int(reply.data[j])), //node_id
+                        AmArg(Reply2Int(reply.data[j+1]))); //value
                 } catch(...) {
                     on_error(500, "can't parse response");
                 }
