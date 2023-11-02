@@ -603,11 +603,73 @@ int processSdpOffer(SBCCallLeg *call,
 	return res;
 }
 
+void replaceDynamicPayloadIds(const std::vector<SdpMedia> &src, std::vector<SdpMedia> &dst)
+{
+	//DBG_SDP_MEDIA(src, "src");
+	//DBG_SDP_MEDIA(dst, "dst before replacement");
+
+	auto dst_it = dst.begin();
+	for (auto src_it = src.begin(); src_it != src.end(); ++src_it) {
+		if (dst_it == dst.end())
+			break;
+
+		if (src_it->type != MT_AUDIO)
+			continue;
+
+		while (dst_it != dst.end()) {
+			if (dst_it->type != MT_AUDIO) {
+				++dst_it;
+				continue;
+			}
+
+			auto const &src_pls = src_it->payloads;
+			auto &dst_pls = dst_it->payloads;
+
+			auto dst_pl_it = dst_pls.begin();
+
+			for (auto src_pl_it = src_pls.begin(); src_pl_it != src_pls.end(); ++src_pl_it) {
+				auto const &src_pl = *src_pl_it;
+
+				if (dst_pl_it == dst_pls.end())
+					break;
+
+				if (src_pl.payload_type >= DYNAMIC_PAYLOAD_TYPE_START) {
+					while (dst_pl_it != dst_pls.end()) {
+						auto & dst_pl = *dst_pl_it;
+						if (dst_pl.payload_type >= DYNAMIC_PAYLOAD_TYPE_START &&
+							dst_pl.encoding_name == src_pl.encoding_name &&
+							dst_pl.clock_rate == src_pl.clock_rate &&
+							dst_pl.payload_type != src_pl.payload_type) {
+
+							DBG("replace dynamic payload id for %s/%d payload from %d to %d",
+								dst_pl.encoding_name.c_str(),
+								dst_pl.clock_rate,
+								dst_pl.payload_type,
+								src_pl.payload_type);
+
+							dst_pl.payload_type = src_pl.payload_type;
+							++dst_pl_it;
+							continue;
+						}
+
+						++dst_pl_it;
+					}
+				}
+			}
+
+			++dst_it;
+		}
+	}
+
+	//DBG_SDP_MEDIA(dst, "dst after replacement");
+}
+
 int filterSdpOffer(SBCCallLeg *call,
 				   _AmSipMsgInDlg &sip_msg,
 					 SBCCallProfile &call_profile,
 					 AmMimeBody &body,string &method,
 					 int static_codecs_id,
+					 const std::vector<SdpMedia> *negotiated_media,
 					 AmSdp *out_sdp)
 {
 	bool a_leg = call->isALeg();
@@ -652,6 +714,11 @@ int filterSdpOffer(SBCCallLeg *call,
 		return res;
 
 	if(call_profile.rtprelay_enabled) {
+		// replace dynamic payload ids from negotiated_media to sdp.media if needed
+		if(negotiated_media != nullptr && negotiated_media->empty() == false) {
+			replaceDynamicPayloadIds(*negotiated_media, sdp.media);
+		}
+
 		fix_dynamic_payloads(sdp,call->getTranscoderMapping());
 		filterSDPalines(sdp, a_leg ?
 							call_profile.sdpalinesfilter :

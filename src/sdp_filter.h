@@ -51,7 +51,8 @@ int filterSdpOffer(
 		AmMimeBody &body,
 		string &method,
 		int static_codecs_id,
-		AmSdp *out_sdp = NULL);
+		const std::vector<SdpMedia> *negotiated_media = nullptr,
+		AmSdp *out_sdp = nullptr);
 
 int processSdpAnswer(
 		SBCCallLeg *call,

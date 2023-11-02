@@ -482,6 +482,7 @@ void SBCCallLeg::processResourcesAndSdp()
                          call_profile,
                          modified_req.body,modified_req.method,
                          call_profile.static_codecs_bleg_id,
+                         nullptr,
                          &call_ctx->bleg_initial_offer);
     if(res != 0) {
         DBG("%s() filterSdpOffer: %d",FUNC_NAME, res);
@@ -735,6 +736,7 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
                              call_profile,
                              invite_req.body,invite_req.method,
                              call_profile.static_codecs_bleg_id,
+                             nullptr,
                              &call_ctx->bleg_initial_offer);
     if(res != 0){
         INFO("onInitialInvite() Not acceptable codecs for legB");
@@ -1803,7 +1805,8 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                         req,
                         call_profile,
                         req.body, req.method,
-                        a_leg ? call_profile.static_codecs_bleg_id : call_profile.static_codecs_aleg_id
+                        a_leg ? call_profile.static_codecs_bleg_id : call_profile.static_codecs_aleg_id,
+                        &call_ctx->get_other_negotiated_media(a_leg)
                     );
                 }
             }
