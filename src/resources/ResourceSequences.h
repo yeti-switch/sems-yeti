@@ -102,6 +102,7 @@ class GetAllResources
     vector<string> keys;
     AmArg result;
     bool iserror;
+    bool new_format;    // for ANY_VALUE
 
     //for unit tests
     bool unit_test;
