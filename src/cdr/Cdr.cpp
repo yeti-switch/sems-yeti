@@ -241,14 +241,15 @@ void Cdr::update_with_bleg_sip_reply(const AmSipReply &reply)
         bleg_reply_headers_amarg = Yeti::instance().config.bleg_reply_cdr_headers.serialize_headers(reply.hdrs);
     }
 
-    if(reply.remote_port==0)
+    legB_transport_protocol_id = reply.transport_id;
+
+    if(reply.remote_port==0) {
         return; //local reply
+    }
 
     if(reply.code >= 300) {
         bleg_reasons.parse_headers(reply.hdrs);
     }
-
-    legB_transport_protocol_id = reply.transport_id;
 
     legB_remote_ip = reply.remote_ip;
     legB_remote_port = reply.remote_port;
