@@ -102,7 +102,7 @@ class GetAllResources
     vector<string> keys;
     AmArg result;
     bool iserror;
-    bool new_format;    // for ANY_VALUE
+    bool single_key; //to control reply format
 
     //for unit tests
     bool unit_test;
