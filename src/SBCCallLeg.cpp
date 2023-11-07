@@ -133,32 +133,6 @@ void in_memory_msg_logger::feed_to_logger(msg_logger *logger)
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-// map stream index and transcoder payload index (two dimensions) into one under
-// presumption that there will be less than 128 payloads for transcoding
-// (might be handy to remember mapping only for dynamic ones (96-127)
-#define MAP_INDEXES(stream_idx, payload_idx) ((stream_idx) * 128 + payload_idx)
-
-void PayloadIdMapping::map(int stream_index, int payload_index, int payload_id)
-{
-    mapping[MAP_INDEXES(stream_index, payload_index)] = payload_id;
-}
-
-int PayloadIdMapping::get(int stream_index, int payload_index)
-{
-    std::map<int, int>::iterator i = mapping.find(MAP_INDEXES(stream_index, payload_index));
-    if (i != mapping.end()) return i->second;
-    else return -1;
-}
-
-void PayloadIdMapping::reset()
-{
-    mapping.clear();
-}
-
-#undef MAP_INDEXES
-
-///////////////////////////////////////////////////////////////////////////////////////////
-
 // A leg constructor (from SBCDialog)
 SBCCallLeg::SBCCallLeg(
     fake_logger *early_logger,
@@ -1918,35 +1892,36 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                     if(dlg_oa_state==AmOfferAnswer::OA_OfferRecved){
                         DBG("relayEvent(): process offer in reply");
                         res = processSdpOffer(
-                                    this, call_profile,
-                                    reply.body, reply.cseq_method,
-                                    call_ctx->get_self_negotiated_media(a_leg),
-                                    a_leg ? call_profile.static_codecs_aleg_id : call_profile.static_codecs_bleg_id,
-                                    false,
-                                    a_leg ? call_profile.aleg_single_codec : call_profile.bleg_single_codec
-                                            );
-                        if(res==0){
+                            this, call_profile,
+                            reply.body, reply.cseq_method,
+                            call_ctx->get_self_negotiated_media(a_leg),
+                            a_leg ? call_profile.static_codecs_aleg_id : call_profile.static_codecs_bleg_id,
+                            false,
+                            a_leg ? call_profile.aleg_single_codec : call_profile.bleg_single_codec
+                        );
+
+                        if(res==0) {
                             res = filterSdpOffer(
-                                        this,
-                                        reply,
-                                        call_profile,
-                                        reply.body, reply.cseq_method,
-                                        a_leg ? call_profile.static_codecs_bleg_id : call_profile.static_codecs_aleg_id
-                                                );
+                                this,
+                                reply,
+                                call_profile,
+                                reply.body, reply.cseq_method,
+                                a_leg ? call_profile.static_codecs_bleg_id : call_profile.static_codecs_aleg_id
+                            );
                         }
                     } else {
                         DBG("relayEvent(): process asnwer in reply");
                         res = processSdpAnswer(
-                                    this,
-                                    reply,
-                                    reply.body, reply.cseq_method,
-                                    call_ctx->get_other_negotiated_media(a_leg),
-                                    a_leg ? call_profile.bleg_single_codec : call_profile.aleg_single_codec,
-                                    call_profile.filter_noaudio_streams,
-                                    //final positive reply MUST contain SDP answer if we sent offer
-                                    (dlg_oa_state==AmOfferAnswer::OA_OfferSent
-                                     && reply.code >= 200 && reply.code < 300)
-                                    );
+                            this,
+                            reply,
+                            reply.body, reply.cseq_method,
+                            call_ctx->get_other_negotiated_media(a_leg),
+                            a_leg ? call_profile.bleg_single_codec : call_profile.aleg_single_codec,
+                            call_profile.filter_noaudio_streams,
+                            //final positive reply MUST contain SDP answer if we sent offer
+                            (dlg_oa_state==AmOfferAnswer::OA_OfferSent
+                             && reply.code >= 200 && reply.code < 300)
+                        );
                     }
                 }
 

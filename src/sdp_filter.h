@@ -1,5 +1,4 @@
-#ifndef SDP_FILTER_H
-#define SDP_FILTER_H
+#pragma once
 
 #include <string>
 using std::string;
@@ -17,51 +16,52 @@ void dump_SdpPayload(const vector<SdpPayload> &p,const string &prefix="");
 void dump_SdpMedia(const vector<SdpMedia> &m,const string &prefix="");
 void dump_Sdp(const AmSdp &sdp,const string &prefix="");
 
-void fix_dynamic_payloads(AmSdp &sdp,PayloadIdMapping &mapping);
-
 enum conn_location {
-	BOTH = 0,
-	SESSION_ONLY,
-	MEDIA_ONLY
+    BOTH = 0,
+    SESSION_ONLY,
+    MEDIA_ONLY
 };
 const char *conn_location2str(int location_id);
+
 void normalize_conn_location(AmSdp &sdp, int location_id);
+
+void fixDynamicPayloads(
+    AmSdp &sdp,
+    const vector<SdpMedia> *reference_media = nullptr);
 
 int filterNoAudioStreams(AmSdp &sdp, bool filter);
 int cutNoAudioStreams(AmSdp &sdp, bool cut);
 
 int filter_arrange_SDP(
-		AmSdp& sdp,
-		const std::vector<SdpPayload> &static_payloads,
-		bool add_codecs);
+    AmSdp& sdp,
+    const std::vector<SdpPayload> &static_payloads,
+    bool add_codecs);
 
 int processSdpOffer(
-		SBCCallLeg *call,
-		SBCCallProfile &call_profile,
-		AmMimeBody &body, string &method,
-		vector<SdpMedia> &negotiated_media,
-		int static_codecs_id,
-		bool local = false,
-		bool single_codec = false);
+    SBCCallLeg *call,
+    SBCCallProfile &call_profile,
+    AmMimeBody &body, string &method,
+    vector<SdpMedia> &negotiated_media,
+    int static_codecs_id,
+    bool local = false,
+    bool single_codec = false);
 
 int filterSdpOffer(
-		SBCCallLeg *call,
-		_AmSipMsgInDlg &sip_msg,
-		SBCCallProfile &call_profile,
-		AmMimeBody &body,
-		string &method,
-		int static_codecs_id,
-		const std::vector<SdpMedia> *negotiated_media = nullptr,
-		AmSdp *out_sdp = nullptr);
+    SBCCallLeg *call,
+    _AmSipMsgInDlg &sip_msg,
+    SBCCallProfile &call_profile,
+    AmMimeBody &body,
+    string &method,
+    int static_codecs_id,
+    const std::vector<SdpMedia> *negotiated_media = nullptr,
+    AmSdp *out_sdp = nullptr);
 
 int processSdpAnswer(
-		SBCCallLeg *call,
-		_AmSipMsgInDlg &sip_msg,
-		AmMimeBody &body,
-		const string &method,
-		vector<SdpMedia> &negotiated_media,
-		bool single_codec,
-		bool noaudio_streams_filtered,
-		bool answer_is_mandatory);
-
-#endif // SDP_FILTER_H
+    SBCCallLeg *call,
+    _AmSipMsgInDlg &sip_msg,
+    AmMimeBody &body,
+    const string &method,
+    vector<SdpMedia> &negotiated_media,
+    bool single_codec,
+    bool noaudio_streams_filtered,
+    bool answer_is_mandatory);
