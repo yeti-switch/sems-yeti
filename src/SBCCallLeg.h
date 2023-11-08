@@ -48,17 +48,6 @@ class in_memory_msg_logger: public msg_logger {
     void feed_to_logger(msg_logger *logger);
 };
 
-class PayloadIdMapping
-{
-  private:
-    std::map<int, int> mapping;
-      
-  public:
-    void map(int stream_index, int payload_index, int payload_id);
-    int get(int stream_index, int payload_index);
-    void reset();
-};
-
 class SBCCallLeg : public CallLeg, public CredentialHolder
 {
   enum {
@@ -104,12 +93,6 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   // auth
   AmSessionEventHandler* auth;
-
-  /** Storage for remembered payload IDs from SDP offer to be put correctly into
-   * SDP answer (we avoid with this parsing SDP offer again when processing the
-   * answer). We can not use call_profile.transcoder.audio_codecs for storing
-   * the payload IDs because they need to be remembered per media stream. */
-  PayloadIdMapping transcoder_payload_mapping;
 
   SBCCallProfile call_profile;
   PlaceholdersHash placeholders_hash;
@@ -284,8 +267,6 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   AmSipRequest &getAlegModifiedReq() { return aleg_modified_req; }
   AmSipRequest &getModifiedReq() { return modified_req; }
-
-  PayloadIdMapping &getTranscoderMapping() { return  transcoder_payload_mapping; }
 
   const string &getGlobalTag() const { return global_tag; }
 
