@@ -1,3 +1,10 @@
+sems-yeti (1.13.44) stable; urgency=medium
+  * libsems1.124
+  * preserve assigned dynamic payload id on re-INVITEs
+  * cdr: update legB_transport_protocol_id on locally generated replies
+  * fix response format for 'yeti.show.resource.state' single resource request
+ -- dev <dev@yeti-switch.org>  Wed, 08 Nov 2023 12:48:42 +0200
+
 sems-yeti (1.13.43) stable; urgency=medium
   * fix 200ok/ACK unhold
  -- dev <dev@yeti-switch.org>  Wed, 25 Oct 2023 21:42:51 +0300
