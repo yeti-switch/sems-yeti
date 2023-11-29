@@ -261,6 +261,7 @@ void RegistrarRedisConnection::setAuthData(const std::string& password, const st
 }
 
 void RegistrarRedisConnection::on_connect(RedisConnection* c) {
+    if(use_functions) return;
     if(c == conn)
         yeti_register.load(c, "/etc/yeti/scripts/register.lua", REDIS_REPLY_SCRIPT_LOAD);
     if(c == read_conn) {
@@ -344,8 +345,8 @@ bool RegistrarRedisConnection::fetch_all(const AmSipRequest &req, Auth::auth_id_
         YETI_QUEUE_NAME,
         false,
         new AmSipRequest(req), YETI_REDIS_REGISTER_TYPE_ID,
-        "EVALSHA %s 1 %d",
-        yeti_register.hash.c_str(),
+        use_functions ? "FCALL %s 1 %d" : "EVALSHA %s 1 %d",
+        use_functions ? "register"      : yeti_register.hash.c_str(),
         auth_id);
 }
 
@@ -357,8 +358,8 @@ bool RegistrarRedisConnection::unbind_all(const AmSipRequest &req, Auth::auth_id
         YETI_QUEUE_NAME,
         false,
         new AmSipRequest(req), YETI_REDIS_REGISTER_TYPE_ID,
-        "EVALSHA %s 1 %d 0",
-        yeti_register.hash.c_str(),
+        use_functions ? "FCALL %s 1 %d 0" : "EVALSHA %s 1 %d 0",
+        use_functions ? "register"        : yeti_register.hash.c_str(),
         auth_id);
 }
 
@@ -375,8 +376,8 @@ bool RegistrarRedisConnection::bind(
         YETI_QUEUE_NAME,
         false,
         new AmSipRequest(req), YETI_REDIS_REGISTER_TYPE_ID,
-        "EVALSHA %s 1 %d %d %s %d %d %s %s",
-        yeti_register.hash.c_str(),
+        use_functions ? "FCALL %s 1 %d %d %s %d %d %s %s" : "EVALSHA %s 1 %d %d %s %d %d %s %s",
+        use_functions ? "register"                        : yeti_register.hash.c_str(),
         auth_id, expires,
         contact.c_str(),
         AmConfig.node_id, req.local_if,
@@ -392,13 +393,17 @@ void RegistrarRedisConnection::resolve_aors(
 
     DBG("got %ld AoR ids to resolve", aor_ids.size());
 
-    if(yeti_aor_lookup.hash.empty()) {
+    if(!use_functions && yeti_aor_lookup.hash.empty()) {
         ERROR("empty yeti_aor_lookup.hash. lua scripting error");
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
     std::ostringstream ss;
-    ss << '*' << aors_count+3 << CRLF "$7" CRLF "EVALSHA" CRLF "$40" CRLF << yeti_aor_lookup.hash << CRLF;
+    if(use_functions) {
+        ss << '*' << aors_count+3 << CRLF "$8" CRLF "FCALL_RO" CRLF "$10" CRLF << "aor_lookup" << CRLF;
+    } else {
+        ss << '*' << aors_count+3 << CRLF "$7" CRLF "EVALSHA" CRLF "$40" CRLF << yeti_aor_lookup.hash << CRLF;
+    }
     //args count
     ss << '$' << len_in_chars(aors_count) << CRLF << aors_count << CRLF;
     //args
@@ -430,7 +435,7 @@ void RegistrarRedisConnection::rpc_resolve_aors_blocking(
     size_t n, i;
     int id;
 
-    if(yeti_rpc_aor_lookup.hash.empty())
+    if(!use_functions && yeti_rpc_aor_lookup.hash.empty())
         throw AmSession::Exception(500,"registrar is not enabled");
 
     arg.assertArray();
@@ -438,7 +443,11 @@ void RegistrarRedisConnection::rpc_resolve_aors_blocking(
     n = arg.size();
 
     std::ostringstream ss;
-    ss << '*' << n+3 << CRLF "$7" CRLF "EVALSHA" CRLF "$40" CRLF << yeti_rpc_aor_lookup.hash << CRLF;
+    if(use_functions) {
+        ss << '*' << n+3 << CRLF "$8" CRLF "FCALL_RO" CRLF "$14" CRLF << "rpc_aor_lookup" << CRLF;
+    } else {
+        ss << '*' << n+3 << CRLF "$7" CRLF "EVALSHA" CRLF "$40" CRLF << yeti_rpc_aor_lookup.hash << CRLF;
+    }
     //args count
     ss << '$' << len_in_chars(n) << CRLF << n << CRLF;
     //args

@@ -1017,6 +1017,7 @@ void YetiRpc::showAors(const AmArg& arg, AmArg& ret)
 	if(!isArgArray(ctx.data) || ctx.data.size()%2!=0)
 		throw AmSession::Exception(500, "unexpected redis reply");
 
+	DBG("%s", AmArg::print(ctx.data).c_str());
 	ret.assertArray();
 
 	for(i = 0; i < ctx.data.size(); i+=2) {
@@ -1034,7 +1035,7 @@ void YetiRpc::showAors(const AmArg& arg, AmArg& ret)
 
 		for(j = 0; j < aor_data_arg.size(); j++) {
 			AmArg &aor_entry_arg = aor_data_arg[j];
-			if(!isArgArray(aor_entry_arg) || aor_entry_arg.size() != 6) {
+			if(!isArgArray(aor_entry_arg) || aor_entry_arg.size() != 7) {
 				ERROR("unexpected aor_entry_arg layout. skip entry");
 				continue;
 			}
@@ -1044,10 +1045,10 @@ void YetiRpc::showAors(const AmArg& arg, AmArg& ret)
 			r["auth_id"] = id_arg;
 			r["contact"]  = aor_entry_arg[0];
 			r["expires"]  = aor_entry_arg[1];
-			r["node_id"]  = aor_entry_arg[2];
-			r["interface_id"]  = aor_entry_arg[3];
-			r["user_agent"]  = aor_entry_arg[4];
-			r["path"]  = aor_entry_arg[5];
+			r["node_id"]  = aor_entry_arg[3];
+			r["interface_id"]  = aor_entry_arg[4];
+			r["user_agent"]  = aor_entry_arg[5];
+			r["path"]  = aor_entry_arg[6];
 		}
 	}
 }
