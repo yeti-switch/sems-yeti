@@ -23,7 +23,12 @@ RegistrarRedisConnection::ContactsSubscriptionConnection::ContactsSubscriptionCo
 void RegistrarRedisConnection::ContactsSubscriptionConnection::on_connect(RedisConnection* c)
 {
     //load contacts data loading script
-    load_contacts_data.load(c, "/etc/yeti/scripts/load_contacts.lua", REDIS_REPLY_SCRIPT_LOAD);
+    if(registrar->use_functions)
+        postRedisRequestFmt(c,
+            get_queue_name(), get_queue_name(), false, nullptr,
+            REDIS_REPLY_CONTACTS_DATA, "FCALL load_contacts 0");
+    else
+        load_contacts_data.load(c, "/etc/yeti/scripts/load_contacts.lua", REDIS_REPLY_SCRIPT_LOAD);
 }
 
 void RegistrarRedisConnection::ContactsSubscriptionConnection::process_reply_event(RedisReplyEvent &event)
@@ -228,6 +233,7 @@ int RegistrarRedisConnection::configure(cfg_t* cfg)
     if(!reg_redis)
         return -1;
 
+    use_functions = cfg_getbool(reg_redis, "use_functions");
     auto reg_redis_write = cfg_getsec(reg_redis, section_name_redis_write);
     auto reg_redis_read = cfg_getsec(reg_redis, section_name_redis_read);
     if(!reg_redis_read || !reg_redis_write)
