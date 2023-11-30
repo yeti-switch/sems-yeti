@@ -785,6 +785,20 @@ int filterSdpOffer(SBCCallLeg *call,
             return res;
         }
 
+        // append missing streams from negotiated_media
+        if (negotiated_media != nullptr) {
+            auto m_it = sdp.media.begin();
+            for(const auto &m: *negotiated_media) {
+                if(m_it == sdp.media.end()) {
+                    sdp.media.emplace_back(m);
+                    m_it = sdp.media.end();
+                    continue;
+                }
+
+                ++m_it;
+            }
+        }
+
         normalize_conn_location(sdp,
             a_leg ?
                 call_profile.bleg_conn_location_id :
@@ -828,17 +842,27 @@ static void filterSdpAnswerMedia(
         //check for streams count
         if(negotiated_media.size()!=media.size()) {
             if(noaudio_streams_filtered) {
-                //count audio streams
-                unsigned int audio_streams = 0;
+
+                //count audio streams for negotiated_media
+                unsigned int nm_audio_streams = 0;
                 for(vector<SdpMedia>::const_iterator it = negotiated_media.begin();
                     it!=negotiated_media.end();++it)
                 {
                     if(it->type==MT_AUDIO)
-                        audio_streams++;
+                        nm_audio_streams++;
                 }
-                if(media.size()!=audio_streams) {
+
+                //count audio streams for media
+                unsigned int m_audio_streams = 0;
+                for(vector<SdpMedia>::const_iterator it = media.begin(); it!=media.end(); ++it)
+                {
+                    if(it->type==MT_AUDIO)
+                        m_audio_streams++;
+                }
+
+                if(m_audio_streams!=nm_audio_streams) {
                     ERROR("processSdpAnswer()[%s] audio streams count not equal reply: %lu, saved: %u)",
-                          call->getLocalTag().c_str(),media.size(),audio_streams);
+                          call->getLocalTag().c_str(),m_audio_streams,nm_audio_streams);
                     throw InternalException(DC_REPLY_SDP_STREAMS_COUNT, override_id);
                 }
             } else {
