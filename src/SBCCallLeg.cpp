@@ -2082,7 +2082,9 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
             return;
         } else if(req.method == SIP_METH_UPDATE
                   && ((a_leg && !call_profile.aleg_relay_update)
-                      || (!a_leg && !call_profile.bleg_relay_update)))
+                      || (!a_leg && !call_profile.bleg_relay_update)
+                      //disable relay in early dialog
+                      || dlg->getStatus() != AmBasicSipDialog::Connected))
         {
             const AmMimeBody* sdp_body = req.body.hasContentType(SIP_APPLICATION_SDP);
             if(!sdp_body){
