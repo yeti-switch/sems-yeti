@@ -1,3 +1,8 @@
+sems-yeti (1.13.45) stable; urgency=medium
+  * disable UPDATE relay in early dialog
+  * fix SDP streams count in the reply for reINVITE with filter_noaudio_streams enabled
+ -- dev <dev@yeti-switch.org>  Fri, 01 Dec 2023 00:42:27 +0200
+
 sems-yeti (1.13.44) stable; urgency=medium
   * libsems1.124
   * preserve assigned dynamic payload id on re-INVITEs
