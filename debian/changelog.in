@@ -1,3 +1,7 @@
+sems-yeti (1.13.46) stable; urgency=medium
+  * CertCache locking optimization
+ -- dev <dev@yeti-switch.org>  Wed, 06 Dec 2023 22:41:03 +0200
+
 sems-yeti (1.13.45) stable; urgency=medium
   * disable UPDATE relay in early dialog
   * fix SDP streams count in the reply for reINVITE with filter_noaudio_streams enabled
