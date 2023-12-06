@@ -17,6 +17,7 @@
 
 #include <unordered_map>
 #include <regex>
+#include <shared_mutex>
 
 using namespace std;
 
@@ -66,7 +67,7 @@ struct CertCacheEntry {
         return "";
     }
 
-    void getInfo(AmArg &a, const std::chrono::system_clock::time_point &now);
+    void getInfo(AmArg &a, const std::chrono::system_clock::time_point &now) const;
 };
 
 class CertCache
@@ -77,10 +78,10 @@ class CertCache
     std::chrono::seconds cert_cache_failed_ttl;
     std::chrono::seconds cert_cache_failed_verify_ttl;
 
-    AmMutex mutex;
+    mutable std::shared_mutex mutex; //tmp to generate errors
 
     using HashType = unordered_map<string, CertCacheEntry>;
-    HashType entries;
+    HashType certificates;
 
     struct TrustedCertEntry {
         unsigned long id;
@@ -108,6 +109,7 @@ class CertCache
         {}
     };
     std::map<unsigned long, SigningKeyEntry> signing_keys;
+    mutable std::shared_mutex signing_keys_mutex;
 
     std::chrono::system_clock::time_point db_refresh_expire;
 
@@ -128,8 +130,16 @@ class CertCache
     };
     vector<TrustedRepositoryEntry> trusted_repositories;
 
-    bool isTrustedRepositoryUnsafe(const string &url);
+    bool isTrustedRepositoryUnsafe(const string &url) const;
     void renewCertEntry(HashType::value_type &entry);
+
+    /* guards:
+     *   certificates,
+     *   trusted_certs,
+     *   trusted_certs_store,
+     *   trusted_repositories
+     */
+    mutable std::shared_mutex certificates_mutex;
 
   public:
     CertCache();
@@ -143,16 +153,15 @@ class CertCache
         KEY_RESULT_UNAVAILABLE
     };
 
-    int getExpires() { return expires; }
+    int getExpires() const { return expires; }
 
     //returns if cert is presented in cache and ready to be used
-    bool checkAndFetch(const string& cert_url,
-                       const string& session_id);
-    std::unique_ptr<Botan::Public_Key> getPubKey(const string& cert_url, bool &cert_is_valid);
-    bool isTrustedRepository(const string& cert_url);
+    bool checkAndFetch(const string& cert_url, const string& session_id);
+    std::unique_ptr<Botan::Public_Key> getPubKey(const string& cert_url, bool &cert_is_valid) const;
+    bool isTrustedRepository(const string& cert_url) const;
 
     std::optional<std::string> getIdentityHeader(
-        AmIdentity &identity, unsigned long signing_key_id);
+        AmIdentity &identity, unsigned long signing_key_id) const;
 
     void processHttpReply(const HttpGetResponseEvent& resp);
     void onTimer(const std::chrono::system_clock::time_point &now);
@@ -161,13 +170,13 @@ class CertCache
     void reloadSigningKeys(const AmArg &data);
 
     //rpc methods
-    void ShowCerts(AmArg& ret, const std::chrono::system_clock::time_point &now);
+    void ShowCerts(AmArg& ret, const std::chrono::system_clock::time_point &now) const;
     int ClearCerts(const AmArg& args);
     int RenewCerts(const AmArg& args);
 
-    void ShowTrustedCerts(AmArg& ret);
-    void ShowTrustedRepositories(AmArg& ret);
-    void ShowSigningKeys(AmArg& ret);
+    void ShowTrustedCerts(AmArg& ret) const;
+    void ShowTrustedRepositories(AmArg& ret) const;
+    void ShowSigningKeys(AmArg& ret) const;
 
     static void serialize_cert_to_amarg(const Botan::X509_Certificate &cert, AmArg &a);
 };

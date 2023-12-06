@@ -11,7 +11,7 @@
 #include <chrono>
 
 void CertCacheEntry::getInfo(AmArg &a, const std::
-                             chrono::system_clock::time_point &now)
+                             chrono::system_clock::time_point &now) const
 {
     a["state"] = CertCacheEntry::to_string(state);
 
@@ -74,14 +74,15 @@ int CertCache::configure(cfg_t *cfg)
 bool CertCache::checkAndFetch(const string& cert_url,
                                  const string& session_id)
 {
-    AmLock lock(mutex);
+    std::unique_lock lock(certificates_mutex);
+
     bool repository_is_trusted = isTrustedRepositoryUnsafe(cert_url);
-    auto it = entries.find(cert_url);
-    if(it == entries.end()) {
+    auto it = certificates.find(cert_url);
+    if(it == certificates.end()) {
         if(!repository_is_trusted)
             return true;
 
-        auto ret = entries.emplace(cert_url, CertCacheEntry{});
+        auto ret = certificates.emplace(cert_url, CertCacheEntry{});
         auto &entry = ret.first;
 
         entry->second.defer_sessions.emplace(session_id);
@@ -92,7 +93,7 @@ bool CertCache::checkAndFetch(const string& cert_url,
         //remove cached entries from non-trusted repositories
         if(!repository_is_trusted) {
             if(it->second.state != CertCacheEntry::LOADING) {
-                entries.erase(it);
+                certificates.erase(it);
             }
             return true;
         }
@@ -105,11 +106,13 @@ bool CertCache::checkAndFetch(const string& cert_url,
     return true;
 }
 
-std::unique_ptr<Botan::Public_Key> CertCache::getPubKey(const string& cert_url, bool &cert_is_valid)
+std::unique_ptr<Botan::Public_Key> CertCache::getPubKey(
+    const string& cert_url, bool &cert_is_valid) const
 {
-    AmLock lock(mutex);
-    auto it = entries.find(cert_url);
-    if(it == entries.end()) {
+    std::shared_lock lock(certificates_mutex);
+
+    auto it = certificates.find(cert_url);
+    if(it == certificates.end()) {
         return nullptr;
     }
 
@@ -121,16 +124,16 @@ std::unique_ptr<Botan::Public_Key> CertCache::getPubKey(const string& cert_url, 
     return it->second.cert_chain[0].subject_public_key();
 }
 
-bool CertCache::isTrustedRepository(const string& cert_url)
+bool CertCache::isTrustedRepository(const string& cert_url) const
 {
-    AmLock lock(mutex);
+    std::shared_lock lock(certificates_mutex);
     return isTrustedRepositoryUnsafe(cert_url);
 }
 
 std::optional<std::string> CertCache::getIdentityHeader(
-    AmIdentity &identity, unsigned long signing_key_id)
+    AmIdentity &identity, unsigned long signing_key_id) const
 {
-    AmLock lock(mutex);
+    std::shared_lock lock(signing_keys_mutex);
 
     auto it = signing_keys.find(signing_key_id);
     if(it ==  signing_keys.end()) {
@@ -152,10 +155,10 @@ std::optional<std::string> CertCache::getIdentityHeader(
 
 void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
 {
-    AmLock lock(mutex);
+    std::unique_lock lock(certificates_mutex);
 
-    auto it = entries.find(resp.token);
-    if(it == entries.end()) {
+    auto it = certificates.find(resp.token);
+    if(it == certificates.end()) {
         ERROR("processHttpReply: absent cache entry %s", resp.token.c_str());
         return;
     }
@@ -227,7 +230,7 @@ void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
     it->second.defer_sessions.clear();
 }
 
-bool CertCache::isTrustedRepositoryUnsafe(const string &url)
+bool CertCache::isTrustedRepositoryUnsafe(const string &url) const
 {
     for(const auto &r: trusted_repositories) {
         if(std::regex_match(url, r.regex))
@@ -249,7 +252,8 @@ void CertCache::renewCertEntry(HashType::value_type &entry)
 
 void CertCache::reloadTrustedCertificates(const AmArg &data)
 {
-    AmLock l(mutex);
+    std::unique_lock lock(certificates_mutex);
+
     trusted_certs.clear();
     if(!isArgArray(data)) return;
     for(size_t i = 0; i < data.size(); i++) {
@@ -276,7 +280,8 @@ void CertCache::reloadTrustedCertificates(const AmArg &data)
 
 void CertCache::reloadTrustedRepositories(const AmArg &data)
 {
-    AmLock l(mutex);
+    std::unique_lock lock(certificates_mutex);
+
     trusted_repositories.clear();
     if(!isArgArray(data)) return;
     for(size_t i = 0; i < data.size(); i++) {
@@ -294,7 +299,8 @@ void CertCache::reloadTrustedRepositories(const AmArg &data)
 
 void CertCache::reloadSigningKeys(const AmArg &data)
 {
-    AmLock l(mutex);
+    std::unique_lock lock(signing_keys_mutex);
+
     signing_keys.clear();
     if(!isArgArray(data)) return;
     for(size_t i = 0; i < data.size(); i++) {
@@ -321,9 +327,10 @@ void CertCache::reloadSigningKeys(const AmArg &data)
 void CertCache::onTimer(const std::chrono::system_clock::time_point &now)
 {
     {
-        AmLock lock(mutex);
-        auto it = entries.begin();
-        while(it != entries.end()) {
+        std::unique_lock lock(certificates_mutex);
+
+        auto it = certificates.begin();
+        while(it != certificates.end()) {
             if(it->second.state==CertCacheEntry::LOADING) {
                 it++;
                 continue;
@@ -334,18 +341,18 @@ void CertCache::onTimer(const std::chrono::system_clock::time_point &now)
                 }
                 it++;
             } else {
-                it = entries.erase(it);
+                it = certificates.erase(it);
             }
         }
     }
 }
 
-void CertCache::ShowCerts(AmArg& ret, const std::chrono::system_clock::time_point &now)
+void CertCache::ShowCerts(AmArg& ret, const std::chrono::system_clock::time_point &now) const
 {
     ret.assertArray();
-    AmLock lock(mutex);
+    std::shared_lock lock(certificates_mutex);
 
-    for(auto& pair : entries) {
+    for(auto& pair : certificates) {
         ret.push(AmArg());
         auto &entry = ret.back();
         entry["url"] = pair.first;
@@ -357,17 +364,19 @@ int CertCache::ClearCerts(const AmArg& args)
 {
     int ret = 0;
     args.assertArray();
+
+    std::unique_lock lock(certificates_mutex);
+
     if(args.size() == 0) {
-        ret = entries.size();
-        entries.clear();
+        ret = certificates.size();
+        certificates.clear();
         return ret;
     }
     for(unsigned int i = 0; i < args.size(); i++) {
         AmArg& x5urlarg = args[i];
-        AmLock lock(mutex);
-        auto it = entries.find(x5urlarg.asCStr());
-        if(it != entries.end()) {
-            entries.erase(it);
+        auto it = certificates.find(x5urlarg.asCStr());
+        if(it != certificates.end()) {
+            certificates.erase(it);
             ret++;
         }
     }
@@ -381,29 +390,29 @@ int CertCache::RenewCerts(const AmArg& args)
     }
     args.assertArray();
 
-    AmLock lock(mutex);
+    std::unique_lock lock(certificates_mutex);
 
     if(args.size() == 0) {
-        auto it = entries.begin();
-        while(it != entries.end()) {
+        auto it = certificates.begin();
+        while(it != certificates.end()) {
             if(isTrustedRepositoryUnsafe(it->first)) {
                 renewCertEntry(*it);
                 it++;
             } else {
-                it = entries.erase(it);
+                it = certificates.erase(it);
             }
         }
-        return entries.size();
+        return certificates.size();
     }
 
     int ret = 0;
     for(unsigned int i = 0; i < args.size(); i++) {
         string cert_url(args[i].asCStr());
         bool repository_is_trusted = isTrustedRepositoryUnsafe(cert_url);
-        auto it = entries.find(cert_url);
-        if(it != entries.end()) {
+        auto it = certificates.find(cert_url);
+        if(it != certificates.end()) {
             if(!repository_is_trusted) {
-                entries.erase(it);
+                certificates.erase(it);
                 continue;
             }
             renewCertEntry(*it);
@@ -412,7 +421,7 @@ int CertCache::RenewCerts(const AmArg& args)
             if(!repository_is_trusted) {
                 continue;
             }
-            auto it = entries.emplace(cert_url, CertCacheEntry{});
+            auto it = certificates.emplace(cert_url, CertCacheEntry{});
             renewCertEntry(*it.first);
             ret++;
         }
@@ -420,9 +429,10 @@ int CertCache::RenewCerts(const AmArg& args)
     return ret;
 }
 
-void CertCache::ShowTrustedCerts(AmArg& ret)
+void CertCache::ShowTrustedCerts(AmArg& ret) const
 {
-    AmLock lock(mutex);
+    std::shared_lock lock(certificates_mutex);
+
     if(trusted_certs.empty()) return;
 
     auto &entries = ret["entries"];
@@ -451,11 +461,11 @@ void CertCache::ShowTrustedCerts(AmArg& ret)
     }
 }
 
-void CertCache::ShowTrustedRepositories(AmArg& ret)
+void CertCache::ShowTrustedRepositories(AmArg& ret) const
 {
     ret.assertArray();
 
-    AmLock lock(mutex);
+    std::shared_lock lock(certificates_mutex);
 
     for(const auto &r: trusted_repositories) {
         ret.push(AmArg());
@@ -466,11 +476,11 @@ void CertCache::ShowTrustedRepositories(AmArg& ret)
     }
 }
 
-void CertCache::ShowSigningKeys(AmArg& ret)
+void CertCache::ShowSigningKeys(AmArg& ret) const
 {
     ret.assertArray();
 
-    AmLock lock(mutex);
+    std::shared_lock lock(signing_keys_mutex);
 
     for(const auto &it: signing_keys) {
         const auto &key_entry = it.second;
