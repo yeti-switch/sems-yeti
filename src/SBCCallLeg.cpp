@@ -3349,6 +3349,9 @@ void SBCCallLeg::connectCallee(
     callee_session->setLocalParty(from, from);
     callee_session->setRemoteParty(remote_party, remote_uri);
 
+    if (!callee_session->a_leg)
+        callee_session->applyBProfile();
+
     DBG("Created B2BUA callee leg, From: %s", from.c_str());
 
     // FIXME: inconsistent with other filtering stuff - here goes the INVITE
