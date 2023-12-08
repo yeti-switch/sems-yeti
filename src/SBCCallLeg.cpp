@@ -1462,6 +1462,8 @@ void SBCCallLeg::onStart()
     thread_id = gettid();
     // this should be the first thing called in session's thread
     CallLeg::onStart();
+
+    /* moved to the SBCCallLeg::connectCallee
     if (!a_leg) applyBProfile(); // A leg needs to evaluate profile first
     else if (!getOtherId().empty()) {
         // A leg but we already have a peer, what means that this call leg was
@@ -1470,7 +1472,7 @@ void SBCCallLeg::onStart()
         // we need to apply a profile, we use B profile and understand it as an
         // "outbound" profile though we are in A leg
         applyBProfile();
-    }
+    } */
 }
 
 void SBCCallLeg::updateCallProfile(const SBCCallProfile &new_profile)
@@ -1571,11 +1573,6 @@ int SBCCallLeg::applySSTCfg(AmConfigReader& sst_cfg, const AmSipRequest *p_req)
 
 void SBCCallLeg::applyBProfile()
 {
-    // TODO: fix this!!! (see d85ed5c7e6b8d4c24e7e5b61c732c2e1ddd31784)
-    // if (!call_profile.contact.empty()) {
-    //   dlg->contact_uri = SIP_HDR_COLSP(SIP_HDR_CONTACT) + call_profile.contact + CRLF;
-    // }
-
     setAllow1xxWithoutToTag(call_profile.allow_1xx_without_to_tag);
 
     redirects_allowed = call_profile.bleg_max_30x_redirects;
@@ -1601,38 +1598,6 @@ void SBCCallLeg::applyBProfile()
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
     }
-
-/* moved to SBCCallProfile::evaluate_routing()
-
-    if (!call_profile.outbound_proxy.empty()) {
-        dlg->outbound_proxy = call_profile.outbound_proxy;
-        dlg->force_outbound_proxy = call_profile.force_outbound_proxy;
-    }
-    if(!call_profile.route.empty()) {
-        DBG("set route to: %s",call_profile.route.c_str());
-        dlg->setRouteSet(call_profile.route);
-    }
-
-    if (!call_profile.next_hop.empty()) {
-        DBG("set next hop to '%s' (1st_req=%s,fixed=%s)",
-            call_profile.next_hop.c_str(), call_profile.next_hop_1st_req?"true":"false",
-            call_profile.next_hop_fixed?"true":"false");
-        dlg->setNextHop(call_profile.next_hop);
-        dlg->setNextHop1stReq(call_profile.next_hop_1st_req);
-        dlg->setNextHopFixed(call_profile.next_hop_fixed);
-    }
-
-    DBG("patch_ruri_next_hop = %i",call_profile.patch_ruri_next_hop);
-    dlg->setPatchRURINextHop(call_profile.patch_ruri_next_hop);
-
-    // was read from caller but reading directly from profile now
-    if (call_profile.outbound_interface_value >= 0) {
-        dlg->resetOutboundIf();
-        dlg->setOutboundInterfaceName(call_profile.outbound_interface);
-    }
-
-    dlg->setResolvePriority(static_cast<int>(call_profile.bleg_protocol_priority_id));
-*/
 
     // was read from caller but reading directly from profile now
     if (call_profile.rtprelay_enabled) {
