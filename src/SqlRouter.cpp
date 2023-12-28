@@ -655,10 +655,13 @@ void SqlRouter::write_cdr(std::unique_ptr<Cdr> &cdr, bool last)
     std::unique_ptr<PGParamExecute> pg_param_execute_event;
     pg_param_execute_event.reset(new PGParamExecute(
         PGQueryData(
-        yeti_cdr_pg_worker, /* pg worker name */
-        cdr_statement_name, /* prepared stmt name */
-        false /*single*/),
-    PGTransactionData(), true /* prepared */));
+            yeti_cdr_pg_worker, /* pg worker name */
+            cdr_statement_name, /* prepared stmt name */
+            false /*single*/),
+        PGTransactionData(
+            PGTransactionData::isolation_level::read_committed,
+            PGTransactionData::write_policy::read_write),
+        true /* prepared */));
     cdr->apply_params(pg_param_execute_event.get()->qdata.info.front(), dyn_fields);
 
     if(Yeti::instance().config.postgresql_debug) {
@@ -687,10 +690,13 @@ void SqlRouter::write_auth_log(const AuthCdr &auth_log)
     std::unique_ptr<PGParamExecute> pg_param_execute_event;
     pg_param_execute_event.reset(new PGParamExecute(
         PGQueryData(
-        yeti_auth_log_pg_worker, /* pg worker name */
-        auth_log_statement_name, /* prepared stmt name */
+            yeti_auth_log_pg_worker, /* pg worker name */
+            auth_log_statement_name, /* prepared stmt name */
         false /*single*/),
-    PGTransactionData(), true /* prepared */));
+        PGTransactionData(
+            PGTransactionData::isolation_level::read_committed,
+            PGTransactionData::write_policy::read_write),
+        true /* prepared */));
 
     auth_log.apply_params(pg_param_execute_event.get()->qdata.info.front());
 
