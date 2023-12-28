@@ -1,3 +1,7 @@
+sems-yeti (1.13.48) stable; urgency=medium
+  * use explicit transactions for CDRs pipeline batches
+ -- dev <dev@yeti-switch.org>  Thu, 28 Dec 2023 17:38:49 +0200
+
 sems-yeti (1.13.47) stable; urgency=medium
   * fix wrong media iface on rerouting
  -- dev <dev@yeti-switch.org>  Fri, 08 Dec 2023 11:14:21 +0200
