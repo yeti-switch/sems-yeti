@@ -1,3 +1,8 @@
+sems-yeti (1.13.50) stable; urgency=medium
+  * resources: fix write redis operations stuck
+  * resources: send MULTI with INCRBY in one packet
+ -- dev <dev@yeti-switch.org>  Fri, 19 Jan 2024 21:26:20 +0200
+
 sems-yeti (1.13.49) stable; urgency=medium
   * disable pipelining for cdrs
  -- dev <dev@yeti-switch.org>  Wed, 03 Jan 2024 21:08:40 +0200
