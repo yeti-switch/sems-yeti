@@ -165,7 +165,7 @@ OperationResources::OperationResources(ResourceRedisConnection* conn, const Reso
 bool OperationResources::perform()
 {
     if(state == INITIAL) {
-        state = MULTI_START;
+        state = OP_RES;
 
         for(auto res = res_list.begin(); res != res_list.end();) {
             //filter out inactive and not taken resources
@@ -188,10 +188,17 @@ bool OperationResources::perform()
             return false;
         }
 
-        if(!SEQ_REDIS_WRITE("MULTI")) {
-            on_error("failed to post redis request");
-            return false;
+        commands_count = res_list.size() + 2;
+
+        SEQ_REDIS_WRITE("MULTI");
+        for(auto& res : res_list) {
+            if(res.op == ResourceOperation::RES_GET && res.active)
+                SEQ_REDIS_WRITE("HINCRBY %s %d %d", get_key(res).c_str(), AmConfig.node_id, res.takes);
+            else if(res.op == ResourceOperation::RES_PUT && res.taken)
+                SEQ_REDIS_WRITE("HINCRBY %s %d -%d", get_key(res).c_str(), AmConfig.node_id, res.takes);
         }
+        SEQ_REDIS_WRITE("EXEC");
+
     } else {
         on_error("perform called in the not INITIAL state: %d", state);
         return false;
@@ -204,17 +211,6 @@ bool OperationResources::processRedisReply(RedisReplyEvent &reply)
 {
     if(state == INITIAL) {
         on_error("redis reply in the INITIAL state");
-    } else if(state == MULTI_START) {
-        state = OP_RES;
-
-        commands_count = res_list.size() + 1;
-        for(auto& res : res_list) {
-            if(res.op == ResourceOperation::RES_GET && res.active)
-                SEQ_REDIS_WRITE("HINCRBY %s %d %d", get_key(res).c_str(), AmConfig.node_id, res.takes);
-            else if(res.op == ResourceOperation::RES_PUT && res.taken)
-                SEQ_REDIS_WRITE("HINCRBY %s %d -%d", get_key(res).c_str(), AmConfig.node_id, res.takes);
-        }
-        SEQ_REDIS_WRITE("EXEC");
     } else if(state == OP_RES) {
         commands_count--;
         if((commands_count && reply.result != RedisReplyEvent::StatusReply) ||

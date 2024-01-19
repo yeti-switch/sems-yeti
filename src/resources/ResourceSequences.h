@@ -68,7 +68,6 @@ class OperationResources
 {
     enum {
         INITIAL = 0,
-        MULTI_START,
         OP_RES,
         FINISH
     } state;
