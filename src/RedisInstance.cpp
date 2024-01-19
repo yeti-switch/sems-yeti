@@ -199,8 +199,16 @@ public:
         ctx->tcp.source_addr = strdup(ip);
         ctx->tcp.port = port;
         ctx->connection_type = REDIS_CONN_TCP;
+#if HIREDIS_MAJOR > 0
+        ctx->connect_timeout = (struct timeval*)malloc(sizeof(struct timeval));
+        *ctx->connect_timeout = tv;
+
+        ctx->command_timeout = (struct timeval*)malloc(sizeof(struct timeval));
+        *ctx->command_timeout = tv;
+#else
         ctx->timeout = (struct timeval*)malloc(sizeof(struct timeval));
         *ctx->timeout = tv;
+#endif
         ctx->fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         return ctx;
     }
@@ -211,8 +219,16 @@ public:
         memset(ctx, 0, sizeof(redisContext));
         ctx->unix_sock.path = strdup(path);
         ctx->connection_type = REDIS_CONN_UNIX;
+#if HIREDIS_MAJOR > 0
+        ctx->connect_timeout = (struct timeval*)malloc(sizeof(struct timeval));
+        *ctx->connect_timeout = tv;
+
+        ctx->command_timeout = (struct timeval*)malloc(sizeof(struct timeval));
+        *ctx->command_timeout = tv;
+#else
         ctx->timeout = (struct timeval*)malloc(sizeof(struct timeval));
         *ctx->timeout = tv;
+#endif
         ctx->fd = socket(AF_UNIX, SOCK_STREAM, 0);
         return ctx;
     }
@@ -222,7 +238,12 @@ public:
         if(ctx->tcp.host) free(ctx->tcp.host);
         if(ctx->tcp.source_addr) free(ctx->tcp.source_addr);
         if(ctx->unix_sock.path) free(ctx->unix_sock.path);
+#if HIREDIS_MAJOR > 0
+        if(ctx->connect_timeout) free(ctx->connect_timeout);
+        if(ctx->command_timeout) free(ctx->command_timeout);
+#else
         if(ctx->timeout) free(ctx->timeout);
+#endif
         close(ctx->fd);
         free(ctx);
     }
@@ -423,10 +444,16 @@ redisAsyncContext *redisAsyncConnect(const char *ip, int port)
 void redisAsyncDisconnect(redisAsyncContext *ac)
 {
     redisInstanceContext* context = (redisInstanceContext*)ac;
-    if(!context->async) {
-        ERROR("trying freed not async redis context");
+    if(!context) {
+        DBG("empty context");
         return;
     }
+
+    if(!context->async) {
+        ERROR("trying to free not async redis context");
+        return;
+    }
+
     context->instance->redisAsyncDisconnect(context->original.ac);
 }
 
