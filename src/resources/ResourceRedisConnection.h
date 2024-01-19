@@ -34,6 +34,8 @@ class ResourceRedisConnection : public RedisConnectionPool
     InvalidateResources inv_seq;
     AmCondition<bool> resources_inited;
 
+    void process_operations_queue_unsafe();
+
   protected:
     int cfg2RedisCfg(const AmConfigReader &cfg, RedisConfig &rcfg,string prefix);
     bool is_ready();

@@ -54,10 +54,8 @@ bool ResourceRedisConnection::is_ready()
     return write_async && write_async->is_connected() && resources_inited.get();
 }
 
-void ResourceRedisConnection::process_operations_queue()
+void ResourceRedisConnection::process_operations_queue_unsafe()
 {
-    AmLock l(queue_and_state_mutex);
-
     if(!is_ready() || write_async_is_busy) return;
 
     if(resource_operations_queue.size()) {
@@ -68,6 +66,12 @@ void ResourceRedisConnection::process_operations_queue()
         }
         resource_operations_queue.clear();
     }
+}
+
+void ResourceRedisConnection::process_operations_queue()
+{
+    AmLock l(queue_and_state_mutex);
+    process_operations_queue_unsafe();
 }
 
 void ResourceRedisConnection::process_operations_list(ResourceOperationList& rol)
@@ -100,6 +104,7 @@ void ResourceRedisConnection::on_connect(RedisConnection* c){
 }
 
 void ResourceRedisConnection::on_disconnect(RedisConnection* c) {
+    AmLock l(queue_and_state_mutex);
     if(c == write_async) {
         if(write_async_is_busy) {
             resources_inited.set(false);
@@ -153,6 +158,8 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
             ev.user_data.release();
 
         if(seq->is_finish()) {
+            AmLock l(queue_and_state_mutex);
+
             //DBG("resources operation finished %s errors", seq->is_error() ? "with" : "without");
             if(operation_result_cb)
                 operation_result_cb(!seq->is_error());
@@ -168,7 +175,7 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
                 inv_seq.perform();
             } else {
                 // trying the next operation after successful finished previous
-                process_operations_queue();
+                process_operations_queue_unsafe();
             }
         }
     } else if(ev.user_type_id == ResourceSequenceBase::REDIS_REPLY_GET_ALL_KEYS_SEQ) {
