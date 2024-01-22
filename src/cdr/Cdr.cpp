@@ -534,6 +534,7 @@ void Cdr::serialize_media_stats(cJSON *j, const string &local_tag, AmRtpStream::
     cJSON_AddNumberToObject(j,"rx_out_of_buffer_errors",m.out_of_buffer_errors);
     cJSON_AddNumberToObject(j,"rx_rtp_parse_errors",m.rtp_parse_errors);
     cJSON_AddNumberToObject(j,"rx_dropped_packets",m.dropped);
+    cJSON_AddNumberToObject(j,"rx_srtp_decrypt_errors",m.srtp_decript_errors);
 
     cJSON_AddNumberToObject(j,"rtcp_rr_sent",m.rtcp_rr_sent);
     cJSON_AddNumberToObject(j,"rtcp_rr_recv",m.rtcp_rr_recv);
