@@ -1,3 +1,11 @@
+sems-yeti (1.13.53) stable; urgency=medium
+  * cdr: add 'rx_srtp_decrypt_errors' media stats counter
+ -- dev <dev@yeti-switch.org>  Mon, 22 Jan 2024 21:54:25 +0200
+
+sems-yeti (1.13.52) stable; urgency=medium
+  * fix build with hiredis>=1.0.0. fix segfault in redisAsyncDisconnect
+ -- dev <dev@yeti-switch.org>  Fri, 19 Jan 2024 22:10:09 +0200
+
 sems-yeti (1.13.51) stable; urgency=medium
   * resources: fix sefault on redis server restart
   * fix build with hiredis>=1.0.0
