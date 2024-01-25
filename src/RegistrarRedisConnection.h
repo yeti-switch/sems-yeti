@@ -94,6 +94,7 @@ class RegistrarRedisConnection
     } contacts_subscription;
 
     bool subscription_enabled;
+    bool use_functions;
 
     RedisScript yeti_register;
     RedisScript yeti_aor_lookup;

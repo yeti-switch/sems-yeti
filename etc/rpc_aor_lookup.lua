@@ -23,7 +23,7 @@ for id in pairs(keys) do
         local expires = redis.call('TTL', contact_key)
         if expires > 0 then
             local key_data = redis.call('HMGET',contact_key,'node_id','interface_id','agent','path')
-            cset[#cset +1] = { c, expires, key_data[1], key_data[2], key_data[3], key_data[4] }
+            cset[#cset +1] = { c, expires, contact_key, key_data[1], key_data[2], key_data[3], key_data[4] }
         end
     end
 

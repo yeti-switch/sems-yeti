@@ -134,6 +134,7 @@ cfg_opt_t sig_yeti_reg_opts[] = {
 //registrar
 
 cfg_opt_t sig_yeti_registrar_redis_opts[] = {
+	DCFG_BOOL(use_functions),
 	DCFG_SEC(write,sig_yeti_redis_pool_opts,CFGF_NONE),
 	DCFG_SEC(read,sig_yeti_redis_pool_opts,CFGF_NONE),
     CFG_END()
