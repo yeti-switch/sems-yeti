@@ -156,7 +156,7 @@ struct Cdr
 
     void update_with_action(UpdateAction act);
 
-    void update_with_resource_list(const ResourceList &rl);
+    void update_with_resource_list(const SqlCallProfile &profile);
     void update_failed_resource(const Resource &r);
 
     void add_dtmf_event(bool aleg, int event, struct timeval &now, int rx_proto, int tx_proto);

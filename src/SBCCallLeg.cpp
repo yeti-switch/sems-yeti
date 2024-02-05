@@ -456,7 +456,7 @@ void SBCCallLeg::processResourcesAndSdp()
     PROF_PRINT("check and grab resources",rchk);
 
     profile = call_ctx->getCurrentProfile();
-    cdr->update_with_resource_list(profile->getResourceList()); /** TODO: must be fixed for lega_res */
+    cdr->update_with_resource_list(*profile);
     updateCallProfile(*profile);
 
     PROF_START(sdp_processing);
@@ -617,7 +617,7 @@ bool SBCCallLeg::chooseNextProfile()
         return false;
     } else {
         DBG("%s() update call profile for legA",FUNC_NAME);
-        cdr->update_with_resource_list(profile->getResourceList()); /** TODO must be fixed for lega_res */
+        cdr->update_with_resource_list(*profile);
         updateCallProfile(*profile);
         return true;
     }

@@ -347,25 +347,22 @@ void Cdr::update_with_action(UpdateAction act)
     }
 }
 
-void Cdr::update_with_resource_list(const ResourceList &rl)
+void Cdr::update_with_resource_list(const SqlCallProfile &profile)
 {
-    if(rl.empty()) return;
-
-    string clickhouse_key_prefix;
-    cJSON *j = cJSON_CreateArray(),*i;
-
     active_resources_amarg.clear();
     active_resources_clickhouse.clear();
+
     active_resources_clickhouse.assertStruct();
 
-    for(auto const &r: rl) {
+    cJSON *j = cJSON_CreateArray();
 
-        if(!r.active) continue;
+    auto serialize_resource = [this, j](const Resource &r) {
+        if(!r.active) return;
 
         active_resources_amarg.push(AmArg());
         AmArg &a = active_resources_amarg.back();
 
-        clickhouse_key_prefix = "active_resource_" + int2str(r.type);
+        string clickhouse_key_prefix = "active_resource_" + int2str(r.type);
 
         AmArg &id_arg = active_resources_clickhouse[clickhouse_key_prefix + "_id"];
         if(isArgUndef(id_arg)) id_arg = r.id;
@@ -376,7 +373,7 @@ void Cdr::update_with_resource_list(const ResourceList &rl)
         AmArg &used_arg = active_resources_clickhouse[clickhouse_key_prefix + "_used"];
         if(isArgUndef(used_arg)) used_arg = r.takes;
 
-        i = cJSON_CreateObject();
+        cJSON *i = cJSON_CreateObject();
 
         cJSON_AddNumberToObject(i,"type",r.type);
         a["type"] = r.type;
@@ -388,10 +385,15 @@ void Cdr::update_with_resource_list(const ResourceList &rl)
         a["limit"] = r.limit;
 
         cJSON_AddItemToArray(j,i);
-    }
+    };
+
+    std::for_each(profile.lega_rl.begin(), profile.lega_rl.end(), serialize_resource);
+    std::for_each(profile.rl.begin(), profile.rl.end(), serialize_resource);
+
     char *s = cJSON_PrintUnformatted(j);
     active_resources = s;
     free(s);
+
     cJSON_Delete(j);
 }
 
