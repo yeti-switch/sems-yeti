@@ -42,7 +42,7 @@ public:
 };
 
 template <typename Res>
-struct ResList: public list<Res>, AmMutex {
+struct ResList: public list<Res> {
 	void parse(const string s);
 };
 

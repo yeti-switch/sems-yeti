@@ -2,7 +2,6 @@
 #include "../yeti.h"
 #include "AmUtils.h"
 #include "AmSession.h"
-#include "../db/DbConfig.h"
 #include "../db/DbHelpers.h"
 
 //workaround for callback
@@ -165,9 +164,6 @@ ResourceCtlResponse ResourceControl::get(
 	ResourceConfig &resource_config,
 	ResourceList::iterator &rli)
 {
-	AmLock l(rl);
-	(void)l;
-
 	if(rl.empty()){
 		DBG("empty resources list. do nothing");
 		return RES_CTL_OK;
