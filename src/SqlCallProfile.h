@@ -1,5 +1,4 @@
-#ifndef SQLCALLPROFILE_H
-#define SQLCALLPROFILE_H
+#pragma once
 
 #include "SBCCallProfile.h"
 #include <string>
@@ -18,54 +17,52 @@
 using std::string;
 
 struct SqlCallProfile
-	: public SBCCallProfile
+  : public SBCCallProfile
 #ifdef OBJECTS_COUNTER
   , ObjCounter(SqlCallProfile)
 #endif
 {
-	int time_limit;
-	int disconnect_code_id;
-	int session_refresh_method_id;
-	int aleg_session_refresh_method_id;
-	int aleg_override_id,bleg_override_id;
-	int dump_level_id;
+    int time_limit;
+    int disconnect_code_id;
+    int session_refresh_method_id;
+    int aleg_session_refresh_method_id;
+    int aleg_override_id,bleg_override_id;
+    int dump_level_id;
 
-	/** whether or not we should parse trusted headers from this gateway */
-	bool trusted_hdrs_gw;
+    /** whether or not we should parse trusted headers from this gateway */
+    bool trusted_hdrs_gw;
 
-	AmArg dyn_fields;
+    AmArg dyn_fields;
 
-	bool legab_res_mode_enabled;
-	string lega_res;
-	ResourceList lega_rl;
-	/* legb_res */
-	string resources;
-	ResourceList rl;
+    bool legab_res_mode_enabled;
+    string lega_res;
+    ResourceList lega_rl;
+    /* legb_res */
+    string resources;
+    ResourceList rl;
 
-	SqlCallProfile();
-	~SqlCallProfile();
+    SqlCallProfile();
+    ~SqlCallProfile();
 
-	bool readFromTuple(const AmArg &t,const DynFieldsT &df);
-	ResourceList & getResourceList(bool a_leg = false);
-	string& getResourceHandler(bool a_leg = false);
+    bool readFromTuple(const AmArg &t,const DynFieldsT &df);
+    ResourceList & getResourceList(bool a_leg = false);
+    string& getResourceHandler(bool a_leg = false);
 
-	bool readFilter(const AmArg &t, const char* cfg_key_filter,
-			vector<FilterEntry>& filter_list, bool keep_transparent_entry,
-			int failover_type_id = FILTER_TYPE_TRANSPARENT);
-	bool readFilterSet(const AmArg &t, const char* cfg_key_filter,
-			vector<FilterEntry>& filter_list);
-	bool readCodecPrefs(const AmArg &t);
-	bool readDynFields(const AmArg &t,const DynFieldsT &df);
-	bool eval_media_encryption();
-	bool eval_resources();
-	bool eval_radius();
-	bool eval_transport_ids();
-	bool eval_protocol_priority();
-	bool eval();
+    bool readFilter(const AmArg &t, const char* cfg_key_filter,
+        vector<FilterEntry>& filter_list, bool keep_transparent_entry,
+        int failover_type_id = FILTER_TYPE_TRANSPARENT);
+    bool readFilterSet(const AmArg &t, const char* cfg_key_filter,
+        vector<FilterEntry>& filter_list);
+    bool readCodecPrefs(const AmArg &t);
+    bool readDynFields(const AmArg &t,const DynFieldsT &df);
+    bool eval_media_encryption();
+    bool eval_resources();
+    bool eval_radius();
+    bool eval_transport_ids();
+    bool eval_protocol_priority();
+    bool eval();
 
-	void infoPrint(const DynFieldsT &df);
-	void info(AmArg &s);
-	SqlCallProfile *copy();
+    void infoPrint(const DynFieldsT &df);
+    void info(AmArg &s);
+    SqlCallProfile *copy();
 };
-
-#endif // SQLCALLPROFILE_H
