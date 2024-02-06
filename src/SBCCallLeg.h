@@ -66,7 +66,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   AmSipRequest aleg_modified_req;
   AmSipRequest modified_req;
   AmSipRequest uac_req;
-  AmUriParser uac_ruri;
+
   string ruri, to, from;
   ParamReplacerCtx ctx;
   string last_refer_cseq;

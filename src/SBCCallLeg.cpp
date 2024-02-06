@@ -992,9 +992,9 @@ void SBCCallLeg::onProfilesReady()
     uac_req.log((call_profile.log_sip || memory_logger_enabled) ? getLogger(): nullptr,
             call_profile.aleg_sensor_level_id&LOG_SIP_MASK?getSensor():nullptr);
 
-    uac_ruri.uri = uac_req.r_uri;
-    if(!uac_ruri.parse_uri()) {
-        DBG("Error parsing R-URI '%s'",uac_ruri.uri.c_str());
+    sip_uri uac_ruri;
+    if(parse_uri(&uac_ruri, uac_req.r_uri.data(), uac_req.r_uri.length()) < 0) {
+        DBG("Error parsing R-URI '%s'", uac_req.r_uri.data());
         throw AmSession::Exception(400,"Failed to parse R-URI");
     }
 
