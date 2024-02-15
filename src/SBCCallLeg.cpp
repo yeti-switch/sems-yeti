@@ -775,17 +775,13 @@ void SBCCallLeg::onPostgresResponse(PGResponse &e)
                 }
             }
 
-            //skip profiles without 'ruri' field
-            if(!a.hasMember("ruri") || isArgUndef(a["ruri"]))
-                continue;
-
             call_ctx->profiles.emplace_back();
             SqlCallProfile &p = call_ctx->profiles.back();
 
             //read profile
             ret = false;
             try {
-                ret = p.readFromTuple(a, router.getDynFields());
+                ret = p.readFromTuple(a, getLocalTag(), router.getDynFields());
             } catch(AmArg::OutOfBoundsException &e) {
                 ERROR("OutOfBoundsException while reading from profile tuple: %s",
                       AmArg::print(a).data());

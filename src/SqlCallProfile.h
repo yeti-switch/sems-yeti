@@ -44,7 +44,7 @@ struct SqlCallProfile
     SqlCallProfile();
     ~SqlCallProfile();
 
-    bool readFromTuple(const AmArg &t,const DynFieldsT &df);
+    bool readFromTuple(const AmArg &t, const string& local_tag, const DynFieldsT &df);
     ResourceList & getResourceList(bool a_leg = false);
     string& getResourceHandler(bool a_leg = false);
 

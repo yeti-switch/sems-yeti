@@ -113,6 +113,8 @@ struct SBCCallProfile
     REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO = 2
   };
 
+  string aleg_local_tag;
+
   string md5hash;
   //string profile_file;
 

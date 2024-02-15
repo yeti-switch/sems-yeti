@@ -46,8 +46,10 @@ static void readMediaAcl(const AmArg &t, const char key[], std::vector<AmSubnet>
     }
 }
 
-bool SqlCallProfile::readFromTuple(const AmArg &t,const DynFieldsT &df)
+bool SqlCallProfile::readFromTuple(const AmArg &t, const string& local_tag, const DynFieldsT &df)
 {
+    aleg_local_tag = local_tag;
+
     //common fields both for routing and refusing profiles
 
     ruri = DbAmArg_hash_get_str(t, "ruri");
@@ -764,7 +766,8 @@ bool SqlCallProfile::eval_resources()
         lega_rl.parse(lega_res);
         rl.parse(resources);
     } catch(ResourceParseException &e){
-        ERROR("resources parse error:  %s <ctx = '%s'>",e.what.c_str(),e.ctx.c_str());
+        ERROR("%s: resources parse error:  %s <ctx = '%s'>",
+            aleg_local_tag.data(), e.what.c_str(),e.ctx.c_str());
     }
     return true;
 }
@@ -787,15 +790,18 @@ bool SqlCallProfile::eval_radius()
         }
     } else {
         if(radius_profile_id){
-            ERROR("got call_profile with radius_profile_id set, but radius_client module is not loaded");
+            ERROR("%s: got call_profile with radius_profile_id set, but radius_client module is not loaded",
+                aleg_local_tag.data());
             return false;
         }
         if(aleg_radius_acc_profile_id){
-            ERROR("got call_profile with aleg_radius_acc_profile_id set, but radius_client module is not loaded");
+            ERROR("%s: got call_profile with aleg_radius_acc_profile_id set, but radius_client module is not loaded",
+                aleg_local_tag.data());
             return false;
         }
         if(bleg_radius_acc_profile_id){
-            ERROR("got call_profile with bleg_radius_acc_profile_id set, but radius_client module is not loaded");
+            ERROR("%s: got call_profile with bleg_radius_acc_profile_id set, but radius_client module is not loaded",
+                aleg_local_tag.data());
             return false;
         }
     }
@@ -826,13 +832,17 @@ bool SqlCallProfile::eval_media_encryption()
 {
     aleg_media_transport = encryption_mode2transport(aleg_media_encryption_mode_id, aleg_media_allow_zrtp);
     if(TP_NONE == aleg_media_transport) {
-        ERROR("unexpected aleg_media_encryption_mode_id value %d", aleg_media_encryption_mode_id);
+        ERROR("%s: unexpected aleg_media_encryption_mode_id value %d",
+            aleg_local_tag.data(),
+            aleg_media_encryption_mode_id);
         return false;
     }
 
     bleg_media_transport = encryption_mode2transport(bleg_media_encryption_mode_id, bleg_media_allow_zrtp);
     if(TP_NONE == bleg_media_transport) {
-        ERROR("unexpected bleg_media_encryption_mode_id value %d", bleg_media_encryption_mode_id);
+        ERROR("%s: unexpected bleg_media_encryption_mode_id value %d",
+            aleg_local_tag.data(),
+            bleg_media_encryption_mode_id);
         return false;
     }
 
@@ -913,26 +923,35 @@ bool SqlCallProfile::eval_protocol_priority()
     case IPv6_pref:
         return true;
     default:
-        ERROR("unknown protocol priority: %d", bleg_protocol_priority_id);
+        ERROR("%s: unknown protocol priority: %d",
+            aleg_local_tag.data(),
+            bleg_protocol_priority_id);
     }
     return false;
 }
 
 bool SqlCallProfile::eval()
 {
-    if(!outbound_interface.empty())
-        if(!evaluateOutboundInterface())
-            return false;
-
-    if(0!=disconnect_code_id){
+    if (0!=disconnect_code_id) {
         DBG("skip evals for refusing profile");
         return true;
     }
 
-    if(registered_aor_mode_id < REGISTERED_AOR_MODE_AS_IS ||
-            registered_aor_mode_id > REGISTERED_AOR_MODE_REPLACE_USERPART)
+    if (ruri.empty()) {
+        ERROR("%s: got non-refusing profile with empty RURI",
+            aleg_local_tag.data());
+        return false;
+    }
+
+    if (!outbound_interface.empty())
+        if(!evaluateOutboundInterface())
+            return false;
+
+    if (registered_aor_mode_id < REGISTERED_AOR_MODE_AS_IS ||
+        registered_aor_mode_id > REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO)
     {
-        DBG("incorrect registered_aor_mode_id value. replace %d -> %d",
+        DBG("%s: incorrect registered_aor_mode_id value. replace %d -> %d",
+            aleg_local_tag.data(),
             registered_aor_mode_id, REGISTERED_AOR_MODE_AS_IS);
         registered_aor_mode_id = REGISTERED_AOR_MODE_AS_IS;
     }
