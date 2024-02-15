@@ -17,6 +17,7 @@
 #include "sip/sip_parser.h"
 #include "sip/sip_trans.h"
 #include "sip/parse_nameaddr.h"
+#include "sip/parse_common.h"
 
 #include "HeaderFilter.h"
 #include "ParamReplacer.h"
@@ -1075,6 +1076,65 @@ void SBCCallLeg::onRadiusReply(const RadiusReplyEvent &ev)
     }
 }
 
+static string print_uri_params(list<sip_avp *> params)
+{
+    string s;
+    for(const auto &p: params) {
+        if(!p->name.isEmpty()) {
+            if(!s.empty()) s += ';';
+            s += p->name.toString();
+            if(!p->value.isEmpty()) {
+                s += '=';
+                s += p->value.toString();
+            }
+        }
+    }
+    return s;
+}
+
+static void merge_uri_params(string &dst, const string &src)
+{
+    list<sip_avp *> dst_params;
+    const char *dst_params_str = dst.data();
+    if (0!=parse_gen_params(&dst_params,
+        &dst_params_str, dst.size(), 0))
+    {
+        ERROR("failed to parse dst URI params: '%s'", dst.data());
+        return;
+    }
+
+    list<sip_avp *> src_params;
+    const char *src_params_str = src.data();
+    if (0!=parse_gen_params(&src_params,
+        &src_params_str, src.size(), 0))
+    {
+        ERROR("failed to parse src URI params: '%s'", src.data());
+        return;
+    }
+
+    for(; !src_params.empty(); src_params.pop_front()) {
+        auto src_param = src_params.front();
+        bool overridden = false;
+        for(auto &dst_param: dst_params) {
+            if ((!dst_param->name.isEmpty()) &&
+                dst_param->name == src_param->name)
+            {
+                overridden = true;
+                delete dst_param;
+                dst_param = src_param;
+
+                break;
+            }
+        }
+
+        if(!overridden)
+            dst_params.emplace_back(src_param);
+    }
+
+    dst = print_uri_params(dst_params);
+    free_gen_params(&dst_params);
+}
+
 struct aor_lookup_reply {
     /* reply layout:
      * [
@@ -1103,40 +1163,62 @@ struct aor_lookup_reply {
 
         void replace_profile_fields(SqlCallProfile &p)
         {
-            //replace ruri
-            switch(p.registered_aor_mode_id) {
-            case SqlCallProfile::REGISTERED_AOR_MODE_AS_IS:
-                p.ruri = contact;
-                break;
-            case SqlCallProfile::REGISTERED_AOR_MODE_REPLACE_USERPART: {
-                AmUriParser parser;
-                string ruri_user;
+            if (p.registered_aor_mode_id) {
+                DBG(">> profile ruri: '%s', to: '%s', aor: '%s', registered_aor_mode_id:%d",
+                    p.ruri.data(), p.to.data(), contact.data(), p.registered_aor_mode_id);
 
-                parser.uri = p.ruri;
-                if(parser.parse_uri()) {
-                    ruri_user = parser.uri_user;
+                //parse AoR
+                AmUriParser contact_parser;
+                contact_parser.uri = contact;
+                bool contact_parsed = contact_parser.parse_uri();
+                if (!contact_parsed) {
+                    ERROR("failed to parse AoR Contact: %s", contact.data());
+                }
 
-                    //parse AoR and replace userpart
-                    parser.uri = contact;
-                    if(parser.parse_uri()) {
-                        DBG("replace AoR user '%s' -> '%s'",
-                            parser.uri_user.data(), ruri_user.data());
-
-                        parser.uri_user = ruri_user;
-                        p.ruri = parser.uri_str();
+                //replace RURI
+                switch(p.registered_aor_mode_id) {
+                case SqlCallProfile::REGISTERED_AOR_MODE_AS_IS:
+                    p.ruri = contact;
+                    break;
+                case SqlCallProfile::REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO: {
+                    AmUriParser ruri_parser;
+                    ruri_parser.uri = p.ruri;
+                    if (ruri_parser.parse_uri()) {
+                        if (contact_parsed) {
+                            contact_parser.uri_user = ruri_parser.uri_user;
+                            merge_uri_params(contact_parser.uri_param, ruri_parser.uri_param);
+                            p.ruri = contact_parser.uri_str();
+                        } else {
+                            //fallback to the full replace
+                            p.ruri = contact;
+                        }
                     } else {
-                        ERROR("failed to parse AoR Contact. fallback to the full replace");
+                        ERROR("failed to parse RURI: %s", p.ruri.data());
+                        //fallback to the full replace
                         p.ruri = contact;
                     }
-                } else {
-                    ERROR("failed to parse RURI. fallback to the full replace");
-                    p.ruri = contact;
+                } break;
+                } //switch(p.registered_aor_mode_id)
+
+                //replace To
+                if (contact_parsed && !p.to.empty()) {
+                    AmUriParser to_parser;
+                    if (to_parser.parse_nameaddr(p.to)) {
+                        const static string invalid_domain("unknown.invalid");
+                        if (to_parser.uri_host.empty() ||
+                            to_parser.uri_host == invalid_domain)
+                        {
+                            to_parser.uri_host = contact_parser.uri_host;
+                            p.to = to_parser.nameaddr_str();
+                        }
+                    } else {
+                        ERROR("failed to parse To: '%s'", p.to.data());
+                    }
                 }
-            } break;
             }
 
             //replace route
-            if(!path.empty()) {
+            if (!path.empty()) {
                 p.route = path;
             }
         }
@@ -1230,7 +1312,7 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
         if(p.disconnect_code_id != 0 || p.registered_aor_id==0) {
             ++it;
             DBG("< skip profile %u processing. "
-                "disconnect code is not set or aor resolving is not needed",
+                "disconnect code is set or aor resolving is not needed",
                 profile_idx);
             continue;
         }
@@ -1251,8 +1333,11 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
 
         aor_it->replace_profile_fields(p);
 
-        DBG("< set profile %d.%d ruri to: %s",
+        DBG("< set profile %d.%d RURI: %s",
             profile_idx, sub_profile_idx, p.ruri.data());
+
+        DBG("< set profile %d.%d To: %s",
+            profile_idx, sub_profile_idx, p.to.data());
 
         if(!aor_it->path.empty()) {
             DBG("< set profile %d.%d route to: %s",
