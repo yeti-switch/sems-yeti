@@ -353,7 +353,7 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string& local_tag, cons
 
     bleg_protocol_priority_id = DbAmArg_hash_get_int(t,"bleg_protocol_priority_id",dns_priority::IPv4_only);
 
-    bleg_protocol_priority_id = DbAmArg_hash_get_int(t,"bleg_max_30x_redirects",0);
+    bleg_max_30x_redirects = DbAmArg_hash_get_int(t,"bleg_max_30x_redirects",0);
     bleg_max_transfers = DbAmArg_hash_get_int(t,"bleg_max_transfers",0);
 
     auth_required = DbAmArg_hash_get_bool(t, "aleg_auth_required", false);
