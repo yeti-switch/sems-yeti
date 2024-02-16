@@ -7,7 +7,6 @@
 #include "resources/ResourceControl.h"
 #include "CertCache.h"
 #include "OriginationPreAuth.h"
-#include "RegistrarRedisConnection.h"
 #include "cdr/CdrHeaders.h"
 #include "cfg/YetiCfg.h"
 
@@ -81,7 +80,6 @@ struct YetiBase {
     AmConfigReader cfg;
     time_t start_time;
 
-    RegistrarRedisConnection registrar_redis;
     HttpSequencer http_sequencer;
     OptionsProberManager options_prober_manager;
     CertCache cert_cache;

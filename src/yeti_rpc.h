@@ -118,9 +118,6 @@ class YetiRpc
     rpc_handler showAuthCredentialsById;
     rpc_handler requestAuthCredentialsReload;
 
-    rpc_handler showAors;
-    rpc_handler showKeepaliveContexts;
-
     rpc_handler showHttpSequencerData;
 
     rpc_handler requestOptionsProberReload;

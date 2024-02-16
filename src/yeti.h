@@ -8,9 +8,7 @@
 #include "DbConfigStates.h"
 
 #include <AmEventFdQueue.h>
-
-#define YETI_REDIS_REGISTER_TYPE_ID 0
-#define YETI_REDIS_RPC_AOR_LOOKUP_TYPE_ID 1
+#include "ampi/SipRegistrarApi.h"
 
 extern string yeti_auth_feedback_header;
 
@@ -26,9 +24,9 @@ class Yeti
     static Yeti* _instance;
     bool stopped;
     int epoll_fd;
-    AmTimerFd keepalive_timer;
     AmTimerFd each_second_timer;
     AmTimerFd db_cfg_reload_timer;
+    bool is_registrar_availbale;
 
     struct cfg_timer_mapping_entry {
         std::function<void (const string &key)> on_reload;
@@ -70,14 +68,11 @@ class Yeti
 
     int onLoad();
     int configure(const std::string& config);
-    int configure_registrar();
 
     void run();
     void on_stop();
     void process(AmEvent *ev);
-
-    void processRedisRegisterReply(RedisReplyEvent &e);
-    void processRedisRpcAorLookupReply(RedisReplyEvent &e);
     bool getCoreOptionsHandling() { return config.core_options_handling; }
     bool isAllComponentsInited();
+    bool isRegistrarAvailable() { return is_registrar_availbale; };
 };

@@ -53,6 +53,7 @@ extern char opt_name_cdr_headers_add_q850_reason[];
 extern char opt_registrar_keepalive_interval[];
 
 extern char opt_resources_reduce_operations[];
+extern char opt_resources_scripts_dir[];
 
 //extern int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 
@@ -76,10 +77,6 @@ extern cfg_opt_t sig_yeti_rpc_opts[];
 
 //registrations
 extern cfg_opt_t sig_yeti_reg_opts[];
-
-//registrar
-extern cfg_opt_t sig_yeti_registrar_redis_opts[];
-extern cfg_opt_t sig_yeti_registrar_opts[];
 
 //auth
 extern cfg_opt_t sig_yeti_auth_opts[];

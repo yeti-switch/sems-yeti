@@ -174,7 +174,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
 
   void onJsonRpcRequest(JsonRpcRequestEvent& ev);
   void onRadiusReply(const RadiusReplyEvent &ev);
-  void onRedisReply(const RedisReplyEvent &e);
+  void onSipRegistrarResolveResponse(const SipRegistrarResolveResponseEvent &e);
   void onCertCacheReply(const CertCacheResponseEvent &e);
   void onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event);
   bool onTimerEvent(int timer_id);

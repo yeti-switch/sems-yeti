@@ -14,7 +14,6 @@ find_package(Git REQUIRED)
 list(APPEND CMAKE_MODULE_PATH "/usr/share/cmake/sems")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-find_package(Hiredis REQUIRED)
 find_package(SEMS REQUIRED)
 
 list(APPEND CMAKE_CXX_FLAGS_DEBUG -D_DEBUG)

@@ -1,57 +1,53 @@
 #include "YetiTest.h"
-#include "../src/RedisConnection.h"
 #include "../src/resources/ResourceControl.h"
 #include "../src/resources/ResourceRedisConnection.h"
 #include "../src/cfg/yeti_opts.h"
+#include "../src/yeti.h"
+
+#include <jsonArg.h>
 
 static AmCondition<bool> inited(false);
-static void InitCallback() {
-    inited.set(true);
+static void InitCallback(bool is_error, const AmArg&) {
+    inited.set(!is_error);
 }
-
-static cfg_t *init_confuse_cfg()
-{
-    cfg_t *cfg = cfg_init(yeti_opts, CFGF_NONE);
-    return cfg;
-}
-
-static cfg_t *confuse_cfg = init_confuse_cfg();
 
 static int configure_run_redis_connection(
     ResourceRedisConnection &conn,
-    ResourceRedisConnection::cb_op_func* result_cb = nullptr,
-    ResourceRedisConnection::cb_func* init_cb = nullptr,
+    const RedisSettings &settings,
+    ResourceRedisConnection::Request::cb_func* result_cb = nullptr,
+    ResourceRedisConnection::Request::cb_func* init_cb = nullptr,
     int timeout = DEFAULT_REDIS_TIMEOUT_MSEC)
 {
     AmConfigReader cfg;
-    cfg.setParameter("write_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("write_redis_port", int2str(yeti_test::instance()->redis.port));
-    cfg.setParameter("read_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("read_redis_port", int2str(yeti_test::instance()->redis.port));
+
+    cfg.setParameter("write_redis_host", settings.host.c_str());
+    cfg.setParameter("write_redis_port", int2str(settings.port));
+    cfg.setParameter("read_redis_host", settings.host.c_str());
+    cfg.setParameter("read_redis_port", int2str(settings.port));
     if(timeout) {
         cfg.setParameter("read_redis_timeout", int2str(timeout));
         cfg.setParameter("write_redis_timeout", int2str(timeout));
     }
 
-    conn.configure(confuse_cfg, cfg);
-
-    if(result_cb)
-        conn.registerResourcesInitializedCallback(init_cb);
+    auto resources_sec = cfg_getsec(Yeti::instance().confuse_cfg, section_name_resources);
+    conn.configure(resources_sec, cfg);
 
     if(result_cb)
         conn.registerOperationResultCallback(result_cb);
+
+    if(init_cb)
+        conn.registerResourcesInitializedCallback(init_cb);
 
     conn.init();
     conn.start();
 
     return 0;
-
 }
 
 TEST_F(YetiTest, ResourceInit)
 {
-    ResourceRedisConnection conn("resourceTest");
-    configure_run_redis_connection(conn, nullptr, InitCallback);
+    ResourceRedisConnection conn("resourceTest1");
+    configure_run_redis_connection(conn, settings, nullptr, InitCallback);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -59,19 +55,18 @@ TEST_F(YetiTest, ResourceInit)
           !inited.wait_for_to(500)) {
         ASSERT_FALSE(time(0) - time_ > 3);
     }
-
     conn.stop(true);
 }
 
 static AmCondition<bool> getPutSuccess(false);
-static void GetPutCallback(bool success) {
-    getPutSuccess.set(success);
+static void GetPutCallback(bool is_error, const AmArg&) {
+    getPutSuccess.set(!is_error);
 }
 
 TEST_F(YetiTest, ResourceGetPut)
 {
-    ResourceRedisConnection conn("resourceTest");
-    configure_run_redis_connection(conn, GetPutCallback);
+    ResourceRedisConnection conn("resourceTest2");
+    configure_run_redis_connection(conn, settings, GetPutCallback);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -79,32 +74,26 @@ TEST_F(YetiTest, ResourceGetPut)
         ASSERT_FALSE(time(0) - time_ > 3);
     }
 
-    server->addCommandResponse("MULTI", REDIS_REPLY_STATUS, AmArg());
-    server->addCommandResponse("HINCRBY r:0:472 1 2", REDIS_REPLY_STATUS, AmArg());
-    server->addCommandResponse("HINCRBY r:1:472 1 2", REDIS_REPLY_STATUS, AmArg());
-    server->addCommandResponse("EXEC", REDIS_REPLY_ARRAY, AmArg());
+    initResources(conn);
 
-    ResourcesOperationList operations;
-    auto &res_op = operations.emplace_back(ResourcesOperation::RES_GET);
-    res_op.resources.parse("0:472:100:2;1:472:100:2");
-    for(auto& res: res_op.resources) {
+    ResourceList rl;
+    rl.parse("0:472:100:2;1:472:100:2");
+    for(auto& res: rl) {
         res.active = true;
     }
 
-    OperationResources *op = new OperationResources(&conn, std::move(operations), false);
-    op->perform();
+    conn.get(rl);
 
-    time_ = time(0);
-    while(!getPutSuccess.wait_for_to(500)) {
-        ASSERT_FALSE(time(0) - time_ > 3);
-    }
+    ASSERT_TRUE(getPutSuccess.wait_for_to(3000));
+
+    cleanResources(conn);
     conn.stop(true);
 }
 
 TEST_F(YetiTest, ResourceCheck)
 {
-    ResourceRedisConnection conn("resourceTest");
-    configure_run_redis_connection(conn);
+    ResourceRedisConnection conn("resourceTest3");
+    configure_run_redis_connection(conn, settings);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -112,10 +101,17 @@ TEST_F(YetiTest, ResourceCheck)
         ASSERT_FALSE(time(0) - time_ > 3);
     }
 
+    initResources(conn);
+
+    AmArg ret;
+    json2arg(R"raw([0, 0])raw", ret);
+    test_server->addCommandResponse("EVALSHA %s 0 %s %s", REDIS_TEST_REPLY_ARRAY, ret,
+        check_resources_hash, "r:0:472", "r:1:472");
+
     ResourceList rl;
     rl.parse("0:472:100:2;1:472:100:2");
-    CheckResources *cr = new CheckResources(&conn, rl);
-    cr->perform();
+    auto *cr = new ResourceRedisConnection::CheckRequest(rl);
+    conn.check(cr);
 
     time_ = time(0);
     while(!cr->wait_finish(500)) {
@@ -124,8 +120,63 @@ TEST_F(YetiTest, ResourceCheck)
     AmArg result = cr->get_result();
     ASSERT_TRUE(isArgArray(result));
     ASSERT_EQ(result.size(), size_t{2});
+    ASSERT_EQ(result[0].asLongLong(), 0);
+    ASSERT_EQ(result[1].asLongLong(), 0);
     delete cr;
 
+    cleanResources(conn);
+    conn.stop(true);
+}
+
+TEST_F(YetiTest, ResourceGetCheck)
+{
+    ResourceRedisConnection conn("resourceTest4");
+    configure_run_redis_connection(conn, settings, GetPutCallback);
+
+    time_t time_ = time(0);
+    while(!conn.get_write_conn()->wait_connected() &&
+          !conn.get_read_conn()->wait_connected()) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+
+    initResources(conn);
+
+    // get
+    ResourceList rl;
+    rl.parse("0:472:100:2;1:472:100:2");
+    for(auto& res: rl) {
+        res.active = true;
+    }
+
+    getPutSuccess.set(false);
+    conn.get(rl);
+
+    time_ = time(0);
+    while(!getPutSuccess.wait_for_to(500)) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+
+    // check
+    AmArg ret;
+    json2arg(R"raw([2, 2])raw", ret);
+    test_server->addCommandResponse("EVALSHA %s 0 %s %s", REDIS_TEST_REPLY_ARRAY, ret,
+        check_resources_hash, "r:0:472", "r:1:472");
+
+    auto *cr = new ResourceRedisConnection::CheckRequest(rl);
+    conn.check(cr);
+
+    time_ = time(0);
+    while(!cr->wait_finish(500)) {
+        ASSERT_FALSE(time(0) - time_ > 3);
+    }
+    AmArg result = cr->get_result();
+    ASSERT_TRUE(isArgArray(result));
+    ASSERT_EQ(result.size(), size_t{2});
+    ASSERT_EQ(result[0].asLongLong(), 2);
+    ASSERT_EQ(result[1].asLongLong(), 2);
+    delete cr;
+
+    cleanResources(conn);
     conn.stop(true);
 }
 
@@ -143,21 +194,26 @@ static bool isArgNumber(const AmArg& arg)
 
 TEST_F(YetiTest, ResourceGetAll)
 {
-    ResourceRedisConnection conn("resourceTest");
-    configure_run_redis_connection(conn);
+    ResourceRedisConnection conn("resourceTest5");
+    configure_run_redis_connection(conn, settings);
 
     time_t time_ = time(0);
-    while(!conn.get_write_conn()->wait_connected() &&
+        while(!conn.get_write_conn()->wait_connected() &&
           !conn.get_read_conn()->wait_connected()) {
         ASSERT_FALSE(time(0) - time_ > 3);
     }
 
-    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "1");
-    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "0");
+    initResources(conn);
 
-    GetAllResources *res = new GetAllResources(&conn, GetAllCallback, 0, 472);
-    res->perform();
+    AmArg ret;
+    json2arg(R"raw([["r:0:472", [1, 0]]])raw", ret);
+    test_server->addCommandResponse("EVALSHA %s 2 %d %d", REDIS_TEST_REPLY_ARRAY, ret,
+        get_all_resources_hash, 0, 472);
 
+    conn.get_all(new ResourceRedisConnection::GetAllRequest(0, 472, GetAllCallback));
+
+    getAllSuccess.set(false);
+    getAllResult.clear();
     time_ = time(0);
     while(!getAllSuccess.wait_for_to(500)) {
         ASSERT_FALSE(time(0) - time_ > 3);
@@ -166,17 +222,14 @@ TEST_F(YetiTest, ResourceGetAll)
     ASSERT_TRUE(isArgNumber(getAllResult["1"]));
     ASSERT_EQ(getAllResult["1"].asInt(), 0);
 
-    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "1");
-    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "0");
-    server->addCommandResponse("HGETALL r:1:472", REDIS_REPLY_ARRAY, "1");
-    server->addCommandResponse("HGETALL r:1:472", REDIS_REPLY_ARRAY, "0");
-    server->addCommandResponse("KEYS r:*:472", REDIS_REPLY_ARRAY, "r:1:472");
-    server->addCommandResponse("KEYS r:*:472", REDIS_REPLY_ARRAY, "r:0:472");
+    json2arg(R"raw([["r:0:472", [1, 0]], ["r:1:472", [1, 0]]])raw", ret);
+    test_server->addCommandResponse("EVALSHA %s 2 %d %d", REDIS_TEST_REPLY_ARRAY, ret,
+        get_all_resources_hash, ANY_VALUE, 472);
 
-    res = new GetAllResources(&conn, GetAllCallback, ANY_VALUE, 472);
-    res->perform();
+    conn.get_all(new ResourceRedisConnection::GetAllRequest(ANY_VALUE, 472, GetAllCallback));
 
     getAllSuccess.set(false);
+    getAllResult.clear();
     time_ = time(0);
     while(!getAllSuccess.wait_for_to(500)) {
         ASSERT_FALSE(time(0) - time_ > 3);
@@ -189,14 +242,14 @@ TEST_F(YetiTest, ResourceGetAll)
     ASSERT_EQ(getAllResult["r:0:472"]["1"].asInt(), 0);
     ASSERT_EQ(getAllResult["r:1:472"]["1"].asInt(), 0);
 
-    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "1");
-    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "0");
-    server->addCommandResponse("KEYS r:0:*", REDIS_REPLY_ARRAY, "r:0:472");
+    json2arg(R"raw([["r:0:472", [1, 0]]])raw", ret);
+    test_server->addCommandResponse("EVALSHA %s 2 %d %d", REDIS_TEST_REPLY_ARRAY, ret,
+        get_all_resources_hash, 0, ANY_VALUE);
 
-    res = new GetAllResources(&conn, GetAllCallback, 0, ANY_VALUE);
-    res->perform();
+    conn.get_all(new ResourceRedisConnection::GetAllRequest(0, ANY_VALUE, GetAllCallback));
 
     getAllSuccess.set(false);
+    getAllResult.clear();
     time_ = time(0);
     while(!getAllSuccess.wait_for_to(500)) {
         ASSERT_FALSE(time(0) - time_ > 3);
@@ -206,16 +259,14 @@ TEST_F(YetiTest, ResourceGetAll)
     ASSERT_TRUE(isArgNumber(getAllResult["r:0:472"]["1"]));
     ASSERT_EQ(getAllResult["r:0:472"]["1"].asInt(), 0);
 
-    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "1");
-    server->addCommandResponse("HGETALL r:0:472", REDIS_REPLY_ARRAY, "0");
-    server->addCommandResponse("HGETALL r:1:472", REDIS_REPLY_ARRAY, "1");
-    server->addCommandResponse("HGETALL r:1:472", REDIS_REPLY_ARRAY, "0");
-    server->addCommandResponse("KEYS r:*:*", REDIS_REPLY_ARRAY, "r:1:472");
-    server->addCommandResponse("KEYS r:*:*", REDIS_REPLY_ARRAY, "r:0:472");
-    res = new GetAllResources(&conn, GetAllCallback, ANY_VALUE, ANY_VALUE);
-    res->perform();
+    json2arg(R"raw([["r:0:472", [1, 0]], ["r:1:472", [1, 0]]])raw", ret);
+    test_server->addCommandResponse("EVALSHA %s 2 %d %d", REDIS_TEST_REPLY_ARRAY, ret,
+        get_all_resources_hash, ANY_VALUE, ANY_VALUE);
+
+    conn.get_all(new ResourceRedisConnection::GetAllRequest(ANY_VALUE, ANY_VALUE, GetAllCallback));
 
     getAllSuccess.set(false);
+    getAllResult.clear();
     time_ = time(0);
     while(!getAllSuccess.wait_for_to(500)) {
         ASSERT_FALSE(time(0) - time_ > 3);
@@ -228,13 +279,14 @@ TEST_F(YetiTest, ResourceGetAll)
     ASSERT_EQ(getAllResult["r:0:472"]["1"].asInt(), 0);
     ASSERT_EQ(getAllResult["r:1:472"]["1"].asInt(), 0);
 
+    cleanResources(conn);
     conn.stop(true);
 }
 
 TEST_F(YetiTest, ResourceOverload)
 {
-    ResourceRedisConnection conn("resourceTest");
-    configure_run_redis_connection(conn, GetPutCallback);
+    ResourceRedisConnection conn("resourceTest6");
+    configure_run_redis_connection(conn, settings, GetPutCallback);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -242,10 +294,13 @@ TEST_F(YetiTest, ResourceOverload)
         ASSERT_FALSE(time(0) - time_ > 3);
     }
 
-    server->addCommandResponse("HVALS r:1:472", REDIS_REPLY_ARRAY, "0");
-    server->addCommandResponse("MULTI", REDIS_REPLY_STATUS, AmArg());
-    server->addCommandResponse("HINCRBY r:1:472 1 3", REDIS_REPLY_STATUS, AmArg());
-    server->addCommandResponse("EXEC", REDIS_REPLY_ARRAY, AmArg());
+    initResources(conn);
+
+    AmArg ret;
+    json2arg(R"raw([0])raw", ret);
+    test_server->addCommandResponse("EVALSHA %s 0 %s", REDIS_TEST_REPLY_ARRAY, ret,
+        check_resources_hash, "r:1:472");
+
     getPutSuccess.set(false);
     ResourceList rl;
     ResourceList::iterator rit;
@@ -257,18 +312,16 @@ TEST_F(YetiTest, ResourceOverload)
         ASSERT_FALSE(time(0) - time_ > 3);
     }
 
-    server->addCommandResponse("HVALS r:1:472", REDIS_REPLY_ARRAY, "3");
+    json2arg(R"raw([3])raw", ret);
+    test_server->addCommandResponse("EVALSHA %s 0 %s", REDIS_TEST_REPLY_ARRAY, ret,
+        check_resources_hash, "r:1:472");
+
     ASSERT_EQ(conn.get(rl, rit), RES_BUSY);
 
-    server->addCommandResponse("HVALS r:1:472", REDIS_REPLY_ARRAY, "3");
-    server->addCommandResponse("HVALS r:0:472", REDIS_REPLY_ARRAY, "0");
-    server->addCommandResponse("HVALS r:2:472", REDIS_REPLY_ARRAY, "0");
-    server->addCommandResponse("HVALS r:3:472", REDIS_REPLY_ARRAY, "0");
-    server->addCommandResponse("MULTI", REDIS_REPLY_STATUS, AmArg());
-    server->addCommandResponse("HINCRBY r:0:472 1 3", REDIS_REPLY_STATUS, AmArg());
-    server->addCommandResponse("HINCRBY r:2:472 1 3", REDIS_REPLY_STATUS, AmArg());
-    server->addCommandResponse("HINCRBY r:3:472 1 3", REDIS_REPLY_STATUS, AmArg());
-    server->addCommandResponse("EXEC", REDIS_REPLY_ARRAY, AmArg());
+    json2arg(R"raw([3, 0, 0, 0])raw", ret);
+    test_server->addCommandResponse("EVALSHA %s 0 %s %s %s %s", REDIS_TEST_REPLY_ARRAY, ret,
+        check_resources_hash, "r:1:472", "r:0:472", "r:2:472", "r:3:472");
+
     getPutSuccess.set(false);
     rl.parse("1:472:2:3|0:472:2:3|2:472:2:3;3:472:2:3");
     ASSERT_EQ(conn.get(rl, rit), RES_SUCC);
@@ -277,35 +330,40 @@ TEST_F(YetiTest, ResourceOverload)
         ASSERT_FALSE(time(0) - time_ > 3);
     }
 
-    server->addCommandResponse("HVALS r:1:472", REDIS_REPLY_ARRAY, "3");
-    server->addCommandResponse("HVALS r:0:472", REDIS_REPLY_ARRAY, "0");
-    server->addCommandResponse("HVALS r:2:472", REDIS_REPLY_ARRAY, "0");
-    server->addCommandResponse("HVALS r:3:472", REDIS_REPLY_ARRAY, "3");
+    json2arg(R"raw([3, 0, 0, 3])raw", ret);
+    test_server->addCommandResponse("EVALSHA %s 0 %s %s %s %s", REDIS_TEST_REPLY_ARRAY, ret,
+        check_resources_hash, "r:1:472", "r:0:472", "r:2:472", "r:3:472");
+
     ASSERT_EQ(conn.get(rl, rit), RES_BUSY);
 
-    server->addCommandResponse("HVALS r:3:472", REDIS_REPLY_ARRAY, "3");
+    json2arg(R"raw([3])raw", ret);
+    test_server->addCommandResponse("EVALSHA %s 0 %s", REDIS_TEST_REPLY_ARRAY, ret,
+        check_resources_hash, "r:3:472");
+
     rl.parse("3:472:2:3");
     ASSERT_EQ(conn.get(rl, rit), RES_BUSY);
 
+    cleanResources(conn);
     conn.stop(true);
 }
 
 TEST_F(YetiTest, ResourceTimeout)
 {
-    ResourceRedisConnection conn("resourceTest");
-    configure_run_redis_connection(conn, nullptr, nullptr, 0);
+    ResourceRedisConnection conn("resourceTest7");
+    configure_run_redis_connection(conn, settings, nullptr, InitCallback, 0);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
-          !conn.get_read_conn()->wait_connected()) {
+          !conn.get_read_conn()->wait_connected() &&
+          !inited.wait_for_to(500)) {
         ASSERT_FALSE(time(0) - time_ > 3);
     }
 
-    getPutSuccess.set(false);
+    cleanResources(conn);
     ResourceList rl;
     ResourceList::iterator rit;
     rl.parse("1:472:2:3");
-    server->addTail("HVALS r:1:472", 1);
+    test_server->addTail("HVALS r:1:472", 1);
     ASSERT_EQ(conn.get(rl, rit), RES_ERR);
 
     conn.stop(true);

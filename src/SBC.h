@@ -73,7 +73,6 @@ class SBCFactory: public AmSessionFactory,
 
   AmArg pre_auth_ret;
   AmDynInvoke *yeti_invoke;
-  bool registrar_enabled;
   bool auth_feedback;
 
   bool core_options_handling;
@@ -81,8 +80,6 @@ class SBCFactory: public AmSessionFactory,
   unique_ptr<CallLegCreator> callLegCreator;
 
   void postControlCmd(const AmArg& args, AmArg& ret);
-
-  void processAuthorizedRegister(const AmSipRequest& req, Auth::auth_id_type auth_id);
 
   void send_auth_error_reply(const AmSipRequest& req, AmArg &ret, int auth_feedback_code);
   void send_and_log_auth_challenge(const AmSipRequest& req,

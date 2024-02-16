@@ -29,13 +29,13 @@
 #include "AmAudioFileRecorderStereo.h"
 #include "radius_hooks.h"
 #include "Sensors.h"
-#include "RedisConnection.h"
 
 #include "sdp_filter.h"
 #include "dtmf_sip_info.h"
 
 #include "ampi/RadiusClientAPI.h"
 #include "ampi/HttpClientAPI.h"
+#include "ampi/SipRegistrarApi.h"
 
 using namespace std;
 
@@ -305,10 +305,10 @@ void SBCCallLeg::processAorResolving()
     DBG("%s(%p,leg%s)",FUNC_NAME,static_cast<void *>(this),a_leg?"A":"B");
 
     //check for registered_aor_id in profiles
-    std::set<int> aor_ids;
+    std::set<SipRegistrarEvent::RegistrationIdType> aor_ids;
     for(const auto &p : call_ctx->profiles) {
         if(0==p.disconnect_code_id && 0!=p.registered_aor_id) {
-            aor_ids.emplace(p.registered_aor_id);
+            aor_ids.emplace(std::to_string(p.registered_aor_id));
         }
     }
 
@@ -318,12 +318,13 @@ void SBCCallLeg::processAorResolving()
         return;
     }
 
-    if(!yeti.config.registrar_enabled) {
-        ERROR("registrar feature disabled for node, but routing returned profiles with registered_aor_id set");
+    if(false ==AmSessionContainer::instance()->postEvent(
+                SIP_REGISTRAR_QUEUE,
+                new SipRegistrarResolveRequestEvent(aor_ids, getLocalTag())))
+    {
+        ERROR("failed to post 'resolve request' event to registrar");
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
-
-    yeti.registrar_redis.resolve_aors(aor_ids, getLocalTag());
 }
 
 void SBCCallLeg::processResourcesAndSdp()
@@ -1134,166 +1135,76 @@ static void merge_uri_params(string &dst, const string &src)
     free_gen_params(&dst_params);
 }
 
-struct aor_lookup_reply {
-    /* reply layout:
-     * [
-     *   auth_id1,
-     *   [
-     *     contact1,
-     *     path1,
-     *     contact2,
-     *     path2
-     *   ],
-     *   auth_id2,
-     *   [
-     *     contact3,
-     *     path3,
-     *   ],
-     * ]
-     */
-
-    struct aor_data {
-        string contact;
-        string path;
-        aor_data(const char *contact, const char *path)
-          : contact(contact),
-            path(path)
-        {}
-
-        void replace_profile_fields(SqlCallProfile &p) const
-        {
-            if (p.registered_aor_mode_id) {
-                DBG(">> profile ruri: '%s', to: '%s', aor: '%s', registered_aor_mode_id:%d",
-                    p.ruri.data(), p.to.data(), contact.data(), p.registered_aor_mode_id);
-
-                //parse AoR
-                AmUriParser contact_parser;
-                contact_parser.uri = contact;
-                bool contact_parsed = contact_parser.parse_uri();
-                if (!contact_parsed) {
-                    ERROR("failed to parse AoR Contact: %s", contact.data());
-                }
-
-                //replace RURI
-                switch(p.registered_aor_mode_id) {
-                case SqlCallProfile::REGISTERED_AOR_MODE_AS_IS:
-                    p.ruri = contact;
-                    break;
-                case SqlCallProfile::REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO: {
-                    AmUriParser ruri_parser;
-                    ruri_parser.uri = p.ruri;
-                    if (ruri_parser.parse_uri()) {
-                        if (contact_parsed) {
-                            contact_parser.uri_user = ruri_parser.uri_user;
-                            merge_uri_params(contact_parser.uri_param, ruri_parser.uri_param);
-                            p.ruri = contact_parser.uri_str();
-                        } else {
-                            //fallback to the full replace
-                            p.ruri = contact;
-                        }
-                    } else {
-                        ERROR("failed to parse RURI: %s", p.ruri.data());
-                        //fallback to the full replace
-                        p.ruri = contact;
-                    }
-                } break;
-                } //switch(p.registered_aor_mode_id)
-
-                //replace To
-                if (contact_parsed && !p.to.empty()) {
-                    AmUriParser to_parser;
-                    if (to_parser.parse_nameaddr(p.to)) {
-                        const static string invalid_domain("unknown.invalid");
-                        if (to_parser.uri_host.empty() ||
-                            to_parser.uri_host == invalid_domain)
-                        {
-                            to_parser.uri_host = contact_parser.uri_host;
-                            p.to = to_parser.nameaddr_str();
-                        }
-                    } else {
-                        ERROR("failed to parse To: '%s'", p.to.data());
-                    }
-                }
-            }
-
-            //replace route
-            if (!path.empty()) {
-                p.route = path;
-            }
-        }
-    };
-
-    std::map<int, std::list<aor_data> > aors;
-
-    //return false on errors
-    bool parse(const RedisReplyEvent &e)
-    {
-        if(RedisReplyEvent::SuccessReply!=e.result) {
-            ERROR("error reply from redis %d %s",
-                e.result,
-                AmArg::print(e.data).c_str());
-            return false;
-        }
-        if(!isArgArray(e.data) || e.data.size()%2!=0) {
-            ERROR("unexpected redis reply layout: %s", AmArg::print(e.data).data());
-            return false;
-        }
-        int n = static_cast<int>(e.data.size())-1;
-        for(int i = 0; i < n; i+=2) {
-            AmArg &id_arg = e.data[i];
-            if(!isArgLongLong(id_arg)) {
-                ERROR("unexpected auth_id type. skip entry");
-                continue;
-            }
-            int auth_id = static_cast<int>(id_arg.asLongLong());
-
-            AmArg &aor_data_arg = e.data[i+1];
-            if(!isArgArray(aor_data_arg) || aor_data_arg.size()%2!=0) {
-                ERROR("unexpected aor_data_arg layout. skip entry");
-                continue;
-            }
-
-            int m = static_cast<int>(aor_data_arg.size())-1;
-            for(int j = 0; j < m; j+=2) {
-                AmArg &contact_arg = aor_data_arg[j];
-                AmArg &path_arg = aor_data_arg[j+1];
-                if(!isArgCStr(contact_arg) || !isArgCStr(path_arg)) {
-                    ERROR("unexpected contact_arg||path_arg type. skip entry");
-                    continue;
-                }
-
-                auto it = aors.find(auth_id);
-                if(it == aors.end()) {
-                    it = aors.insert(aors.begin(),
-                        std::pair<int, std::list<aor_data> >(auth_id,  std::list<aor_data>()));
-                }
-                it->second.emplace_back(contact_arg.asCStr(), path_arg.asCStr());
-            }
-        }
-        return true;
-    }
-};
-
-void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
+static void replace_profile_fields(const SipRegistrarResolveResponseEvent::aor_data &data, SqlCallProfile &p)
 {
-    DBG("%s onRedisReply",getLocalTag().c_str());
-    DBG("%s raw redis reply data: '%s'",
-        getLocalTag().data(), AmArg::print(e.data).data());
+    if (p.registered_aor_mode_id) {
+        DBG(">> profile ruri: '%s', to: '%s', aor: '%s', registered_aor_mode_id:%d",
+            p.ruri.data(), p.to.data(), data.contact.data(), p.registered_aor_mode_id);
+
+        //parse AoR
+        AmUriParser contact_parser;
+        contact_parser.uri = data.contact;
+        bool contact_parsed = contact_parser.parse_uri();
+        if (!contact_parsed) {
+            ERROR("failed to parse AoR Contact: %s", data.contact.data());
+        }
+
+        //replace RURI
+        switch(p.registered_aor_mode_id) {
+        case SqlCallProfile::REGISTERED_AOR_MODE_AS_IS:
+            p.ruri = data.contact;
+            break;
+        case SqlCallProfile::REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO: {
+            AmUriParser ruri_parser;
+            ruri_parser.uri = p.ruri;
+            if (ruri_parser.parse_uri()) {
+                if (contact_parsed) {
+                    contact_parser.uri_user = ruri_parser.uri_user;
+                    merge_uri_params(contact_parser.uri_param, ruri_parser.uri_param);
+                    p.ruri = contact_parser.uri_str();
+                } else {
+                    //fallback to the full replace
+                    p.ruri = data.contact;
+                }
+            } else {
+                ERROR("failed to parse RURI: %s", p.ruri.data());
+                //fallback to the full replace
+                p.ruri = data.contact;
+            }
+        } break;
+        } //switch(p.registered_aor_mode_id)
+
+        //replace To
+        if (contact_parsed && !p.to.empty()) {
+            AmUriParser to_parser;
+            if (to_parser.parse_nameaddr(p.to)) {
+                const static string invalid_domain("unknown.invalid");
+                if (to_parser.uri_host.empty() ||
+                    to_parser.uri_host == invalid_domain)
+                {
+                    to_parser.uri_host = contact_parser.uri_host;
+                    p.to = to_parser.nameaddr_str();
+                }
+            } else {
+                ERROR("failed to parse To: '%s'", p.to.data());
+            }
+        }
+    }
+
+    //replace route
+    if (!data.path.empty()) {
+        p.route = data.path;
+    }
+}
+
+void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponseEvent &e)
+{
+    DBG("%s onSipRegistrarResolveResponse",getLocalTag().c_str());
 
     getCtx_void;
 
-    //preprocess redis reply data
-    aor_lookup_reply r;
-    if(!r.parse(e)) {
+    if(e.aors.empty()) {
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-    }
-
-    DBG("%s parsed AoRs:", getLocalTag().data());
-    for(const auto &aor_entry: r.aors) {
-        for(const auto &d: aor_entry.second) {
-            DBG("aor_id: %d, contact: '%s', path: '%s'",
-                aor_entry.first, d.contact.data(), d.path.data());
-        }
     }
 
     //resolve ruri in profiles
@@ -1316,8 +1227,8 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
             continue;
         }
 
-        auto a = r.aors.find(p.registered_aor_id);
-        if(a == r.aors.end()) {
+        auto a = e.aors.find(std::to_string(p.registered_aor_id));
+        if(a == e.aors.end()) {
             p.skip_code_id = SC_NOT_REGISTERED;
             ++it;
             DBG("< mark profile %u as not registered using disconnect code %d",
@@ -1337,7 +1248,7 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
             DBG("< clone profile %d.0 to %d.%d because user resolved to the multiple AoRs",
                 profile_idx, profile_idx, sub_profile_idx);
 
-            aor_it->replace_profile_fields(cloned_p);
+            replace_profile_fields(*aor_it, cloned_p);
 
             DBG("< set profile %d.%d ruri to: %s",
                 profile_idx, sub_profile_idx, cloned_p.ruri.data());
@@ -1350,7 +1261,7 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
 
         auto const &aor_data = *aors_list.begin();
 
-        aor_data.replace_profile_fields(p);
+        replace_profile_fields(aor_data, p);
 
         DBG("< set profile %d.0 RURI: %s",
             profile_idx, p.ruri.data());
@@ -2744,8 +2655,8 @@ void SBCCallLeg::process(AmEvent* ev)
             return;
         }
 
-        if(RedisReplyEvent *redis_event = dynamic_cast<RedisReplyEvent *>(ev)) {
-            onRedisReply(*redis_event);
+        if(SipRegistrarResolveResponseEvent *reg_event = dynamic_cast<SipRegistrarResolveResponseEvent *>(ev)) {
+            onSipRegistrarResolveResponse(*reg_event);
             return;
         }
 

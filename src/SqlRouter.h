@@ -13,8 +13,6 @@
 #include "Auth.h"
 #include "CallCtx.h"
 
-#include "RedisConnection.h"
-
 #include <functional>
 
 using std::string;

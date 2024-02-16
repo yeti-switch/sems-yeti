@@ -174,13 +174,6 @@ void YetiCfg::serialize_to_amconfig(cfg_t *y, AmConfigReader &out)
 		c = cfg_getsec(y,"registrations");
 		add2hash(c,"reg_check_interval","check_interval",out);
 
-		//registrar
-		c = cfg_getsec(y,"registrar");
-		add2hash(c,"registrar_enabled","enabled",out);
-		add2hash(c,"registrar_expires_min","expires_min",out);
-		add2hash(c,"registrar_expires_max","expires_max",out);
-		add2hash(c,"registrar_expires_default","expires_default",out);
-
 		//rpc
 		c = cfg_getsec(y,"rpc");
 		add2hash(c,"calls_show_limit","calls_show_limit",out);

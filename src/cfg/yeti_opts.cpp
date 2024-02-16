@@ -6,12 +6,12 @@
 #include "opts_helpers.h"
 
 #define YETI_CFG_DEFAULT_TIMEOUT 5000
+#define YETI_CFG_DEFAULT_SCRIPTS_DIR "/etc/sems/scripts"
 
 #define YETI_SCTP_DEFAULT_HOST "127.0.0.1"
 #define YETI_SCTP_DEFAULT_PORT 4444
 
 #define IP_AUTH_DEFAULT_HEADER "X-ORIG-IP"
-#define DEFAULT_REGISTRAR_KEEPALIVE_INTERVAL 60
 #define YETI_DEFAULT_AUDIO_RECORDER_DIR "/var/spool/sems/record"
 
 char opt_name_auth_feedback[] = "enable_auth_feedback";
@@ -24,7 +24,6 @@ char section_name_lega_cdr_headers[] = "lega_cdr_headers";
 char section_name_legb_reply_cdr_headers[] = "legb_response_cdr_headers";
 char section_name_identity[] = "identity";
 char section_name_statistics[] = "statistics";
-char section_name_registrar[] = "registrar";
 char section_name_resources[] = "resources";
 char section_name_redis[] = "redis";
 char section_name_redis_write[] = "write";
@@ -53,9 +52,8 @@ char opt_func_name_header[] = "header";
 char opt_name_cdr_headers_add_sip_reason[] = "add_sip_reason";
 char opt_name_cdr_headers_add_q850_reason[] = "add_q850_reason";
 
-char opt_registrar_keepalive_interval[] = "keepalive_interval";
-
 char opt_resources_reduce_operations[] = "reduce_operations";
+char opt_resources_scripts_dir[] = "scripts_dir";
 
 int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 int add_bleg_reply_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
@@ -120,6 +118,7 @@ cfg_opt_t sig_yeti_redis_pool_opts[] = {
 cfg_opt_t sig_yeti_resources_opts[] = {
 	DCFG_BOOL(reject_on_error),
 	CFG_BOOL(opt_resources_reduce_operations, cfg_false, CFGF_NONE),
+	CFG_STR(opt_resources_scripts_dir, YETI_CFG_DEFAULT_SCRIPTS_DIR, CFGF_NONE),
 	DCFG_SEC(write,sig_yeti_redis_pool_opts,CFGF_NONE),
 	DCFG_SEC(read,sig_yeti_redis_pool_opts,CFGF_NONE),
 	CFG_END()
@@ -134,26 +133,6 @@ cfg_opt_t sig_yeti_rpc_opts[] = {
 //registrations
 cfg_opt_t sig_yeti_reg_opts[] = {
 	DCFG_INT(check_interval),
-	CFG_END()
-};
-
-//registrar
-
-cfg_opt_t sig_yeti_registrar_redis_opts[] = {
-	DCFG_BOOL(use_functions),
-	DCFG_SEC(write,sig_yeti_redis_pool_opts,CFGF_NONE),
-	DCFG_SEC(read,sig_yeti_redis_pool_opts,CFGF_NONE),
-    CFG_END()
-};
-
-cfg_opt_t sig_yeti_registrar_opts[] = {
-    DCFG_BOOL(enabled),
-    DCFG_INT(expires_min),
-    DCFG_INT(expires_max),
-    DCFG_INT(expires_default),
-    CFG_INT(opt_registrar_keepalive_interval,
-            DEFAULT_REGISTRAR_KEEPALIVE_INTERVAL, CFGF_NONE),
-    CFG_SEC(section_name_redis,sig_yeti_registrar_redis_opts,CFGF_NONE),
     CFG_END()
 };
 
@@ -199,7 +178,6 @@ cfg_opt_t yeti_opts[] = {
     CFG_SEC(section_name_cdr, sig_yeti_cdr_opts, CFGF_NONE),
     CFG_SEC(section_name_resources, sig_yeti_resources_opts, CFGF_NONE),
     DCFG_SEC(registrations,sig_yeti_reg_opts,CFGF_NONE),
-    CFG_SEC(section_name_registrar, sig_yeti_registrar_opts, CFGF_NONE),
     DCFG_SEC(rpc,sig_yeti_rpc_opts,CFGF_NONE),
     CFG_SEC(section_name_statistics, sig_yeti_statistics_opts, CFGF_NONE),
     DCFG_SEC(auth,sig_yeti_auth_opts,CFGF_NONE),

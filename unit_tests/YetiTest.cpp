@@ -1,32 +1,89 @@
 #include "YetiTest.h"
-#include "../src/RedisInstance.h"
 #include "../src/yeti.h"
-#include <hiredis/read.h>
+#include "AmLcConfig.h"
+
+#define redis_conn Yeti::instance().rctl.getRedisConn()
 
 class PolicyFactory;
-class TestServer;
 extern PolicyFactory* makePolicyFactory(bool test, TestServer* server = 0);
 extern void freePolicyFactory();
 
-#define PARAM_EXT_REDIS_NAME     "external"
-#define PARAM_REDIS_HOST_NAME    "host"
-#define PARAM_REDIS_PORT_NAME    "port"
-#define SECTION_REDIS_NAME       "redis"
+class YetiTestInitialiser
+{
+protected:
+    RedisSettings settings;
+    RedisTestServer* test_server;
 
-#define STR_HELPER(x) #x
-#define STR_(x) STR_HELPER(x)
+    void initTestServer()
+    {
+        test_server->response_enabled.set(false);
+        test_server->addLoadScriptCommandResponse(invalidate_resources_default_path, invalidate_resources_hash);
+        test_server->addLoadScriptCommandResponse(operation_resources_default_path, operation_resources_hash);
+        test_server->addLoadScriptCommandResponse(get_all_resources_default_path, get_all_resources_hash);
+        test_server->addLoadScriptCommandResponse(check_resources_default_path, check_resources_hash);
+        test_server->response_enabled.set(true);
+    }
+public:
+    YetiTestInitialiser()
+    {
+        DBG("YetiTestInitialiser");
+        test_server = &redis_test::instance()->test_server;
+        settings = redis_test::instance()->settings;
+        initTestServer();
+    }
+};
 
-#define HOST           "127.0.0.1"
-#define PORT           6379
+typedef singleton<YetiTestInitialiser> yeti_init;
+static yeti_init* yeti_init_global = yeti_init::instance();
+static yeti_test* yeti_test_global = yeti_test::instance();
 
-static yeti_test* yeti_global = yeti_test::instance();
-
-YetiTest::YetiTest() {
-    server = &yeti_global->server;
+YetiTest::YetiTest()
+{
+    test_server = &redis_test::instance()->test_server;
+    settings = redis_test::instance()->settings;
 }
 
-void YetiTest::SetUp() {
-    server->clear();
+void YetiTest::SetUp()
+{
+    test_server->response_enabled.set(false);
+    test_server->clear();
+    test_server->addLoadScriptCommandResponse(redis_conn.get_script_path(INVALIDATE_RESOURCES_SCRIPT), invalidate_resources_hash);
+    test_server->addLoadScriptCommandResponse(redis_conn.get_script_path(OPERATION_RESOURCES_SCRIPT), operation_resources_hash);
+    test_server->addLoadScriptCommandResponse(redis_conn.get_script_path(GET_ALL_RESOURCES_SCRIPT), get_all_resources_hash);
+    test_server->addLoadScriptCommandResponse(redis_conn.get_script_path(CHECK_RESOURCES_SCRIPT), check_resources_hash);
+    test_server->response_enabled.set(true);
+}
+
+void YetiTest::initResources(ResourceRedisConnection &conn)
+{
+    vector<vector<AmArg>> args_vec = {
+        {"HSET", "r:0:472", AmConfig.node_id, 0},
+        {"HSET", "r:1:472", AmConfig.node_id, 0},
+        {"HSET", "r:2:472", AmConfig.node_id, 0},
+        {"HSET", "r:3:472", AmConfig.node_id, 0}
+    };
+
+    for (auto args : args_vec) {
+        auto req = new CustomTestResourcesRequest(args);
+        conn.post_request(req, conn.get_write_conn());
+        ASSERT_TRUE(req->wait_finish(3000));
+    }
+}
+
+void YetiTest::cleanResources(ResourceRedisConnection &conn)
+{
+    vector<vector<AmArg>> args_vec = {
+        {"HDEL", "r:0:472", AmConfig.node_id},
+        {"HDEL", "r:1:472", AmConfig.node_id},
+        {"HDEL", "r:2:472", AmConfig.node_id},
+        {"HDEL", "r:3:472", AmConfig.node_id}
+    };
+
+    for (auto args : args_vec) {
+        auto req = new CustomTestResourcesRequest(args);
+        conn.post_request(req, conn.get_write_conn());
+        ASSERT_TRUE(req->wait_finish(3000));
+    }
 }
 
 class YetiTestListener : public testing::EmptyTestEventListener
@@ -35,36 +92,10 @@ public:
     void OnTestProgramStart(const testing::UnitTest&) override
     {
         while(!Yeti::instance().isAllComponentsInited()) { sleep(1); }
-
-        cfg_opt_t redis[] = {
-            CFG_BOOL(PARAM_EXT_REDIS_NAME, cfg_false, CFGF_NONE),
-            CFG_STR(PARAM_REDIS_HOST_NAME, HOST, CFGF_NONE),
-            CFG_INT(PARAM_REDIS_PORT_NAME, PORT, CFGF_NONE),
-            CFG_END()
-        };
-        cfg_opt_t yeti[] = {
-            CFG_SEC(SECTION_REDIS_NAME, redis, CFGF_NONE),
-            CFG_END()
-        };
-        AmArg data = test_config::instance()->configureModule("yeti", yeti);
-        YetiTestFactory::RedisSettings& redis_setting = yeti_global->redis;
-        redis_setting.external = data[SECTION_REDIS_NAME][PARAM_EXT_REDIS_NAME].asBool();
-        redis_setting.host = data[SECTION_REDIS_NAME][PARAM_REDIS_HOST_NAME].asCStr();
-        redis_setting.port = data[SECTION_REDIS_NAME][PARAM_REDIS_PORT_NAME].asLong();
-        TesterConfig::ConfigParameters config_parameters;
-        config_parameters.emplace<string, TesterConfig::parameter_var>(PARAM_EXT_REDIS_NAME "-" SECTION_REDIS_NAME, {.type = TesterConfig::parameter_var::Bool, .u = {&redis_setting.external}});
-        config_parameters.emplace<string, TesterConfig::parameter_var>(SECTION_REDIS_NAME "-" PARAM_REDIS_HOST_NAME, {.type = TesterConfig::parameter_var::String, .u = {&redis_setting.host}});
-        config_parameters.emplace<string, TesterConfig::parameter_var>(SECTION_REDIS_NAME "-" PARAM_REDIS_PORT_NAME, {.type = TesterConfig::parameter_var::Integer, .u = {&redis_setting.port}});
-        test_config::instance()->useCmdModule(config_parameters);
-
-        // redis instance factory
-        freeRedisInstance();
-        makeRedisInstance(!redis_setting.external, &yeti_global->server);
     }
 
     void OnTestProgramEnd(const testing::UnitTest&) override
     {
-        freeRedisInstance();
         yeti_test::dispose();
     }
 };
@@ -87,7 +118,6 @@ YetiTestFactory::YetiTestFactory()
     freePolicyFactory();
     makePolicyFactory(true, &pqtest_server);
 
-    makeRedisInstance(true);
     testing::UnitTest::GetInstance()->listeners().Append(new YetiTestListener);
 }
 

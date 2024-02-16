@@ -136,6 +136,7 @@ public:
 	void showResourceByHandler(const string &h, AmArg &ret);
 	void showResourceByLocalTag(const string &tag, AmArg &ret);
 	void showResourcesById(int id, AmArg &ret);
+	const ResourceRedisConnection& getRedisConn() { return redis_conn; };
 };
 
 #endif // RESOURCECONTROL_H

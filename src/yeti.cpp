@@ -21,10 +21,9 @@
 #include "AmEventDispatcher.h"
 #include "ampi/SctpBusAPI.h"
 #include "ampi/PostgreSqlAPI.h"
+#include "ampi/SipRegistrarApi.h"
 #include "sip/resolver.h"
 #include "ObjectsCounter.h"
-
-#include "RedisConnection.h"
 
 #include "cfg/yeti_opts.h"
 #include "cfg/cfg_helpers.h"
@@ -32,8 +31,6 @@
 #include "IPTree.h"
 
 #define EPOLL_MAX_EVENTS 2048
-
-#define DEFAULT_REGISTRAR_EXPIRES 1800
 
 #define YETI_SIGNATURE "yeti-switch"
 #define YETI_AGENT_SIGNATURE YETI_SIGNATURE " " YETI_VERSION
@@ -174,7 +171,6 @@ static void init_counters()
 
 int Yeti::onLoad()
 {
-    makeRedisInstance(false);
     start_time = time(nullptr);
 
     cfg.dump();
@@ -240,26 +236,13 @@ int Yeti::onLoad()
     }
 
     if(Sensors::instance()->configure(cfg)){
-    ERROR("Sensors configure failed");
-        return -1;
-    }
-
-    if(configure_registrar()) {
-        ERROR("Failed to configure registrar");
+        ERROR("Sensors configure failed");
         return -1;
     }
 
     if(Registration::instance()->configure(cfg)){
         ERROR("Registration agent configure failed");
         return -1;
-    }
-
-    if(config.registrar_enabled) {
-        registrar_redis.start();
-        if(config.registrar_keepalive_interval) {
-            keepalive_timer.link(epoll_fd);
-            keepalive_timer.set(1000000 /* 1 seconds */,true);
-        }
     }
 
     each_second_timer.link(epoll_fd);
@@ -282,50 +265,8 @@ int Yeti::onLoad()
 
     onDbCfgReloadTimer();
 
-    return 0;
-}
-
-int Yeti::configure_registrar()
-{
-    config.registrar_enabled = cfg.getParameterInt("registrar_enabled");
-    DBG("registrar_enabled: %d", config.registrar_enabled);
-    if(!config.registrar_enabled)
-        return 0;
-
-    auto reg_cfg = cfg_getsec(confuse_cfg, section_name_registrar);
-    if(!reg_cfg)
-        return 0;
-
-    config.registrar_keepalive_interval =
-        cfg_getint(reg_cfg, opt_registrar_keepalive_interval);
-    DBG("registrar_keepalive_interval: %d", config.registrar_keepalive_interval);
-
-    config.registrar_expires_min = cfg.getParameterInt("registrar_expires_min");
-    DBG("registrar_expires_min: %d", config.registrar_expires_min);
-
-    config.registrar_expires_max = cfg.getParameterInt("registrar_expires_max");
-    DBG("registrar_expires_max: %d", config.registrar_expires_max);
-
-    config.registrar_expires_default =
-        cfg.getParameterInt("registrar_expires_default", DEFAULT_REGISTRAR_EXPIRES);
-    DBG("registrar_expires_default: %d", config.registrar_expires_default);
-
-    if(config.registrar_expires_max && config.registrar_expires_default > config.registrar_expires_max) {
-        ERROR("registrar error. default expires %d is gt max value %d",
-              config.registrar_expires_default, config.registrar_expires_max);
-        return -1;
-    }
-
-    if(config.registrar_expires_default < config.registrar_expires_min) {
-        ERROR("registrar error. default expires %d is lt min value %d",
-              config.registrar_expires_default, config.registrar_expires_min);
-        return -1;
-    }
-
-    if(0!=registrar_redis.configure(reg_cfg))
-    {
-        return -1;
-    }
+    // check dependencies
+    is_registrar_availbale = (AmPlugIn::instance()->getFactory4Config("registrar") != nullptr);
 
     return 0;
 }
@@ -361,10 +302,7 @@ void Yeti::run()
             struct epoll_event &e = events[n];
             f = e.data.fd;
 
-            if(f==keepalive_timer){
-                registrar_redis.on_keepalive_timer();
-                keepalive_timer.read();
-            } else if(f==db_cfg_reload_timer) {
+            if(f==db_cfg_reload_timer) {
                 onDbCfgReloadTimer();
                 db_cfg_reload_timer.read();
             } else if(f==each_second_timer) {
@@ -393,7 +331,6 @@ void Yeti::on_stop()
     cdr_list.stop();
     rctl.stop();
     router.stop();
-    registrar_redis.stop();
 
     stopped = true;
 #pragma GCC diagnostic push
@@ -406,19 +343,6 @@ void Yeti::on_stop()
 
 void Yeti::process(AmEvent *ev)
 {
-    ON_EVENT_TYPE(RedisReplyEvent) {
-        /*DBG("got RedisReplyEvent id = %d data:\n%s",
-            e->user_type_id,
-            AmArg::print(e->data).c_str());*/
-        switch(e->user_type_id) {
-        case YETI_REDIS_REGISTER_TYPE_ID:
-            processRedisRegisterReply(*e);
-            break;
-        case YETI_REDIS_RPC_AOR_LOOKUP_TYPE_ID:
-            processRedisRpcAorLookupReply(*e);
-            break;
-        }
-    } else
     ON_EVENT_TYPE(HttpPostResponseEvent) {
         http_sequencer.processHttpReply(*e);
     } else
@@ -496,109 +420,6 @@ void Yeti::process(AmEvent *ev)
         return;
     } else
         DBG("got unknown event %s", typeid(*ev).name());
-}
-
-void Yeti::processRedisRegisterReply(RedisReplyEvent &e)
-{
-    static string contact_hdr = SIP_HDR_COLSP(SIP_HDR_CONTACT);
-    static string expires_param_prefix = ";expires=";
-
-    const AmSipRequest &req = *dynamic_cast<AmSipRequest *>(e.user_data.get());
-    //DBG("e.data: %s",AmArg::print(e.data).c_str());
-
-    if(RedisReplyEvent::SuccessReply!=e.result) {
-        ERROR("error reply from redis %s. for request from %s:%hu",
-              AmArg::print(e.data).c_str(),
-              req.remote_ip.data(), req.remote_port);
-        AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-        return;
-    }
-
-    if(isArgUndef(e.data)) {
-        DBG("nil reply from redis. no bindings");
-        AmSipDialog::reply_error(req, 200, "OK");
-        return;
-    }
-
-    /* response layout:
-     * [
-     *   [ contact1 , expires1, contact_key1, path1, interface_id1 ]
-     *   [ contact2 , expires2, contact_key2, path2, interface_id2 ]
-     *   ...
-     * ]
-     */
-
-    if(!isArgArray(e.data)) {
-        ERROR("error/unexpected reply from redis: %s for request from %s:%hu. Contact:'%s'",
-              AmArg::print(e.data).c_str(),
-              req.remote_ip.data(), req.remote_port,
-              req.contact.data());
-        if(e.data.is<AmArg::CStr>()) {
-            AmSipDialog::reply_error(req, 500, e.data.asCStr());
-        } else {
-            AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-        }
-        return;
-    }
-
-    string hdrs;
-    int n = static_cast<int>(e.data.size());
-    for(int i = 0; i < n; i++) {
-        AmArg &d = e.data[i];
-        if(!isArgArray(d) || d.size()!=5) {
-            ERROR("unexpected AoR layout in reply from redis: %s. skip it",AmArg::print(d).c_str());
-            continue;
-        }
-        AmArg &contact_arg = d[0];
-        if(!isArgCStr(contact_arg)) {
-            ERROR("unexpected contact variable type from redis. skip it");
-            continue;
-        }
-        string contact = contact_arg.asCStr();
-        if(contact.empty()) {
-            ERROR("empty contact in reply from redis. skip it");
-            continue;
-        }
-
-        AmArg &expires_arg = d[1];
-        if(!isArgLongLong(expires_arg)) {
-            ERROR("unexpected expires value in redis reply: %s, skip it",AmArg::print(expires_arg).c_str());
-            continue;
-        }
-
-        AmUriParser c;
-        c.uri = contact;
-        if(!c.parse_uri()) {
-            ERROR("failed to parse contact uri: %s, skip it",contact.c_str());
-            continue;
-        }
-
-        hdrs+=contact_hdr + c.print();
-        hdrs+=expires_param_prefix+longlong2str(expires_arg.asLongLong());
-        hdrs+=CRLF;
-
-        //update KeepAliveContexts
-        if(config.registrar_keepalive_interval!=0) {
-            registrar_redis.createOrUpdateKeepAliveContext(
-                d[2].asCStr(),  //key
-                contact,        //aor
-                d[3].asCStr(),  //path
-                arg2int(d[4])   //interface_id
-            );
-        }
-    }
-
-    AmSipDialog::reply_error(req, 200, "OK", hdrs);
-}
-
-void Yeti::processRedisRpcAorLookupReply(RedisReplyEvent &e)
-{
-    DBG("processRedisRpcAorLookupReply");
-    auto &ctx = *dynamic_cast<RegistrarRedisConnection::RpcAorLookupCtx *>(e.user_data.release());
-    ctx.data = e.data;
-    ctx.result = e.result;
-    DBG("ctx.cond: %p",&ctx.cond);
-    ctx.cond.set(true);
 }
 
 bool Yeti::isAllComponentsInited()

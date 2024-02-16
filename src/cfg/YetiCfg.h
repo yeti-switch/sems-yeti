@@ -28,12 +28,6 @@ struct YetiCfg {
     string ip_auth_hdr;
     string http_events_destination;
 
-    bool registrar_enabled;
-    int registrar_keepalive_interval;
-    int registrar_expires_min;
-    int registrar_expires_max;
-    int registrar_expires_default;
-
     cdr_headers_t aleg_cdr_headers;
     cdr_headers_t bleg_reply_cdr_headers;
 

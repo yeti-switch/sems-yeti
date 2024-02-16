@@ -8,7 +8,7 @@
 //workaround for callback
 static ResourceControl *_instance;
 
-static void on_resources_initialized_static(){
+static void on_resources_initialized_static(bool is_error, const AmArg& result){
 	_instance->on_resources_initialized();
 }
 
@@ -111,7 +111,7 @@ bool ResourceControl::invalidate_resources(){
 
 	for(Handlers::iterator i = handlers.begin();i!=handlers.end();++i)
 		i->second.invalidate();
-	ret = redis_conn.invalidate_resources();
+	ret = redis_conn.invalidate_resources_sync();
 	handlers_lock.unlock();
 	return ret;
 }

@@ -27,7 +27,9 @@ $BUILD_DIR/src/yeti_unit.so \
 /usr/lib/sems/plug-in/jsonrpc.so \
 /usr/lib/sems/plug-in/postgresql.so \
 /usr/lib/sems/plug-in/registrar_client.so \
-/usr/lib/sems/plug-in/session_timer.so
+/usr/lib/sems/plug-in/session_timer.so \
+/usr/lib/sems/plug-in/unit_tests/redis_unit.so \
+/usr/lib/sems/plug-in/registrar.so
 do
     name=$(basename $m)
     cp -uv $m $TEST_TMP_DIR/lib/${name//"_unit"/}

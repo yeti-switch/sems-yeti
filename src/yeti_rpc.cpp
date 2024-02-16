@@ -20,7 +20,6 @@
 #include "ampi/HttpClientAPI.h"
 
 #include "SBCCallLeg.h"
-#include "RedisConnection.h"
 #include "CodecsGroup.h"
 #include "Sensors.h"
 #include "yeti_version.h"
@@ -172,8 +171,6 @@ void YetiRpc::init_rpc_tree()
 		leaf(show,show_recorder,"recorder","audio recorder instance");
 			method(show_recorder,"stats","show audio recorder processor stats",showRecorderStats,"");
 
-		method(show,"aors","show registered AoRs",showAors,"");
-		method(show,"keepalive_contexts","show keepalive contexts",showKeepaliveContexts,"");
 		method(show,"http_sequencer_data","show http sequencer runtime data",showHttpSequencerData,"");
 
 		leaf(show,show_cert_cache,"cert_cache","");
@@ -579,7 +576,6 @@ void YetiRpc::GetConfig(const AmArg& args, AmArg& ret) {
 	ret["pop_id"] = config.pop_id;
 	ret["pcap_memory_logger"] = config.pcap_memory_logger;
 	ret["auth_feedback"] = config.auth_feedback;
-	ret["registrar_enabled"] = config.registrar_enabled;
 	ret["lega_cdr_headers_enabled"] = config.aleg_cdr_headers.enabled();
 	ret["http_events_destination"] = config.http_events_destination;
 
@@ -1001,62 +997,6 @@ DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdown,requestShutdownNormal);
 DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdownImmediate,requestShutdownImmediate);
 DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdownGraceful,requestShutdownGraceful);
 DEFINE_CORE_PROXY_METHOD_ALTER(requestSystemShutdownCancel,requestShutdownCancel);
-
-void YetiRpc::showAors(const AmArg& arg, AmArg& ret)
-{
-	size_t i,j;
-
-	RegistrarRedisConnection::RpcAorLookupCtx ctx;
-
-	Yeti::instance().registrar_redis.rpc_resolve_aors_blocking(arg, ctx);
-
-	if(RedisReplyEvent::SuccessReply!=ctx.result) {
-		throw AmSession::Exception(500, AmArg::print(ctx.data));
-	}
-
-	if(!isArgArray(ctx.data) || ctx.data.size()%2!=0)
-		throw AmSession::Exception(500, "unexpected redis reply");
-
-	DBG("%s", AmArg::print(ctx.data).c_str());
-	ret.assertArray();
-
-	for(i = 0; i < ctx.data.size(); i+=2) {
-		AmArg &id_arg = ctx.data[i];
-		if(!isArgLongLong(id_arg)) {
-			ERROR("unexpected auth_id type. skip entry");
-			continue;
-		}
-
-		AmArg &aor_data_arg = ctx.data[i+1];
-		if(!isArgArray(aor_data_arg)) {
-				ERROR("unexpected aor_data_arg layout. skip entry");
-				continue;
-		}
-
-		for(j = 0; j < aor_data_arg.size(); j++) {
-			AmArg &aor_entry_arg = aor_data_arg[j];
-			if(!isArgArray(aor_entry_arg) || aor_entry_arg.size() != 7) {
-				ERROR("unexpected aor_entry_arg layout. skip entry");
-				continue;
-			}
-
-			ret.push(AmArg());
-			AmArg &r = ret.back();
-			r["auth_id"] = id_arg;
-			r["contact"]  = aor_entry_arg[0];
-			r["expires"]  = aor_entry_arg[1];
-			r["node_id"]  = aor_entry_arg[3];
-			r["interface_id"]  = aor_entry_arg[4];
-			r["user_agent"]  = aor_entry_arg[5];
-			r["path"]  = aor_entry_arg[6];
-		}
-	}
-}
-
-void YetiRpc::showKeepaliveContexts(const AmArg&, AmArg& ret)
-{
-	registrar_redis.dumpKeepAliveContexts(ret);
-}
 
 void YetiRpc::showHttpSequencerData(const AmArg&, AmArg& ret)
 {

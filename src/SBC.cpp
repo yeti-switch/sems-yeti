@@ -127,7 +127,6 @@ int SBCFactory::onLoad()
     }
     yeti_invoke = dynamic_cast<AmDynInvoke *>(yeti.get());
 
-    registrar_enabled = yeti->config.registrar_enabled;
     auth_feedback = yeti->config.auth_feedback;
 
     session_timer_fact = AmPlugIn::instance()->getFactory4Seh("session_timer");
@@ -319,7 +318,12 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
         return;
     }
 
-    if(registrar_enabled && req.method == SIP_METH_REGISTER) {
+    if(req.method == SIP_METH_REGISTER) {
+        if(!yeti->isRegistrarAvailable()) {
+            AmSipDialog::reply_error(req, 405, "Method Not Allowed");
+            return;
+        }
+
         AmArg ret;
         Auth::auth_id_type auth_id = yeti->router.check_request_auth(req,ret);
 
@@ -342,184 +346,20 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
 
         DBG("REGISTER successfully authorized with id %d",auth_id);
         yeti->router.log_auth(req,true,ret,auth_id);
-        processAuthorizedRegister(req, auth_id);
+
+        if(false ==AmSessionContainer::instance()->postEvent(
+            SIP_REGISTRAR_QUEUE,
+            new SipRegistrarRegisterRequestEvent(req, string(), std::to_string(auth_id))))
+        {
+            ERROR("failed to post 'register' event to registrar");
+            throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        }
+
         return;
     }
 
     AmSipDialog::reply_error(req, 405, "Method Not Allowed");
     return;
-}
-
-void SBCFactory::processAuthorizedRegister(const AmSipRequest& req, Auth::auth_id_type auth_id)
-{
-    static string user_agent_header_name("User-Agent");
-    static string path_header_name("Path");
-    static string expires_param_header_name("expires");
-
-    list<cstring> contact_list;
-    vector<AmUriParser> contacts;
-
-    bool asterisk_contact = false;
-
-    if(parse_nameaddr_list(contact_list,
-        req.contact.c_str(), static_cast<int>(req.contact.length())) < 0)
-    {
-        DBG("could not parse contact list");
-        AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-        return;
-    }
-
-    size_t end;
-    for(const auto &c: contact_list)
-    {
-        if(1==c.len && *c.s=='*') {
-            asterisk_contact = true;
-            continue;
-        }
-        AmUriParser contact_uri;
-        if (!contact_uri.parse_contact(c2stlstr(c), 0, end)) {
-            DBG("error parsing contact: '%.*s'",c.len, c.s);
-            AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-            return;
-        } else {
-            DBG("successfully parsed contact %s@%s",
-            contact_uri.uri_user.c_str(),
-            contact_uri.uri_host.c_str());
-            contacts.push_back(contact_uri);
-        }
-    }
-
-    if(asterisk_contact && !contacts.empty()) {
-        DBG("additional Contact headers with Contact: *");
-        AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-        return;
-    }
-
-    if(contacts.empty() && !asterisk_contact) {
-        //request bindings list
-        if(!yeti->registrar_redis.fetch_all(req, auth_id))
-            AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-    } else {
-        //renew/replace/update binding
-        string contact;
-        bool expires_found = false;
-        string expires;
-
-        if(!asterisk_contact) {
-            AmUriParser &first_contact = contacts.front();
-            contact = first_contact.uri_str();
-            for(auto p: first_contact.params) {
-                //DBG("param: %s -> %s",p.first.c_str(),p.second.c_str());
-                if(p.first==expires_param_header_name) {
-                    //DBG("found expires param");
-                    expires_found = true;
-                    expires = p.second;
-                    break;
-                }
-            }
-        }
-
-        if(!expires_found) {
-            //try to find Expires header as failover
-            size_t start_pos = 0;
-            while (start_pos<req.hdrs.length()) {
-                size_t name_end, val_begin, val_end, hdr_end;
-                int res;
-                if ((res = skip_header(req.hdrs, start_pos, name_end, val_begin,
-                           val_end, hdr_end)) != 0)
-                {
-                    break;
-                }
-                if(0==strncasecmp(req.hdrs.c_str() + start_pos,
-                                  expires_param_header_name.c_str(), name_end-start_pos))
-                {
-                    /*DBG("matched Expires header: %.*s",
-                        static_cast<int>(hdr_end-start_pos), req.hdrs.c_str()+start_pos);*/
-                    expires = req.hdrs.substr(val_begin, val_end-val_begin);
-                    expires_found = true;
-                    break;
-                }
-                start_pos = hdr_end;
-            }
-        }
-
-        int expires_int;
-        if(expires_found) {
-            if(!str2int(expires, expires_int)) {
-                DBG("failed to cast expires value '%s'",expires.c_str());
-                AmSipDialog::reply_error(req, 400, "Invalid Request");
-                return;
-            }
-            //check min/max expires
-            if(yeti->config.registrar_expires_min &&
-               expires_int &&
-               expires_int < 3600 &&
-               expires_int < yeti->config.registrar_expires_min)
-            {
-                DBG("expires %d is lower than allowed min: %d. reply with 423",
-                    expires_int, yeti->config.registrar_expires_min);
-                static string min_expires_header =
-                    SIP_HDR_COL("Min-Expires") + int2str(yeti->config.registrar_expires_min) + CRLF;
-                AmSipDialog::reply_error(req, 423, "Interval Too Brief", min_expires_header);
-                return;
-            }
-            if(yeti->config.registrar_expires_max &&
-               expires_int > yeti->config.registrar_expires_max)
-            {
-                DBG("expires %d is greater than allowed max: %d. set it to max",
-                    expires_int, yeti->config.registrar_expires_max);
-                expires_int = yeti->config.registrar_expires_max;
-            }
-        } else {
-            DBG("no either Contact param expire or header Expire. use default value");
-            expires_int = yeti->config.registrar_expires_default;
-        }
-        DBG("expires: %d",expires_int);
-
-        if(asterisk_contact) {
-            if(expires_int!=0) {
-                DBG("non zero expires with Contact: *");
-                AmSipDialog::reply_error(req, 400, "Invalid Request");
-                return;
-            }
-            if(!yeti->registrar_redis.unbind_all(req, auth_id))
-                AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-            return;
-        }
-
-        //find Path/User-Agent headers
-        string path;
-        string user_agent;
-        size_t start_pos = 0;
-        while (start_pos<req.hdrs.length()) {
-            size_t name_end, val_begin, val_end, hdr_end;
-            int res;
-            if ((res = skip_header(req.hdrs, start_pos, name_end, val_begin,
-                val_end, hdr_end)) != 0)
-            {
-                break;
-            }
-            if(0==strncasecmp(req.hdrs.c_str() + start_pos,
-                              path_header_name.c_str(), name_end-start_pos))
-            {
-                if(!path.empty()) path += ",";
-                path += req.hdrs.substr(val_begin, val_end-val_begin);
-            } else if(0==strncasecmp(req.hdrs.c_str() + start_pos,
-                                  user_agent_header_name.c_str(), name_end-start_pos))
-            {
-                user_agent = req.hdrs.substr(val_begin, val_end-val_begin);
-            }
-            start_pos = hdr_end;
-        }
-
-        if(!yeti->registrar_redis.bind(
-            req, auth_id,
-            contact, expires_int,
-            user_agent, path))
-        {
-            AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-        }
-    }
 }
 
 void SBCFactory::invoke(const string& method, const AmArg& args, 
