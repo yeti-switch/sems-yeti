@@ -1,3 +1,11 @@
+sems-yeti (1.13.54) stable; urgency=medium
+  * support lega_res/legb_res fields to split out resources processing for A/B legs
+  * fix bleg_max_30x_redirects processing to not override bleg_protocol_priority_id
+  * set RURI to the AoR data with user patched with RURI-user and merge AoR/RURI URI parameters on AoR resolving with registered_aor_mode_id 2
+  * patch To-host with AoR-host if To-host is empty or eq to the 'unknown.invalid' on AoR resolving with registered_aor_mode_id set
+  * allow refusing profiles with empty 'ruri'
+ -- dev <dev@yeti-switch.org>  Mon, 19 Feb 2024 12:42:00 +0200
+
 sems-yeti (1.13.53) stable; urgency=medium
   * cdr: add 'rx_srtp_decrypt_errors' media stats counter
  -- dev <dev@yeti-switch.org>  Mon, 22 Jan 2024 21:54:25 +0200
