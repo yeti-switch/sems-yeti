@@ -1,3 +1,7 @@
+sems-yeti (1.13.55) stable; urgency=medium
+  * ReasonParser: fix segfault on name-only param for unknown proto
+ -- dev <dev@yeti-switch.org>  Wed, 21 Feb 2024 20:53:50 +0200
+
 sems-yeti (1.13.54) stable; urgency=medium
   * support lega_res/legb_res fields to split out resources processing for A/B legs
   * fix bleg_max_30x_redirects processing to not override bleg_protocol_priority_id
