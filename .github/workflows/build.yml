@@ -24,3 +24,8 @@ jobs:
       - name: install build deps
         run: apt -y --no-install-recommends build-dep .
       - run: make deb
+      - name: upload to pkg.yeti-switch.org. bookworm 1.13 main
+        run: ci/deploy.sh bookworm 1.13 main ../*.deb
+        env:
+          PKG_API_BASE: ${{secrets.PKG_API_BASE}}
+        if: startsWith(github.ref, 'refs/tags/v')
