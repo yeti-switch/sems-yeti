@@ -46,12 +46,12 @@ static void readMediaAcl(const AmArg &t, const char key[], std::vector<AmSubnet>
     }
 }
 
-bool SqlCallProfile::is_empty_profile(AmArg &a)
+bool SqlCallProfile::is_empty_profile(const AmArg &a)
 {
     if(a.hasMember("ruri") && isArgCStr(a["ruri"]))
         return false;
 
-    if(a.hasMember("disconnect_code_id") && isArgInt("disconnect_code_id"))
+    if(a.hasMember("disconnect_code_id") && isArgInt(a["disconnect_code_id"]))
         return false;
 
     return true;

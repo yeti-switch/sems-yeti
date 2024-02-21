@@ -44,7 +44,7 @@ struct SqlCallProfile
     SqlCallProfile();
     ~SqlCallProfile();
 
-    static bool is_empty_profile(AmArg &a);
+    static bool is_empty_profile(const AmArg &a);
     bool readFromTuple(const AmArg &t, const string& local_tag, const DynFieldsT &df);
     ResourceList & getResourceList(bool a_leg = false);
     string& getResourceHandler(bool a_leg = false);
