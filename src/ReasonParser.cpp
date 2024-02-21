@@ -76,6 +76,11 @@ void ReasonParser::parse_reason(const std::string &hdrs, size_t reason_begin, si
             return;
         }
 
+        if(!current_reason) {
+            //unknown proto. skip attribute processing
+            return;
+        }
+
         //apppend unknown params
         auto &params = current_reason->params;
         if(!params.empty()) {
@@ -95,7 +100,7 @@ void ReasonParser::parse_reason(const std::string &hdrs, size_t reason_begin, si
         }
 
         if(!current_reason) {
-            //uknown proto. skip attribute processing
+            //unknown proto. skip attribute processing
             return true;
         }
 

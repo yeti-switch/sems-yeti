@@ -151,7 +151,7 @@ TEST_F(YetiTest, ReasonParserAddUnknown)
     ReasonParser p;
     p.parse_headers(
         "Reason: SIP; cause=200; test; test2=test3;test4=\"test5\";text=\"Call completed elsewhere\" , "
-        "QWE; cause=111; text=\"some reason\" , "
+        "QWE; nameparam; cause=111; text=\"some reason\" , "
         "Q.850 ;cause=16 ;text=\"Terminated\"");
 
     AmArg serialized_reasons;
