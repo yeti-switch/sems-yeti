@@ -1,3 +1,7 @@
+sems-yeti (1.13.57) stable; urgency=medium
+  * fix call profile skipping check for disconnect_code_id
+ -- dev <dev@yeti-switch.org>  Wed, 21 Feb 2024 22:01:06 +0200
+
 sems-yeti (1.13.56) stable; urgency=medium
   * fix skipping for call profiles without both ruri and disconnect_code_id fields
  -- dev <dev@yeti-switch.org>  Wed, 21 Feb 2024 21:56:35 +0200
