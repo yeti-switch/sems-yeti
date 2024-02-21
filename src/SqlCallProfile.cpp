@@ -46,6 +46,17 @@ static void readMediaAcl(const AmArg &t, const char key[], std::vector<AmSubnet>
     }
 }
 
+bool SqlCallProfile::is_empty_profile(AmArg &a)
+{
+    if(a.hasMember("ruri") && isArgCStr(a["ruri"]))
+        return false;
+
+    if(a.hasMember("disconnect_code_id") && isArgInt("disconnect_code_id"))
+        return false;
+
+    return true;
+}
+
 bool SqlCallProfile::readFromTuple(const AmArg &t, const string& local_tag, const DynFieldsT &df)
 {
     aleg_local_tag = local_tag;
@@ -964,7 +975,8 @@ bool SqlCallProfile::eval()
         eval_media_encryption();
 }
 
-SqlCallProfile *SqlCallProfile::copy(){
+SqlCallProfile *SqlCallProfile::copy()
+{
     SqlCallProfile *profile = new SqlCallProfile();
     *profile = *this;
     return profile;

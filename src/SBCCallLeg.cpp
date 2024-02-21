@@ -775,6 +775,9 @@ void SBCCallLeg::onPostgresResponse(PGResponse &e)
                 }
             }
 
+            if (SqlCallProfile::is_empty_profile(a))
+                continue;
+
             call_ctx->profiles.emplace_back();
             SqlCallProfile &p = call_ctx->profiles.back();
 
