@@ -1,3 +1,7 @@
+sems-yeti (1.13.56) stable; urgency=medium
+  * fix skipping for call profiles without both ruri and disconnect_code_id fields
+ -- dev <dev@yeti-switch.org>  Wed, 21 Feb 2024 21:56:35 +0200
+
 sems-yeti (1.13.55) stable; urgency=medium
   * ReasonParser: fix segfault on name-only param for unknown proto
  -- dev <dev@yeti-switch.org>  Wed, 21 Feb 2024 20:53:50 +0200
