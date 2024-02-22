@@ -2102,13 +2102,26 @@ void SBCCallLeg::onBeforeDestroy()
     if(!call_ctx->references) {
         DBG("last leg destroy. a_leg: %d",a_leg);
 
-        /* put lega_res from first profile */
-        auto profile = call_ctx->profiles.begin();
-        if(!profile->lega_resource_handler.empty())
-            rctl.put(profile->lega_resource_handler);
+        if(!call_ctx->profiles.empty()) {
+            /* put lega_res from first profile */
+            const auto &lega_resource_handler =
+                call_ctx->profiles.begin()->lega_resource_handler;
+            if(!lega_resource_handler.empty())
+                rctl.put(lega_resource_handler);
 
-        SqlCallProfile *p = call_ctx->getCurrentProfile();
-        if(nullptr!=p) rctl.put(p->resource_handler);
+            /* put legb_res/resources from the current profile */
+            if(const auto p = call_ctx->getCurrentProfile(); p != nullptr)
+                rctl.put(p->resource_handler);
+        } else {
+            WARN("%s empty profiles. callid:%s, from:%s, to:%s, remote_ip/port: %s:%d",
+                getLocalTag().data(),
+                uac_req.callid.data(),
+                uac_req.from.data(),
+                uac_req.to.data(),
+                uac_req.remote_ip.data(), uac_req.remote_port
+            );
+        }
+
         router.write_cdr(call_ctx->cdr, true);
         delete call_ctx;
     }
