@@ -38,6 +38,37 @@ int fake_logger::relog(msg_logger *logger){
         cstring(),code);
 }
 
+bool CallCtx::setRejectCdr(int disconnect_code_id)
+{
+    if(cdr) {
+        ERROR("attempt to override existent CDR with reject one for code: %d",
+            disconnect_code_id);
+        return false;
+    }
+
+    cdr.reset(new Cdr());
+
+    unsigned int internal_code,response_code;
+    string internal_reason,response_reason;
+
+    if(!CodesTranslator::instance()->translate_db_code(
+        disconnect_code_id,
+        internal_code,internal_reason,
+        response_code,response_reason))
+    {
+        cdr->setSuppress(true);
+        return false;
+    }
+
+    cdr->update_internal_reason(
+        DisconnectByTS,
+        internal_reason,internal_code, disconnect_code_id);
+
+    cdr->update_aleg_reason(response_reason, response_code);
+
+    return true;
+}
+
 SqlCallProfile *CallCtx::getFirstProfile()
 {
     //DBG("%s() this = %p",FUNC_NAME,this);

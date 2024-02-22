@@ -48,6 +48,9 @@ struct CallCtx
 	CallCtx(SqlRouter &router);
 	~CallCtx();
 
+	/* init cdr to refuse with disconnect_code_id */
+	bool setRejectCdr(int disconnect_code_id);
+
 	SqlCallProfile *getFirstProfile();
 	SqlCallProfile *getNextProfile(bool early_state, bool resource_failover = false);
 	SqlCallProfile *getCurrentProfile();

@@ -101,6 +101,7 @@ Cdr::Cdr()
     active_resources_clickhouse.assertStruct();
     bleg_reply_headers_amarg.assertStruct();
     identity_data.assertArray();
+    dyn_fields.assertStruct();
 }
 
 Cdr::Cdr(const Cdr& cdr,const SqlCallProfile &profile)

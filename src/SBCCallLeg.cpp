@@ -2113,13 +2113,15 @@ void SBCCallLeg::onBeforeDestroy()
             if(const auto p = call_ctx->getCurrentProfile(); p != nullptr)
                 rctl.put(p->resource_handler);
         } else {
-            WARN("%s empty profiles. callid:%s, from:%s, to:%s, remote_ip/port: %s:%d",
+            DBG("%s empty profiles. callid:%s, from:%s, to:%s, remote_ip/port: %s:%d",
                 getLocalTag().data(),
                 uac_req.callid.data(),
                 uac_req.from.data(),
                 uac_req.to.data(),
                 uac_req.remote_ip.data(), uac_req.remote_port
             );
+
+            setRejectCdr(DC_FIN_BEFORE_DB_RESPONSE);
         }
 
         router.write_cdr(call_ctx->cdr, true);
@@ -4267,4 +4269,21 @@ void SBCCallLeg::send_and_log_auth_challenge(
         hdrs = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
     }
     router.send_and_log_auth_challenge(req,internal_reason, hdrs, post_auth_log);
+}
+
+void SBCCallLeg::setRejectCdr(int disconnect_code_id)
+{
+    if (call_ctx->setRejectCdr(disconnect_code_id)) {
+        auto &cdr = *call_ctx->cdr;
+
+        cdr.update_init_aleg(getLocalTag(), getLocalTag(), uac_req.callid);
+        cdr.update_with_aleg_sip_request(uac_req);
+
+        cdr.set_start_time(call_start_time);
+        cdr.update_with_action(End);
+
+        if(!isArgUndef(identity_data)) {
+            cdr.identity_data = identity_data;
+        }
+    }
 }

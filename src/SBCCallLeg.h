@@ -198,6 +198,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
                                    bool post_auth_log,
                                    int auth_feedback_code = Auth::NO_AUTH);
 
+  void setRejectCdr(int disconnect_code_id);
  public:
 
   SqlRouter &router;
