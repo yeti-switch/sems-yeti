@@ -1,3 +1,7 @@
+sems-yeti (1.13.60) stable; urgency=medium
+  * fix RURI replacement on multiple registrations
+ -- dev <dev@yeti-switch.org>  Wed, 27 Mar 2024 00:02:31 +0200
+
 sems-yeti (1.13.59) stable; urgency=medium
   * write CDR on CANCEL before DB response
  -- dev <dev@yeti-switch.org>  Thu, 22 Feb 2024 23:06:31 +0200
