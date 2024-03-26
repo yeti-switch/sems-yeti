@@ -1160,7 +1160,7 @@ struct aor_lookup_reply {
             path(path)
         {}
 
-        void replace_profile_fields(SqlCallProfile &p)
+        void replace_profile_fields(SqlCallProfile &p) const
         {
             if (p.registered_aor_mode_id) {
                 DBG(">> profile ruri: '%s', to: '%s', aor: '%s', registered_aor_mode_id:%d",
@@ -1327,42 +1327,40 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
 
         auto &aors_list  = a->second;
 
-        sub_profile_idx = 0;
-        auto aor_it = aors_list.begin();
+        sub_profile_idx = 1;
+        for(auto aor_it = ++aors_list.cbegin();
+            aor_it != aors_list.cend(); ++aor_it, sub_profile_idx++)
+        {
+            it = profiles.insert(++it, p);
+            auto &cloned_p = *it;
 
-        aor_it->replace_profile_fields(p);
-
-        DBG("< set profile %d.%d RURI: %s",
-            profile_idx, sub_profile_idx, p.ruri.data());
-
-        DBG("< set profile %d.%d To: %s",
-            profile_idx, sub_profile_idx, p.to.data());
-
-        if(!aor_it->path.empty()) {
-            DBG("< set profile %d.%d route to: %s",
-                profile_idx, sub_profile_idx, p.route.data());
-        }
-
-        ++aor_it;
-        while(aor_it != aors_list.end()) {
-            SqlCallProfile *cloned_p = p.copy();
-            sub_profile_idx++;
-            ++it;
-            it = profiles.insert(it, *cloned_p);
             DBG("< clone profile %d.0 to %d.%d because user resolved to the multiple AoRs",
                 profile_idx, profile_idx, sub_profile_idx);
 
-            aor_it->replace_profile_fields(*cloned_p);
+            aor_it->replace_profile_fields(cloned_p);
 
             DBG("< set profile %d.%d ruri to: %s",
-                profile_idx, sub_profile_idx, cloned_p->ruri.data());
+                profile_idx, sub_profile_idx, cloned_p.ruri.data());
 
             if(!aor_it->path.empty()) {
                 DBG("< set profile %d.%d route to: %s",
-                    profile_idx, sub_profile_idx, cloned_p->route.data());
+                    profile_idx, sub_profile_idx, cloned_p.route.data());
             }
+        }
 
-            ++aor_it;
+        auto const &aor_data = *aors_list.begin();
+
+        aor_data.replace_profile_fields(p);
+
+        DBG("< set profile %d.0 RURI: %s",
+            profile_idx, p.ruri.data());
+
+        DBG("< set profile %d.0 To: %s",
+            profile_idx, p.to.data());
+
+        if(!aor_data.path.empty()) {
+            DBG("< set profile %d.0 route to: %s",
+                profile_idx, p.route.data());
         }
 
         ++it;
@@ -1424,6 +1422,10 @@ void SBCCallLeg::onRedisReply(const RedisReplyEvent &e)
             }
 
         } while((*next_profile).skip_code_id != 0);
+    }
+
+    if(auto cdr = call_ctx->cdr.get(); cdr) {
+        cdr->update_sql(*call_ctx->current_profile);
     }
 
     processResourcesAndSdp();
