@@ -19,6 +19,7 @@
 #include "cdr/AuthCdr.h"
 #include "jsonArg.h"
 #include "cdr/CdrWriter.h"
+#include <botan/base64.h>
 
 #include "AmSession.h"
 #include "AmEventDispatcher.h"
@@ -569,9 +570,16 @@ AmArg SqlRouter::db_async_get_profiles(
 
     string from_name = c2stlstr(na.name);
     from_name.erase(std::remove(from_name.begin(), from_name.end(), '"'),from_name.end());
-    if (fixup_utf8_inplace(from_name))
-        WARN("From display name contained at least one invalid utf8 sequence. "
-             "wrong bytes erased");
+    if (fixup_utf8_inplace(from_name)) {
+        WARN("[%s] %s:%hu fixup from display name %s -> %s",
+            req.callid.data(), req.remote_ip.data(), req.remote_port,
+            Botan::base64_encode(
+                reinterpret_cast<const uint8_t *>(na.name.s),
+                na.name.len).data(),
+            Botan::base64_encode(
+                reinterpret_cast<const uint8_t *>(from_name.data()),
+                from_name.size()).data());
+    }
 
     invoc_field(AmConfig.node_id);			//"node_id", "integer"
     invoc_field(gc.pop_id);					//"pop_id", "integer"

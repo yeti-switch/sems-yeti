@@ -7,6 +7,8 @@
 #include "sip/parse_uri.h"
 #include "sip/defs.h"
 
+#include <botan/base64.h>
+
 using std::string;
 
 static bool getInternalHeader(const AmSipRequest &req,const string &name, string &hdr)
@@ -121,6 +123,7 @@ bool UsedHeaderField::getValue(const AmSipRequest &req,string &val) const
     sip_nameaddr na;
     list<cstring> na_list;
     sip_uri uri;
+    string orig_val(val);
 
     if(!getInternalHeader(req,name,hdr))
         hdr = getHeader(req.hdrs,name);
@@ -181,10 +184,17 @@ succ:
             name.c_str(), type2str(),part2str(),param.c_str());
         return false;
     }
+
     if(fixup_utf8_inplace(val)) {
-        WARN("value for %s[%s:%s:%s]"
-             "contained at least one invalid utf8 sequence. wrong bytes erased",
-             name.c_str(), type2str(),part2str(),param.c_str());
+        WARN("[%s] %s:%hu fixup value for %s[%s:%s:%s] %s -> %s",
+            req.callid.data(), req.remote_ip.data(), req.remote_port,
+            name.c_str(), type2str(), part2str(), param.c_str(),
+            Botan::base64_encode(
+                reinterpret_cast<const uint8_t *>(orig_val.data()),
+                orig_val.size()).data(),
+            Botan::base64_encode(
+                reinterpret_cast<const uint8_t *>(val.data()),
+                val.size()).data());
     }
     DBG("%s[%s:%s:%s] processed. got '%s'",
         name.c_str(), type2str(),part2str(),param.c_str(), val.c_str());
