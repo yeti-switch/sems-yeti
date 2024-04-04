@@ -15,6 +15,8 @@
 
 #include "RedisConnection.h"
 
+#include <functional>
+
 using std::string;
 using std::list;
 using std::vector;
@@ -71,6 +73,12 @@ class SqlRouter
     DynFieldsT dyn_fields;
 
     int load_db_interface_in_out();
+
+    void sanitize_query_params(
+        QueryInfo &query_info,
+        const std::string &local_tag,
+        const char *context_name,
+        std::function<const char * (unsigned int)> get_param_name);
 
   public:
     SqlRouter();

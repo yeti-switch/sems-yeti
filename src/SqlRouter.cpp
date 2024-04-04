@@ -108,6 +108,39 @@ SqlRouter::~SqlRouter()
   INFO("SqlRouter instance[%p] destroyed",this);
 }
 
+void SqlRouter::sanitize_query_params(
+    QueryInfo &query_info,
+    const std::string &context_id,
+    const char *context_name,
+    std::function<const char * (unsigned int)> get_param_name)
+{
+    for(auto i{0u}; i < query_info.params.size(); i++) {
+        auto &p = query_info.params[i];
+        if(!isArgCStr(p)) continue;
+
+        //TODO: optimize. avoid string copying
+        string param_value{p.asCStr()};
+
+        if(!fixup_utf8_inplace(param_value)) continue;
+
+        WARN("[%s] fixup %s field %d(%s): %s > %s",
+            context_id.data(),
+            context_name,
+            i + 1,
+            get_param_name(i),
+            Botan::base64_encode(
+                reinterpret_cast<const uint8_t *>(
+                    p.asCStr()),
+                    std::strlen(p.asCStr())).data(),
+            Botan::base64_encode(
+                reinterpret_cast<const uint8_t *>(
+                    param_value.data()),
+                    param_value.size()).data());
+
+        p = param_value;
+    }
+}
+
 void SqlRouter::stop()
 {
   DBG("SqlRouter::stop()");
@@ -570,16 +603,6 @@ AmArg SqlRouter::db_async_get_profiles(
 
     string from_name = c2stlstr(na.name);
     from_name.erase(std::remove(from_name.begin(), from_name.end(), '"'),from_name.end());
-    if (fixup_utf8_inplace(from_name)) {
-        WARN("[%s] %s:%hu fixup from display name %s -> %s",
-            req.callid.data(), req.remote_ip.data(), req.remote_port,
-            Botan::base64_encode(
-                reinterpret_cast<const uint8_t *>(na.name.s),
-                na.name.len).data(),
-            Botan::base64_encode(
-                reinterpret_cast<const uint8_t *>(from_name.data()),
-                from_name.size()).data());
-    }
 
     invoc_field(AmConfig.node_id);			//"node_id", "integer"
     invoc_field(gc.pop_id);					//"pop_id", "integer"
@@ -623,6 +646,14 @@ AmArg SqlRouter::db_async_get_profiles(
     }
 
 #undef invoc_field
+
+    sanitize_query_params(
+        query_info, local_tag, "Routing",
+        [this](auto i) {
+            return i < GETPROFILE_STATIC_FIELDS_COUNT ?
+                profile_static_fields[i].name :
+                used_header_fields[i - GETPROFILE_STATIC_FIELDS_COUNT].getName().data();
+        });
 
     if(gc.postgresql_debug) {
         for(unsigned int i = 0; i < query_info.params.size(); i++) {
@@ -672,15 +703,20 @@ void SqlRouter::write_cdr(std::unique_ptr<Cdr> &cdr, bool last)
         true /* prepared */));
     cdr->apply_params(pg_param_execute_event.get()->qdata.info.front(), dyn_fields);
 
+    auto &query_info = pg_param_execute_event->qdata.info.front();
+
+    sanitize_query_params(
+        query_info, cdr->local_tag, "CDR",
+        [](auto i) { return cdr_static_fields[i].name; });
+
     if(Yeti::instance().config.postgresql_debug) {
-        auto &q = pg_param_execute_event->qdata.info.front();
-        for(unsigned int i = 0; i < q.params.size(); i++) {
+        for(unsigned int i = 0; i < query_info.params.size(); i++) {
             DBG("%s/cdr %d(%s/%s): %s %s",
                 cdr->local_tag.data(), i+1,
                 cdr_static_fields[i].name,
                 cdr_static_fields[i].type,
-                AmArg::t2str(q.params[i].getType()),
-                AmArg::print(q.params[i]).data());
+                AmArg::t2str(query_info.params[i].getType()),
+                AmArg::print(query_info.params[i]).data());
         }
     }
 
@@ -708,17 +744,26 @@ void SqlRouter::write_auth_log(const AuthCdr &auth_log)
 
     auth_log.apply_params(pg_param_execute_event.get()->qdata.info.front());
 
+    auto &query_info = pg_param_execute_event->qdata.info.front();
+
+    sanitize_query_params(
+        query_info, auth_log.getOrigCallId(), "AuthLog",
+        [this](auto i) {
+            return i < auth_log_static_fields.size() ?
+                auth_log_static_fields[i].name :
+                used_header_fields[i - auth_log_static_fields.size()].getName().data();
+        });
+
     if(Yeti::instance().config.postgresql_debug) {
-        auto &q = pg_param_execute_event->qdata.info.front();
-        for(unsigned int i = 0; i < q.params.size(); i++) {
+        for(unsigned int i = 0; i < query_info.params.size(); i++) {
             DBG("%p/auth_log %d(%s/%s): %s %s",
                 &auth_log, i+1,
                 i < auth_log_static_fields.size() ?
                     auth_log_static_fields[i].name :
                     used_header_fields[i - auth_log_static_fields.size()].getName().data(),
                 auth_log_types[i].data(),
-                AmArg::t2str(q.params[i].getType()),
-                AmArg::print(q.params[i]).data());
+                AmArg::t2str(query_info.params[i].getType()),
+                AmArg::print(query_info.params[i]).data());
         }
     }
 

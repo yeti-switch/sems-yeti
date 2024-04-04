@@ -101,10 +101,8 @@ AuthCdr::AuthCdr(
     response =  find_attribute("response", auth_hdr);
 
     username = find_attribute("username", auth_hdr);
-    fixup_utf8_inplace(username);
 
     realm = find_attribute("realm", auth_hdr);
-    fixup_utf8_inplace(realm);
 }
 
 void AuthCdr::apply_params(QueryInfo &query_info) const

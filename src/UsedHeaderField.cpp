@@ -185,17 +185,6 @@ succ:
         return false;
     }
 
-    if(fixup_utf8_inplace(val)) {
-        WARN("[%s] %s:%hu fixup value for %s[%s:%s:%s] %s -> %s",
-            req.callid.data(), req.remote_ip.data(), req.remote_port,
-            name.c_str(), type2str(), part2str(), param.c_str(),
-            Botan::base64_encode(
-                reinterpret_cast<const uint8_t *>(orig_val.data()),
-                orig_val.size()).data(),
-            Botan::base64_encode(
-                reinterpret_cast<const uint8_t *>(val.data()),
-                val.size()).data());
-    }
     DBG("%s[%s:%s:%s] processed. got '%s'",
         name.c_str(), type2str(),part2str(),param.c_str(), val.c_str());
     return true;

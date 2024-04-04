@@ -51,4 +51,6 @@ class AuthCdr
 
     void apply_params(QueryInfo &query_info) const;
     void info(AmArg &s) override;
+
+    const string & getOrigCallId() const { return orig_call_id; }
 };
