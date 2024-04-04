@@ -104,12 +104,18 @@ Cdr::Cdr()
     dyn_fields.assertStruct();
 }
 
-Cdr::Cdr(const Cdr& cdr,const SqlCallProfile &profile)
+Cdr::Cdr(const SqlCallProfile &profile)
   : Cdr()
 {
-    DBG("Cdr[%p](cdr = %p,profile = %p)", this, &cdr, &profile);
+    DBG("Cdr[%p](profile = %p)", this, &profile);
 
     update_sql(profile);
+}
+
+Cdr::Cdr(const Cdr& cdr, const SqlCallProfile &profile)
+  : Cdr(profile)
+{
+    DBG("Cdr[%p](cdr = %p, profile = %p)", this, &cdr, &profile);
 
     attempt_num = cdr.attempt_num+1;
     end_time = start_time = cdr.start_time;
@@ -130,21 +136,8 @@ Cdr::Cdr(const Cdr& cdr,const SqlCallProfile &profile)
 
     aleg_headers_amarg = cdr.aleg_headers_amarg;
     identity_data = cdr.identity_data;
-}
 
-Cdr::Cdr(const SqlCallProfile &profile)
-  : Cdr()
-{
-    DBG("Cdr[%p](profile = %p)", this, &profile);
-
-    update_sql(profile);
-}
-
-Cdr::Cdr(const Cdr& cdr)
-  : CdrBase(CdrBase::Call)
-{
-    DBG("Cdr[%p](cdr = %p)", this, &cdr);
-    operator=(cdr);
+    audio_record_enabled = cdr.audio_record_enabled;
 }
 
 Cdr::~Cdr()

@@ -136,9 +136,13 @@ struct Cdr
     ReasonParser bleg_reasons;
 
     Cdr();
-    Cdr(const Cdr& cdr,const SqlCallProfile &profile);
-    Cdr(const Cdr& cdr);
+    //initial CDR in CallCtx::getFirstProfile
     Cdr(const SqlCallProfile &profile);
+    //rerouting/failover CDRs in CallCtx::getNextProfile, SBCCallLeg::onRedisReply
+    Cdr(const Cdr& cdr,const SqlCallProfile &profile);
+    //std::queue::emplace(construct_at) in CdrList::onSessionFinalize
+    Cdr(const Cdr& cdr) = default;
+
     ~Cdr();
 
     //void init();
