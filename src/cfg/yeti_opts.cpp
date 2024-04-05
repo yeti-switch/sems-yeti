@@ -37,6 +37,7 @@ char opt_name_ip_auth_header[] = "ip_auth_header";
 char opt_name_postgresql_debug[] = "postgresql_debug";
 char opt_name_write_internal_disconnect_code[] = "write_internal_disconnect_code";
 char opt_name_connection_lifetime[] = "connection_lifetime";
+char opt_name_pass_input_interface_name[] = "pass_input_interface_name";
 char opt_name_audio_recorder_dir[] = "audio_recorder_dir";
 char opt_name_audio_recorder_compress[] = "audio_recorder_compress";
 char opt_name_audio_recorder_http_destination[] = "audio_recorder_http_destination";
@@ -71,6 +72,8 @@ cfg_opt_t sig_yeti_routing_opts[] = {
 	DCFG_STR(function),
 	DCFG_STR(init),
 	DCFG_BOOL(failover_to_slave),
+	DCFG_BOOL(pass_input_interface_name),
+	CFG_BOOL(opt_name_pass_input_interface_name, cfg_false, CFGF_NONE),
 	CFG_INT(opt_name_connection_lifetime,0,CFGF_NONE),
 	DCFG_SEC(master_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
 	DCFG_SEC(slave_pool,sig_yeti_routing_pool_opts,CFGF_NONE),

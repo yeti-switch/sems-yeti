@@ -54,8 +54,14 @@ const static_field profile_static_fields[] = {
     { "uri_name", "varchar" },
     { "uri_domain", "varchar" },
     { "auth_id", "integer" },
-    { "identity", "json" }
+    { "identity", "json" },
+
+    //on enabled 'routing.pass_input_interface_name'
+    { "input_interface_name", "varchar" },
+    { nullptr, nullptr }
 };
+
+size_t profile_static_fields_count = 21;
 
 struct SqlPlaceHolderArgs
 {
@@ -167,7 +173,7 @@ int SqlRouter::start()
 int SqlRouter::load_db_interface_in_out()
 {
 	//fill arg types for static fields
-	for(int k = 0;k<GETPROFILE_STATIC_FIELDS_COUNT;k++)
+	for(unsigned int k = 0; k < profile_static_fields_count; k++)
 		getprofile_types.push_back(profile_static_fields[k].type);
 
 	for(const auto &f : auth_log_static_fields)
@@ -253,6 +259,12 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
 
     failover_to_slave = cfg.getParameterInt("failover_to_slave", 0);
     connection_lifetime = cfg_getint(routing_sec, opt_name_connection_lifetime);
+    pass_input_interface_name = cfg_getbool(routing_sec, opt_name_pass_input_interface_name);
+
+    if (pass_input_interface_name) {
+        //enable 'input_interface_name' field
+        profile_static_fields_count++;
+    }
 
     cfg_t *auth_sec = cfg_getsec(confuse_cfg, section_name_auth);
     if(!auth_sec || 0==auth_configure(auth_sec)) {
@@ -634,6 +646,10 @@ AmArg SqlRouter::db_async_get_profiles(
         invoc_null();
     }
 
+    if (pass_input_interface_name) {
+        invoc_field(AmConfig.sip_ifs[req.local_if].name);
+    }
+
     //invoc headers from sip request
     for(vector<UsedHeaderField>::const_iterator it = used_header_fields.begin();
             it != used_header_fields.end(); ++it){
@@ -650,18 +666,18 @@ AmArg SqlRouter::db_async_get_profiles(
     sanitize_query_params(
         query_info, local_tag, "Routing",
         [this](auto i) {
-            return i < GETPROFILE_STATIC_FIELDS_COUNT ?
+            return i < profile_static_fields_count ?
                 profile_static_fields[i].name :
-                used_header_fields[i - GETPROFILE_STATIC_FIELDS_COUNT].getName().data();
+                used_header_fields[i - profile_static_fields_count].getName().data();
         });
 
     if(gc.postgresql_debug) {
         for(unsigned int i = 0; i < query_info.params.size(); i++) {
             DBG("%s/getprofile %d(%s/%s): %s %s",
                 local_tag.data(), i+1,
-                i < GETPROFILE_STATIC_FIELDS_COUNT ?
+                i < profile_static_fields_count ?
                     profile_static_fields[i].name :
-                    used_header_fields[i - GETPROFILE_STATIC_FIELDS_COUNT].getName().data(),
+                    used_header_fields[i - profile_static_fields_count].getName().data(),
                 getprofile_types[i].data(),
                 AmArg::t2str(query_info.params[i].getType()),
                 AmArg::print(query_info.params[i]).data());

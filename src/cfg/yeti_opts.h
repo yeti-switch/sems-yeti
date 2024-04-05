@@ -34,6 +34,7 @@ extern char opt_name_ip_auth_header[];
 extern char opt_name_postgresql_debug[];
 extern char opt_name_write_internal_disconnect_code[];
 extern char opt_name_connection_lifetime[];
+extern char opt_name_pass_input_interface_name[];
 extern char opt_name_audio_recorder_dir[];
 extern char opt_name_audio_recorder_compress[];
 extern char opt_name_audio_recorder_http_destination[];

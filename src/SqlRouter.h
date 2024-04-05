@@ -62,6 +62,7 @@ class SqlRouter
     vector<UsedHeaderField> used_header_fields;
     int failover_to_slave;
     int connection_lifetime;
+    bool pass_input_interface_name;
     string writecdr_schema;
     string writecdr_function;
     string authlog_function;
