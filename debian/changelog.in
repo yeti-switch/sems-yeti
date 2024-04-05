@@ -1,3 +1,7 @@
+sems-yeti (1.13.62) stable; urgency=medium
+  * add routing.pass_input_interface_name option
+ -- dev <dev@yeti-switch.org>  Sat, 06 Apr 2024 00:01:40 +0300
+
 sems-yeti (1.13.61) stable; urgency=medium
   * cdr: copy audio_record_enabled on rerouting/failover
   * sanitize pg fields for Routing,CDR,AuthLog queries
