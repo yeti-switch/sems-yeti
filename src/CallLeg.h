@@ -345,7 +345,7 @@ class CallLeg: public AmB2BSession
     virtual ~CallLeg();
 
     // OA callbacks
-    virtual int onSdpCompleted(const AmSdp& local, const AmSdp& remote) override;
+    virtual int onSdpCompleted(const AmSdp& local, const AmSdp& remote, bool sdp_offer_owner) override;
     virtual bool getSdpOffer([[maybe_unused]] AmSdp& offer) override
     {
         return false;

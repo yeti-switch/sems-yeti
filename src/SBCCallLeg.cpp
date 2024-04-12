@@ -4060,7 +4060,7 @@ void SBCCallLeg::computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &
     }
 }
 
-int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote){
+int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote, bool sdp_offer_owner){
     DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
 
     DBG("rtp_relay_mode = %d", rtp_relay_mode);
@@ -4077,7 +4077,7 @@ int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote){
     dump_SdpMedia(offer.media,"offer");
     dump_SdpMedia(answer.media,"answer");
 
-    int ret = CallLeg::onSdpCompleted(offer, answer);
+    int ret = CallLeg::onSdpCompleted(offer, answer, sdp_offer_owner);
 
     if(0==ret) {
         with_cdr_for_read {
@@ -4090,7 +4090,8 @@ int SBCCallLeg::onSdpCompleted(const AmSdp& local, const AmSdp& remote){
     AmB2BMedia *m = getMediaSession();
     if(!m) return ret;
 
-    m->updateStreams(false /* recompute relay and other parameters in direction A -> B*/,this);
+    m->updateStreams(false /* recompute relay and other parameters in direction A -> B*/,
+        this, sdp_offer_owner);
 
     //disable RTP timeout monitoring for early media
     m->setMonitorRtpTimeout(AmBasicSipDialog::Connected==dlg->getStatus());

@@ -1126,7 +1126,7 @@ void CallLeg::debug()
     if (ms) ms->debug();
 }
 
-int CallLeg::onSdpCompleted(const AmSdp& offer, const AmSdp& answer)
+int CallLeg::onSdpCompleted(const AmSdp& offer, const AmSdp& answer, bool sdp_offer_owner)
 {
     TRACE("%s: oaCompleted\n", getLocalTag().c_str());
     switch (hold) {
@@ -1136,5 +1136,5 @@ int CallLeg::onSdpCompleted(const AmSdp& offer, const AmSdp& answer)
     }
 
     hold = PreserveHoldStatus;
-    return AmB2BSession::onSdpCompleted(offer, answer);
+    return AmB2BSession::onSdpCompleted(offer, answer, sdp_offer_owner);
 }

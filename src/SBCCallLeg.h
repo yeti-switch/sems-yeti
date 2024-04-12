@@ -338,7 +338,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   virtual void resumeAccepted() override;
   virtual void resumeRejected() override;
 
-  virtual int onSdpCompleted(const AmSdp& local, const AmSdp& remote) override;
+  virtual int onSdpCompleted(const AmSdp& local, const AmSdp& remote, bool sdp_offer_owner) override;
   virtual bool getSdpOffer(AmSdp& offer) override;
   //int applySSTCfg(AmConfigReader& sst_cfg, const AmSipRequest* p_req);
 
