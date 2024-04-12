@@ -1916,10 +1916,12 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
             dlg_oa_state);
 
         //append headers for 200 OK reply in direction B -> A
-        inplaceHeaderPatternFilter(
-            reply.hdrs,
-            a_leg ? call_profile.headerfilter_a2b : call_profile.headerfilter_b2a
-        );
+        if(!reply.local_reply) {
+            inplaceHeaderPatternFilter(
+                reply.hdrs,
+                a_leg ? call_profile.headerfilter_a2b : call_profile.headerfilter_b2a
+            );
+        }
 
         do {
             if(!a_leg){
