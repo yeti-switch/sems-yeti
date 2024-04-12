@@ -1,3 +1,7 @@
+sems-yeti (1.13.63) stable; urgency=medium
+  * SBCCallLeg::relayEvent: skip headers filtering for locally generated replies
+ -- dev <dev@yeti-switch.org>  Fri, 12 Apr 2024 14:26:03 +0300
+
 sems-yeti (1.13.62) stable; urgency=medium
   * add routing.pass_input_interface_name option
  -- dev <dev@yeti-switch.org>  Sat, 06 Apr 2024 00:01:40 +0300
