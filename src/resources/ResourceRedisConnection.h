@@ -29,7 +29,7 @@ class ResourceRedisConnection : public RedisConnectionPool
 
     AmMutex queue_and_state_mutex;
     bool write_async_is_busy;                           //guarded by queue_and_state_mutex
-    ResourceOperationList resource_operations_queue;    //guarded by queue_and_state_mutex
+    ResourcesOperationList resource_operations_queue;   //guarded by queue_and_state_mutex
 
     InvalidateResources inv_seq;
     AmCondition<bool> resources_inited;
@@ -41,7 +41,7 @@ class ResourceRedisConnection : public RedisConnectionPool
     bool is_ready();
 
     void process_operations_queue();
-    void process_operations_list(ResourceOperationList& rol);
+    void process_operation(ResourcesOperation&& res_op);
 
     void on_connect(RedisConnection* c) override;
     void on_disconnect(RedisConnection* c) override;

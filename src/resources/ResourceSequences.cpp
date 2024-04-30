@@ -155,10 +155,11 @@ void InvalidateResources::on_error(const char* error, ...)
     if(initial) kill(getpid(),SIGTERM);
 }
 
-OperationResources::OperationResources(ResourceRedisConnection* conn, const ResourceOperationList& rl)
+OperationResources::OperationResources(
+    ResourceRedisConnection* conn, const ResourcesOperation& data)
   : ResourceSequenceBase(conn, REDIS_REPLY_OP_SEQ),
     state(INITIAL),
-    res_list(rl),
+    data(data),
     iserror(false)
 {}
 
@@ -167,35 +168,40 @@ bool OperationResources::perform()
     if(state == INITIAL) {
         state = OP_RES;
 
-        for(auto res = res_list.begin(); res != res_list.end();) {
-            //filter out inactive and not taken resources
-            if(res->op == ResourceOperation::RES_GET && !res->active) {
-                DBG("found RES_GET with inactive resource. filter out");
-                res = res_list.erase(res);
-            } else if(res->op == ResourceOperation::RES_PUT && !res->taken) {
-                DBG("found RES_PUT with not taken resource. filter out");
-                res = res_list.erase(res);
-            } else if(res->op == ResourceOperation::RES_NONE) {
-                DBG("found RES_NONE. filter out");
-                res = res_list.erase(res);
-            } else {
-                res++;
-            }
+        ResourceList::iterator res;
+        switch(data.op) {
+            case ResourcesOperation::RES_GET:
+                //remove inactive resources
+                data.resources.remove_if([](auto &r) {
+                    return !r.active;
+                });
+                break;
+            case ResourcesOperation::RES_PUT:
+                //remove not-taken resources
+                data.resources.remove_if([](auto &r) {
+                    return !r.taken;
+                });
+                break;
+            case ResourcesOperation::RES_NONE:
+                //nothig to do. ask to be deleted by the caller
+                return false;
         }
 
-        if(res_list.empty()) {
-            //ask to be deleted by caller
+        if(data.resources.empty()) {
+            //ask to be deleted by the caller
             return false;
         }
 
-        commands_count = res_list.size() + 2;
+        commands_count = data.resources.size() + 2;
+
+        static char get_cmd[] = "HINCRBY %s %d %d";
+        static char put_cmd[] = "HINCRBY %s %d -%d";
+
+        auto cmd = data.op == ResourcesOperation::RES_GET ? get_cmd : put_cmd;
 
         SEQ_REDIS_WRITE("MULTI");
-        for(auto& res : res_list) {
-            if(res.op == ResourceOperation::RES_GET && res.active)
-                SEQ_REDIS_WRITE("HINCRBY %s %d %d", get_key(res).c_str(), AmConfig.node_id, res.takes);
-            else if(res.op == ResourceOperation::RES_PUT && res.taken)
-                SEQ_REDIS_WRITE("HINCRBY %s %d -%d", get_key(res).c_str(), AmConfig.node_id, res.takes);
+        for(auto& res : data.resources) {
+            SEQ_REDIS_WRITE(cmd, get_key(res).c_str(), AmConfig.node_id, res.takes);
         }
         SEQ_REDIS_WRITE("EXEC");
 

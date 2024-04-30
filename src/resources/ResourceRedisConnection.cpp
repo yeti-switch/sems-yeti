@@ -59,12 +59,15 @@ void ResourceRedisConnection::process_operations_queue_unsafe()
     if(!is_ready() || write_async_is_busy) return;
 
     if(resource_operations_queue.size()) {
-        unique_ptr<OperationResources> op_seq(new OperationResources(this, resource_operations_queue));
+        unique_ptr<OperationResources> op_seq(
+            new OperationResources(this, resource_operations_queue.front()));
+
         if(op_seq->perform()) {
             write_async_is_busy = true;
             op_seq.release(); //will be deleted by redis thread
         }
-        resource_operations_queue.clear();
+
+        resource_operations_queue.pop_front();
     }
 }
 
@@ -74,18 +77,18 @@ void ResourceRedisConnection::process_operations_queue()
     process_operations_queue_unsafe();
 }
 
-void ResourceRedisConnection::process_operations_list(ResourceOperationList& rol)
+void ResourceRedisConnection::process_operation(ResourcesOperation&& res_op)
 {
     AmLock l(queue_and_state_mutex);
 
     if(is_ready() && !write_async_is_busy) {
-        unique_ptr<OperationResources> op_seq(new OperationResources(this, rol));
+        unique_ptr<OperationResources> op_seq(new OperationResources(this, res_op));
         if(op_seq->perform()) {
             write_async_is_busy = true;
             op_seq.release(); //will be deleted by redis thread
         }
     } else {
-        resource_operations_queue.splice(resource_operations_queue.end(), rol);
+        resource_operations_queue.emplace_back(res_op);
     }
 }
 
@@ -261,27 +264,18 @@ void ResourceRedisConnection::registerOperationResultCallback(ResourceRedisConne
 
 void ResourceRedisConnection::put(ResourceList& rl)
 {
-    ResourceOperationList rol;
-    for(auto& res : rl) {
-        if(!res.taken) continue;
-        rol.emplace_back(ResourceOperation::RES_PUT, res);
-    }
-
-    if(!rol.empty())
-        process_operations_list(rol);
+    process_operation(ResourcesOperation(rl, ResourcesOperation::RES_PUT));
 }
 
 void ResourceRedisConnection::get(ResourceList& rl)
 {
-    ResourceOperationList rol;
     for(auto& res : rl) {
         if(!res.active || res.taken) continue;
         res.taken = true;
-        rol.emplace_back(ResourceOperation::RES_GET, res);
     }
 
-    if(!rol.empty())
-        process_operations_list(rol);
+    process_operation(ResourcesOperation(rl, ResourcesOperation::RES_GET));
+
 }
 
 #define CHECK_STATE_NORMAL 0
