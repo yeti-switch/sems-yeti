@@ -1,3 +1,7 @@
+sems-yeti (1.13.66) stable; urgency=medium
+  * remove resources get/put operations aggregation for different calls
+ -- dev <dev@yeti-switch.org>  Tue, 30 Apr 2024 21:59:37 +0300
+
 sems-yeti (1.13.65) stable; urgency=medium
   * libsems1.132
  -- dev <dev@yeti-switch.org>  Mon, 22 Apr 2024 20:31:01 +0300
