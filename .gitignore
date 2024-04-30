@@ -3,6 +3,7 @@ build
 etc/yeti.conf
 debian/changelog
 debian/files
+debian/.debhelper
 debian/*.debhelper.log
 debian/*.substvars
 debian/sems-modules-yeti
