@@ -143,11 +143,12 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
             if(inv_seq.is_initial()) {
                 inv_seq.clear_initial();
 
-                if(resources_initialized_cb)
-                    resources_initialized_cb();
-
                 Yeti::instance().postEvent(new YetiComponentInited(YetiComponentInited::Resource));
             }
+
+            if(resources_initialized_cb)
+                resources_initialized_cb();
+
             process_operations_queue();
         }
     } else if(ev.user_type_id == ResourceSequenceBase::REDIS_REPLY_OP_SEQ) {
