@@ -9,6 +9,7 @@ ResourceRedisConnection::ResourceRedisConnection(const string& queue_name)
     write_async_is_busy(false),
     inv_seq(this),
     resources_inited(false),
+    write_queue_size(stat_group(Gauge, "yeti", "resources_write_queue_size").addAtomicCounter()),
     resources_initialized_cb(nullptr),
     operation_result_cb(nullptr)
 {}
@@ -68,6 +69,7 @@ void ResourceRedisConnection::process_operations_queue_unsafe()
         }
 
         resource_operations_queue.pop_front();
+        write_queue_size.dec();
     }
 }
 
@@ -89,6 +91,7 @@ void ResourceRedisConnection::process_operation(ResourcesOperation&& res_op)
         }
     } else {
         resource_operations_queue.emplace_back(res_op);
+        write_queue_size.inc();
     }
 }
 

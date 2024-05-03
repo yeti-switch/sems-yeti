@@ -34,6 +34,8 @@ class ResourceRedisConnection : public RedisConnectionPool
     InvalidateResources inv_seq;
     AmCondition<bool> resources_inited;
 
+    AtomicCounter &write_queue_size;
+
     void process_operations_queue_unsafe();
 
   protected:
