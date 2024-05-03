@@ -1,3 +1,7 @@
+sems-yeti (1.13.68) stable; urgency=medium
+  * add sems_yeti_resources_write_queue_size metric
+ -- dev <dev@yeti-switch.org>  Fri, 03 May 2024 14:35:05 +0300
+
 sems-yeti (1.13.67) stable; urgency=medium
   * fix 'unready container' error after the resources invalidation
  -- dev <dev@yeti-switch.org>  Wed, 01 May 2024 16:51:10 +0300
