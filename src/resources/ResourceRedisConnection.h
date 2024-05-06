@@ -43,7 +43,7 @@ class ResourceRedisConnection : public RedisConnectionPool
     bool is_ready();
 
     void process_operations_queue();
-    void process_operation(ResourcesOperation&& res_op);
+    void process_operation(ResourceList& rl, ResourcesOperation::Operation op);
 
     void on_connect(RedisConnection* c) override;
     void on_disconnect(RedisConnection* c) override;

@@ -47,8 +47,7 @@ struct ResourcesOperation
 
     enum Operation {
         RES_PUT,
-        RES_GET,
-        RES_NONE
+        RES_GET
     } op;
 
     ResourcesOperation(Operation op)
@@ -58,6 +57,15 @@ struct ResourcesOperation
     ResourcesOperation(const ResourceList& resources, Operation op)
       : resources(resources), op(op)
     {}
+
+    ResourcesOperation(const ResourcesOperation &) = delete;
 };
 
-using ResourcesOperationList = list<ResourcesOperation>;
+class ResourcesOperationList
+  : public list<ResourcesOperation>
+{
+  public:
+    ResourcesOperationList() = default;
+    ResourcesOperationList(ResourcesOperationList &&) = default;
+    ResourcesOperationList(const ResourcesOperationList &) = delete;
+};

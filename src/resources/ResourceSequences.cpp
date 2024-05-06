@@ -37,7 +37,7 @@ inline bool postWriteRedisRequestFmt(
 }
 #define SEQ_REDIS_WRITE(fmt, args...) postWriteRedisRequestFmt(conn, this, user_type_id, fmt, ##args)
 
-static string get_key(Resource &r)
+static string get_key(const Resource &r)
 {
     ostringstream ss;
     ss << "r:" << r.type << ":" << r.id;
@@ -156,61 +156,77 @@ void InvalidateResources::on_error(const char* error, ...)
 }
 
 OperationResources::OperationResources(
-    ResourceRedisConnection* conn, const ResourcesOperation& data)
+    ResourceRedisConnection* conn, ResourcesOperationList&& operations)
   : ResourceSequenceBase(conn, REDIS_REPLY_OP_SEQ),
     state(INITIAL),
-    data(data),
+    operations(std::move(operations)),
     iserror(false)
 {}
+
+bool OperationResources::perform_operations()
+{
+    commands_count = 0;
+
+    ResourceList::iterator r_it;
+
+    for(auto &operation : operations) {
+        switch(operation.op) {
+        case ResourcesOperation::RES_GET:
+            operation.resources.remove_if([](auto &r) {
+                return !r.active;
+            });
+            commands_count += operation.resources.size();
+            break;
+        case ResourcesOperation::RES_PUT:
+            r_it = operation.resources.begin();
+            while(r_it != operation.resources.end()) {
+                if(r_it->taken) {
+                    //we use HINCRBY with negative value for put
+                    r_it->takes = - (r_it->takes);
+                    ++r_it;
+                } else {
+                    r_it = operation.resources.erase(r_it);
+                }
+            }
+            operation.resources.remove_if([](auto &r) {
+                return !r.taken;
+            });
+            commands_count += operation.resources.size();
+            break;
+        } //switch(operation.op)
+    }
+
+    if(0 == commands_count) { //no changes for resources
+        //ask to be deleted by the caller
+        return false;
+    }
+
+    commands_count += 2; //MULTI/EXEC
+
+    SEQ_REDIS_WRITE("MULTI");
+    for(auto &operation : operations) {
+        for(const auto &r : operation.resources) {
+            SEQ_REDIS_WRITE(
+                "HINCRBY %s %d %d",
+                get_key(r).c_str(),
+                AmConfig.node_id,
+                r.takes);
+        }
+    }
+    SEQ_REDIS_WRITE("EXEC");
+
+    return true;
+}
 
 bool OperationResources::perform()
 {
     if(state == INITIAL) {
         state = OP_RES;
-
-        ResourceList::iterator res;
-        switch(data.op) {
-            case ResourcesOperation::RES_GET:
-                //remove inactive resources
-                data.resources.remove_if([](auto &r) {
-                    return !r.active;
-                });
-                break;
-            case ResourcesOperation::RES_PUT:
-                //remove not-taken resources
-                data.resources.remove_if([](auto &r) {
-                    return !r.taken;
-                });
-                break;
-            case ResourcesOperation::RES_NONE:
-                //nothig to do. ask to be deleted by the caller
-                return false;
-        }
-
-        if(data.resources.empty()) {
-            //ask to be deleted by the caller
-            return false;
-        }
-
-        commands_count = data.resources.size() + 2;
-
-        static char get_cmd[] = "HINCRBY %s %d %d";
-        static char put_cmd[] = "HINCRBY %s %d -%d";
-
-        auto cmd = data.op == ResourcesOperation::RES_GET ? get_cmd : put_cmd;
-
-        SEQ_REDIS_WRITE("MULTI");
-        for(auto& res : data.resources) {
-            SEQ_REDIS_WRITE(cmd, get_key(res).c_str(), AmConfig.node_id, res.takes);
-        }
-        SEQ_REDIS_WRITE("EXEC");
-
+        return perform_operations();
     } else {
         on_error("perform called in the not INITIAL state: %d", state);
         return false;
     }
-
-    return true;
 }
 
 bool OperationResources::processRedisReply(RedisReplyEvent &reply)

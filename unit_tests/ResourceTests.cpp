@@ -63,13 +63,14 @@ TEST_F(YetiTest, ResourceGetPut)
     server->addCommandResponse("HINCRBY r:1:472 1 2", REDIS_REPLY_STATUS, AmArg());
     server->addCommandResponse("EXEC", REDIS_REPLY_ARRAY, AmArg());
 
-    ResourcesOperation res_op(ResourcesOperation::RES_GET);
+    ResourcesOperationList operations;
+    auto &res_op = operations.emplace_back(ResourcesOperation::RES_GET);
     res_op.resources.parse("0:472:100:2;1:472:100:2");
     for(auto& res: res_op.resources) {
         res.active = true;
     }
 
-    OperationResources *op = new OperationResources(&conn, res_op);
+    OperationResources *op = new OperationResources(&conn, std::move(operations));
     op->perform();
 
     time_ = time(0);

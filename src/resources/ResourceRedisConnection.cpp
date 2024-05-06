@@ -59,17 +59,19 @@ void ResourceRedisConnection::process_operations_queue_unsafe()
 {
     if(!is_ready() || write_async_is_busy) return;
 
-    if(resource_operations_queue.size()) {
+    if(!resource_operations_queue.empty()) {
+        ResourcesOperationList operations;
+        operations.swap(resource_operations_queue);
+
         unique_ptr<OperationResources> op_seq(
-            new OperationResources(this, resource_operations_queue.front()));
+            new OperationResources(this, std::move(operations)));
 
         if(op_seq->perform()) {
             write_async_is_busy = true;
             op_seq.release(); //will be deleted by redis thread
         }
 
-        resource_operations_queue.pop_front();
-        write_queue_size.dec();
+        write_queue_size.set(0);
     }
 }
 
@@ -79,20 +81,14 @@ void ResourceRedisConnection::process_operations_queue()
     process_operations_queue_unsafe();
 }
 
-void ResourceRedisConnection::process_operation(ResourcesOperation&& res_op)
+void ResourceRedisConnection::process_operation(ResourceList& rl, ResourcesOperation::Operation op)
 {
     AmLock l(queue_and_state_mutex);
 
-    if(is_ready() && !write_async_is_busy) {
-        unique_ptr<OperationResources> op_seq(new OperationResources(this, res_op));
-        if(op_seq->perform()) {
-            write_async_is_busy = true;
-            op_seq.release(); //will be deleted by redis thread
-        }
-    } else {
-        resource_operations_queue.emplace_back(res_op);
-        write_queue_size.inc();
-    }
+    resource_operations_queue.emplace_back(rl, op);
+    write_queue_size.inc();
+
+    process_operations_queue_unsafe();
 }
 
 void ResourceRedisConnection::on_connect(RedisConnection* c){
@@ -268,7 +264,7 @@ void ResourceRedisConnection::registerOperationResultCallback(ResourceRedisConne
 
 void ResourceRedisConnection::put(ResourceList& rl)
 {
-    process_operation(ResourcesOperation(rl, ResourcesOperation::RES_PUT));
+    process_operation(rl, ResourcesOperation::RES_PUT);
 }
 
 void ResourceRedisConnection::get(ResourceList& rl)
@@ -278,7 +274,7 @@ void ResourceRedisConnection::get(ResourceList& rl)
         res.taken = true;
     }
 
-    process_operation(ResourcesOperation(rl, ResourcesOperation::RES_GET));
+    process_operation(rl, ResourcesOperation::RES_GET);
 
 }
 
