@@ -156,10 +156,13 @@ void InvalidateResources::on_error(const char* error, ...)
 }
 
 OperationResources::OperationResources(
-    ResourceRedisConnection* conn, ResourcesOperationList&& operations)
+    ResourceRedisConnection* conn,
+    ResourcesOperationList&& operations,
+    bool reduce_operations)
   : ResourceSequenceBase(conn, REDIS_REPLY_OP_SEQ),
     state(INITIAL),
     operations(std::move(operations)),
+    reduce_operations(reduce_operations),
     iserror(false)
 {}
 
@@ -218,11 +221,68 @@ bool OperationResources::perform_operations()
     return true;
 }
 
+bool OperationResources::perform_operations_with_reduce()
+{
+    std::unordered_map<string, int> accumulated_changes;
+
+    for(auto &operation : operations) {
+        switch(operation.op) {
+        case ResourcesOperation::RES_GET:
+            for(const auto &r: operation.resources) {
+                if(!r.active) continue;
+                auto [it, inserted] = accumulated_changes.try_emplace(
+                    get_key(r), r.takes);
+                if(!inserted) {
+                    it->second += r.takes;
+                    if(0 == it->second)
+                        accumulated_changes.erase(it);
+                }
+            }
+            break;
+        case ResourcesOperation::RES_PUT:
+            for(const auto &r: operation.resources) {
+                if(!r.taken) continue;
+                auto [it, inserted] = accumulated_changes.try_emplace(
+                    get_key(r), -(r.takes));
+                if(!inserted) {
+                    it->second -= r.takes;
+                    if(0 == it->second)
+                        accumulated_changes.erase(it);
+                }
+            }
+            break;
+        } //switch(operation.op)
+    }
+
+    if(accumulated_changes.empty()) { //no changes for resources
+        //ask to be deleted by the caller
+        return false;
+    }
+
+    commands_count = accumulated_changes.size() + 2;
+
+    SEQ_REDIS_WRITE("MULTI");
+    for(auto &[key, value] : accumulated_changes) {
+        SEQ_REDIS_WRITE(
+            "HINCRBY %s %d %d",
+            key.data(),
+            AmConfig.node_id,
+            value);
+    }
+    SEQ_REDIS_WRITE("EXEC");
+
+    return true;
+}
+
 bool OperationResources::perform()
 {
     if(state == INITIAL) {
         state = OP_RES;
-        return perform_operations();
+
+        if(!reduce_operations)
+            return perform_operations();
+
+        return perform_operations_with_reduce();
     } else {
         on_error("perform called in the not INITIAL state: %d", state);
         return false;

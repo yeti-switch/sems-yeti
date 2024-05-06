@@ -219,7 +219,7 @@ int Yeti::onLoad()
         return -1;
     }
 
-    if(rctl.configure(cfg)){
+    if(rctl.configure(confuse_cfg, cfg)){
         ERROR("ResourceControl configure failed");
         return -1;
     }

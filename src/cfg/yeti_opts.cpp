@@ -25,6 +25,7 @@ char section_name_legb_reply_cdr_headers[] = "legb_response_cdr_headers";
 char section_name_identity[] = "identity";
 char section_name_statistics[] = "statistics";
 char section_name_registrar[] = "registrar";
+char section_name_resources[] = "resources";
 char section_name_redis[] = "redis";
 char section_name_redis_write[] = "write";
 char section_name_redis_read[] = "read";
@@ -53,6 +54,8 @@ char opt_name_cdr_headers_add_sip_reason[] = "add_sip_reason";
 char opt_name_cdr_headers_add_q850_reason[] = "add_q850_reason";
 
 char opt_registrar_keepalive_interval[] = "keepalive_interval";
+
+char opt_resources_reduce_operations[] = "reduce_operations";
 
 int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 int add_bleg_reply_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
@@ -116,6 +119,7 @@ cfg_opt_t sig_yeti_redis_pool_opts[] = {
 
 cfg_opt_t sig_yeti_resources_opts[] = {
 	DCFG_BOOL(reject_on_error),
+	CFG_BOOL(opt_resources_reduce_operations, cfg_false, CFGF_NONE),
 	DCFG_SEC(write,sig_yeti_redis_pool_opts,CFGF_NONE),
 	DCFG_SEC(read,sig_yeti_redis_pool_opts,CFGF_NONE),
 	CFG_END()
@@ -193,7 +197,7 @@ cfg_opt_t yeti_opts[] = {
     CFG_BOOL(opt_name_audio_recorder_compress, cfg_true, CFGF_NONE),
     CFG_SEC(section_name_routing, sig_yeti_routing_opts, CFGF_NONE),
     CFG_SEC(section_name_cdr, sig_yeti_cdr_opts, CFGF_NONE),
-    DCFG_SEC(resources,sig_yeti_resources_opts,CFGF_NONE),
+    CFG_SEC(section_name_resources, sig_yeti_resources_opts, CFGF_NONE),
     DCFG_SEC(registrations,sig_yeti_reg_opts,CFGF_NONE),
     CFG_SEC(section_name_registrar, sig_yeti_registrar_opts, CFGF_NONE),
     DCFG_SEC(rpc,sig_yeti_rpc_opts,CFGF_NONE),

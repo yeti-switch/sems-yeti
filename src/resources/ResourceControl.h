@@ -108,7 +108,7 @@ public:
 
 	ResourceControl();
 
-	int configure(AmConfigReader &cfg);
+	int configure(cfg_t *confuse_cfg, AmConfigReader &cfg);
 	void start();
 	void stop();
 	bool invalidate_resources();

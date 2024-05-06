@@ -2,26 +2,56 @@
 #include "../src/RedisConnection.h"
 #include "../src/resources/ResourceControl.h"
 #include "../src/resources/ResourceRedisConnection.h"
+#include "../src/cfg/yeti_opts.h"
 
 static AmCondition<bool> inited(false);
 static void InitCallback() {
     inited.set(true);
 }
 
-TEST_F(YetiTest, ResourceInit)
+static cfg_t *init_confuse_cfg()
 {
-    ResourceRedisConnection conn("resourceTest");
+    cfg_t *cfg = cfg_init(yeti_opts, CFGF_NONE);
+    return cfg;
+}
+
+static cfg_t *confuse_cfg = init_confuse_cfg();
+
+static int configure_run_redis_connection(
+    ResourceRedisConnection &conn,
+    ResourceRedisConnection::cb_op_func* result_cb = nullptr,
+    ResourceRedisConnection::cb_func* init_cb = nullptr,
+    int timeout = DEFAULT_REDIS_TIMEOUT_MSEC)
+{
     AmConfigReader cfg;
     cfg.setParameter("write_redis_host", yeti_test::instance()->redis.host.c_str());
     cfg.setParameter("write_redis_port", int2str(yeti_test::instance()->redis.port));
     cfg.setParameter("read_redis_host", yeti_test::instance()->redis.host.c_str());
     cfg.setParameter("read_redis_port", int2str(yeti_test::instance()->redis.port));
-    cfg.setParameter("read_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
-    cfg.setParameter("write_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
-    conn.configure(cfg);
-    conn.registerResourcesInitializedCallback(InitCallback);
+    if(timeout) {
+        cfg.setParameter("read_redis_timeout", int2str(timeout));
+        cfg.setParameter("write_redis_timeout", int2str(timeout));
+    }
+
+    conn.configure(confuse_cfg, cfg);
+
+    if(result_cb)
+        conn.registerResourcesInitializedCallback(init_cb);
+
+    if(result_cb)
+        conn.registerOperationResultCallback(result_cb);
+
     conn.init();
     conn.start();
+
+    return 0;
+
+}
+
+TEST_F(YetiTest, ResourceInit)
+{
+    ResourceRedisConnection conn("resourceTest");
+    configure_run_redis_connection(conn, nullptr, InitCallback);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -29,6 +59,7 @@ TEST_F(YetiTest, ResourceInit)
           !inited.wait_for_to(500)) {
         ASSERT_FALSE(time(0) - time_ > 3);
     }
+
     conn.stop(true);
 }
 
@@ -40,17 +71,7 @@ static void GetPutCallback(bool success) {
 TEST_F(YetiTest, ResourceGetPut)
 {
     ResourceRedisConnection conn("resourceTest");
-    AmConfigReader cfg;
-    cfg.setParameter("write_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("write_redis_port", int2str(yeti_test::instance()->redis.port));
-    cfg.setParameter("read_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("read_redis_port", int2str(yeti_test::instance()->redis.port));
-    cfg.setParameter("read_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
-    cfg.setParameter("write_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
-    conn.configure(cfg);
-    conn.registerOperationResultCallback(GetPutCallback);
-    conn.init();
-    conn.start();
+    configure_run_redis_connection(conn, GetPutCallback);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -70,7 +91,7 @@ TEST_F(YetiTest, ResourceGetPut)
         res.active = true;
     }
 
-    OperationResources *op = new OperationResources(&conn, std::move(operations));
+    OperationResources *op = new OperationResources(&conn, std::move(operations), false);
     op->perform();
 
     time_ = time(0);
@@ -83,16 +104,7 @@ TEST_F(YetiTest, ResourceGetPut)
 TEST_F(YetiTest, ResourceCheck)
 {
     ResourceRedisConnection conn("resourceTest");
-    AmConfigReader cfg;
-    cfg.setParameter("write_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("write_redis_port", int2str(yeti_test::instance()->redis.port));
-    cfg.setParameter("read_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("read_redis_port", int2str(yeti_test::instance()->redis.port));
-    cfg.setParameter("read_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
-    cfg.setParameter("write_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
-    conn.configure(cfg);
-    conn.init();
-    conn.start();
+    configure_run_redis_connection(conn);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -132,16 +144,7 @@ static bool isArgNumber(const AmArg& arg)
 TEST_F(YetiTest, ResourceGetAll)
 {
     ResourceRedisConnection conn("resourceTest");
-    AmConfigReader cfg;
-    cfg.setParameter("write_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("write_redis_port", int2str(yeti_test::instance()->redis.port));
-    cfg.setParameter("read_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("read_redis_port", int2str(yeti_test::instance()->redis.port));
-    cfg.setParameter("read_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
-    cfg.setParameter("write_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
-    conn.configure(cfg);
-    conn.init();
-    conn.start();
+    configure_run_redis_connection(conn);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -231,17 +234,7 @@ TEST_F(YetiTest, ResourceGetAll)
 TEST_F(YetiTest, ResourceOverload)
 {
     ResourceRedisConnection conn("resourceTest");
-    AmConfigReader cfg;
-    cfg.setParameter("write_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("write_redis_port", int2str(yeti_test::instance()->redis.port));
-    cfg.setParameter("read_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("read_redis_port", int2str(yeti_test::instance()->redis.port));
-    cfg.setParameter("read_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
-    cfg.setParameter("write_redis_timeout", int2str(DEFAULT_REDIS_TIMEOUT_MSEC));
-    conn.configure(cfg);
-    conn.registerOperationResultCallback(GetPutCallback);
-    conn.init();
-    conn.start();
+    configure_run_redis_connection(conn, GetPutCallback);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -300,14 +293,7 @@ TEST_F(YetiTest, ResourceOverload)
 TEST_F(YetiTest, ResourceTimeout)
 {
     ResourceRedisConnection conn("resourceTest");
-    AmConfigReader cfg;
-    cfg.setParameter("write_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("write_redis_port", int2str(yeti_test::instance()->redis.port));
-    cfg.setParameter("read_redis_host", yeti_test::instance()->redis.host.c_str());
-    cfg.setParameter("read_redis_port", int2str(yeti_test::instance()->redis.port));
-    conn.configure(cfg);
-    conn.init();
-    conn.start();
+    configure_run_redis_connection(conn, nullptr, nullptr, 0);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&

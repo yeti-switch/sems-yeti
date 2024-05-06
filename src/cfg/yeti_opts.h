@@ -22,6 +22,7 @@ extern char section_name_legb_reply_cdr_headers[];
 extern char section_name_identity[];
 extern char section_name_statistics[];
 extern char section_name_registrar[];
+extern char section_name_resources[];
 extern char section_name_redis[];
 extern char section_name_redis_write[];
 extern char section_name_redis_read[];
@@ -50,6 +51,8 @@ extern char opt_name_cdr_headers_add_sip_reason[];
 extern char opt_name_cdr_headers_add_q850_reason[];
 
 extern char opt_registrar_keepalive_interval[];
+
+extern char opt_resources_reduce_operations[];
 
 //extern int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 

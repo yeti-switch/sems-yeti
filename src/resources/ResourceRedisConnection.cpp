@@ -1,5 +1,6 @@
 #include "ResourceRedisConnection.h"
 #include "../yeti.h"
+#include "../cfg/yeti_opts.h"
 
 const string RESOURCE_QUEUE_NAME("resource");
 
@@ -16,8 +17,10 @@ ResourceRedisConnection::ResourceRedisConnection(const string& queue_name)
 
 ResourceRedisConnection::~ResourceRedisConnection() {}
 
-int ResourceRedisConnection::configure(const AmConfigReader& cfg)
+int ResourceRedisConnection::configure(cfg_t *confuse_cfg, const AmConfigReader& cfg)
 {
+    reduce_operations = cfg_getbool(confuse_cfg, opt_resources_reduce_operations);
+
     if(cfg2RedisCfg(cfg, writecfg, "write") ||
        cfg2RedisCfg(cfg, readcfg, "read")) {
         return -1;
@@ -64,7 +67,7 @@ void ResourceRedisConnection::process_operations_queue_unsafe()
         operations.swap(resource_operations_queue);
 
         unique_ptr<OperationResources> op_seq(
-            new OperationResources(this, std::move(operations)));
+            new OperationResources(this, std::move(operations), reduce_operations));
 
         if(op_seq->perform()) {
             write_async_is_busy = true;
@@ -81,7 +84,7 @@ void ResourceRedisConnection::process_operations_queue()
     process_operations_queue_unsafe();
 }
 
-void ResourceRedisConnection::process_operation(ResourceList& rl, ResourcesOperation::Operation op)
+void ResourceRedisConnection::process_operation(const ResourceList& rl, ResourcesOperation::Operation op)
 {
     AmLock l(queue_and_state_mutex);
 

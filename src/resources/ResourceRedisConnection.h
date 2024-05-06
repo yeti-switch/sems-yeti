@@ -19,8 +19,11 @@ enum ResourceResponse {
     RES_ERR         //error occured on interaction with cache
 };
 
-class ResourceRedisConnection : public RedisConnectionPool
+class ResourceRedisConnection
+  : public RedisConnectionPool
 {
+    bool reduce_operations;
+
     RedisConfig writecfg;
     RedisConfig readcfg;
 
@@ -43,7 +46,7 @@ class ResourceRedisConnection : public RedisConnectionPool
     bool is_ready();
 
     void process_operations_queue();
-    void process_operation(ResourceList& rl, ResourcesOperation::Operation op);
+    void process_operation(const ResourceList& rl, ResourcesOperation::Operation op);
 
     void on_connect(RedisConnection* c) override;
     void on_disconnect(RedisConnection* c) override;
@@ -55,7 +58,7 @@ class ResourceRedisConnection : public RedisConnectionPool
     ResourceRedisConnection(const string& queue_name = RESOURCE_QUEUE_NAME);
     ~ResourceRedisConnection();
 
-    int configure(const AmConfigReader &cfg);
+    int configure(cfg_t *confuse_cfg, const AmConfigReader &cfg);
     int init();
     bool invalidate_resources();
     void get_config(AmArg& ret);

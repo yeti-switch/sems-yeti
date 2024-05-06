@@ -3,6 +3,7 @@
 #include "AmUtils.h"
 #include "AmSession.h"
 #include "../db/DbHelpers.h"
+#include "../cfg/yeti_opts.h"
 
 //workaround for callback
 static ResourceControl *_instance;
@@ -64,8 +65,14 @@ ResourceControl::ResourceControl():
 	stat.clear();
 }
 
-int ResourceControl::configure(AmConfigReader &cfg)
+int ResourceControl::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
 {
+    cfg_t *resources_sec = cfg_getsec(confuse_cfg, section_name_resources);
+    if(!resources_sec) {
+        ERROR("missed '%s' section in module config", section_name_resources);
+        return -1;
+    }
+
 	reject_on_error = cfg.getParameterInt("reject_on_cache_error",-1);
 	if(reject_on_error == -1){
 		ERROR("missed 'reject_on_error' parameter");
@@ -79,7 +86,7 @@ int ResourceControl::configure(AmConfigReader &cfg)
 
 	redis_conn.registerResourcesInitializedCallback(&on_resources_initialized_static);
 
-	return redis_conn.configure(cfg);
+	return redis_conn.configure(resources_sec, cfg);
 }
 
 void ResourceControl::start(){

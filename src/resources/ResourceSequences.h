@@ -72,11 +72,17 @@ class OperationResources
         FINISH
     } state;
     ResourcesOperationList operations;
+    bool reduce_operations;
+
     bool iserror;
 
     bool perform_operations();
+    bool perform_operations_with_reduce();
   public:
-    OperationResources(ResourceRedisConnection* conn, ResourcesOperationList&& operations);
+    OperationResources(
+        ResourceRedisConnection* conn,
+        ResourcesOperationList&& operations,
+        bool reduce_operations);
 
     bool perform() override;
     bool processRedisReply(RedisReplyEvent &reply) override;
