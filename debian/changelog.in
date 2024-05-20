@@ -1,3 +1,7 @@
+sems-yeti (1.13.70) stable; urgency=medium
+  * libsems1.134
+ -- dev <dev@yeti-switch.org>  Mon, 20 May 2024 18:58:52 +0300
+
 sems-yeti (1.13.69) stable; urgency=medium
   * resources: send the whole get/put queue in one transaction
   * add resources.reduce_operations option
