@@ -164,7 +164,7 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
             ev.user_data.release();
 
         if(seq->is_finish()) {
-            AmLock l(queue_and_state_mutex);
+            AmControlledLock l(queue_and_state_mutex);
 
             //DBG("resources operation finished %s errors", seq->is_error() ? "with" : "without");
             if(operation_result_cb)
@@ -172,9 +172,14 @@ void ResourceRedisConnection::process_reply_event(RedisReplyEvent& ev)
             write_async_is_busy = false;
             if(seq->is_error()) {
                 // on error have to reset the connection and invalidate resources
-                redis::redisAsyncDisconnect(write_async->get_async_context());
                 resources_inited.set(false);
                 inv_seq.cleanup();
+
+                /* unlock queue_and_state_mutex to avoid deadlock in
+                 * ResourceRedisConnection::on_disconnect() */
+                l.release();
+
+                redis::redisAsyncDisconnect(write_async->get_async_context());
             } else if(!resources_inited.get()) {
                 // for rpc command of invalidate resources(if connection was busy)
                 inv_seq.cleanup();
