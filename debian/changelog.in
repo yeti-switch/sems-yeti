@@ -1,3 +1,7 @@
+sems-yeti (1.13.71) stable; urgency=medium
+  * fix deadlock on redis disconnect
+ -- dev <dev@yeti-switch.org>  Thu, 23 May 2024 12:45:10 +0300
+
 sems-yeti (1.13.70) stable; urgency=medium
   * libsems1.134
  -- dev <dev@yeti-switch.org>  Mon, 20 May 2024 18:58:52 +0300
