@@ -522,26 +522,26 @@ void CertCache::serialize_cert_to_amarg(const Botan::X509_Certificate &cert, AmA
     {
         AmArg &tn_list = a["tn_auth_list"];
         tn_list.assertArray();
-        for(const auto &e:  tn_auth_list->get_entries()) {
+        for(const auto &e:  tn_auth_list->entries()) {
             tn_list.push(AmArg());
             auto &tn = tn_list.back();
             tn.assertStruct();
-            switch(e.get_type()) {
-            case Botan::Cert_Extension::TNAuthList::TNEntry::TN_ServiceProviderCode:
-                tn["spc"] = e.getServiceProviderCode();
+            switch(e.type()) {
+            case Botan::Cert_Extension::TNAuthList::Entry::ServiceProviderCode:
+                tn["spc"] = e.service_provider_code();
                 break;
-            case Botan::Cert_Extension::TNAuthList::TNEntry::TN_TelephoneNumberRange: {
+            case Botan::Cert_Extension::TNAuthList::Entry::TelephoneNumberRange: {
                 auto &ranges = tn["range"];
                 ranges.assertArray();
-                for(auto &range : e.getTelephoneNumberRange()) {
+                for(auto &range : e.telephone_number_range()) {
                     ranges.push(AmArg());
                     auto &r = ranges.back();
-                    r["start"] = range.start;
+                    r["start"] = range.start.value();
                     r["count"] = range.count;
                 }
             } break;
-            case Botan::Cert_Extension::TNAuthList::TNEntry::TN_TelephoneNumber:
-                tn["one"] = e.getTelephoneNumber();
+            case Botan::Cert_Extension::TNAuthList::Entry::TelephoneNumber:
+                tn["one"] = e.telephone_number();
                 break;
             }
         }
