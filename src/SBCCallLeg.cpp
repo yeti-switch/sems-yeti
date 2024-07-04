@@ -3065,7 +3065,7 @@ void SBCCallLeg::onIdentityReady()
 
             bool cert_is_valid;
             auto key(yeti.cert_cache.getPubKey(
-                e.identity.get_x5u_url(), cert_is_valid));
+                e.identity.get_x5u_url(), a, cert_is_valid));
             if(key.get()) {
                 if(cert_is_valid) {
                     bool verified = e.identity.verify(key.get(), yeti.cert_cache.getExpires());

@@ -107,7 +107,7 @@ bool CertCache::checkAndFetch(const string& cert_url,
 }
 
 std::unique_ptr<Botan::Public_Key> CertCache::getPubKey(
-    const string& cert_url, bool &cert_is_valid) const
+    const string& cert_url, AmArg &info, bool &cert_is_valid) const
 {
     std::shared_lock lock(certificates_mutex);
 
@@ -121,7 +121,15 @@ std::unique_ptr<Botan::Public_Key> CertCache::getPubKey(
     }
 
     cert_is_valid = it->second.validation_sucessfull;
-    return it->second.cert_chain[0].subject_public_key();
+
+    auto const &cert = it->second.cert_chain[0];
+
+    auto &cert_info = info["cert"];
+    cert_info["fingerprint_sha1"] = cert.fingerprint("SHA-1");
+    cert_info["subject"] = cert.subject_dn().to_string();
+    serialize_cert_tn_auth_list_to_amarg(cert, cert_info);
+
+    return cert.subject_public_key();
 }
 
 bool CertCache::isTrustedRepository(const string& cert_url) const
@@ -497,26 +505,8 @@ void CertCache::ShowSigningKeys(AmArg& ret) const
     }
 }
 
-void CertCache::serialize_cert_to_amarg(const Botan::X509_Certificate &cert, AmArg &a)
+void CertCache::serialize_cert_tn_auth_list_to_amarg(const Botan::X509_Certificate &cert, AmArg &a)
 {
-    a["not_after"] = cert.not_after().readable_string();
-    a["not_before"] = cert.not_before().readable_string();
-    a["subject"] = cert.subject_dn().to_string();
-    a["issuer"] = cert.issuer_dn().to_string();
-    a["fingerprint_sha1"] = cert.fingerprint("SHA-1");
-    auto info_vector = cert.subject_info("X509.Certificate.serial");
-    if(!info_vector.empty()) {
-        a["serial"] = *info_vector.begin();
-    }
-    info_vector = cert.subject_info("X509v3.SubjectKeyIdentifier");
-    if(!info_vector.empty()) {
-        a["subject_key_identifier"] = *info_vector.begin();
-    }
-    info_vector = cert.issuer_info("X509v3.AuthorityKeyIdentifier");
-    if(!info_vector.empty()) {
-        a["authority_key_identifier"] = *info_vector.begin();
-    }
-
     if(const Botan::Cert_Extension::TNAuthList *tn_auth_list =
        cert.v3_extensions().get_extension_object_as<Botan::Cert_Extension::TNAuthList>())
     {
@@ -546,4 +536,27 @@ void CertCache::serialize_cert_to_amarg(const Botan::X509_Certificate &cert, AmA
             }
         }
     }
+}
+
+void CertCache::serialize_cert_to_amarg(const Botan::X509_Certificate &cert, AmArg &a)
+{
+    a["not_after"] = cert.not_after().readable_string();
+    a["not_before"] = cert.not_before().readable_string();
+    a["subject"] = cert.subject_dn().to_string();
+    a["issuer"] = cert.issuer_dn().to_string();
+    a["fingerprint_sha1"] = cert.fingerprint("SHA-1");
+    auto info_vector = cert.subject_info("X509.Certificate.serial");
+    if(!info_vector.empty()) {
+        a["serial"] = *info_vector.begin();
+    }
+    info_vector = cert.subject_info("X509v3.SubjectKeyIdentifier");
+    if(!info_vector.empty()) {
+        a["subject_key_identifier"] = *info_vector.begin();
+    }
+    info_vector = cert.issuer_info("X509v3.AuthorityKeyIdentifier");
+    if(!info_vector.empty()) {
+        a["authority_key_identifier"] = *info_vector.begin();
+    }
+
+    serialize_cert_tn_auth_list_to_amarg(cert, a);
 }

@@ -157,7 +157,7 @@ class CertCache
 
     //returns if cert is presented in cache and ready to be used
     bool checkAndFetch(const string& cert_url, const string& session_id);
-    std::unique_ptr<Botan::Public_Key> getPubKey(const string& cert_url, bool &cert_is_valid) const;
+    std::unique_ptr<Botan::Public_Key> getPubKey(const string& cert_url, AmArg &info, bool &cert_is_valid) const;
     bool isTrustedRepository(const string& cert_url) const;
 
     std::optional<std::string> getIdentityHeader(
@@ -178,6 +178,7 @@ class CertCache
     void ShowTrustedRepositories(AmArg& ret) const;
     void ShowSigningKeys(AmArg& ret) const;
 
+    static void serialize_cert_tn_auth_list_to_amarg(const Botan::X509_Certificate &cert, AmArg &a);
     static void serialize_cert_to_amarg(const Botan::X509_Certificate &cert, AmArg &a);
 };
 
