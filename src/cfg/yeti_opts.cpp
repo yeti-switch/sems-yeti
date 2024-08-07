@@ -6,7 +6,7 @@
 #include "opts_helpers.h"
 
 #define YETI_CFG_DEFAULT_TIMEOUT 5000
-#define YETI_CFG_DEFAULT_SCRIPTS_DIR "/etc/sems/scripts"
+#define YETI_CFG_DEFAULT_SCRIPTS_DIR "/usr/lib/sems/scripts/yeti"
 
 #define YETI_SCTP_DEFAULT_HOST "127.0.0.1"
 #define YETI_SCTP_DEFAULT_PORT 4444
