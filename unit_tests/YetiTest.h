@@ -16,10 +16,10 @@ const char operation_resources_hash[] = "d90c1b9f557f590b13c4d918045fae98cd13182
 const char get_all_resources_hash[] = "d90c1b9f557f590b13c4d918045fae98cd131821";
 const char check_resources_hash[] = "e5d1e31bbedc44dfdfe1465a6960aa21c47ceb86";
 
-const char invalidate_resources_default_path[] = "/etc/sems/scripts/invalidate_resources.lua";
-const char operation_resources_default_path[] = "/etc/sems/scripts/operation_resources.lua";
-const char get_all_resources_default_path[] = "/etc/sems/scripts/get_all_resources.lua";
-const char check_resources_default_path[] = "/etc/sems/scripts/check_resources.lua";
+const char invalidate_resources_default_path[] = "./etc/invalidate_resources.lua";
+const char operation_resources_default_path[] = "./etc/operation_resources.lua";
+const char get_all_resources_default_path[] = "./etc/get_all_resources.lua";
+const char check_resources_default_path[] = "./etc/check_resources.lua";
 
 class YetiTest : public testing::Test
 {
