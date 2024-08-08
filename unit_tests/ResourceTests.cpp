@@ -183,8 +183,8 @@ TEST_F(YetiTest, ResourceGetCheck)
 static AmCondition<bool> getAllSuccess(false);
 static AmArg getAllResult;
 static void GetAllCallback(bool is_error, const AmArg& result) {
-    getAllSuccess.set(!is_error);
     getAllResult = result;
+    getAllSuccess.set(!is_error);
 }
 
 static bool isArgNumber(const AmArg& arg)
@@ -210,14 +210,15 @@ TEST_F(YetiTest, ResourceGetAll)
     test_server->addCommandResponse("EVALSHA %s 2 %d %d", REDIS_TEST_REPLY_ARRAY, ret,
         get_all_resources_hash, 0, 472);
 
-    conn.get_all(new ResourceRedisConnection::GetAllRequest(0, 472, GetAllCallback));
-
     getAllSuccess.set(false);
     getAllResult.clear();
+    conn.get_all(new ResourceRedisConnection::GetAllRequest(0, 472, GetAllCallback));
+
     time_ = time(0);
     while(!getAllSuccess.wait_for_to(500)) {
         ASSERT_FALSE(time(0) - time_ > 3);
     }
+
     ASSERT_TRUE(isArgStruct(getAllResult));
     ASSERT_TRUE(isArgNumber(getAllResult["1"]));
     ASSERT_EQ(getAllResult["1"].asInt(), 0);
@@ -226,14 +227,15 @@ TEST_F(YetiTest, ResourceGetAll)
     test_server->addCommandResponse("EVALSHA %s 2 %d %d", REDIS_TEST_REPLY_ARRAY, ret,
         get_all_resources_hash, ANY_VALUE, 472);
 
-    conn.get_all(new ResourceRedisConnection::GetAllRequest(ANY_VALUE, 472, GetAllCallback));
-
     getAllSuccess.set(false);
     getAllResult.clear();
+    conn.get_all(new ResourceRedisConnection::GetAllRequest(ANY_VALUE, 472, GetAllCallback));
+
     time_ = time(0);
     while(!getAllSuccess.wait_for_to(500)) {
         ASSERT_FALSE(time(0) - time_ > 3);
     }
+
     ASSERT_TRUE(isArgStruct(getAllResult));
     ASSERT_TRUE(isArgStruct(getAllResult["r:0:472"]));
     ASSERT_TRUE(isArgNumber(getAllResult["r:0:472"]["1"]));
@@ -246,14 +248,15 @@ TEST_F(YetiTest, ResourceGetAll)
     test_server->addCommandResponse("EVALSHA %s 2 %d %d", REDIS_TEST_REPLY_ARRAY, ret,
         get_all_resources_hash, 0, ANY_VALUE);
 
-    conn.get_all(new ResourceRedisConnection::GetAllRequest(0, ANY_VALUE, GetAllCallback));
-
     getAllSuccess.set(false);
     getAllResult.clear();
+    conn.get_all(new ResourceRedisConnection::GetAllRequest(0, ANY_VALUE, GetAllCallback));
+
     time_ = time(0);
     while(!getAllSuccess.wait_for_to(500)) {
         ASSERT_FALSE(time(0) - time_ > 3);
     }
+
     ASSERT_TRUE(isArgStruct(getAllResult));
     ASSERT_TRUE(isArgStruct(getAllResult["r:0:472"]));
     ASSERT_TRUE(isArgNumber(getAllResult["r:0:472"]["1"]));
@@ -263,14 +266,15 @@ TEST_F(YetiTest, ResourceGetAll)
     test_server->addCommandResponse("EVALSHA %s 2 %d %d", REDIS_TEST_REPLY_ARRAY, ret,
         get_all_resources_hash, ANY_VALUE, ANY_VALUE);
 
-    conn.get_all(new ResourceRedisConnection::GetAllRequest(ANY_VALUE, ANY_VALUE, GetAllCallback));
-
     getAllSuccess.set(false);
     getAllResult.clear();
+    conn.get_all(new ResourceRedisConnection::GetAllRequest(ANY_VALUE, ANY_VALUE, GetAllCallback));
+
     time_ = time(0);
     while(!getAllSuccess.wait_for_to(500)) {
         ASSERT_FALSE(time(0) - time_ > 3);
     }
+
     ASSERT_TRUE(isArgStruct(getAllResult));
     ASSERT_TRUE(isArgStruct(getAllResult["r:0:472"]));
     ASSERT_TRUE(isArgNumber(getAllResult["r:0:472"]["1"]));
