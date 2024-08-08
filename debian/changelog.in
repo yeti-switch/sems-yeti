@@ -1,3 +1,9 @@
+sems-yeti (1.13.72) stable; urgency=medium
+  * add STIR/SHAKEN cert data to the routing DB request
+  * use redis module for resources
+  * use registrar module to handle incoming registrations
+ -- dev <dev@yeti-switch.org>  Thu, 08 Aug 2024 14:04:46 +0300
+
 sems-yeti (1.13.71) stable; urgency=medium
   * fix deadlock on redis disconnect
  -- dev <dev@yeti-switch.org>  Thu, 23 May 2024 12:45:10 +0300
