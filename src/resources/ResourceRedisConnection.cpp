@@ -71,11 +71,9 @@ bool ResourceRedisConnection::OperationRequest::make_args_reduce(const string& s
         return false;
     }
 
-    args = {"EVALSHA", script_hash.c_str(), 0};
-
     for(auto &[key, value] : accumulated_changes) {
         args.emplace_back(
-            format("{} {} {}",
+            format("HINCRBY {} {} {}",
                 key, AmConfig.node_id, value));
     }
 
@@ -119,12 +117,10 @@ bool ResourceRedisConnection::OperationRequest::make_args_no_reduce(const string
         return false;
     }
 
-    args = {"EVALSHA", script_hash.c_str(), 0};
-
     for(auto &operation : operations) {
         for(const auto &r : operation.resources) {
             args.emplace_back(
-                format("{} {} {}",
+                format("HINCRBY {} {} {}",
                     get_key(r), AmConfig.node_id, r.takes));
         }
     }
@@ -134,10 +130,9 @@ bool ResourceRedisConnection::OperationRequest::make_args_no_reduce(const string
 
 bool ResourceRedisConnection::OperationRequest::make_args(Connection *, const string& script_hash, vector<AmArg> &args)
 {
-    if(reduce_operations)
-        return make_args_reduce(script_hash, args);
-
-    return make_args_no_reduce(script_hash, args);
+    return reduce_operations
+              ? make_args_reduce(script_hash, args)
+              : make_args_no_reduce(script_hash, args);
 }
 
 const ResourcesOperationList& ResourceRedisConnection::OperationRequest::get_resource_operations() const
@@ -799,7 +794,15 @@ bool ResourceRedisConnection::invalidate(InvalidateRequest* req)
 
 bool ResourceRedisConnection::operation(OperationRequest* req)
 {
-    return post_request(req, write_conn, OPERATION_RESOURCES_SCRIPT, UserTypeId::Operation);
+    unique_ptr<Request> req_ptr(req);
+    vector<AmArg> args;
+
+    if(prepare_request(req_ptr.get(), write_conn, nullptr, args) == false)
+        return false;
+
+    return session_container->postEvent(REDIS_APP_QUEUE,
+            new RedisRequest(queue_name, write_conn->id, args, req_ptr.release(),
+                             UserTypeId::Operation, false, RedisEvent::RequestMulti));
 }
 
 bool ResourceRedisConnection::get_all(GetAllRequest* req)
