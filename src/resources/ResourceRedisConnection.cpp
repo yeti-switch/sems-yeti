@@ -297,7 +297,6 @@ void ResourceRedisConnection::on_stop()
 
 void ResourceRedisConnection::process(AmEvent* event)
 {
-    INFO("process ev %d", event->event_id);
     switch(event->event_id) {
         case E_SYSTEM: {
             AmSystemEvent* sys_ev = dynamic_cast<AmSystemEvent*>(event);
