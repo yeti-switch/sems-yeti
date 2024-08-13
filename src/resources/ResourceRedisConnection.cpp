@@ -72,9 +72,8 @@ bool ResourceRedisConnection::OperationRequest::make_args_reduce(const string& s
     }
 
     for(auto &[key, value] : accumulated_changes) {
-        AmArg a;
-        a.assign_array("HINCRBY", key, AmConfig.node_id, value);
-        args.emplace_back(a);
+        args.emplace_back(
+            AmArg().assign_array("HINCRBY", key, AmConfig.node_id, value));
     }
 
     return true;
@@ -119,9 +118,8 @@ bool ResourceRedisConnection::OperationRequest::make_args_no_reduce(const string
 
     for(auto &operation : operations) {
         for(const auto &r : operation.resources) {
-            AmArg a;
-            a.assign_array("HINCRBY", get_key(r), AmConfig.node_id, r.takes);
-            args.emplace_back(a);
+            args.emplace_back(
+                AmArg().assign_array("HINCRBY", get_key(r), AmConfig.node_id, r.takes));
         }
     }
 
@@ -802,7 +800,7 @@ bool ResourceRedisConnection::operation(OperationRequest* req)
 
     return session_container->postEvent(REDIS_APP_QUEUE,
             new RedisRequest(queue_name, write_conn->id, args, req_ptr.release(),
-                             UserTypeId::Operation, false, RedisEvent::RequestMulti));
+                             UserTypeId::Operation, false, true));
 }
 
 bool ResourceRedisConnection::get_all(GetAllRequest* req)
