@@ -37,10 +37,10 @@ ResourceRedisClient::Request::Request(cb_func *callback)
 
 void ResourceRedisClient::Request::on_finish()
 {
-    finished.set(true);
-
     if(callback)
         callback(iserror, result);
+
+    finished.set(true);
 }
 
 void ResourceRedisClient::Request::on_error(int code, const char* error, ...)
