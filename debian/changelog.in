@@ -1,3 +1,7 @@
+sems-yeti (1.13.74) stable; urgency=medium
+  * fix segfault on resources check reply event processing racing
+ -- dev <dev@yeti-switch.org>  Tue, 13 Aug 2024 17:41:21 +0300
+
 sems-yeti (1.13.73) stable; urgency=medium
   * ResourceRedisConnection: remove event process logging
  -- dev <dev@yeti-switch.org>  Mon, 12 Aug 2024 22:37:18 +0300
