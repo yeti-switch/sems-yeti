@@ -72,9 +72,9 @@ bool ResourceRedisConnection::OperationRequest::make_args_reduce(const string& s
     }
 
     for(auto &[key, value] : accumulated_changes) {
-        args.emplace_back(
-            format("HINCRBY {} {} {}",
-                key, AmConfig.node_id, value));
+        AmArg a;
+        a.assign_array("HINCRBY", key, AmConfig.node_id, value);
+        args.emplace_back(a);
     }
 
     return true;
@@ -119,9 +119,9 @@ bool ResourceRedisConnection::OperationRequest::make_args_no_reduce(const string
 
     for(auto &operation : operations) {
         for(const auto &r : operation.resources) {
-            args.emplace_back(
-                format("HINCRBY {} {} {}",
-                    get_key(r), AmConfig.node_id, r.takes));
+            AmArg a;
+            a.assign_array("HINCRBY", get_key(r), AmConfig.node_id, r.takes);
+            args.emplace_back(a);
         }
     }
 
