@@ -2,8 +2,9 @@
 
 #include "log.h"
 #include "jsonArg.h"
-
 #include "../HeaderFilter.h"
+
+#include <algorithm>
 
 static int normalize_aleg_header_name(int c) {
     if(c=='-') return '_';
