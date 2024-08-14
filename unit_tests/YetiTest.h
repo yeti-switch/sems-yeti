@@ -12,12 +12,10 @@
 #include "../src/resources/ResourceRedisConnection.h"
 
 const char invalidate_resources_hash[] = "5b46be51ed0aaeb4345131f47ca36d977be8d39a";
-const char operation_resources_hash[] = "d90c1b9f557f590b13c4d918045fae98cd13182b";
 const char get_all_resources_hash[] = "d90c1b9f557f590b13c4d918045fae98cd131821";
 const char check_resources_hash[] = "e5d1e31bbedc44dfdfe1465a6960aa21c47ceb86";
 
 const char invalidate_resources_default_path[] = "./etc/invalidate_resources.lua";
-const char operation_resources_default_path[] = "./etc/operation_resources.lua";
 const char get_all_resources_default_path[] = "./etc/get_all_resources.lua";
 const char check_resources_default_path[] = "./etc/check_resources.lua";
 

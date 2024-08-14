@@ -640,7 +640,6 @@ int ResourceRedisConnection::init()
 
     write_conn->info.scripts = {
         {INVALIDATE_RESOURCES_SCRIPT, get_script_path(INVALIDATE_RESOURCES_SCRIPT)},
-        {OPERATION_RESOURCES_SCRIPT, get_script_path(OPERATION_RESOURCES_SCRIPT)}
     };
 
     read_conn->info.scripts = {

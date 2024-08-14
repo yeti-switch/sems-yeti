@@ -18,7 +18,6 @@ protected:
     {
         test_server->response_enabled.set(false);
         test_server->addLoadScriptCommandResponse(invalidate_resources_default_path, invalidate_resources_hash);
-        test_server->addLoadScriptCommandResponse(operation_resources_default_path, operation_resources_hash);
         test_server->addLoadScriptCommandResponse(get_all_resources_default_path, get_all_resources_hash);
         test_server->addLoadScriptCommandResponse(check_resources_default_path, check_resources_hash);
         test_server->response_enabled.set(true);
@@ -48,7 +47,6 @@ void YetiTest::SetUp()
     test_server->response_enabled.set(false);
     test_server->clear();
     test_server->addLoadScriptCommandResponse(redis_conn.get_script_path(INVALIDATE_RESOURCES_SCRIPT), invalidate_resources_hash);
-    test_server->addLoadScriptCommandResponse(redis_conn.get_script_path(OPERATION_RESOURCES_SCRIPT), operation_resources_hash);
     test_server->addLoadScriptCommandResponse(redis_conn.get_script_path(GET_ALL_RESOURCES_SCRIPT), get_all_resources_hash);
     test_server->addLoadScriptCommandResponse(redis_conn.get_script_path(CHECK_RESOURCES_SCRIPT), check_resources_hash);
     test_server->response_enabled.set(true);

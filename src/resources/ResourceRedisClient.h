@@ -16,7 +16,6 @@ using std::unique_ptr;
 #define WRITE_CONN_ID   "write"
 
 #define INVALIDATE_RESOURCES_SCRIPT     "invalidate_resources"
-#define OPERATION_RESOURCES_SCRIPT      "operation_resources"
 #define GET_ALL_RESOURCES_SCRIPT        "get_all_resources"
 #define CHECK_RESOURCES_SCRIPT          "check_resources"
 
