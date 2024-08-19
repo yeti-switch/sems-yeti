@@ -1,3 +1,7 @@
+sems-yeti (1.13.75) stable; urgency=medium
+  * use redis MULTI/EXEC instead of the LUA script for the resources get/put operations
+ -- dev <dev@yeti-switch.org>  Mon, 19 Aug 2024 16:27:59 +0300
+
 sems-yeti (1.13.74) stable; urgency=medium
   * fix segfault on resources check reply event processing racing
  -- dev <dev@yeti-switch.org>  Tue, 13 Aug 2024 17:41:21 +0300
