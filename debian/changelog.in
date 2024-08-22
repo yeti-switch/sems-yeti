@@ -1,3 +1,7 @@
+sems-yeti (1.13.76) stable; urgency=medium
+  * validate Reason cause value to be within pg smalling
+ -- dev <dev@yeti-switch.org>  Thu, 22 Aug 2024 15:30:10 +0300
+
 sems-yeti (1.13.75) stable; urgency=medium
   * use redis MULTI/EXEC instead of the LUA script for the resources get/put operations
  -- dev <dev@yeti-switch.org>  Mon, 19 Aug 2024 16:27:59 +0300
