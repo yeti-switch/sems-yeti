@@ -32,5 +32,6 @@ class ReasonParser
 
     void serialize_flat(
         AmArg &ret,
-        const YetiCfg::headers_processing_config::leg_reasons &cfg);
+        const YetiCfg::headers_processing_config::leg_reasons &cfg,
+        const string &local_tag);
 };

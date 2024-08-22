@@ -3,6 +3,7 @@
 #include "log.h"
 
 #include <cstring>
+#include <limits>
 
 const std::string reason_header_value("reason");
 
@@ -313,12 +314,27 @@ void ReasonParser::serialize(
         q850_reason.serialize(ret["q850"]);
 }
 
+inline bool validate_cause(int cause) {
+    /* ensure cause value is within pg smallint
+     * https://www.postgresql.org/docs/current/datatype-numeric.html */
+    return cause >= std::numeric_limits<int16_t>::min() &&
+           cause <= std::numeric_limits<int16_t>::max();
+}
+
 void ReasonParser::serialize_flat(
     AmArg &ret,
-    const YetiCfg::headers_processing_config::leg_reasons &cfg)
+    const YetiCfg::headers_processing_config::leg_reasons &cfg,
+    const string &local_tag)
 {
     if(sip_reason.parsed && cfg.add_sip_reason) {
-        ret["sip_cause"] = sip_reason.cause;
+        if(validate_cause(sip_reason.cause)) {
+            ret["sip_cause"] = sip_reason.cause;
+        } else {
+            WARN("[%s] SIP cause value %d is out of range for pg type smallint. use null",
+                local_tag.data(), sip_reason.cause);
+            ret["sip_cause"] = AmArg();
+        }
+
         if(!sip_reason.text.empty())
             ret["sip_text"] = sip_reason.text;
         if(!sip_reason.params.empty())
@@ -326,7 +342,14 @@ void ReasonParser::serialize_flat(
     }
 
     if(q850_reason.parsed && cfg.add_q850_reason) {
-        ret["q850_cause"] = q850_reason.cause;
+        if(validate_cause(q850_reason.cause)) {
+            ret["q850_cause"] = q850_reason.cause;
+        } else {
+            WARN("[%s] Q850 cause value %d is out of range for pg type smallint. use null",
+                local_tag.data(), q850_reason.cause);
+            ret["q850_cause"] = AmArg();
+        }
+
         if(!q850_reason.text.empty())
             ret["q850_text"] = q850_reason.text;
         if(!q850_reason.params.empty())

@@ -1065,7 +1065,8 @@ void Cdr::apply_params(
         aleg_headers_amarg.assertStruct();
         aleg_reasons.serialize_flat(
             aleg_headers_amarg["reason"],
-            cfg.headers_processing.aleg);
+            cfg.headers_processing.aleg,
+            local_tag);
     }
     invoc_cond(arg2json(aleg_headers_amarg), isArgStruct(aleg_headers_amarg) && aleg_headers_amarg.size());
     //}
@@ -1077,7 +1078,8 @@ void Cdr::apply_params(
         bleg_reply_headers_amarg.assertStruct();
         bleg_reasons.serialize_flat(
             bleg_reply_headers_amarg["reason"],
-            cfg.headers_processing.bleg);
+            cfg.headers_processing.bleg,
+            local_tag);
     }
     invoc_cond(arg2json(bleg_reply_headers_amarg), isArgStruct(bleg_reply_headers_amarg) && bleg_reply_headers_amarg.size());
 

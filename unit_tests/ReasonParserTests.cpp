@@ -24,6 +24,8 @@ AmArg reasons_expected{
     { "q850", q850_reason_expected }
 };
 
+const string test_local_tag{"test_local_tag"};
+
 TEST_F(YetiTest, ReasonParserCommaSeparated)
 {
     YetiCfg::headers_processing_config::leg_reasons cfg;
@@ -48,7 +50,7 @@ TEST_F(YetiTest, ReasonParserCommaSeparatedFlat)
     p.parse_headers(Reason_hdr_comma_separated);
 
     AmArg serialized_reasons;
-    p.serialize_flat(serialized_reasons, cfg);
+    p.serialize_flat(serialized_reasons, cfg, test_local_tag);
     ASSERT_EQ(serialized_reasons, (AmArg{
         { "sip_cause", 200 },
         { "sip_text", "Call completed elsewhere" },
@@ -71,7 +73,7 @@ TEST_F(YetiTest, ReasonParserCommaSeparatedFlatParams)
             "text=\"Terminated\"");
 
     AmArg serialized_reasons;
-    p.serialize_flat(serialized_reasons, cfg);
+    p.serialize_flat(serialized_reasons, cfg, test_local_tag);
     ASSERT_EQ(serialized_reasons, (AmArg{
         { "sip_cause", 200 },
         { "sip_text", "Call completed elsewhere" },
@@ -211,7 +213,7 @@ TEST_F(YetiTest, ReasonParserQ850Flat)
         "Reason: Q.850;cause=31;text=\"Normal, unspecified\"");
 
     AmArg serialized_reasons;
-    p.serialize_flat(serialized_reasons, cfg);
+    p.serialize_flat(serialized_reasons, cfg, test_local_tag);
     ASSERT_EQ(serialized_reasons, (AmArg{
         { "q850_cause", 31 },
         { "q850_text", "Normal, unspecified" }
@@ -229,9 +231,52 @@ TEST_F(YetiTest, ReasonParserSIPFlat)
         "Reason: SIP;cause=200;text=\"Normal call clearing\"");
 
     AmArg serialized_reasons;
-    p.serialize_flat(serialized_reasons, cfg);
+    p.serialize_flat(serialized_reasons, cfg, test_local_tag);
     ASSERT_EQ(serialized_reasons, (AmArg{
         { "sip_cause", 200 },
         { "sip_text", "Normal call clearing" }
+    }));
+}
+
+
+TEST_F(YetiTest, ReasonParserSIPFlatCauseBorderValues)
+{
+    YetiCfg::headers_processing_config::leg_reasons cfg;
+    cfg.add_q850_reason = true;
+    cfg.add_sip_reason = true;
+
+    ReasonParser p;
+    p.parse_headers(
+        R"-(Reason: SIP; cause=32767; text="Call completed elsewhere", )-"
+        R"-(Q.850 ;cause=-32768 ;text="Terminated")-");
+
+    AmArg serialized_reasons;
+    p.serialize_flat(serialized_reasons, cfg, test_local_tag);
+    ASSERT_EQ(serialized_reasons, (AmArg{
+        { "sip_cause", 32767 },
+        { "sip_text", "Call completed elsewhere" },
+        { "q850_cause", -32768 },
+        { "q850_text", "Terminated" }
+    }));
+}
+
+TEST_F(YetiTest, ReasonParserSIPFlatCauseOutOfRange)
+{
+    YetiCfg::headers_processing_config::leg_reasons cfg;
+    cfg.add_q850_reason = true;
+    cfg.add_sip_reason = true;
+
+    ReasonParser p;
+    p.parse_headers(
+        R"-(Reason: SIP; cause=32768; text="Call completed elsewhere", )-"
+        R"-(Q.850 ;cause=-32769 ;text="Terminated")-");
+
+    AmArg serialized_reasons;
+    p.serialize_flat(serialized_reasons, cfg, test_local_tag);
+    ASSERT_EQ(serialized_reasons, (AmArg{
+        { "sip_cause", AmArg() },
+        { "sip_text", "Call completed elsewhere" },
+        { "q850_cause", AmArg() },
+        { "q850_text", "Terminated" }
     }));
 }
