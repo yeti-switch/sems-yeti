@@ -738,7 +738,7 @@ void SqlRouter::write_cdr(std::unique_ptr<Cdr> &cdr, bool last)
 
     cdr.reset();
 
-    //AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_param_execute_event.release());
+    AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_param_execute_event.release());
     //cdr_writer->postcdr(cdr);
   } else {
     DBG("%s(%p) trying to write already writed cdr",FUNC_NAME, cdr.get());
