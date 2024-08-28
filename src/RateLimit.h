@@ -18,6 +18,7 @@ class DynRateLimit
 public:
   // time_base_ms: milliseconds
   DynRateLimit(unsigned int time_base_ms);
+  DynRateLimit(const DynRateLimit &other);
 
   virtual ~DynRateLimit() {}
 

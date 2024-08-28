@@ -10,6 +10,11 @@ DynRateLimit::DynRateLimit(unsigned int time_base_ms)
   time_base = time_base_ms / 20;
 }
 
+DynRateLimit::DynRateLimit(const DynRateLimit &other)
+  : last_update(0), counter(0),
+    time_base(other.time_base)
+{}
+
 bool DynRateLimit::limit(unsigned int rate, unsigned int peak, 
 			 unsigned int size)
 {
