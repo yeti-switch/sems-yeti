@@ -73,26 +73,21 @@ int ResourceControl::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         return -1;
     }
 
-	reject_on_error = cfg.getParameterInt("reject_on_cache_error",-1);
-	if(reject_on_error == -1){
-		ERROR("missed 'reject_on_error' parameter");
-		return -1;
-	}
+    reject_on_error = cfg_getbool(resources_sec, opt_resources_reject_on_error);
 
-	if(load_resources_config()) {
-		ERROR("can't load resources config");
-		return -1;
-	}
+    if(load_resources_config()) {
+        ERROR("can't load resources config");
+        return -1;
+    }
 
-	redis_conn.registerResourcesInitializedCallback(&on_resources_initialized_static);
+    redis_conn.registerResourcesInitializedCallback(&on_resources_initialized_static);
 
-	return redis_conn.configure(resources_sec, cfg);
+    return redis_conn.configure(resources_sec);
 }
 
 void ResourceControl::start(){
-//	DBG("%s()",FUNC_NAME);
     redis_conn.init();
-	redis_conn.start();
+    redis_conn.start();
 }
 
 void ResourceControl::stop(){

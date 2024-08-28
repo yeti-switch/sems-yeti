@@ -1,8 +1,6 @@
 #include "YetiTest.h"
 #include "../src/resources/ResourceControl.h"
 #include "../src/resources/ResourceRedisConnection.h"
-#include "../src/cfg/yeti_opts.h"
-#include "../src/yeti.h"
 
 #include <jsonArg.h>
 
@@ -11,43 +9,10 @@ static void InitCallback(bool is_error, const AmArg&) {
     inited.set(!is_error);
 }
 
-static int configure_run_redis_connection(
-    ResourceRedisConnection &conn,
-    const RedisSettings &settings,
-    ResourceRedisConnection::Request::cb_func* result_cb = nullptr,
-    ResourceRedisConnection::Request::cb_func* init_cb = nullptr,
-    int timeout = DEFAULT_REDIS_TIMEOUT_MSEC)
-{
-    AmConfigReader cfg;
-
-    cfg.setParameter("write_redis_host", settings.host.c_str());
-    cfg.setParameter("write_redis_port", int2str(settings.port));
-    cfg.setParameter("read_redis_host", settings.host.c_str());
-    cfg.setParameter("read_redis_port", int2str(settings.port));
-    if(timeout) {
-        cfg.setParameter("read_redis_timeout", int2str(timeout));
-        cfg.setParameter("write_redis_timeout", int2str(timeout));
-    }
-
-    auto resources_sec = cfg_getsec(Yeti::instance().confuse_cfg, section_name_resources);
-    conn.configure(resources_sec, cfg);
-
-    if(result_cb)
-        conn.registerOperationResultCallback(result_cb);
-
-    if(init_cb)
-        conn.registerResourcesInitializedCallback(init_cb);
-
-    conn.init();
-    conn.start();
-
-    return 0;
-}
-
 TEST_F(YetiTest, ResourceInit)
 {
     ResourceRedisConnection conn("resourceTest1");
-    configure_run_redis_connection(conn, settings, nullptr, InitCallback);
+    configure_run_redis_connection(conn, nullptr, InitCallback);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -66,7 +31,7 @@ static void GetPutCallback(bool is_error, const AmArg&) {
 TEST_F(YetiTest, ResourceGetPut)
 {
     ResourceRedisConnection conn("resourceTest2");
-    configure_run_redis_connection(conn, settings, GetPutCallback);
+    configure_run_redis_connection(conn, GetPutCallback);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -93,7 +58,7 @@ TEST_F(YetiTest, ResourceGetPut)
 TEST_F(YetiTest, ResourceCheck)
 {
     ResourceRedisConnection conn("resourceTest3");
-    configure_run_redis_connection(conn, settings);
+    configure_run_redis_connection(conn);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -131,7 +96,7 @@ TEST_F(YetiTest, ResourceCheck)
 TEST_F(YetiTest, ResourceGetCheck)
 {
     ResourceRedisConnection conn("resourceTest4");
-    configure_run_redis_connection(conn, settings, GetPutCallback);
+    configure_run_redis_connection(conn, GetPutCallback);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -195,7 +160,7 @@ static bool isArgNumber(const AmArg& arg)
 TEST_F(YetiTest, ResourceGetAll)
 {
     ResourceRedisConnection conn("resourceTest5");
-    configure_run_redis_connection(conn, settings);
+    configure_run_redis_connection(conn);
 
     time_t time_ = time(0);
         while(!conn.get_write_conn()->wait_connected() &&
@@ -290,7 +255,7 @@ TEST_F(YetiTest, ResourceGetAll)
 TEST_F(YetiTest, ResourceOverload)
 {
     ResourceRedisConnection conn("resourceTest6");
-    configure_run_redis_connection(conn, settings, GetPutCallback);
+    configure_run_redis_connection(conn, GetPutCallback);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&
@@ -354,7 +319,7 @@ TEST_F(YetiTest, ResourceOverload)
 TEST_F(YetiTest, ResourceTimeout)
 {
     ResourceRedisConnection conn("resourceTest7");
-    configure_run_redis_connection(conn, settings, nullptr, InitCallback, 0);
+    configure_run_redis_connection(conn, nullptr, InitCallback, 0);
 
     time_t time_ = time(0);
     while(!conn.get_write_conn()->wait_connected() &&

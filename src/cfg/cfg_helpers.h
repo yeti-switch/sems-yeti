@@ -18,8 +18,3 @@ void apply_db_cfg(
 void apply_pool_cfg(
     cfg_t *c,std::string prefix,
     AmConfigReader &out);
-
-void apply_redis_pool_cfg(
-    cfg_t *c,std::string prefix,
-    AmConfigReader &out);
-

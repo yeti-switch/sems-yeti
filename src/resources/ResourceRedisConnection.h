@@ -9,12 +9,17 @@
 extern const string RESOURCE_QUEUE_NAME;
 
 struct RedisConfig {
-    short port;
-    string server;
+    vector<RedisAddr> addrs;
+    RedisRole role;
+
     int timeout;
     bool need_auth;
     string username;
     string password;
+
+    RedisConfig(RedisRole role)
+      : role(role)
+    {}
 };
 
 enum ResourceResponse {
@@ -121,7 +126,7 @@ class ResourceRedisConnection
     void process_operations_queue_unsafe();
 
   protected:
-    int cfg2RedisCfg(const AmConfigReader &cfg, RedisConfig &rcfg,string prefix);
+    int cfg2RedisCfg(cfg_t *cfg, RedisConfig &rcfg);
     bool is_ready();
 
     void process_operations_queue();
@@ -149,7 +154,7 @@ class ResourceRedisConnection
     ResourceRedisConnection(const string& queue_name = RESOURCE_QUEUE_NAME);
     virtual ~ResourceRedisConnection();
 
-    int configure(cfg_t *confuse_cfg, const AmConfigReader& cfg);
+    int configure(cfg_t *confuse_cfg);
     int init();
     bool invalidate_resources_sync();
     void get_config(AmArg& ret);

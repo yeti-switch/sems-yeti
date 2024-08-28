@@ -6,6 +6,8 @@
 #include <AmPlugIn.h>
 #include <format_helper.h>
 
+#include "confuse.h"
+
 #define EPOLL_MAX_EVENTS    2048
 #define session_container AmSessionContainer::instance()
 #define event_dispatcher AmEventDispatcher::instance()
@@ -209,6 +211,8 @@ ResourceRedisConnection::ResourceRedisConnection(const string& queue_name)
   : AmEventFdQueue(this),
     ResourceRedisClient(queue_name),
     queue_name(queue_name),
+    writecfg(RedisMaster),
+    readcfg(RedisSlave),
     write_async_is_busy(false),
     resources_inited(false),
     write_queue_size(stat_group(Gauge, "yeti", "resources_write_queue_size").addAtomicCounter()),
@@ -327,13 +331,26 @@ void ResourceRedisConnection::process(AmEvent* event)
     ERROR("got unexpected event ev %d", event->event_id);
 }
 
-int ResourceRedisConnection::configure(cfg_t *confuse_cfg, const AmConfigReader& cfg)
+int ResourceRedisConnection::configure(cfg_t *confuse_cfg)
 {
     reduce_operations = cfg_getbool(confuse_cfg, opt_resources_reduce_operations);
     scripts_dir = cfg_getstr(confuse_cfg, opt_resources_scripts_dir);
 
-    if(cfg2RedisCfg(cfg, writecfg, "write") ||
-       cfg2RedisCfg(cfg, readcfg, "read")) {
+    auto redis_write = cfg_getsec(confuse_cfg, "write");
+    if(!redis_write) {
+        ERROR("absent resources.redis.write section");
+        return -1;
+    }
+
+    auto redis_read = cfg_getsec(confuse_cfg, "read");
+    if(!redis_read) {
+        ERROR("absent resources.redis.read section");
+        return -1;
+    }
+
+    if(cfg2RedisCfg(redis_write, writecfg) ||
+       cfg2RedisCfg(redis_read, readcfg))
+    {
         return -1;
     }
 
@@ -346,27 +363,25 @@ int ResourceRedisConnection::configure(cfg_t *confuse_cfg, const AmConfigReader&
     return 0;
 }
 
-int ResourceRedisConnection::cfg2RedisCfg(const AmConfigReader &cfg, RedisConfig &rcfg,string prefix)
+int ResourceRedisConnection::cfg2RedisCfg(cfg_t *cfg, RedisConfig &rcfg)
 {
-//  DBG("%s()",FUNC_NAME);
-    rcfg.server = cfg.getParameter(prefix+"_redis_host");
-    if(rcfg.server.empty()){
-        ERROR("no host or socket for %s redis",prefix.c_str());
+    for(unsigned int i = 0; i < cfg_size(cfg, opt_redis_hosts); i++) {
+        auto host_port = parse_hostport(cfg_getnstr(cfg, opt_redis_hosts, i));
+        if(host_port.has_value())
+            rcfg.addrs.emplace_back(host_port.value().first, host_port.value().second);
+    }
+
+    if(rcfg.addrs.empty()) {
+        ERROR("empty hosts in resources.redis.%s", rcfg.role == RedisMaster ? "write" : "read");
         return -1;
     }
-    rcfg.port = cfg.getParameterInt(prefix+"_redis_port");
-    if(!rcfg.port){
-        ERROR("no port for %s redis",prefix.c_str());
-        return -1;
-    }
-    rcfg.timeout = cfg.getParameterInt(prefix+"_redis_timeout");
-    if(!rcfg.port){
-        ERROR("no timeout for %s redis",prefix.c_str());
-        return -1;
-    }
-    rcfg.need_auth = cfg.hasParameter(prefix+"_redis_password");
-    rcfg.password = cfg.getParameter(prefix+"_redis_password");
-    rcfg.username = cfg.getParameter(prefix+"_redis_username");
+
+    rcfg.timeout = cfg_getint(cfg, opt_redis_timeout);
+
+    rcfg.username = cfg_getstr(cfg, opt_redis_username);
+    rcfg.password = cfg_getstr(cfg, opt_redis_password);
+    rcfg.need_auth = !rcfg.username.empty();
+
     return 0;
 }
 
@@ -626,9 +641,8 @@ int ResourceRedisConnection::init()
     stop_event.link(epoll_fd,true);
 
     auto cfg_conn_info = [](const RedisConfig &cfg, RedisConnectionInfo &info) {
-        info.host = cfg.server;
-        info.port = cfg.port;
-
+        info.addrs = cfg.addrs;
+        info.role = cfg.role;
         if(cfg.need_auth) {
             info.password = cfg.password;
             info.username = cfg.username;
@@ -764,12 +778,23 @@ ResourceResponse ResourceRedisConnection::get(ResourceList &rl, ResourceList::it
     return ret;
 }
 
+inline std::string serialize_redis_addrs(const vector<RedisAddr> addrs)
+{
+    std::ostringstream ss;
+    ss << "{ ";
+    for(const  auto &a : addrs) {
+        ss << a.host << ":" << a.port << ", ";
+    }
+    ss << "}";
+    return ss.str();
+}
+
 void ResourceRedisConnection::get_config(AmArg& ret)
 {
     AmArg& write = ret["write"];
-    write["connection"] = writecfg.server+":"+int2str(writecfg.port);
+    write["connection"] = serialize_redis_addrs(writecfg.addrs);
     AmArg& read = ret["read"];
-    read["connection"] = readcfg.server+":"+int2str(readcfg.port);
+    read["connection"] = serialize_redis_addrs(readcfg.addrs);
 }
 
 bool ResourceRedisConnection::get_resource_state(const std::string& connection_id,

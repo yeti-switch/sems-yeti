@@ -1,12 +1,8 @@
 #pragma once
 
-/*#include "db_opts.h"
-#include "redis_opts.h"
-#include "statistics_opts.h"*/
-//#include "opts_helpers.h"
 #include "confuse.h"
 
-#define YETI_CFG_DEFAULT_TIMEOUT 5000
+#define YETI_REDIS_DEFAULT_TIMEOUT 5000
 
 #define YETI_SCTP_DEFAULT_HOST "127.0.0.1"
 #define YETI_SCTP_DEFAULT_PORT 4444
@@ -54,8 +50,12 @@ extern char opt_registrar_keepalive_interval[];
 
 extern char opt_resources_reduce_operations[];
 extern char opt_resources_scripts_dir[];
+extern char opt_resources_reject_on_error[];
 
-//extern int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
+extern char opt_redis_hosts[];
+extern char opt_redis_timeout[];
+extern char opt_redis_username[];
+extern char opt_redis_password[];
 
 //routing
 extern cfg_opt_t sig_yeti_routing_pool_opts[];

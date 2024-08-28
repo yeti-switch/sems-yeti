@@ -1,6 +1,9 @@
 #include "YetiTest.h"
 #include "../src/yeti.h"
+#include "../src/cfg/yeti_opts.h"
+
 #include "AmLcConfig.h"
+#include "format_helper.h"
 
 #define redis_conn Yeti::instance().rctl.getRedisConn()
 
@@ -84,6 +87,39 @@ void YetiTest::cleanResources(ResourceRedisConnection &conn)
     }
 }
 
+int YetiTest::configure_run_redis_connection(
+    ResourceRedisConnection &conn,
+    ResourceRedisConnection::Request::cb_func* result_cb,
+    ResourceRedisConnection::Request::cb_func* init_cb,
+    int timeout)
+{
+    auto cfg = Yeti::instance().confuse_cfg;
+    auto cfg_resources = cfg_getsec(cfg, section_name_resources);
+    auto redis_write = cfg_getsec(cfg_resources, "write");
+    auto redis_read = cfg_getsec(cfg_resources, "read");
+
+    cfg_setstr(redis_write, opt_redis_hosts, format("{}:{}", settings.host, settings.port).data());
+    cfg_setstr(redis_read, opt_redis_hosts, format("{}:{}", settings.host, settings.port).data());
+    if(timeout) {
+        cfg_setint(redis_write, opt_redis_timeout, timeout);
+        cfg_setint(redis_read, opt_redis_timeout, timeout);
+    }
+
+    auto resources_sec = cfg_getsec(Yeti::instance().confuse_cfg, section_name_resources);
+    conn.configure(resources_sec);
+
+    if(result_cb)
+        conn.registerOperationResultCallback(result_cb);
+
+    if(init_cb)
+        conn.registerResourcesInitializedCallback(init_cb);
+
+    conn.init();
+    conn.start();
+
+    return 0;
+}
+
 class YetiTestListener : public testing::EmptyTestEventListener
 {
 public:
@@ -102,8 +138,8 @@ YetiTestFactory::YetiTestFactory()
 {
     AmArg routes;
     routes["vartype"] = "int2";
-	routes["varname"] = "two";
-	routes["forcdr"] = false;
+    routes["varname"] = "two";
+    routes["forcdr"] = false;
     pqtest_server.addResponse(string("SELECT * from load_interface_out()"), routes);
     pqtest_server.addResponse(string("SELECT * from load_interface_in()"), routes);
 

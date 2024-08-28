@@ -1,11 +1,9 @@
 #include "yeti_opts.h"
 
 #include "db_opts.h"
-#include "redis_opts.h"
 #include "statistics_opts.h"
 #include "opts_helpers.h"
 
-#define YETI_CFG_DEFAULT_TIMEOUT 5000
 #define YETI_CFG_DEFAULT_SCRIPTS_DIR "/usr/lib/sems/scripts/yeti"
 
 #define YETI_SCTP_DEFAULT_HOST "127.0.0.1"
@@ -54,6 +52,12 @@ char opt_name_cdr_headers_add_q850_reason[] = "add_q850_reason";
 
 char opt_resources_reduce_operations[] = "reduce_operations";
 char opt_resources_scripts_dir[] = "scripts_dir";
+char opt_resources_reject_on_error[] = "reject_on_error";
+
+char opt_redis_hosts[] = "hosts";
+char opt_redis_timeout[] = "timeout";
+char opt_redis_username[] = "username";
+char opt_redis_password[] = "password";
 
 int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 int add_bleg_reply_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
@@ -109,14 +113,17 @@ cfg_opt_t sig_yeti_cdr_opts[] = {
 	CFG_END()
 };
 
-//resources and registrar
+//resources
 cfg_opt_t sig_yeti_redis_pool_opts[] = {
-	redis_pool_opts,
+	CFG_STR_LIST(opt_redis_hosts, 0, CFGF_NODEFAULT),
+	CFG_INT(opt_redis_timeout, YETI_REDIS_DEFAULT_TIMEOUT , CFGF_NONE),
+	CFG_STR(opt_redis_username, "", CFGF_NONE),
+	CFG_STR(opt_redis_password, "", CFGF_NONE),
 	CFG_END()
 };
 
 cfg_opt_t sig_yeti_resources_opts[] = {
-	DCFG_BOOL(reject_on_error),
+	CFG_BOOL(opt_resources_reject_on_error, cfg_false, CFGF_NONE),
 	CFG_BOOL(opt_resources_reduce_operations, cfg_false, CFGF_NONE),
 	CFG_STR(opt_resources_scripts_dir, YETI_CFG_DEFAULT_SCRIPTS_DIR, CFGF_NONE),
 	DCFG_SEC(write,sig_yeti_redis_pool_opts,CFGF_NONE),

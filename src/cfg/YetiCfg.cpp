@@ -162,14 +162,6 @@ void YetiCfg::serialize_to_amconfig(cfg_t *y, AmConfigReader &out)
 			//slave
 			apply_db_cfg(cfg_getsec(c,"slave"),"slavecdr_",out);
 
-		//resources
-		c = cfg_getsec(y,"resources");
-		add2hash(c,"reject_on_cache_error","reject_on_error",out);
-			//write
-			apply_redis_pool_cfg(cfg_getsec(c,"write"),"write_redis_",out);
-			//read
-			apply_redis_pool_cfg(cfg_getsec(c,"read"),"read_redis_",out);
-
 		//registrations
 		c = cfg_getsec(y,"registrations");
 		add2hash(c,"reg_check_interval","check_interval",out);

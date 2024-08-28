@@ -62,14 +62,3 @@ void apply_pool_cfg(
     add2hash(c,prefix+"max_exceptions","max_exceptions",out);
     add2hash(c,prefix+"statement_timeout","statement_timeout",out);
 }
-
-void apply_redis_pool_cfg(
-    cfg_t *c,std::string prefix,
-    AmConfigReader &out)
-{
-    add2hash(c,prefix+"host","host",out);
-    add2hash(c,prefix+"port","port",out);
-    add2hash(c,prefix+"timeout","timeout",out);
-    if(cfg_size(c, "username")) add2hash(c,prefix+"username","username",out);
-    if(cfg_size(c, "password")) add2hash(c,prefix+"password","password",out);
-}

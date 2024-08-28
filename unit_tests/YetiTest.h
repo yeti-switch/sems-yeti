@@ -53,6 +53,12 @@ protected:
             return true;
         }
     };
+
+    int configure_run_redis_connection(
+        ResourceRedisConnection &conn,
+        ResourceRedisConnection::Request::cb_func* result_cb = nullptr,
+        ResourceRedisConnection::Request::cb_func* init_cb = nullptr,
+        int timeout = DEFAULT_REDIS_TIMEOUT_MSEC);
 };
 
 struct YetiTestFactory
