@@ -1,3 +1,8 @@
+sems-yeti (1.13.78) stable; urgency=medium
+  * resources.redis.{read,write}.{host,port} -> hosts{}
+  * libsems1.141
+ -- dev <dev@yeti-switch.org>  Thu, 29 Aug 2024 12:10:11 +0300
+
 sems-yeti (1.13.77) stable; urgency=medium
   * reenable CDRs writing
  -- dev <dev@yeti-switch.org>  Fri, 23 Aug 2024 18:37:26 +0300
