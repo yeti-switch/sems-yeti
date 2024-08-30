@@ -60,7 +60,9 @@ static bool readPayload(SdpPayload &p, const string &src)
 	return true;
 }
 
-CodecsGroupEntry::CodecsGroupEntry(){
+CodecsGroupEntry::CodecsGroupEntry()
+	: ptime(0)
+{
 	//codecs_filter.filter_type = Whitelist;
 }
 
@@ -151,6 +153,44 @@ void CodecsGroups::load_codecs(const AmArg &data)
 	}
 
 	DBG("codecs groups are loaded successfully. apply changes");
+
+	AmLock l(codec_groups_mutex);
+	codec_groups.swap(_m);
+}
+
+void CodecsGroups::load_codec_groups(const AmArg &data)
+{
+	map<unsigned int,CodecsGroupEntry> _m;
+
+	if(!isArgArray(data)) return;
+
+	for(size_t i = 0; i < data.size(); ++i) {
+		auto &row = data[i];
+		auto &codecs = row["codecs"];
+
+		if(!isArgArray(codecs)) return;
+
+		unsigned int group_id = DbAmArg_hash_get_int(row, "id", 0);
+
+		for(size_t j = 0; j < codecs.size(); ++j) {
+			auto &codec = codecs[j];
+			string name = DbAmArg_hash_get_str(codec, "name");
+			string format_parameters = DbAmArg_hash_get_str(codec, "format_parameters");
+			int dynamic_payload_type = DbAmArg_hash_get_int(codec, "dynamic_payload_type", -1);
+
+			if(!insert(_m, group_id, name, format_parameters, dynamic_payload_type)){
+				ERROR("can't insert codec '%s'", name.c_str());
+				return;
+			}
+
+			DBG("codec '%s' added to group %d", name.c_str(), group_id);
+		}
+
+		unsigned int ptime = DbAmArg_hash_get_int(row, "ptime", 0);
+		_m[group_id].set_ptime(ptime);
+	}
+
+	INFO("codecs groups are loaded successfully. apply changes");
 
 	AmLock l(codec_groups_mutex);
 	codec_groups.swap(_m);

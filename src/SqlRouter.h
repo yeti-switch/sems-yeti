@@ -61,6 +61,7 @@ class SqlRouter
     int failover_to_slave;
     int connection_lifetime;
     bool pass_input_interface_name;
+    bool new_codec_groups;
     string writecdr_schema;
     string writecdr_function;
     string authlog_function;
@@ -121,4 +122,5 @@ class SqlRouter
         bool send_reply = false);
 
     void update_counters(struct timeval &start_time);
+    bool is_new_codec_groups() { return new_codec_groups; }
 };

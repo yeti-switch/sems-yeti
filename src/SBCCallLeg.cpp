@@ -1746,6 +1746,7 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                     req.body, req.method,
                     call_ctx->get_other_negotiated_media(a_leg),
                     a_leg ? call_profile.bleg_single_codec : call_profile.aleg_single_codec,
+                    a_leg ? call_profile.static_codecs_bleg_id : call_profile.static_codecs_aleg_id,
                     call_profile.filter_noaudio_streams,
                     //ACK request MUST contain SDP answer if we sent offer in reply
                     dlg_oa_state==AmOfferAnswer::OA_OfferSent
@@ -1907,10 +1908,10 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                             reply.body, reply.cseq_method,
                             call_ctx->get_other_negotiated_media(a_leg),
                             a_leg ? call_profile.bleg_single_codec : call_profile.aleg_single_codec,
+                            a_leg ? call_profile.static_codecs_bleg_id : call_profile.static_codecs_aleg_id,
                             call_profile.filter_noaudio_streams,
                             //final positive reply MUST contain SDP answer if we sent offer
-                            (dlg_oa_state==AmOfferAnswer::OA_OfferSent
-                             && reply.code >= 200 && reply.code < 300)
+                            (dlg_oa_state==AmOfferAnswer::OA_OfferSent && reply.code >= 200 && reply.code < 300)
                         );
                     }
                 }

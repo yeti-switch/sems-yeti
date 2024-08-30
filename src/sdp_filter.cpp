@@ -333,7 +333,8 @@ inline bool is_telephone_event(const SdpPayload &p)
 int filter_arrange_SDP(
     AmSdp& sdp,
     const std::vector<SdpPayload> &static_payloads,
-    bool add_codecs)
+    bool add_codecs,
+    int ptime)
 {
     //DBG("filter_arrange_SDP() add_codecs = %s", add_codecs?"yes":"no");
 
@@ -350,6 +351,12 @@ int filter_arrange_SDP(
 
         if(media.type!=MT_AUDIO){	//skip non audio media
             continue;
+        }
+
+        // check ptime
+        if(ptime && media.frame_size != ptime) {
+            DBG("override ptime from %d to %d", media.frame_size, ptime);
+            media.frame_size = ptime;
         }
 
         for(vector<SdpPayload>::const_iterator f_it = static_payloads.begin();
@@ -539,10 +546,12 @@ int processSdpOffer(
 
     CodecsGroupEntry codecs_group;
     CodecsGroups::instance()->get(static_codecs_id, codecs_group);
-
+    auto ptime = codecs_group.get_ptime();
     vector<SdpPayload> static_codecs_filter = codecs_group.get_payloads();
 
-    res = filter_arrange_SDP(sdp,static_codecs_filter, false);
+    res = filter_arrange_SDP(sdp,static_codecs_filter,
+                             false,
+                             call_profile.rtprelay_enabled ? ptime : 0);
     if(0 != res) {
         return res;
     }
@@ -761,12 +770,13 @@ int filterSdpOffer(SBCCallLeg *call,
 
     CodecsGroupEntry codecs_group;
     CodecsGroups::instance()->get(static_codecs_id,codecs_group);
-
+    auto ptime = codecs_group.get_ptime();
     std::vector<SdpPayload> &static_codecs = codecs_group.get_payloads();
 
     res = filter_arrange_SDP(
         sdp,static_codecs,
-        call_profile.rtprelay_enabled /*  do not add new codecs if media proxifying is disabled */);
+        call_profile.rtprelay_enabled /*  do not add new codecs if media proxifying is disabled */,
+        call_profile.rtprelay_enabled ? ptime : 0);
     if(0 != res)
         return res;
 
@@ -822,7 +832,8 @@ static void filterSdpAnswerMedia(
     vector<SdpMedia> &negotiated_media, std::vector<SdpMedia> &media,
     bool noaudio_streams_filtered,
     bool avoid_transcoding,
-    bool single_codec)
+    bool single_codec,
+    int ptime)
 {
     int override_id = 0;
     auto call_ctx = call->getCallCtx();
@@ -953,6 +964,12 @@ static void filterSdpAnswerMedia(
             DBG_SDP_PAYLOAD(new_pl,"new_pl");
             m.payloads = new_pl;
 
+            // check ptime
+            if(ptime && m.frame_size != ptime) {
+                DBG("override ptime from %d to %d", m.frame_size, ptime);
+                m.frame_size = ptime;
+            }
+
             DBG("add filtered audio stream %d from reply",stream_idx);
             filtered_sdp_media.push_back(m);
 
@@ -973,6 +990,7 @@ int processSdpAnswer(
     AmMimeBody &body, const string &method,
     vector<SdpMedia> &negotiated_media,
     bool single_codec,
+    int static_codecs_id,
     bool noaudio_streams_filtered,
     bool answer_is_mandatory)
 {
@@ -1028,12 +1046,20 @@ int processSdpAnswer(
         normalizeSDP(sdp);
         call->normalizeSdpVersion(sdp.origin.sessV, sip_msg.cseq, false);
 
+        int ptime = 0;
+        if(call_profile.rtprelay_enabled) {
+            CodecsGroupEntry codecs_group;
+            CodecsGroups::instance()->get(static_codecs_id, codecs_group);
+            ptime = codecs_group.get_ptime();
+        }
+
         filterSdpAnswerMedia(
             call,
             negotiated_media, sdp.media,
             noaudio_streams_filtered,
             call_profile.avoid_transcoding,
-            single_codec);
+            single_codec,
+            ptime);
 
         fixDynamicPayloads(sdp, &negotiated_media);
 

@@ -582,10 +582,16 @@ void Yeti::initCfgTimerMappings()
         { "codec_groups", {
             [&](const string &key) {
                 yeti_routing_db_query(
-                    "SELECT * from load_codecs()", key);
+                  router.is_new_codec_groups() ?
+                    "SELECT * from load_codec_groups()" :
+                    "SELECT * from load_codecs()",
+                  key);
             },
             [&](const PGResponse &e) {
-                CodecsGroups::instance()->load_codecs(e.result);
+                if(router.is_new_codec_groups())
+                    CodecsGroups::instance()->load_codec_groups(e.result);
+                else
+                    CodecsGroups::instance()->load_codecs(e.result);
             }
         }},
 

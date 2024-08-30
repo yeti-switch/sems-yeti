@@ -256,6 +256,8 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         profile_static_fields_count++;
     }
 
+    new_codec_groups = cfg_getbool(routing_sec, opt_name_new_codec_groups);
+
     cfg_t *auth_sec = cfg_getsec(confuse_cfg, section_name_auth);
     if(!auth_sec || 0==auth_configure(auth_sec)) {
         DBG("SqlRouter::auth_configure: config successfuly readed");

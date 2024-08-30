@@ -35,7 +35,8 @@ int cutNoAudioStreams(AmSdp &sdp, bool cut);
 int filter_arrange_SDP(
     AmSdp& sdp,
     const std::vector<SdpPayload> &static_payloads,
-    bool add_codecs);
+    bool add_codecs,
+    int ptime);
 
 int processSdpOffer(
     SBCCallLeg *call,
@@ -63,5 +64,6 @@ int processSdpAnswer(
     const string &method,
     vector<SdpMedia> &negotiated_media,
     bool single_codec,
+    int static_codecs_id,
     bool noaudio_streams_filtered,
     bool answer_is_mandatory);

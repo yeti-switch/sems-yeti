@@ -21,12 +21,15 @@ struct CodecsGroupException : public InternalException {
 
 class CodecsGroupEntry {
 	vector<SdpPayload> codecs_payloads;
+	unsigned int ptime;
   public:
 	CodecsGroupEntry();
 	~CodecsGroupEntry(){}
 	bool add_codec(string codec,string sdp_params, int dyn_payload_id);
 	vector<SdpPayload> &get_payloads() { return codecs_payloads; }
 	void getConfig(AmArg &ret) const;
+	void set_ptime(unsigned int val) { ptime = val; };
+	unsigned int get_ptime() const { return ptime; };
 };
 
 class CodecsGroups {
@@ -46,6 +49,7 @@ class CodecsGroups {
 
 	int configure(AmConfigReader &cfg);
 	void load_codecs(const AmArg &data);
+	void load_codec_groups(const AmArg &data);
 
 	void get(int group_id, CodecsGroupEntry &e)
 	{
