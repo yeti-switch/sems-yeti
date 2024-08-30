@@ -366,7 +366,7 @@ int ResourceRedisConnection::configure(cfg_t *confuse_cfg)
 int ResourceRedisConnection::cfg2RedisCfg(cfg_t *cfg, RedisConfig &rcfg)
 {
     for(unsigned int i = 0; i < cfg_size(cfg, opt_redis_hosts); i++) {
-        auto host_port = parse_hostport(cfg_getnstr(cfg, opt_redis_hosts, i));
+        auto host_port = parse_hostport(cfg_getnstr(cfg, opt_redis_hosts, i), true);
         if(host_port.has_value())
             rcfg.addrs.emplace_back(host_port.value().first, host_port.value().second);
     }
