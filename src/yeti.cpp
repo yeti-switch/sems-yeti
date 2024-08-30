@@ -319,7 +319,7 @@ void Yeti::run()
 
     AmEventDispatcher::instance()->delEventQueue(YETI_QUEUE_NAME);
 
-    INFO("yeti-worker finished");
+    DBG("yeti-worker finished");
 }
 
 void Yeti::on_stop()

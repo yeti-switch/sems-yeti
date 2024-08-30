@@ -93,7 +93,7 @@ SqlRouter::SqlRouter()
 {
     time(&mi_start);
 
-    INFO("SqlRouter instance[%p] created",this);
+    DBG("SqlRouter instance[%p] created",this);
 
     stat_group(Counter, "yeti", "router_db_hits_time").setHelp(
         "aggregated get_profiles() requests execution time in msec");
@@ -101,17 +101,7 @@ SqlRouter::SqlRouter()
 
 SqlRouter::~SqlRouter()
 {
-  
-  /*if (master_pool)
-    delete master_pool;
-  
-  if (slave_pool)
-    delete slave_pool;*/
-  
-  /*if (cdr_writer)
-    delete cdr_writer;*/
-
-  INFO("SqlRouter instance[%p] destroyed",this);
+    DBG("SqlRouter instance[%p] destroyed",this);
 }
 
 void SqlRouter::sanitize_query_params(
@@ -268,9 +258,9 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
 
     cfg_t *auth_sec = cfg_getsec(confuse_cfg, section_name_auth);
     if(!auth_sec || 0==auth_configure(auth_sec)) {
-        INFO("SqlRouter::auth_configure: config successfuly readed");
+        DBG("SqlRouter::auth_configure: config successfuly readed");
     } else {
-        INFO("SqlRouter::auth_configure: config read error");
+        ERROR("SqlRouter::auth_configure: config read error");
     }
 
     PgConnectionPoolCfg masterpoolcfg("master");
@@ -344,9 +334,9 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
 
     //modify/apply prepared queries here
     if(0==load_db_interface_in_out()) {
-        INFO("SqlRouter::load_db_interface_in_out: finished");
+        DBG("SqlRouter::load_db_interface_in_out: finished");
     } else {
-        INFO("SqlRouter::load_db_interface_in_out: error");
+        ERROR("SqlRouter::load_db_interface_in_out: error");
         return 1;
     }
 

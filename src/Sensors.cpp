@@ -109,7 +109,7 @@ int _Sensors::load_sensors_config(const AmArg &data) {
 			}
 		}
 
-		INFO("sensors are loaded successfully. apply changes");
+		DBG("sensors are loaded successfully. apply changes");
 
 		lock.lock();
 		_sensors.swap(sensors);

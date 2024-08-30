@@ -50,7 +50,7 @@ struct DynField {
 		} else if(type_name=="inet"){
 			type_id = INET;
 		} else {
-			WARN("unhandled sql type '%s' for field '%s'. consider it as varchar",
+			DBG("unhandled sql type '%s' for field '%s'. consider it as varchar",
 				 type_name.c_str(),name.c_str());
 			type_id = VARCHAR;
 		}
