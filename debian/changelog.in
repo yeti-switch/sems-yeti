@@ -1,3 +1,9 @@
+sems-yeti (1.13.79) stable; urgency=medium
+  * resources: allow fqdn for redis hosts
+  * cleanup INFO level logging
+  * libsems1.142
+ -- dev <dev@yeti-switch.org>  Fri, 30 Aug 2024 20:42:48 +0300
+
 sems-yeti (1.13.78) stable; urgency=medium
   * resources.redis.{read,write}.{host,port} -> hosts{}
   * libsems1.141
