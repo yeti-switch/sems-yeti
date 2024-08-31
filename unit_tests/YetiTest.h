@@ -47,7 +47,7 @@ protected:
         {}
 
       protected:
-        bool make_args(ResourceRedisClient::Connection *conn, const string& script_hash, vector<AmArg> &args) override
+        bool make_args(const string&, vector<AmArg> &args) override
         {
             args = this->args;
             return true;

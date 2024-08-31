@@ -55,7 +55,7 @@ class ResourceRedisClient
         AmArg result;
 
         friend ResourceRedisClient;
-        virtual bool make_args(Connection *conn, const string& script_hash, vector<AmArg> &args) = 0;
+        virtual bool make_args(const string& script_hash, vector<AmArg> &args) = 0;
 
       public:
         Request(cb_func *callback = nullptr);

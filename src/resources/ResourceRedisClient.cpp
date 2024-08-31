@@ -116,7 +116,7 @@ bool ResourceRedisClient::prepare_request(Request* req, Connection* conn, const 
         script_hash = script->hash;
     }
 
-    return req->make_args(conn, script_hash, args);
+    return req->make_args(script_hash, args);
 }
 
 string ResourceRedisClient::get_script_path(const string &sript_name) const

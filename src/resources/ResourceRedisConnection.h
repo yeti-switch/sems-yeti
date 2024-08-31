@@ -42,7 +42,7 @@ class ResourceRedisConnection
         using Request::Request;
 
       protected:
-        bool make_args(Connection *conn, const string& script_hash, vector<AmArg> &args) override;
+        bool make_args(const string& script_hash, vector<AmArg> &args) override;
     };
 
     /* OperationRequest */
@@ -52,11 +52,11 @@ class ResourceRedisConnection
         ResourcesOperationList operations;
         bool reduce_operations;
 
-        bool make_args_reduce(const string& script_hash, vector<AmArg> &args);
-        bool make_args_no_reduce(const string& script_hash, vector<AmArg> &args);
+        bool make_args_reduce(vector<AmArg> &args);
+        bool make_args_no_reduce(vector<AmArg> &args);
 
       protected:
-        bool make_args(Connection *conn, const string& script_hash, vector<AmArg> &args) override;
+        bool make_args(const string& script_hash, vector<AmArg> &args) override;
 
       public:
         OperationRequest(ResourcesOperationList& rol, bool reduce_operations, cb_func *callback = nullptr);
@@ -72,7 +72,7 @@ class ResourceRedisConnection
         unique_ptr<JsonRpcRequestEvent> req;
 
       protected:
-        bool make_args(Connection *conn, const string& script_hash, vector<AmArg> &args) override;
+        bool make_args(const string& script_hash, vector<AmArg> &args) override;
 
       public:
         GetAllRequest(int type, int id, cb_func *callback);
@@ -92,7 +92,7 @@ class ResourceRedisConnection
         ResourceList rl;
 
       protected:
-        bool make_args(Connection *conn, const string& script_hash, vector<AmArg> &args) override;
+        bool make_args(const string& script_hash, vector<AmArg> &args) override;
 
       public:
         CheckRequest(const ResourceList& rl);

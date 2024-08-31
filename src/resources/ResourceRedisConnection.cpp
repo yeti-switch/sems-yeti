@@ -21,7 +21,7 @@ static string get_key(const Resource &r)
 
 /* InvalidateRequest */
 
-bool ResourceRedisConnection::InvalidateRequest::make_args(Connection *conn, const string& script_hash, vector<AmArg> &args)
+bool ResourceRedisConnection::InvalidateRequest::make_args(const string& script_hash, vector<AmArg> &args)
 {
     args = {"EVALSHA", script_hash.c_str(), 1, AmConfig.node_id};
     return true;
@@ -35,7 +35,7 @@ ResourceRedisConnection::OperationRequest::OperationRequest(ResourcesOperationLi
     reduce_operations(reduce_operations)
 {}
 
-bool ResourceRedisConnection::OperationRequest::make_args_reduce(const string& script_hash, vector<AmArg> &args)
+bool ResourceRedisConnection::OperationRequest::make_args_reduce(vector<AmArg> &args)
 {
     std::unordered_map<string, int> accumulated_changes;
 
@@ -81,7 +81,7 @@ bool ResourceRedisConnection::OperationRequest::make_args_reduce(const string& s
     return true;
 }
 
-bool ResourceRedisConnection::OperationRequest::make_args_no_reduce(const string& script_hash, vector<AmArg> &args)
+bool ResourceRedisConnection::OperationRequest::make_args_no_reduce(vector<AmArg> &args)
 {
     size_t operations_count = 0;
     ResourceList::iterator r_it;
@@ -128,11 +128,11 @@ bool ResourceRedisConnection::OperationRequest::make_args_no_reduce(const string
     return true;
 }
 
-bool ResourceRedisConnection::OperationRequest::make_args(Connection *, const string& script_hash, vector<AmArg> &args)
+bool ResourceRedisConnection::OperationRequest::make_args(const string&, vector<AmArg> &args)
 {
     return reduce_operations
-              ? make_args_reduce(script_hash, args)
-              : make_args_no_reduce(script_hash, args);
+              ? make_args_reduce(args)
+              : make_args_no_reduce(args);
 }
 
 const ResourcesOperationList& ResourceRedisConnection::OperationRequest::get_resource_operations() const
@@ -153,7 +153,7 @@ ResourceRedisConnection::GetAllRequest::GetAllRequest(int type, int id, cb_func 
   : Request(callback), type(type), id(id), req(nullptr)
 {}
 
-bool ResourceRedisConnection::GetAllRequest::make_args(Connection *conn, const string& script_hash, vector<AmArg> &args)
+bool ResourceRedisConnection::GetAllRequest::make_args( const string& script_hash, vector<AmArg> &args)
 {
     args = {"EVALSHA", script_hash.c_str(), 2, type, id};
     return true;
@@ -187,7 +187,7 @@ ResourceRedisConnection::CheckRequest::CheckRequest(const ResourceList& rl)
     is_persistent = true;
 }
 
-bool ResourceRedisConnection::CheckRequest::make_args(Connection *conn, const string& script_hash, vector<AmArg> &args)
+bool ResourceRedisConnection::CheckRequest::make_args(const string& script_hash, vector<AmArg> &args)
 {
     args = {"EVALSHA", script_hash.c_str(), 0};
 
@@ -449,7 +449,9 @@ void ResourceRedisConnection::on_disconnect(const string &conn_id, const RedisCo
     ResourceRedisClient::on_disconnect(conn_id, info);
 
     AmLock l(queue_and_state_mutex);
+    DBG("write_conn->id: %s, conn_id:%s", write_conn->id.data(), conn_id.data());
     if(write_conn->id == conn_id) {
+        DBG("write_async_is_busy: %d", write_async_is_busy);
         if(write_async_is_busy) {
             resources_inited.set(false);
             write_async_is_busy = false;
