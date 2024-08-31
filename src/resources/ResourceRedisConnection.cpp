@@ -29,7 +29,7 @@ bool ResourceRedisConnection::InvalidateRequest::make_args(const string& script_
 
 /* OperationRequest */
 
-ResourceRedisConnection::OperationRequest::OperationRequest(ResourcesOperationList& rol, bool reduce_operations, cb_func *callback)
+ResourceRedisConnection::OperationRequest::OperationRequest(ResourcesOperationList& rol, bool reduce_operations, cb_func callback)
   : Request(callback),
     operations(std::move(rol)),
     reduce_operations(reduce_operations)
@@ -149,7 +149,7 @@ ResourceRedisConnection::GetAllRequest::GetAllRequest(const JsonRpcRequestEvent&
     str2int(req.params.get(1).asCStr(), this->id);
 }
 
-ResourceRedisConnection::GetAllRequest::GetAllRequest(int type, int id, cb_func *callback)
+ResourceRedisConnection::GetAllRequest::GetAllRequest(int type, int id, cb_func callback)
   : Request(callback), type(type), id(id), req(nullptr)
 {}
 
@@ -449,13 +449,13 @@ void ResourceRedisConnection::on_disconnect(const string &conn_id, const RedisCo
     ResourceRedisClient::on_disconnect(conn_id, info);
 
     AmLock l(queue_and_state_mutex);
-    DBG("write_conn->id: %s, conn_id:%s", write_conn->id.data(), conn_id.data());
     if(write_conn->id == conn_id) {
-        DBG("write_async_is_busy: %d", write_async_is_busy);
-        if(write_async_is_busy) {
-            resources_inited.set(false);
-            write_async_is_busy = false;
-        }
+        resources_inited.set(false);
+
+        resource_operations_queue.clear();
+        write_async_is_busy = false;
+
+        if(disconnect_cb) disconnect_cb();
     }
 }
 
@@ -511,8 +511,9 @@ void ResourceRedisConnection::process_invalidate_resources_initial_reply(RedisRe
 {
     auto req = dynamic_cast<InvalidateRequest*>(ev.user_data.get());
     if(!req) return;
+    INFO("initial resources invalidation is finished");
     resources_inited.set(true);
-                Yeti::instance().postEvent(new YetiComponentInited(YetiComponentInited::Resource));
+    Yeti::instance().postEvent(new YetiComponentInited(YetiComponentInited::Resource));
     process_operations_queue();
     req->on_finish();
 }
@@ -521,8 +522,9 @@ void ResourceRedisConnection::process_invalidate_resources_reply(RedisReply& ev)
 {
     auto req = dynamic_cast<InvalidateRequest*>(ev.user_data.get());
     if(!req) return;
+    INFO("resources invalidation is finished");
     resources_inited.set(true);
-            process_operations_queue();
+    process_operations_queue();
     req->on_finish();
 }
 
@@ -545,7 +547,7 @@ void ResourceRedisConnection::process_operation_resources_reply(RedisReply& ev)
         //resources_inited.set(false);
     } else if(!resources_inited.get()) {
         // for rpc command of invalidate resources(if connection was busy)
-        invalidate(new InvalidateRequest());
+        invalidate(new InvalidateRequest(resources_initialized_cb));
     } else {
         // trying the next operation after successful finished previous
         process_operations_queue_unsafe();
@@ -675,18 +677,23 @@ bool ResourceRedisConnection::invalidate_resources_sync()
     } else if(write_async_is_busy) {
         INFO("resources will be invalidated after the job finished");
     } else {
-        invalidate(new InvalidateRequest());
+        invalidate(new InvalidateRequest(resources_initialized_cb));
     }
     resources_inited.set(false);
     return resources_inited.wait_for_to(writecfg.timeout);
 }
 
-void ResourceRedisConnection::registerResourcesInitializedCallback(Request::cb_func *func)
+void ResourceRedisConnection::registerDisconnectCallback(disconnect_cb_func func)
+{
+    disconnect_cb = func;
+}
+
+void ResourceRedisConnection::registerResourcesInitializedCallback(Request::cb_func func)
 {
     resources_initialized_cb = func;
 }
 
-void ResourceRedisConnection::registerOperationResultCallback(Request::cb_func *func)
+void ResourceRedisConnection::registerOperationResultCallback(Request::cb_func func)
 {
     operation_result_cb = func;
 }
@@ -808,11 +815,13 @@ bool ResourceRedisConnection::get_resource_state(const std::string& connection_i
 
 bool ResourceRedisConnection::invalidate_initial(InvalidateRequest* req)
 {
+    INFO("send initial resources invalidation request");
     return post_request(req, write_conn, INVALIDATE_RESOURCES_SCRIPT, UserTypeId::InvalidateInitial);
 }
 
 bool ResourceRedisConnection::invalidate(InvalidateRequest* req)
 {
+    INFO("send resources invalidation request");
     return post_request(req, write_conn, INVALIDATE_RESOURCES_SCRIPT, UserTypeId::Invalidate);
 }
 

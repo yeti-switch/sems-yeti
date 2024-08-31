@@ -5,13 +5,6 @@
 #include "../db/DbHelpers.h"
 #include "../cfg/yeti_opts.h"
 
-//workaround for callback
-static ResourceControl *_instance;
-
-static void on_resources_initialized_static(bool is_error, const AmArg& result){
-	_instance->on_resources_initialized();
-}
-
 void ResourceControl::handler_info(const HandlersIt &i, const struct timeval &now, AmArg &a) const
 {
 	a["handler"] = i->first;
@@ -61,7 +54,6 @@ string ResourceConfig::print() const{
 ResourceControl::ResourceControl():
 	container_ready(false)
 {
-	_instance = this;
 	stat.clear();
 }
 
@@ -80,7 +72,11 @@ int ResourceControl::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         return -1;
     }
 
-    redis_conn.registerResourcesInitializedCallback(&on_resources_initialized_static);
+    redis_conn.registerResourcesInitializedCallback(
+        std::bind(&ResourceControl::on_resources_initialized, this));
+
+    redis_conn.registerDisconnectCallback(
+        std::bind(&ResourceControl::on_resources_disconnected, this));
 
     return redis_conn.configure(resources_sec);
 }
@@ -94,21 +90,22 @@ void ResourceControl::stop(){
 	redis_conn.stop(true);
 }
 
-bool ResourceControl::invalidate_resources(){
-	bool ret = false;
+void ResourceControl::invalidate_resources()
+{
+	AmLock lk(handlers_mutex);
 
 	container_ready.set(false);
 
-	handlers_lock.lock();
+	INFO("invalidate %ld handlers. mark container unready", handlers.size());
 
-	INFO("invalidate_resources. we have %ld handlers to invalidate",
-		handlers.size());
+	for(auto &h: handlers)
+		h.second.invalidate();
+}
 
-	for(Handlers::iterator i = handlers.begin();i!=handlers.end();++i)
-		i->second.invalidate();
-	ret = redis_conn.invalidate_resources_sync();
-	handlers_lock.unlock();
-	return ret;
+bool ResourceControl::invalidate_resources_rpc()
+{
+	invalidate_resources();
+	return redis_conn.invalidate_resources_sync();
 }
 
 void ResourceControl::replace(string& s, const string& from, const string& to){
@@ -154,9 +151,15 @@ int ResourceControl::load_resources_config()
 	return 0;
 }
 
-void ResourceControl::on_resources_initialized(){
-	DBG("resources reported to be intialized. mark container ready");
+void ResourceControl::on_resources_initialized()
+{
+	INFO("resources reported to be intialized. mark container ready");
 	container_ready.set(true);
+}
+
+void ResourceControl::on_resources_disconnected()
+{
+	invalidate_resources();
 }
 
 ResourceCtlResponse ResourceControl::get(
@@ -187,9 +190,10 @@ ResourceCtlResponse ResourceControl::get(
 	switch(ret){
 		case RES_SUCC: {
 			handler = AmSession::getNewId();
-			handlers_lock.lock();
-			handlers.emplace(handler,handlers_entry(rl,owner_tag));
-			handlers_lock.unlock();
+			{
+				AmLock lk(handlers_mutex);
+				handlers.emplace(handler,handlers_entry(rl,owner_tag));
+			}
 			DBG("ResourceControl::get() return resources handler '%s' for %p",
 				handler.c_str(),&rl);
 			//TODO: add to internal handlers list
@@ -247,10 +251,10 @@ void ResourceControl::put(const string &handler){
 		return;
 	}
 
-	handlers_lock.lock();
+	AmLock lk(handlers_mutex);
+
 	Handlers::iterator h = handlers.find(handler);
 	if(h==handlers.end()){
-		handlers_lock.unlock();
 		DBG("ResourceControl::put(%s) attempt to free resources using not existent handler",
 			 handler.c_str());
 		return;
@@ -263,7 +267,6 @@ void ResourceControl::put(const string &handler){
 		DBG("ResourceControl::put(%s) invalid handler. remove it",
 			handler.c_str());
 		handlers.erase(h);
-		handlers_lock.unlock();
 		return;
 	}
 
@@ -274,7 +277,6 @@ void ResourceControl::put(const string &handler){
 	}
 
 	handlers.erase(h);
-	handlers_lock.unlock();
 }
 
 void ResourceControl::GetConfig(AmArg& ret,bool types_only){
@@ -335,33 +337,29 @@ bool ResourceControl::getResourceState(const string& connection_id,
 
 void ResourceControl::showResources(AmArg &ret){
 	struct timeval now;
-	handlers_lock.lock();
+	AmLock lk(handlers_mutex);
 	gettimeofday(&now,NULL);
 	for(HandlersIt i = handlers.begin();i!=handlers.end();++i){
 		//const handlers_entry &e = i->second;
 		ret.push(AmArg());
 		handler_info(i,now,ret.back());
 	}
-	handlers_lock.unlock();
 }
 
 void ResourceControl::showResourceByHandler(const string &h, AmArg &ret){
-	handlers_lock.lock();
+	AmLock lk(handlers_mutex);
 	HandlersIt i = handlers.find(h);
 	if(i==handlers.end()){
-		handlers_lock.unlock();
 		throw AmSession::Exception(500,"no such handler");
 	}
 
 	struct timeval now;
 	gettimeofday(&now,NULL);
 	handler_info(i,now,ret);
-
-	handlers_lock.unlock();
 }
 
 void ResourceControl::showResourceByLocalTag(const string &tag, AmArg &ret){
-	handlers_lock.lock();
+	AmLock lk(handlers_mutex);
 
 	HandlersIt i = handlers.begin();
 	for(;i!=handlers.end();++i){
@@ -370,21 +368,18 @@ void ResourceControl::showResourceByLocalTag(const string &tag, AmArg &ret){
 		if(e.owner_tag==tag) break;
 	}
 	if(i==handlers.end()){
-		handlers_lock.unlock();
 		throw AmSession::Exception(500,"no such handler");
 	}
 
 	struct timeval now;
 	gettimeofday(&now,NULL);
 	handler_info(i,now,ret);
-
-	handlers_lock.unlock();
 }
 
 void ResourceControl::showResourcesById(int id, AmArg &ret){
 	struct timeval now;
 
-	handlers_lock.lock();
+	AmLock lk(handlers_mutex);
 
 	ret.assertArray();
 	gettimeofday(&now,NULL);
@@ -402,6 +397,4 @@ void ResourceControl::showResourcesById(int id, AmArg &ret){
 			}
 		}
 	}
-
-	handlers_lock.unlock();
 }

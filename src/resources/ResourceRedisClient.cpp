@@ -31,7 +31,7 @@ bool ResourceRedisClient::Connection::wait_connected() const {
 
 /* Request */
 
-ResourceRedisClient::Request::Request(cb_func *callback)
+ResourceRedisClient::Request::Request(cb_func callback)
   : callback(callback), finished(false), iserror(false), error_msg(), error_code(0), is_persistent(false)
 {}
 

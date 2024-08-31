@@ -75,7 +75,7 @@ class ResourceControl
 	void handler_info(const HandlersIt &i, const struct timeval &now, AmArg &a) const;
 
 	Handlers handlers;
-	AmMutex handlers_lock;
+	AmMutex handlers_mutex;
 	AmCondition<bool> container_ready;
 
 	void replace(string& s, const string& from, const string& to);
@@ -111,9 +111,10 @@ public:
 	int configure(cfg_t *confuse_cfg, AmConfigReader &cfg);
 	void start();
 	void stop();
-	bool invalidate_resources();
-	void on_reconnect();
+	void invalidate_resources();
+	bool invalidate_resources_rpc();
 	void on_resources_initialized();
+	void on_resources_disconnected();
 
 	void replace(string &s,Resource &r,ResourceConfig &rc);
 

@@ -44,10 +44,10 @@ class ResourceRedisClient
       : public AmObject
     {
       public:
-        typedef void cb_func(bool is_error, const AmArg& result);
+        using cb_func = std::function<void (bool, const AmArg&)>;
 
       protected:
-        cb_func *callback;
+        cb_func callback;
         AmCondition<bool> finished;
         bool iserror;
         string error_msg;
@@ -58,7 +58,7 @@ class ResourceRedisClient
         virtual bool make_args(const string& script_hash, vector<AmArg> &args) = 0;
 
       public:
-        Request(cb_func *callback = nullptr);
+        Request(cb_func callback = cb_func());
 
         bool wait_finish(int timeout);
         virtual void on_finish();

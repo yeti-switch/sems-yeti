@@ -89,8 +89,8 @@ void YetiTest::cleanResources(ResourceRedisConnection &conn)
 
 int YetiTest::configure_run_redis_connection(
     ResourceRedisConnection &conn,
-    ResourceRedisConnection::Request::cb_func* result_cb,
-    ResourceRedisConnection::Request::cb_func* init_cb,
+    ResourceRedisConnection::Request::cb_func result_cb,
+    ResourceRedisConnection::Request::cb_func init_cb,
     int timeout)
 {
     auto cfg = Yeti::instance().confuse_cfg;

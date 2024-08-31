@@ -36,6 +36,8 @@ class ResourceRedisConnection
 {
   public:
 
+    using disconnect_cb_func = std::function<void ()>;
+
     /* InvalidateRequest */
     class InvalidateRequest: public Request
     {
@@ -59,7 +61,7 @@ class ResourceRedisConnection
         bool make_args(const string& script_hash, vector<AmArg> &args) override;
 
       public:
-        OperationRequest(ResourcesOperationList& rol, bool reduce_operations, cb_func *callback = nullptr);
+        OperationRequest(ResourcesOperationList& rol, bool reduce_operations, cb_func callback = nullptr);
         const ResourcesOperationList& get_resource_operations() const;
     };
 
@@ -75,7 +77,7 @@ class ResourceRedisConnection
         bool make_args(const string& script_hash, vector<AmArg> &args) override;
 
       public:
-        GetAllRequest(int type, int id, cb_func *callback);
+        GetAllRequest(int type, int id, cb_func callback);
         GetAllRequest(const JsonRpcRequestEvent& req);
 
         void on_finish() override;
@@ -123,6 +125,10 @@ class ResourceRedisConnection
 
     AtomicCounter &write_queue_size;
 
+    Request::cb_func resources_initialized_cb;
+    Request::cb_func operation_result_cb;
+    disconnect_cb_func disconnect_cb;
+
     void process_operations_queue_unsafe();
 
   protected:
@@ -161,11 +167,9 @@ class ResourceRedisConnection
 
     void run() override;
 
-    Request::cb_func *resources_initialized_cb;
-    void registerResourcesInitializedCallback(Request::cb_func *func);
-
-    Request::cb_func *operation_result_cb;
-    void registerOperationResultCallback(Request::cb_func *func);
+    void registerDisconnectCallback(disconnect_cb_func func);
+    void registerResourcesInitializedCallback(Request::cb_func func);
+    void registerOperationResultCallback(Request::cb_func func);
 
     void put(ResourceList &rl);
     void get(ResourceList &rl);

@@ -928,7 +928,7 @@ void YetiRpc::showResourceTypes(const AmArg& args, AmArg& ret){
 
 void YetiRpc::requestResourcesInvalidate(const AmArg& args, AmArg& ret){
 	handler_log();
-	if(rctl.invalidate_resources()){
+	if(rctl.invalidate_resources_rpc()){
 		ret = RPC_CMD_SUCC;
 	} else {
 		throw AmSession::Exception(500,"handlers invalidated. but resources initialization failed");
