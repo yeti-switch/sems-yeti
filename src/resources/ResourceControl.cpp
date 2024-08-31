@@ -180,7 +180,7 @@ ResourceCtlResponse ResourceControl::get(
 	if(container_ready.get()){
 		ret = redis_conn.get(rl,rli);
 	} else {
-		WARN("attempt to get resource from unready container");
+		WARN("%s: attempt to get resource from the unready container", owner_tag.data());
 		ret = RES_ERR;
 	}
 
@@ -230,8 +230,8 @@ ResourceCtlResponse ResourceControl::get(
 		} break;
 		case RES_ERR: {
 			stat.errors++;
-			ERROR("cache error reject_on_error = %d",reject_on_error);
 			if(reject_on_error) {
+				ERROR("%s: reject resource with code: %d", owner_tag.data(), DC_RESOURCE_CACHE_ERROR);
 				resource_config.internal_code_id = DC_RESOURCE_CACHE_ERROR;
 				return RES_CTL_ERROR;
 			}
