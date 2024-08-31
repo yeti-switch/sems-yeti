@@ -1,3 +1,7 @@
+sems-yeti (1.13.80) stable; urgency=medium
+  * fix resources invalidation by rpc and on redis reconnects
+ -- dev <dev@yeti-switch.org>  Sat, 31 Aug 2024 16:34:35 +0300
+
 sems-yeti (1.13.79) stable; urgency=medium
   * resources: allow fqdn for redis hosts
   * cleanup INFO level logging
