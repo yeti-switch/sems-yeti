@@ -223,6 +223,11 @@ void SBCCallLeg::init()
               int2str(AmConfig.node_id) << ".pcap";
         call_profile.set_logger_path(ss.str());
 
+        if(global_tag.empty()) {
+            ERROR("%s empty global_tag. disable recording", getLocalTag().data());
+            call_profile.record_audio = false;
+        }
+
         cdr.update_sbc(call_profile);
         setSensor(Sensors::instance()->getSensor(call_profile.aleg_sensor_id));
         cdr.update_init_aleg(getLocalTag(),
@@ -239,7 +244,7 @@ void SBCCallLeg::init()
             getLocalTag());
     }
 
-    if(call_profile.record_audio){
+    if(call_profile.record_audio) {
         if(yeti.config.audio_recorder_compress) {
             ostringstream ss;
             ss << yeti.config.audio_recorder_dir << '/'
