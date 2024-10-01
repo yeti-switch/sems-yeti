@@ -1,3 +1,7 @@
+sems-yeti (1.13.82) stable; urgency=medium
+  * libsems1.144
+ -- dev <dev@yeti-switch.org>  Tue, 01 Oct 2024 14:17:18 +0300
+
 sems-yeti (1.13.81) stable; urgency=medium
   * add ptime transcoding support. new param routing.new_codec_groups (default: false)
  -- dev <dev@yeti-switch.org>  Fri, 20 Sep 2024 13:06:30 +0300
