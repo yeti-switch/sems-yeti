@@ -12,6 +12,7 @@
 #include "AmSipHeaders.h"
 #include "Am100rel.h"
 #include "jsonArg.h"
+#include "format_helper.h"
 
 #include "sip/pcap_logger.h"
 #include "sip/sip_parser.h"
@@ -217,11 +218,11 @@ void SBCCallLeg::init()
     Cdr &cdr = *call_ctx->cdr.get();
 
     if(a_leg) {
-        ostringstream ss;
-        ss << yeti.config.msg_logger_dir << '/' <<
-              getLocalTag() << "_" <<
-              int2str(AmConfig.node_id) << ".pcap";
-        call_profile.set_logger_path(ss.str());
+        call_profile.set_logger_path(format(
+            "{}/{}_{}.pcap",
+            yeti.config.msg_logger_dir,
+            getLocalTag(),
+            AmConfig.node_id));
 
         if(global_tag.empty()) {
             ERROR("%s empty global_tag. disable recording", getLocalTag().data());
@@ -246,14 +247,14 @@ void SBCCallLeg::init()
 
     if(call_profile.record_audio) {
         if(yeti.config.audio_recorder_compress) {
-            ostringstream ss;
-            ss << yeti.config.audio_recorder_dir << '/'
-            << global_tag << "_"
-            << int2str(AmConfig.node_id) <<  "_leg"
-            << (a_leg ? "a" : "b")
-            << FILE_RECORDER_COMPRESSED_EXT;
-
-            call_profile.audio_record_path = ss.str();
+            call_profile.audio_record_path = format(
+                "{}/{}_{}_leg{}{}",
+                yeti.config.audio_recorder_dir,
+                global_tag,
+                AmConfig.node_id,
+                a_leg ? "a" : "b",
+                FILE_RECORDER_COMPRESSED_EXT
+            );
 
             AmAudioFileRecorderProcessor::instance()->addRecorder(
                 getLocalTag(),
