@@ -3274,6 +3274,12 @@ bool SBCCallLeg::onException(int code,const string &reason) noexcept
         }
     } while(false);
 
+    if(a_leg && Disconnected==getCallStatus()) {
+        if(auto req = dlg->getUASPendingInv(); req) {
+            dlg->reply(*req, code, reason);
+        }
+    }
+
     relayEvent(new SBCOtherLegExceptionEvent(code,reason));
     terminateLeg();
     return false; //stop processing
