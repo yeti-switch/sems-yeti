@@ -1,0 +1,17 @@
+[
+    {
+        "trusted_lb": 1,
+        "ip_auth": 1,
+        "stir_shaken_trusted_certificates": 1,
+        "stir_shaken_trusted_repositories": 1,
+        "stir_shaken_signing_certificates": 1,
+        "sensors": 1,
+        "translations": 1,
+        "codec_groups": 1,
+        "registrations": 1,
+        "radius_authorization_profiles": 1,
+        "radius_accounting_profiles": 1,
+        "auth_credentials": 1,
+        "options_probers": 1
+    }
+]

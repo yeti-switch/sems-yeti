@@ -1,0 +1,436 @@
+[
+    {
+        "o_code": 478,
+        "o_reason": "Unresolvable destination",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 300,
+        "o_reason": "Multiple Choices",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 301,
+        "o_reason": "Moved Permanently",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 302,
+        "o_reason": "Moved Temporarily",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 305,
+        "o_reason": "Use Proxy",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 380,
+        "o_reason": "Alternative Service",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 400,
+        "o_reason": "Bad Request",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 401,
+        "o_reason": "Unauthorized",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 402,
+        "o_reason": "Payment Required",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 403,
+        "o_reason": "Forbidden",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 404,
+        "o_reason": "Not Found",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": ""
+    },
+    {
+        "o_code": 405,
+        "o_reason": "Method Not Allowed",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 406,
+        "o_reason": "Not Acceptable",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 407,
+        "o_reason": "Proxy Authentication Required",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 408,
+        "o_reason": "Request Timeout",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 409,
+        "o_reason": "Conflict",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 410,
+        "o_reason": "Gone",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 412,
+        "o_reason": "Conditional Request Failed",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 413,
+        "o_reason": "Request Entity Too Large",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 414,
+        "o_reason": "Request-URI Too Long",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 415,
+        "o_reason": "Unsupported Media Type",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 416,
+        "o_reason": "Unsupported URI Scheme",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 417,
+        "o_reason": "Unknown Resource-Priority",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 420,
+        "o_reason": "Bad Extension",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 421,
+        "o_reason": "Extension Required",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 422,
+        "o_reason": "Session Interval Too Small",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 423,
+        "o_reason": "Interval Too Brief",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 424,
+        "o_reason": "Bad Location Information",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 428,
+        "o_reason": "Use Identity Header",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 429,
+        "o_reason": "Provide Referrer Identity",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 433,
+        "o_reason": "Anonymity Disallowed",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 436,
+        "o_reason": "Bad Identity-Info",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 437,
+        "o_reason": "Unsupported Certificate",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 438,
+        "o_reason": "Invalid Identity Header",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 480,
+        "o_reason": "Temporarily Unavailable",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 481,
+        "o_reason": "Call/Transaction Does Not Exist",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 482,
+        "o_reason": "Loop Detected",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 483,
+        "o_reason": "Too Many Hops",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 484,
+        "o_reason": "Address Incomplete",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 485,
+        "o_reason": "Ambiguous",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 486,
+        "o_reason": "Busy Here",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": ""
+    },
+    {
+        "o_code": 487,
+        "o_reason": "Request Terminated",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 488,
+        "o_reason": "Not Acceptable Here",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 489,
+        "o_reason": "Bad Event",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 491,
+        "o_reason": "Request Pending",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 493,
+        "o_reason": "Undecipherable",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 494,
+        "o_reason": "Security Agreement Required",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 500,
+        "o_reason": "Server Internal Error",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 501,
+        "o_reason": "Not Implemented",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 502,
+        "o_reason": "Bad Gateway",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 503,
+        "o_reason": "Service Unavailable",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": ""
+    },
+    {
+        "o_code": 504,
+        "o_reason": "Server Time-out",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 505,
+        "o_reason": "Version Not Supported",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 513,
+        "o_reason": "Message Too Large",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 580,
+        "o_reason": "Precondition Failure",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 600,
+        "o_reason": "Busy Everywhere",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 603,
+        "o_reason": "Decline",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": ""
+    },
+    {
+        "o_code": 604,
+        "o_reason": "Does Not Exist Anywhere",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 606,
+        "o_reason": "Not Acceptable",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 200,
+        "o_reason": "OK",
+        "o_pass_reason_to_originator": false,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": ""
+    },
+    {
+        "o_code": 607,
+        "o_reason": "Unwanted",
+        "o_pass_reason_to_originator": true,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    },
+    {
+        "o_code": 608,
+        "o_reason": "Rejected",
+        "o_pass_reason_to_originator": true,
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null
+    }
+]

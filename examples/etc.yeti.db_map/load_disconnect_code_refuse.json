@@ -1,0 +1,632 @@
+[
+    {
+        "o_id": 110,
+        "o_code": 403,
+        "o_reason": "Cant find customer or customer locked",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 111,
+        "o_code": 404,
+        "o_reason": "Cant find destination prefix",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 112,
+        "o_code": 403,
+        "o_reason": "Rejected by destination",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Rejected by dst",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 113,
+        "o_code": 404,
+        "o_reason": "No routes",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 114,
+        "o_code": 400,
+        "o_reason": "cant parse From in req",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Bad Request",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 115,
+        "o_code": 400,
+        "o_reason": "cant parse To in req",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Bad Request",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 116,
+        "o_code": 400,
+        "o_reason": "cant parse Contact in req",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Bad Request",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 117,
+        "o_code": 500,
+        "o_reason": "no such prepared query",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Internal Server Error",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 118,
+        "o_code": 500,
+        "o_reason": "empty response from database",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Internal Server Error",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 119,
+        "o_code": 500,
+        "o_reason": "read from tuple failed",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Internal Server Error",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 120,
+        "o_code": 500,
+        "o_reason": "profile evaluation failed",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Internal Server Error",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 121,
+        "o_code": 500,
+        "o_reason": "failed to get active connection",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Internal Server Error",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 122,
+        "o_code": 500,
+        "o_reason": "db broken connection",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Internal Server Error",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 123,
+        "o_code": 500,
+        "o_reason": "db conversion exception",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Internal Server Error",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 124,
+        "o_code": 500,
+        "o_reason": "db base exception",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Internal Server Error",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 125,
+        "o_code": 200,
+        "o_reason": "Rtp timeout",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 126,
+        "o_code": 200,
+        "o_reason": "NoAck",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 127,
+        "o_code": 200,
+        "o_reason": "NoPrack",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 128,
+        "o_code": 200,
+        "o_reason": "Session Timeout",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 129,
+        "o_code": 200,
+        "o_reason": "Internal Error",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 130,
+        "o_code": 408,
+        "o_reason": "SIP transaction timeout",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 132,
+        "o_code": 200,
+        "o_reason": "Rtp timeout(legB)",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 140,
+        "o_code": 488,
+        "o_reason": "Codecs group $cg not found",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Not Acceptable Here",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 141,
+        "o_code": 488,
+        "o_reason": "Codecs not matched",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Not Acceptable Here",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 142,
+        "o_code": 500,
+        "o_reason": "No suitable media",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "No suitable media",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 143,
+        "o_code": 500,
+        "o_reason": "Invalid media transport",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "No suitable media",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 145,
+        "o_code": 500,
+        "o_reason": "Reinvite error",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Reinvite error",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 146,
+        "o_code": 487,
+        "o_reason": "Canceled before routing completed",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 150,
+        "o_code": 400,
+        "o_reason": "Error reply for reINVITE",
+        "o_rewrited_code": 500,
+        "o_rewrited_reason": "Internal Server Error",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1500,
+        "o_code": 500,
+        "o_reason": "SDP processing exception",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1501,
+        "o_code": 500,
+        "o_reason": "SDP parsing failed",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1502,
+        "o_code": 500,
+        "o_reason": "SDP empty answer",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1503,
+        "o_code": 500,
+        "o_reason": "SDP invalid streams count",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1504,
+        "o_code": 500,
+        "o_reason": "SDP inv streams types",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1505,
+        "o_code": 487,
+        "o_reason": "Ringing timeout",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1506,
+        "o_code": 480,
+        "o_reason": "Customer account $id overloaded",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1507,
+        "o_code": 480,
+        "o_reason": "Customer auth $id overloaded",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1508,
+        "o_code": 480,
+        "o_reason": "Customer gateway $id overloaded",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1509,
+        "o_code": 480,
+        "o_reason": "Vendor account $id overloaded",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1510,
+        "o_code": 480,
+        "o_reason": "Vendor gateway $id overloaded",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1511,
+        "o_code": 480,
+        "o_reason": "Dialpeer $id overloaded",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1512,
+        "o_code": 480,
+        "o_reason": "Account $id total capacity reached",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1600,
+        "o_code": 503,
+        "o_reason": "Resource cache error",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 1601,
+        "o_code": 503,
+        "o_reason": "Unknown resource overload",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 2001,
+        "o_code": 503,
+        "o_reason": "Radius response timeout",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 2002,
+        "o_code": 503,
+        "o_reason": "Radius request error",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 2003,
+        "o_code": 503,
+        "o_reason": "Invalid radius profile",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 2004,
+        "o_code": 503,
+        "o_reason": "Invalid radius response",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 2005,
+        "o_code": 402,
+        "o_reason": "Radius reject",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 2006,
+        "o_code": 503,
+        "o_reason": "Radius unsupported",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8000,
+        "o_code": 403,
+        "o_reason": "Not enough customer balance",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8001,
+        "o_code": 403,
+        "o_reason": "Destination number blacklisted",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8002,
+        "o_code": 403,
+        "o_reason": "Source number blacklisted",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8003,
+        "o_code": 503,
+        "o_reason": "No response from LNP DB",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8004,
+        "o_code": 403,
+        "o_reason": "Rejected by Auth record",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8005,
+        "o_code": 403,
+        "o_reason": "Origination gateway is disabled",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8006,
+        "o_code": 403,
+        "o_reason": "No destination with appropriate price found",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8007,
+        "o_code": 404,
+        "o_reason": "No network found for dst number",
+        "o_rewrited_code": 484,
+        "o_rewrited_reason": "Address Incomplete",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8008,
+        "o_code": 404,
+        "o_reason": "Invalid dst number format",
+        "o_rewrited_code": 484,
+        "o_rewrited_reason": "Address Incomplete",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8009,
+        "o_code": 503,
+        "o_reason": "No response from CNAM DB",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8010,
+        "o_code": 404,
+        "o_reason": "No network found for src number",
+        "o_rewrited_code": 484,
+        "o_rewrited_reason": "Address Incomplete",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8011,
+        "o_code": 404,
+        "o_reason": "Invalid src number format",
+        "o_rewrited_code": 484,
+        "o_rewrited_reason": "Address Incomplete",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8012,
+        "o_code": 480,
+        "o_reason": "CPS limit",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8013,
+        "o_code": 500,
+        "o_reason": "Privacy calls not allowed",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8014,
+        "o_code": 500,
+        "o_reason": "Critical privacy not allowed",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8015,
+        "o_code": 500,
+        "o_reason": "Anonymous calls not allowed",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8016,
+        "o_code": 403,
+        "o_reason": "Destination number blacklisted by routing plan",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8017,
+        "o_code": 403,
+        "o_reason": "Source number blacklisted by routing plan",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8018,
+        "o_code": 403,
+        "o_reason": "Identity required",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 8019,
+        "o_code": 403,
+        "o_reason": "Identity invalid",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    }
+]

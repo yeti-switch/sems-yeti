@@ -1,0 +1,72 @@
+[
+    {
+        "varname": "X-YETI-AUTH",
+        "vartype": "varchar",
+        "varformat": null,
+        "varhashkey": true,
+        "varparam": null
+    },
+    {
+        "varname": "Diversion",
+        "vartype": "varchar",
+        "varformat": "uri_user",
+        "varhashkey": false,
+        "varparam": null
+    },
+    {
+        "varname": "X-ORIG-IP",
+        "vartype": "varchar",
+        "varformat": null,
+        "varhashkey": true,
+        "varparam": null
+    },
+    {
+        "varname": "X-ORIG-PORT",
+        "vartype": "integer",
+        "varformat": null,
+        "varhashkey": true,
+        "varparam": null
+    },
+    {
+        "varname": "X-ORIG-PROTO",
+        "vartype": "integer",
+        "varformat": null,
+        "varhashkey": true,
+        "varparam": null
+    },
+    {
+        "varname": "P-Asserted-Identity",
+        "vartype": "varchar",
+        "varformat": null,
+        "varhashkey": true,
+        "varparam": null
+    },
+    {
+        "varname": "P-Preferred-Identity",
+        "vartype": "varchar",
+        "varformat": null,
+        "varhashkey": true,
+        "varparam": null
+    },
+    {
+        "varname": "Privacy",
+        "vartype": "varchar",
+        "varformat": null,
+        "varhashkey": true,
+        "varparam": null
+    },
+    {
+        "varname": "Remote-Party-ID",
+        "vartype": "varchar",
+        "varformat": null,
+        "varhashkey": true,
+        "varparam": null
+    },
+    {
+        "varname": "RPID-Privacy",
+        "vartype": "varchar",
+        "varformat": null,
+        "varhashkey": true,
+        "varparam": null
+    }
+]

@@ -1,0 +1,8 @@
+[
+    {
+        "ip": "127.0.0.1",
+        "x_yeti_auth": null,
+        "require_incoming_auth": false,
+        "require_identity_parsing": true
+    }
+]

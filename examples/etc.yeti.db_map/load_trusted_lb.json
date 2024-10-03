@@ -1,0 +1,7 @@
+[
+    {
+        "id": 1,
+        "name": "local lb",
+        "signalling_ip": "127.0.0.1"
+    }
+]

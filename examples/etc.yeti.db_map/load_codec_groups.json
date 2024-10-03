@@ -1,0 +1,106 @@
+[
+    {
+        "id": 1,
+        "ptime": null,
+        "codecs": [
+            {
+                "id": 6,
+                "name": "telephone-event/8000",
+                "priority": 64,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 7,
+                "name": "G723/8000",
+                "priority": 27,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 8,
+                "name": "G729/8000",
+                "priority": 66,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 9,
+                "name": "PCMU/8000",
+                "priority": 99,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 10,
+                "name": "PCMA/8000",
+                "priority": 40,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 11,
+                "name": "iLBC/8000",
+                "priority": 93,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 12,
+                "name": "speex/8000",
+                "priority": 32,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 13,
+                "name": "GSM/8000",
+                "priority": 8,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 14,
+                "name": "G726-32/8000",
+                "priority": 68,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 15,
+                "name": "G721/8000",
+                "priority": 23,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 16,
+                "name": "G726-24/8000",
+                "priority": 33,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 17,
+                "name": "G726-40/8000",
+                "priority": 59,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 18,
+                "name": "G726-16/8000",
+                "priority": 95,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 19,
+                "name": "L16/8000",
+                "priority": 6,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            }
+        ]
+    }
+]

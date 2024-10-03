@@ -1,0 +1,10 @@
+[
+    {
+        "ruri": "sip:42@127.0.0.1:6050",
+        "aleg_codecs_group_id": 1,
+        "bleg_codecs_group_id": 1
+    },
+    {
+        "disconnect_code_id": 113
+    }
+]
