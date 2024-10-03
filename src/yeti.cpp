@@ -544,7 +544,7 @@ void Yeti::initCfgTimerMappings()
         { "translations.dc_refuse", {
             [&](const string &key) {
                 yeti_routing_db_query(
-                    "SELECT * from load_disconnect_code_refuse()", key);
+                    "SELECT * FROM load_disconnect_code_refuse()", key);
             },
             [&](const PGResponse &e) {
                 CodesTranslator::instance()->load_disconnect_code_refuse(e.result);
@@ -553,7 +553,7 @@ void Yeti::initCfgTimerMappings()
         { "translations.dc_refuse_override", {
             [&](const string &key) {
                 yeti_routing_db_query(
-                    "SELECT * from load_disconnect_code_refuse_overrides()", key);
+                    "SELECT * FROM load_disconnect_code_refuse_overrides()", key);
             },
             [&](const PGResponse &e) {
                 CodesTranslator::instance()->load_disconnect_code_refuse_overrides(e.result);
@@ -562,7 +562,7 @@ void Yeti::initCfgTimerMappings()
         { "translations.dc_rerouting_override", {
             [&](const string &key) {
                 yeti_routing_db_query(
-                    "SELECT * from load_disconnect_code_rerouting_overrides()", key);
+                    "SELECT * FROM load_disconnect_code_rerouting_overrides()", key);
             },
             [&](const PGResponse &e) {
                 CodesTranslator::instance()->load_disconnect_code_rerouting_overrides(e.result);
@@ -571,7 +571,7 @@ void Yeti::initCfgTimerMappings()
         { "translations.dc_rewrite_override", {
             [&](const string &key) {
                 yeti_routing_db_query(
-                    "SELECT * from load_disconnect_code_rewrite_overrides()", key);
+                    "SELECT * FROM load_disconnect_code_rewrite_overrides()", key);
             },
             [&](const PGResponse &e) {
                 CodesTranslator::instance()->load_disconnect_code_rewrite_overrides(e.result);
@@ -583,8 +583,8 @@ void Yeti::initCfgTimerMappings()
             [&](const string &key) {
                 yeti_routing_db_query(
                   router.is_new_codec_groups() ?
-                    "SELECT * from load_codec_groups()" :
-                    "SELECT * from load_codecs()",
+                    "SELECT * FROM load_codec_groups()" :
+                    "SELECT * FROM load_codecs()",
                   key);
             },
             [&](const PGResponse &e) {
@@ -618,7 +618,7 @@ void Yeti::initCfgTimerMappings()
         { "radius_authorization_profiles", {
             [&](const string &key) {
                 if(config.use_radius)
-                    yeti_routing_db_query("SELECT * from load_radius_profiles()", key);
+                    yeti_routing_db_query("SELECT * FROM load_radius_profiles()", key);
             },
             [&](const PGResponse &e) {
                 load_radius_auth_connections(e.result);
@@ -627,7 +627,7 @@ void Yeti::initCfgTimerMappings()
         { "radius_accounting_profiles", {
             [&](const string &key) {
                 if(config.use_radius)
-                    yeti_routing_db_query("SELECT * from load_radius_accounting_profiles()", key);
+                    yeti_routing_db_query("SELECT * FROM load_radius_accounting_profiles()", key);
             },
             [&](const PGResponse &e) {
                 load_radius_acc_connections(e.result);
@@ -637,7 +637,7 @@ void Yeti::initCfgTimerMappings()
         //Auth
         { "auth_credentials", {
             [&](const string &key) {
-                yeti_routing_db_query("SELECT * from load_incoming_auth()", key);
+                yeti_routing_db_query("SELECT * FROM load_incoming_auth()", key);
             },
             [&](const PGResponse &e) {
                 router.reload_credentials(e.result);

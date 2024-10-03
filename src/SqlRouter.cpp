@@ -171,7 +171,7 @@ int SqlRouter::load_db_interface_in_out()
 
 	auto &sync_db = Yeti::instance().sync_db;
 
-	if(sync_db.exec_query("SELECT * from load_interface_out()", "load_interface_out"))
+	if(sync_db.exec_query("SELECT * FROM load_interface_out()", "load_interface_out"))
 		return 1;
 	assertArgArray(sync_db.db_reply_result);
 	for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {
@@ -188,7 +188,7 @@ int SqlRouter::load_db_interface_in_out()
 		}
 	}
 
-	if(sync_db.exec_query("SELECT * from load_interface_in()", "load_interface_in"))
+	if(sync_db.exec_query("SELECT * FROM load_interface_in()", "load_interface_in"))
 		return 1;
 	assertArgArray(sync_db.db_reply_result);
 	for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {

@@ -128,7 +128,7 @@ int ResourceControl::load_resources_config()
 {
 	auto &sync_db = Yeti::instance().sync_db;
 
-	if(sync_db.exec_query("SELECT * from load_resource_types()", "load_resource_types"))
+	if(sync_db.exec_query("SELECT * FROM load_resource_types()", "load_resource_types"))
 		return 1;
 
 	assertArgArray(sync_db.db_reply_result);

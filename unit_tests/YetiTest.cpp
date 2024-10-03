@@ -140,15 +140,15 @@ YetiTestFactory::YetiTestFactory()
     routes["vartype"] = "int2";
     routes["varname"] = "two";
     routes["forcdr"] = false;
-    pqtest_server.addResponse(string("SELECT * from load_interface_out()"), routes);
-    pqtest_server.addResponse(string("SELECT * from load_interface_in()"), routes);
+    pqtest_server.addResponse(string("SELECT * FROM load_interface_out()"), routes);
+    pqtest_server.addResponse(string("SELECT * FROM load_interface_in()"), routes);
 
     AmArg restype;
     restype["id"] = 279;
     restype["name"] = "alexey";
     restype["internal_code_id"] = 500;
     restype["action_id"] = 5;
-    pqtest_server.addResponse(string("SELECT * from load_resource_types()"), restype);
+    pqtest_server.addResponse(string("SELECT * FROM load_resource_types()"), restype);
     freePolicyFactory();
     makePolicyFactory(true, &pqtest_server);
 
