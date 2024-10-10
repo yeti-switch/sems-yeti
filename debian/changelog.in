@@ -1,3 +1,7 @@
+sems-yeti (1.13.84) stable; urgency=medium
+  * libsems1.146
+ -- dev <dev@yeti-switch.org>  Thu, 10 Oct 2024 15:40:52 +0300
+
 sems-yeti (1.13.83) stable; urgency=medium
   * fix SIP reply code/reason on exception
  -- dev <dev@yeti-switch.org>  Wed, 02 Oct 2024 13:23:09 +0300
