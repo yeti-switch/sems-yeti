@@ -2978,8 +2978,8 @@ void SBCCallLeg::onIdentityReady()
                 continue;
             }
 
-            a["header"] = e.identity.get_parsed_header();
-            a["payload"] = e.identity.get_parsed_payload();
+            a["header"] = e.identity.get_header();
+            a["payload"] = e.identity.get_payload();
 
             bool cert_is_valid;
             auto key(yeti.cert_cache.getPubKey(

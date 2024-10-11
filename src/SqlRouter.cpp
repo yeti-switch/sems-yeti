@@ -263,6 +263,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         DBG("SqlRouter::auth_configure: config successfuly readed");
     } else {
         ERROR("SqlRouter::auth_configure: config read error");
+        return 1;
     }
 
     PgConnectionPoolCfg masterpoolcfg("master");

@@ -60,12 +60,18 @@ SBC - feature-wishlist
 
 #include "yeti.h"
 #include "SipCtrlInterface.h"
-#include "cdr/AuthCdr.h"
 
 using std::map;
 
 EXPORT_PLUGIN_CLASS_FACTORY(SBCFactory)
 EXPORT_PLUGIN_CONF_FACTORY(SBCFactory)
+
+static AmArg jwt_auth_ret{
+    AmArg(403),
+    AmArg("Forbidden"),
+    AmArg(""),
+    AmArg("JWT Auth")
+};
 
 SBCFactory* SBCFactory::instance()
 {
@@ -257,8 +263,12 @@ AmSession* SBCFactory::onInvite(
         auto auth_result_id_negated = -auth_result_id;
 
         DBG("auth error %d. reply with 401", auth_result_id);
-        if(auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
-            send_auth_error_reply(req, ret, auth_result_id_negated);
+        if(auth_result_id_negated > Auth::NO_IP_AUTH) {
+            if(auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
+                send_auth_error_reply(req, ret, auth_result_id_negated);
+            } else {
+                send_auth_error_reply(req, jwt_auth_ret, auth_result_id_negated);
+            }
         } else {
             send_and_log_auth_challenge(req,ret.asCStr(), true, auth_result_id_negated);
         }

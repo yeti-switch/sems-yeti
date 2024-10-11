@@ -37,6 +37,12 @@ extern char opt_name_audio_recorder_dir[];
 extern char opt_name_audio_recorder_compress[];
 extern char opt_name_audio_recorder_http_destination[];
 
+extern char opt_name_auth_realm[];
+extern char opt_name_auth_skip_logging_invite_challenge[];
+extern char opt_name_auth_skip_logging_invite_success[];
+extern char opt_name_auth_jwt_public_key[];
+extern char opt_name_auth_jwt_expire[];
+
 extern char opt_identity_expires[];
 extern char opt_identity_http_destination[];
 extern char opt_identity_certs_cache_ttl[];

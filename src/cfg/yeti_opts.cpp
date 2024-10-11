@@ -41,6 +41,12 @@ char opt_name_audio_recorder_dir[] = "audio_recorder_dir";
 char opt_name_audio_recorder_compress[] = "audio_recorder_compress";
 char opt_name_audio_recorder_http_destination[] = "audio_recorder_http_destination";
 
+char opt_name_auth_realm[] = "realm";
+char opt_name_auth_skip_logging_invite_challenge[] = "skip_logging_invite_challenge";
+char opt_name_auth_skip_logging_invite_success[] = "skip_logging_invite_success";
+char opt_name_auth_jwt_public_key[] = "jwt_public_key";
+char opt_name_auth_jwt_expire[] = "jwt_expire_interval";
+
 char opt_identity_expires[] = "expires";
 char opt_identity_http_destination[] = "http_destination";
 char opt_identity_certs_cache_ttl[] = "certs_cache_ttl";
@@ -147,9 +153,11 @@ cfg_opt_t sig_yeti_reg_opts[] = {
 
 //auth
 cfg_opt_t sig_yeti_auth_opts[] = {
-    DCFG_STR(realm),
-    DCFG_BOOL(skip_logging_invite_challenge),
-    DCFG_BOOL(skip_logging_invite_success),
+    CFG_STR(opt_name_auth_realm, NULL, CFGF_NODEFAULT),
+    CFG_STR(opt_name_auth_jwt_public_key, NULL, CFGF_NODEFAULT),
+    CFG_BOOL(opt_name_auth_skip_logging_invite_challenge, cfg_false, CFGF_NODEFAULT),
+    CFG_BOOL(opt_name_auth_skip_logging_invite_success, cfg_false, CFGF_NODEFAULT),
+    CFG_INT(opt_name_auth_jwt_expire, 0, CFGF_NONE),
     CFG_END()
 };
 

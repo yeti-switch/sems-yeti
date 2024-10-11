@@ -5,7 +5,11 @@
 #include "sip/defs.h"
 #include "AmUriParser.h"
 #include "AmUtils.h"
+#include "AmIdentity.h"
+#include "cfg/yeti_opts.h"
+
 #include <unistd.h>
+#include <botan/x509cert.h>
 
 #define MAX_HOSTNAME_LEN 255
 #define AUTH_MOCKING_ENABLED 0
@@ -49,11 +53,12 @@ Auth::Auth()
   : uac_auth(nullptr)
   , skip_logging_invite_challenge(false)
   , skip_logging_invite_success(false)
+  , jwt_expire_interval_seconds(0)
 {}
 
 int Auth::auth_configure(cfg_t* cfg)
 {
-    char* realm_ = cfg_getstr(cfg, "realm");
+    char* realm_ = cfg_getstr(cfg, opt_name_auth_realm);
     if(!realm_ || strlen(realm_) == 0) {
         //use hostname as realm if not configured
         char hostname[MAX_HOSTNAME_LEN];
@@ -66,14 +71,28 @@ int Auth::auth_configure(cfg_t* cfg)
         realm = realm_;
     }
 
-    if(cfg_size(cfg, "skip_logging_invite_success"))
-        skip_logging_invite_success = cfg_getbool(cfg, "skip_logging_invite_success");
+    if(cfg_size(cfg, opt_name_auth_skip_logging_invite_success))
+        skip_logging_invite_success = cfg_getbool(cfg, opt_name_auth_skip_logging_invite_success);
 
-    if(cfg_size(cfg, "skip_logging_invite_challenge"))
-        skip_logging_invite_challenge = cfg_getbool(cfg, "skip_logging_invite_challenge");
+    if(cfg_size(cfg, opt_name_auth_skip_logging_invite_challenge))
+        skip_logging_invite_challenge = cfg_getbool(cfg, opt_name_auth_skip_logging_invite_challenge);
+
+    if(cfg_size(cfg, opt_name_auth_jwt_public_key)) {
+        std::string_view cert_path{cfg_getstr(cfg, opt_name_auth_jwt_public_key)};
+        try {
+            Botan::X509_Certificate crt(cert_path);
+            jwt_public_key = crt.subject_public_key();
+        } catch(Botan::Exception &e) {
+            ERROR("failed to load cert from '%s': %s", cert_path.data(), e.what());
+            return 1;
+        }
+    }
+
+    jwt_expire_interval_seconds = cfg_getint(cfg, opt_name_auth_jwt_expire);
 
     DBG("auth_init: configured to use realm: '%s', skip_logging_invite_success: %s, skip_logging_invite_challenge: %s",
         realm.c_str(), skip_logging_invite_success ? "true" : "false", skip_logging_invite_challenge ? "true" : "false");
+
     return 0;
 }
 
@@ -113,12 +132,74 @@ void Auth::reload_credentials(const AmArg &data)
     credentials.swap(c);
 }
 
+std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
+{
+    //sems-jwt-tool encode --key test.key.pem --raw --claim=id:1/i --claim=iat:$(date +%s)/i
+
+    auto scheme_pos = auth_hdr.find_first_not_of(' ');
+    if(((auth_hdr.size() - scheme_pos) <= 6) ||
+        0!=strncasecmp(&auth_hdr[scheme_pos], "Bearer", 6))
+    {
+        return std::nullopt;
+    }
+
+    if(!jwt_public_key) {
+        DBG("got Bearer auth hdr and no 'auth.jwt_public_key'. return verify error");
+        return -JWT_VERIFY_ERROR;
+    }
+
+    //JWT authorization
+    auto jwt_value = std::string_view(auth_hdr).substr(scheme_pos + 7);
+
+    AmIdentity jwt;
+    if(!jwt.parse(jwt_value, true)) {
+        DBG("failed to parse JWT: %s", jwt_value.data());
+        return -JWT_PARSE_ERROR;
+    }
+
+    if(!jwt.verify(jwt_public_key.get())) {
+        DBG("JWT verfication failed");
+        return -JWT_VERIFY_ERROR;
+    }
+
+    auto &jwt_data = jwt.get_payload();
+    DBG("jwt payload: %s", jwt_data.print().data());
+
+    if(jwt_expire_interval_seconds && jwt_data.hasMember("iat")) {
+        auto &iat_arg = jwt_data["iat"];
+
+        if(!iat_arg.isNumber())
+            return -JWT_EXPIRED_ERROR;
+
+        auto iat = iat_arg.asNumber<time_t>();
+        auto interval = time(0) - iat;
+        if(interval > jwt_expire_interval_seconds) {
+            DBG("jwt iat %li is expired. delta:%li", iat, interval);
+            return -JWT_EXPIRED_ERROR;
+        }
+    }
+
+    if(!jwt_data.hasMember("id"))
+        return -JWT_DATA_ERROR;
+
+    auto &id_arg = jwt_data["id"];
+
+    if(!id_arg.isNumber())
+        return -JWT_DATA_ERROR;
+
+    return id_arg.asNumber<auth_id_type>();
+}
+
 Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req,  AmArg &ret)
 {
     string auth_hdr =  getHeader(req.hdrs, SIP_HDR_AUTHORIZATION);
     if(auth_hdr.empty()) {
         //no auth header. just continue
         return NO_AUTH;
+    }
+
+    if(auto ret = check_jwt_auth(auth_hdr); ret) {
+        return ret.value();
     }
 
     string username = find_attribute("username", auth_hdr);

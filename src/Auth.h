@@ -5,7 +5,10 @@
 #include "AmThread.h"
 
 #include <unordered_map>
+#include <optional>
+
 #include <confuse.h>
+#include <botan/pubkey.h>
 
 class Auth {
   public:
@@ -15,6 +18,12 @@ class Auth {
         NO_USERNAME =    2,
         NO_CREDENTIALS = 3,
         NO_IP_AUTH =     4,  //rejected by OriginationPreAuth:onInvite()
+
+        JWT_PARSE_ERROR =   5,
+        JWT_VERIFY_ERROR =  6,
+        JWT_EXPIRED_ERROR = 7,
+        JWT_DATA_ERROR = 8,
+
         UAC_AUTH_ERROR = 10
     };
 
@@ -25,7 +34,9 @@ class Auth {
     std::string realm;
     bool skip_logging_invite_challenge;
     bool skip_logging_invite_success;
-
+    std::unique_ptr<Botan::Public_Key> jwt_public_key;
+    time_t jwt_expire_interval_seconds;
+\
     struct cred {
         auth_id_type id;
         std::string username;
@@ -41,6 +52,8 @@ class Auth {
         void add(auth_id_type id, const std::string &username, const std::string &password);
     } credentials;
     AmMutex credentials_mutex;
+
+    std::optional<auth_id_type> check_jwt_auth(const string &auth_hdr);
 
   protected:
 
