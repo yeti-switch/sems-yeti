@@ -45,7 +45,6 @@ char opt_name_auth_realm[] = "realm";
 char opt_name_auth_skip_logging_invite_challenge[] = "skip_logging_invite_challenge";
 char opt_name_auth_skip_logging_invite_success[] = "skip_logging_invite_success";
 char opt_name_auth_jwt_public_key[] = "jwt_public_key";
-char opt_name_auth_jwt_expire[] = "jwt_expire_interval";
 
 char opt_identity_expires[] = "expires";
 char opt_identity_http_destination[] = "http_destination";
@@ -157,7 +156,6 @@ cfg_opt_t sig_yeti_auth_opts[] = {
     CFG_STR(opt_name_auth_jwt_public_key, NULL, CFGF_NODEFAULT),
     CFG_BOOL(opt_name_auth_skip_logging_invite_challenge, cfg_false, CFGF_NODEFAULT),
     CFG_BOOL(opt_name_auth_skip_logging_invite_success, cfg_false, CFGF_NODEFAULT),
-    CFG_INT(opt_name_auth_jwt_expire, 0, CFGF_NONE),
     CFG_END()
 };
 

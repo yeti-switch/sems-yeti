@@ -41,7 +41,6 @@ extern char opt_name_auth_realm[];
 extern char opt_name_auth_skip_logging_invite_challenge[];
 extern char opt_name_auth_skip_logging_invite_success[];
 extern char opt_name_auth_jwt_public_key[];
-extern char opt_name_auth_jwt_expire[];
 
 extern char opt_identity_expires[];
 extern char opt_identity_http_destination[];

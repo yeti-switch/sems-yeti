@@ -35,7 +35,6 @@ class Auth {
     bool skip_logging_invite_challenge;
     bool skip_logging_invite_success;
     std::unique_ptr<Botan::Public_Key> jwt_public_key;
-    time_t jwt_expire_interval_seconds;
 \
     struct cred {
         auth_id_type id;

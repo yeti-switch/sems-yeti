@@ -53,7 +53,6 @@ Auth::Auth()
   : uac_auth(nullptr)
   , skip_logging_invite_challenge(false)
   , skip_logging_invite_success(false)
-  , jwt_expire_interval_seconds(0)
 {}
 
 int Auth::auth_configure(cfg_t* cfg)
@@ -86,8 +85,6 @@ int Auth::auth_configure(cfg_t* cfg)
             return 1;
         }
     }
-
-    jwt_expire_interval_seconds = cfg_getint(cfg, opt_name_auth_jwt_expire);
 
     DBG("auth_init: configured to use realm: '%s', skip_logging_invite_success: %s, skip_logging_invite_challenge: %s",
         realm.c_str(), skip_logging_invite_success ? "true" : "false", skip_logging_invite_challenge ? "true" : "false");
@@ -164,16 +161,15 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
     auto &jwt_data = jwt.get_payload();
     DBG("jwt payload: %s", jwt_data.print().data());
 
-    if(jwt_expire_interval_seconds && jwt_data.hasMember("iat")) {
-        auto &iat_arg = jwt_data["iat"];
+    if(jwt_data.hasMember("exp")) {
+        auto &exp_arg = jwt_data["exp"];
 
-        if(!iat_arg.isNumber())
+        if(!exp_arg.isNumber())
             return -JWT_EXPIRED_ERROR;
 
-        auto iat = iat_arg.asNumber<time_t>();
-        auto interval = time(0) - iat;
-        if(interval > jwt_expire_interval_seconds) {
-            DBG("jwt iat %li is expired. delta:%li", iat, interval);
+        auto exp = exp_arg.asNumber<time_t>();
+        if(time(0) > exp) {
+            DBG("JWT is expired. exp:%li", exp);
             return -JWT_EXPIRED_ERROR;
         }
     }
