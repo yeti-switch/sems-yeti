@@ -9,7 +9,7 @@
 #include "cfg/yeti_opts.h"
 
 #include <unistd.h>
-#include <botan/x509cert.h>
+#include <botan/x509_key.h>
 
 #define MAX_HOSTNAME_LEN 255
 #define AUTH_MOCKING_ENABLED 0
@@ -78,12 +78,11 @@ int Auth::auth_configure(cfg_t* cfg)
         skip_logging_invite_challenge = cfg_getbool(cfg, opt_name_auth_skip_logging_invite_challenge);
 
     if(cfg_size(cfg, opt_name_auth_jwt_public_key)) {
-        std::string_view cert_path{cfg_getstr(cfg, opt_name_auth_jwt_public_key)};
+        std::string_view key_path{cfg_getstr(cfg, opt_name_auth_jwt_public_key)};
         try {
-            Botan::X509_Certificate crt(cert_path);
-            jwt_public_key = crt.subject_public_key();
+            jwt_public_key = Botan::X509::load_key(key_path);
         } catch(Botan::Exception &e) {
-            ERROR("failed to load cert from '%s': %s", cert_path.data(), e.what());
+            ERROR("failed to load pubkey from '%s': %s", key_path.data(), e.what());
             return 1;
         }
     }
