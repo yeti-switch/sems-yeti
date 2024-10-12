@@ -261,16 +261,17 @@ AmSession* SBCFactory::onInvite(
             yeti->router.log_auth(req,true,ret,auth_result_id);
     } else if(auth_result_id < 0) {
         auto auth_result_id_negated = -auth_result_id;
-
-        DBG("auth error %d. reply with 401", auth_result_id);
         if(auth_result_id_negated > Auth::NO_IP_AUTH) {
             if(auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
+                DBG("auth error %d. reply with 401", auth_result_id);
                 send_auth_error_reply(req, ret, auth_result_id_negated);
             } else {
+                DBG("JWT auth error %d. reply with 403", auth_result_id);
                 send_auth_error_reply(req, jwt_auth_ret, auth_result_id_negated);
             }
         } else {
-            send_and_log_auth_challenge(req,ret.asCStr(), true, auth_result_id_negated);
+            DBG("no auth. reply 401 with challenge");
+            send_and_log_auth_challenge(req, ret.asCStr(), true, auth_result_id_negated);
         }
 
         dec_ref(early_trying_logger);
@@ -344,12 +345,17 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
 
         if(auth_id < 0) {
             auto auth_result_id_negated = -auth_id;
-            if(auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
-                DBG("REGISTER auth error. reply with 401");
-                send_auth_error_reply(req, ret, auth_result_id_negated);
+            if(auth_result_id_negated > Auth::NO_IP_AUTH) {
+                if(auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
+                    DBG("REGISTER auth error. reply with 401");
+                    send_auth_error_reply(req, ret, auth_result_id_negated);
+                } else {
+                    DBG("REGISTER JWT auth error. reply with 403");
+                    send_auth_error_reply(req, jwt_auth_ret, auth_result_id_negated);
+                }
             } else {
                 DBG("REGISTER no auth. reply 401 with challenge");
-                send_and_log_auth_challenge(req,ret.asCStr(), true, auth_result_id_negated);
+                send_and_log_auth_challenge(req, ret.asCStr(), true, auth_result_id_negated);
             }
             return;
         }
