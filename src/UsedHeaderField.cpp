@@ -130,21 +130,21 @@ void UsedHeaderField::serialize_nameaddr(const sip_nameaddr &na, AmArg &ret) con
     if(!na.uri.params.empty()) {
         AmArg &params = ret["up"];
         for(const auto &p: na.uri.params) {
-            params[c2stlstr(p->name)] = p->value.len ? c2stlstr(p->value) : AmArg();
+            params[c2stlstr(p->name)] = p->value.len ? c2stlstr(p->value) : string();
         }
     }
 
     if(!na.uri.hdrs.empty()) {
         AmArg &params = ret["uh"];
         for(const auto &p: na.uri.hdrs) {
-            params[c2stlstr(p->name)] = p->value.len ? c2stlstr(p->value) : AmArg();
+            params[c2stlstr(p->name)] = p->value.len ? c2stlstr(p->value) : string();
         }
     }
 
     if(!na.params.empty()) {
         AmArg &params = ret["np"];
         for(const auto &p: na.params) {
-            params[c2stlstr(p->name)] = p->value.len ? c2stlstr(p->value) : AmArg();
+            params[c2stlstr(p->name)] = p->value.len ? c2stlstr(p->value) : string();
         }
     }
 }

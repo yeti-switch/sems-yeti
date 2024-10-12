@@ -2,7 +2,7 @@
 #include "../src/UsedHeaderField.h"
 #include "sip/defs.h"
 
-string good_na_1("<sip:user1@domain1;uparam1=uval11;uparam2=uval12?uhdr1=uhval1>;nparam1=nval1");
+string good_na_1("<sip:user1@domain1;uparam1=uval11;uparam2=uval12;uparam3?uhdr1=uhval1>;hparam1=hval1;hparam2");
 string good_na_2("test2 <sip:user2@domain2:5061;uparam1=uval21;uparam2=uval22>");
 string good_na_3("test3 <sips:user3@domain3:5062;uparam1=uval31;uparam2=uval32>");
 string good_na_4("tel:1234567890");
@@ -56,11 +56,11 @@ TEST_P(UsedHeaderFieldTest, getValue) {
 }
 
 static string uri_json_expected(
-    R"~([{"h":"domain1","n":null,"np":{"nparam1":"nval1"},"p":5060,"s":"sip","u":"user1","uh":{"uhdr1":"uhval1"},"up":{"uparam1":"uval11","uparam2":"uval12"}}])~"
+    R"~([{"h":"domain1","n":null,"np":{"hparam1":"hval1","hparam2":""},"p":5060,"s":"sip","u":"user1","uh":{"uhdr1":"uhval1"},"up":{"uparam1":"uval11","uparam2":"uval12","uparam3":""}}])~"
 );
 
 static string uri_json_array_expected("["
-    R"~({"h":"domain1","n":null,"np":{"nparam1":"nval1"},"p":5060,"s":"sip","u":"user1","uh":{"uhdr1":"uhval1"},"up":{"uparam1":"uval11","uparam2":"uval12"}},)~"
+    R"~({"h":"domain1","n":null,"np":{"hparam1":"hval1","hparam2":""},"p":5060,"s":"sip","u":"user1","uh":{"uhdr1":"uhval1"},"up":{"uparam1":"uval11","uparam2":"uval12","uparam3":""}},)~"
     R"~({"h":"domain2","n":"test2","p":5061,"s":"sip","u":"user2","up":{"uparam1":"uval21","uparam2":"uval22"}},)~"
     R"~({"h":"domain3","n":"test3","p":5062,"s":"sips","u":"user3","up":{"uparam1":"uval31","uparam2":"uval32"}},)~"
     R"~({"s":"tel","t":"1234567890"})~"
