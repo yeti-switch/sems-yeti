@@ -23,6 +23,7 @@ class Auth {
         JWT_VERIFY_ERROR =  6,
         JWT_EXPIRED_ERROR = 7,
         JWT_DATA_ERROR = 8,
+        JWT_AUTH_ERROR = 9,
 
         UAC_AUTH_ERROR = 10
     };
@@ -46,9 +47,13 @@ class Auth {
     };
 
     struct CredentialsContainer
-      : public std::unordered_multimap<std::string, struct cred>
     {
-        void add(auth_id_type id, const std::string &username, const std::string &password);
+        std::unordered_multimap<std::string, struct cred> by_user;
+        std::unordered_map<std::string, auth_id_type> by_gid;
+        std::set<auth_id_type> allowed_jwt_auth;
+
+        void add(const AmArg &data);
+        void swap(CredentialsContainer &rhs);
     } credentials;
     AmMutex credentials_mutex;
 

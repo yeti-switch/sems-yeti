@@ -41,12 +41,36 @@ inline string find_attribute(const string& name, const string& header) {
     return "";
 }
 
-void Auth::CredentialsContainer::add(
-    auth_id_type id,
-    const std::string &username,
-    const std::string &password)
+void Auth::CredentialsContainer::add(const AmArg &data)
 {
-    emplace(username,cred(id,username,password));
+    auth_id_type id = data["id"].asInt();
+
+    if (data.hasMember("username") && data.hasMember("password")) {
+        string username = data["username"].asCStr();
+        if(!username.empty()) {
+            by_user.emplace(username, cred(id, username, data["password"].asCStr()));
+        }
+    }
+
+    if (data.hasMember("jwt_gid")) {
+        by_gid.emplace(data["jwt_gid"].asCStr(), id);
+    }
+
+    if (data.hasMember("allow_jwt_auth")) {
+        auto &a = data["allow_jwt_auth"];
+        if ((isArgBool(a) && a.asBool()) ||
+            (a.isNumber() && a.asNumber<int>()))
+        {
+            allowed_jwt_auth.emplace(id);
+        }
+    }
+}
+
+void Auth::CredentialsContainer::swap(CredentialsContainer &rhs)
+{
+    by_user.swap(rhs.by_user);
+    by_gid.swap(rhs.by_gid);
+    allowed_jwt_auth.swap(rhs.allowed_jwt_auth);
 }
 
 Auth::Auth()
@@ -115,15 +139,12 @@ void Auth::reload_credentials(const AmArg &data)
     AmLock l(credentials_mutex);
 
     if(isArgArray(data)) {
-        for(size_t i = 0; i < data.size(); i++) {
-            auto &a = data[i];
-            c.add(a["id"].asInt(),
-                  a["username"].asCStr(),
-                  a["password"].asCStr());
-        }
+        for(size_t i = 0; i < data.size(); i++)
+            c.add(data[i]);
     }
 
-    DBG("loaded credentials list. %zd items",c.size());
+    DBG("loaded credentials list. by_user:%zd, bt_gid:%zd, allowed_jwt_auth:%d",
+        c.by_user.size(), c.by_gid.size(), c.allowed_jwt_auth.size());
 
     credentials.swap(c);
 }
@@ -153,11 +174,13 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
         return -JWT_PARSE_ERROR;
     }
 
+    //verify signature
     if(!jwt.verify(jwt_public_key.get())) {
         DBG("JWT verification failed");
         return -JWT_VERIFY_ERROR;
     }
 
+    //check 'exp' claim
     auto &jwt_data = jwt.get_payload();
     DBG("jwt payload: %s", jwt_data.print().data());
 
@@ -174,15 +197,38 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
         }
     }
 
-    if(!jwt_data.hasMember("id"))
+    //process 'gid', 'id' claims
+    auth_id_type id;
+    AmLock l(credentials_mutex);
+
+    if(jwt_data.hasMember("gid")) {
+        AmArg &gid = jwt_data["gid"];
+        if(!isArgCStr(gid))
+            return -JWT_DATA_ERROR;
+
+        auto it = credentials.by_gid.find(gid.asCStr());
+        if(it == credentials.by_gid.end()) {
+            DBG("no matches for JWT gid: %s", gid.asCStr());
+            return -JWT_AUTH_ERROR;
+        }
+        id = it->second;
+        DBG("JWT gid resolved: %s -> %d", gid.asCStr(), id);
+    } if(jwt_data.hasMember("id")) {
+        auto &id_arg = jwt_data["id"];
+        if(!id_arg.isNumber())
+            return -JWT_DATA_ERROR;
+        id = id_arg.asNumber<auth_id_type>();
+        DBG("JWT id: %d", id);
+    } else {
         return -JWT_DATA_ERROR;
+    }
 
-    auto &id_arg = jwt_data["id"];
+    if(!credentials.allowed_jwt_auth.contains(id)) {
+        DBG("JWT with is not allowed for: %d", id);
+        return -JWT_AUTH_ERROR;
+    }
 
-    if(!id_arg.isNumber())
-        return -JWT_DATA_ERROR;
-
-    return id_arg.asNumber<auth_id_type>();
+    return id;
 }
 
 Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req,  AmArg &ret)
@@ -220,8 +266,8 @@ Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req,  AmArg &ret
 
     credentials_mutex.lock();
 
-    auto range = credentials.equal_range(username);
-    if(range.first == credentials.end()) {
+    auto range = credentials.by_user.equal_range(username);
+    if(range.first == credentials.by_user.end()) {
         credentials_mutex.unlock();
         DBG("no credentials for username '%s'",username.c_str());
         ret = "no credentials for username";
@@ -278,16 +324,30 @@ void Auth::send_auth_challenge(const AmSipRequest &req, const string &hdrs)
 
 void Auth::auth_info(AmArg &ret)
 {
-    ret.assertArray();
+    ret.assertStruct();
+
     AmLock l(credentials_mutex);
-    for(const auto &c_it: credentials) {
-        const cred &c = c_it.second;
-        ret.push(AmArg());
-        AmArg &a = ret.back();
-        a["id"] = c.id;
-        a["user"] = c.username;
-        a["pwd"] = c.password;
+
+    auto &by_user_arg = ret["users"];
+    by_user_arg.assertArray();
+    for(const auto &[user, c]: credentials.by_user) {
+        by_user_arg.push({
+            { "id", c.id },
+            { "user", user },
+            { "pwd", c.password }
+        });
     }
+
+    auto &by_gid_arg = ret["jwt_gid"];
+    by_gid_arg.assertStruct();
+    for(const auto &[gid, id]: credentials.by_gid) {
+        by_gid_arg[gid] = id;
+    }
+
+    auto &allow_jwt_auth_arg = ret["allow_jwt_auth"];
+    allow_jwt_auth_arg.assertArray();
+    for(auto id: credentials.allowed_jwt_auth)
+        allow_jwt_auth_arg.push(id);
 }
 
 void Auth::auth_info_by_user(const string &username, AmArg &ret)
@@ -296,8 +356,8 @@ void Auth::auth_info_by_user(const string &username, AmArg &ret)
 
     credentials_mutex.lock();
 
-    auto range = credentials.equal_range(username);
-    if(range.first == credentials.end()) {
+    auto range = credentials.by_user.equal_range(username);
+    if(range.first == credentials.by_user.end()) {
         credentials_mutex.unlock();
         DBG("no credentials for username '%s'",username.c_str());
         return;
@@ -318,25 +378,36 @@ void Auth::auth_info_by_user(const string &username, AmArg &ret)
         a["user"] = c.username;
         a["pwd"] = c.password;
     }
-
 }
 
 void Auth::auth_info_by_id(auth_id_type id, AmArg &ret)
 {
-    ret.assertArray();
+    ret.assertStruct();
 
     AmLock l(credentials_mutex);
 
-    for(const auto &i: credentials) {
-        const cred &c = i.second;
-
+    auto &by_user_arg = ret["users"];
+    by_user_arg.assertArray();
+    for(const auto &[user, c]: credentials.by_user) {
         if(c.id!=id) continue;
-
-        ret.push(AmArg());
-        AmArg &a = ret.back();
-        a["id"] = c.id;
-        a["user"] = c.username;
-        a["pwd"] = c.password;
+        by_user_arg.push({
+            { "id", c.id },
+            { "user", user },
+            { "pwd", c.password }
+        });
     }
+
+
+    auto &by_gid_arg = ret["jwt_gid"];
+    by_gid_arg.assertStruct();
+    for(const auto &[gid, auth_id]: credentials.by_gid) {
+        if(id!=auth_id) continue;
+        by_gid_arg[gid] = id;
+    }
+
+    auto &allow_jwt_auth_arg = ret["allow_jwt_auth"];
+    allow_jwt_auth_arg.assertArray();
+    if(credentials.allowed_jwt_auth.contains(id))
+        allow_jwt_auth_arg.push(id);
 }
 
