@@ -213,7 +213,7 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
         }
         id = it->second;
         DBG("JWT gid resolved: %s -> %d", gid.asCStr(), id);
-    } if(jwt_data.hasMember("id")) {
+    } else if(jwt_data.hasMember("id")) {
         auto &id_arg = jwt_data["id"];
         if(!id_arg.isNumber())
             return -JWT_DATA_ERROR;
