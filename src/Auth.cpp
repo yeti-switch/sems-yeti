@@ -154,7 +154,7 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
     }
 
     if(!jwt.verify(jwt_public_key.get())) {
-        DBG("JWT verfication failed");
+        DBG("JWT verification failed");
         return -JWT_VERIFY_ERROR;
     }
 
