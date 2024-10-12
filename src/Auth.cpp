@@ -224,7 +224,7 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
     }
 
     if(!credentials.allowed_jwt_auth.contains(id)) {
-        DBG("JWT with is not allowed for: %d", id);
+        DBG("JWT auth is not allowed for: %d", id);
         return -JWT_AUTH_ERROR;
     }
 
