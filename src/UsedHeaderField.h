@@ -2,6 +2,7 @@
 #define USEDHEADERFIELD_H
 
 #include "AmSipMsg.h"
+#include "sip/parse_nameaddr.h"
 
 #include <string>
 
@@ -13,7 +14,8 @@ class UsedHeaderField {
         uri_user,
         uri_domain,
         uri_port,
-        uri_param
+        uri_param,
+        uri_json
     };
 
     enum ValueType {
@@ -34,6 +36,7 @@ class UsedHeaderField {
     void applyFormat(const string &format);
 
     bool process_uri(const sip_uri &uri, string &ret) const;
+    void serialize_nameaddr(const sip_nameaddr &na, AmArg &ret) const;
 
   public:
     UsedHeaderField(const string &hdr_name);

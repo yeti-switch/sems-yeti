@@ -3,9 +3,9 @@
 #include "AmUtils.h"
 #include "db/DbHelpers.h"
 #include "sip/parse_common.h"
-#include "sip/parse_nameaddr.h"
 #include "sip/parse_uri.h"
 #include "sip/defs.h"
+#include "jsonArg.h"
 
 #include <botan/base64.h>
 
@@ -40,6 +40,9 @@ void UsedHeaderField::applyFormat(const string &format)
     if(format.starts_with("uri_user")) {
         type = Uri;
         part = uri_user;
+    } else if(format.starts_with("uri_json")) {
+        type = Uri;
+        part = uri_json;
     } else if(format.starts_with("uri_domain")) {
         type = Uri;
         part = uri_domain;
@@ -102,6 +105,50 @@ bool UsedHeaderField::process_uri(const sip_uri &uri, string &ret) const
     } //switch(part)
 }
 
+void UsedHeaderField::serialize_nameaddr(const sip_nameaddr &na, AmArg &ret) const
+{
+    switch(na.uri.scheme) {
+    case sip_uri::SIP:
+    case sip_uri::SIPS:
+        ret["s"] = na.uri.scheme == sip_uri::SIP ? "sip" : "sips";
+
+        ret["n"] = na.name.len ? c2stlstr(na.name) : AmArg();
+
+        ret["p"] = na.uri.port;
+        ret["u"] = na.uri.user.len ? c2stlstr(na.uri.user) : AmArg();
+        ret["h"] = na.uri.host.len ? c2stlstr(na.uri.host) : AmArg();
+        break;
+    case sip_uri::TEL:
+        ret["s"] = "tel";
+        ret["t"] = na.uri.user.len ? c2stlstr(na.uri.user) : AmArg();
+        break;
+    case sip_uri::UNKNOWN:
+        ret["s"] = "unknown";
+        return;
+    }
+
+    if(!na.uri.params.empty()) {
+        AmArg &params = ret["up"];
+        for(const auto &p: na.uri.params) {
+            params[c2stlstr(p->name)] = p->value.len ? c2stlstr(p->value) : AmArg();
+        }
+    }
+
+    if(!na.uri.hdrs.empty()) {
+        AmArg &params = ret["uh"];
+        for(const auto &p: na.uri.hdrs) {
+            params[c2stlstr(p->name)] = p->value.len ? c2stlstr(p->value) : AmArg();
+        }
+    }
+
+    if(!na.params.empty()) {
+        AmArg &params = ret["np"];
+        for(const auto &p: na.params) {
+            params[c2stlstr(p->name)] = p->value.len ? c2stlstr(p->value) : AmArg();
+        }
+    }
+}
+
 UsedHeaderField::UsedHeaderField(const string &hdr_name)
 {
     name = hdr_name;
@@ -117,13 +164,13 @@ UsedHeaderField::UsedHeaderField(const AmArg &a)
     applyFormat(DbAmArg_hash_get_str(a,"varformat"));
 }
 
-bool UsedHeaderField::getValue(const AmSipRequest &req,string &val) const
+bool UsedHeaderField::getValue(const AmSipRequest &req, string &val) const
 {
     string hdr;
     sip_nameaddr na;
     list<cstring> na_list;
     sip_uri uri;
-    string orig_val(val);
+    AmArg serialized_ret;
 
     if(!getInternalHeader(req,name,hdr))
         hdr = getHeader(req.hdrs,name);
@@ -150,7 +197,10 @@ bool UsedHeaderField::getValue(const AmSipRequest &req,string &val) const
             const char *s = na_str.s;
 
             if(multiple_headers) {
+                na.name.clear();
                 na.params.clear();
+                na.uri.host.clear();
+                na.uri.port = 0;
                 na.uri.params.clear();
                 na.uri.uri_params.clear();
                 na.uri.hdrs.clear();
@@ -164,9 +214,14 @@ bool UsedHeaderField::getValue(const AmSipRequest &req,string &val) const
                 return false;
             }
 
-            if(!process_uri(na.uri, val)) {
-                if(multiple_headers) continue;
-                return false;
+            if(part == uri_json) {
+                serialized_ret.push(AmArg());
+                serialize_nameaddr(na, serialized_ret.back());
+            } else {
+                if(!process_uri(na.uri, val)) {
+                    if(multiple_headers) continue;
+                    return false;
+                }
             }
 
             if(!multiple_headers) break;
@@ -179,6 +234,10 @@ bool UsedHeaderField::getValue(const AmSipRequest &req,string &val) const
     } //switch(type)
 
 succ:
+    if(part == uri_json) {
+        val = arg2json(serialized_ret);
+    }
+
     if(val.empty()) {
         DBG("%s[%s:%s:%s] processed. got empty value. return null",
             name.c_str(), type2str(),part2str(),param.c_str());
@@ -223,6 +282,7 @@ const char* UsedHeaderField::part2str() const
     case uri_domain: return "uri_domain";
     case uri_port: return "uri_port";
     case uri_param: return "uri_param";
+    case uri_json: return "uri_json";
     default: return "unknown";
     }
 }

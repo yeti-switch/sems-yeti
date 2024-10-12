@@ -2,13 +2,15 @@
 #include "../src/UsedHeaderField.h"
 #include "sip/defs.h"
 
-string good_na_1("test1 <sip:user1@domain1;uparam1=uval11;uparam2=uval12>");
+string good_na_1("<sip:user1@domain1;uparam1=uval11;uparam2=uval12?uhdr1=uhval1>;nparam1=nval1");
 string good_na_2("test2 <sip:user2@domain2:5061;uparam1=uval21;uparam2=uval22>");
-string good_na_3("test3 <sip:user3@domain3:5062;uparam1=uval31;uparam2=uval32>");
+string good_na_3("test3 <sips:user3@domain3:5062;uparam1=uval31;uparam2=uval32>");
+string good_na_4("tel:1234567890");
 
 static string good_diversion_hdrs =
     "Diversion: " + good_na_1 + CRLF +
-    "Diversion: " + good_na_2 + ", " + good_na_3;
+    "Diversion: " + good_na_2 + ", " + good_na_3 + CRLF +
+    "Diversion: " + good_na_4;
 
 struct tparam {
     string varformat;
@@ -38,6 +40,7 @@ TEST_P(UsedHeaderFieldTest, getValue) {
     AmSipRequest req;
     req.hdrs += good_diversion_hdrs;
 
+    DBG("hdrs: %s", good_diversion_hdrs.data());
     auto &param = GetParam();
 
     AmArg hf_params = {
@@ -52,16 +55,29 @@ TEST_P(UsedHeaderFieldTest, getValue) {
     ASSERT_EQ(value, param.expected_result);
 }
 
+static string uri_json_expected(
+    R"~([{"h":"domain1","n":null,"np":{"nparam1":"nval1"},"p":5060,"s":"sip","u":"user1","uh":{"uhdr1":"uhval1"},"up":{"uparam1":"uval11","uparam2":"uval12"}}])~"
+);
+
+static string uri_json_array_expected("["
+    R"~({"h":"domain1","n":null,"np":{"nparam1":"nval1"},"p":5060,"s":"sip","u":"user1","uh":{"uhdr1":"uhval1"},"up":{"uparam1":"uval11","uparam2":"uval12"}},)~"
+    R"~({"h":"domain2","n":"test2","p":5061,"s":"sip","u":"user2","up":{"uparam1":"uval21","uparam2":"uval22"}},)~"
+    R"~({"h":"domain3","n":"test3","p":5062,"s":"sips","u":"user3","up":{"uparam1":"uval31","uparam2":"uval32"}},)~"
+    R"~({"s":"tel","t":"1234567890"})~"
+"]");
+
 INSTANTIATE_TEST_SUITE_P(YetiTest, UsedHeaderFieldTest, testing::Values(
-    tparam("", "", good_na_1 + ", " + good_na_2 + ", " + good_na_3),
+    tparam("", "", good_na_1 + ", " + good_na_2 + ", " + good_na_3 + ", " + good_na_4),
     tparam("uri_user", "", "user1"),
-    tparam("uri_user_array", "", "user1,user2,user3"),
+    tparam("uri_user_array", "", "user1,user2,user3,1234567890"),
     tparam("uri_domain", "", "domain1"),
-    tparam("uri_domain_array", "", "domain1,domain2,domain3"),
+    tparam("uri_domain_array", "", "domain1,domain2,domain3,"),
     tparam("uri_port", "", "5060"),
-    tparam("uri_port_array", "", "5060,5061,5062"),
+    tparam("uri_port_array", "", "5060,5061,5062,0"),
     tparam("uri_param", "uparam1", "uval11"),
-    tparam("uri_param_array", "uparam1", "uval11,uval21,uval31")),
+    tparam("uri_param_array", "uparam1", "uval11,uval21,uval31,"),
+    tparam("uri_json", "", uri_json_expected),
+    tparam("uri_json_array", "", uri_json_array_expected)),
 
     [](const testing::TestParamInfo<UsedHeaderFieldTest::ParamType>& info) {
         string ret;
