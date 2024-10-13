@@ -1,3 +1,9 @@
+sems-yeti (1.13.85) stable; urgency=medium
+  * add JWT auth support
+  * UsedHeaderField: add uri_json,uri_json_array format support
+  * new opt method routing.headers.header to replace load_interface_in()
+ -- dev <dev@yeti-switch.org>  Sun, 13 Oct 2024 14:09:24 +0300
+
 sems-yeti (1.13.84) stable; urgency=medium
   * libsems1.146
  -- dev <dev@yeti-switch.org>  Thu, 10 Oct 2024 15:40:52 +0300
