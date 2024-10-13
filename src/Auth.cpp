@@ -52,16 +52,13 @@ void Auth::CredentialsContainer::add(const AmArg &data)
         }
     }
 
-    if (data.hasMember("jwt_gid")) {
-        by_gid.emplace(data["jwt_gid"].asCStr(), id);
-    }
-
     if (data.hasMember("allow_jwt_auth")) {
         auto &a = data["allow_jwt_auth"];
-        if ((isArgBool(a) && a.asBool()) ||
-            (a.isNumber() && a.asNumber<int>()))
-        {
+        if ((isArgBool(a) && a.asBool())) {
             allowed_jwt_auth.emplace(id);
+            if (data.hasMember("jwt_gid")) {
+                by_gid.emplace(data["jwt_gid"].asCStr(), id);
+            }
         }
     }
 }
@@ -188,7 +185,7 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
         auto &exp_arg = jwt_data["exp"];
 
         if(!exp_arg.isNumber())
-            return -JWT_EXPIRED_ERROR;
+            return -JWT_DATA_ERROR;
 
         auto exp = exp_arg.asNumber<time_t>();
         if(time(0) > exp) {
@@ -219,13 +216,12 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
             return -JWT_DATA_ERROR;
         id = id_arg.asNumber<auth_id_type>();
         DBG("JWT id: %d", id);
+        if(!credentials.allowed_jwt_auth.contains(id)) {
+            DBG("JWT auth is not allowed for: %d", id);
+            return -JWT_AUTH_ERROR;
+        }
     } else {
         return -JWT_DATA_ERROR;
-    }
-
-    if(!credentials.allowed_jwt_auth.contains(id)) {
-        DBG("JWT auth is not allowed for: %d", id);
-        return -JWT_AUTH_ERROR;
     }
 
     return id;
