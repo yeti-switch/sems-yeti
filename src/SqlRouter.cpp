@@ -63,6 +63,35 @@ const static_field profile_static_fields[] = {
 
 size_t profile_static_fields_count = 21;
 
+static AmArg cfg_routing_headers;
+int add_routing_header(cfg_t */*cfg*/, cfg_opt_t */*opt*/, int argc, const char **argv)
+{
+    if(argc < 1 || argc > 4) {
+        ERROR("expected format: header(header_name[, sql_type = varchar, [format[, format_param]]])");
+        return 1;
+    }
+
+    cfg_routing_headers.push({
+       { "varname", argv[0] }
+    });
+
+    auto &a = cfg_routing_headers.back();
+
+    if(argc > 1) {
+        a["vartype"] = argv[1];
+        if(argc > 2) {
+            cfg_routing_headers.back()["varformat"] = argv[2];
+            if(argc > 3) {
+                cfg_routing_headers.back()["varparam"] = argv[3];
+            }
+        }
+    } else {
+        a["vartype"] = "varchar";
+    }
+
+    return 0;
+}
+
 struct SqlPlaceHolderArgs
 {
     size_t n;
@@ -137,84 +166,72 @@ void SqlRouter::sanitize_query_params(
     }
 }
 
-void SqlRouter::stop()
+void SqlRouter::apply_interface_in(const AmArg &data)
 {
-  DBG("SqlRouter::stop()");
-  /*if(master_pool)
-    master_pool->stop();
-  if(slave_pool)
-    slave_pool->stop();
-  if(cdr_writer)
-    cdr_writer->stop();*/
-}
+    assertArgArray(data);
+    for(size_t i = 0; i < data.size(); i++) {
+        AmArg &a = data.get(i);
 
-int SqlRouter::start()
-{
-    /*master_pool->start();
-    WARN("Master SQLThread started");
-    if (1==failover_to_slave) {
-        slave_pool->start();
-        WARN("Slave SQLThread started");
+        const char *vartype = a["vartype"].asCStr();
+        DBG("load_interface_in:     %u: %s : %s",i,
+            a["varname"].asCStr(),vartype);
+
+        used_header_fields.emplace_back(a);
+
+        string varname = a["varname"].asCStr();
+
+        //TODO: fix types in DB
+        if(varname=="X-ORIG-PROTO") {
+            getprofile_types.push_back("smallint");
+            auth_log_types.push_back("smallint");
+        } else if(varname=="X-ORIG-IP" || varname=="X-SRC-IP") {
+            getprofile_types.push_back("inet");
+            auth_log_types.push_back("inet");
+        } else {
+            getprofile_types.push_back(vartype);
+            auth_log_types.push_back(vartype);
+        }
     }
-    cdr_writer->start();*/
-    return 0;
-};
+}
 
 int SqlRouter::load_db_interface_in_out()
 {
-	//fill arg types for static fields
-	for(unsigned int k = 0; k < profile_static_fields_count; k++)
-		getprofile_types.push_back(profile_static_fields[k].type);
+    //fill arg types for static fields
+    for(unsigned int k = 0; k < profile_static_fields_count; k++)
+        getprofile_types.push_back(profile_static_fields[k].type);
 
-	for(const auto &f : auth_log_static_fields)
-		auth_log_types.push_back(f.type);
+    for(const auto &f : auth_log_static_fields)
+        auth_log_types.push_back(f.type);
 
-	auto &sync_db = Yeti::instance().sync_db;
+    auto &sync_db = Yeti::instance().sync_db;
 
-	if(sync_db.exec_query("SELECT * FROM load_interface_out()", "load_interface_out"))
-		return 1;
-	assertArgArray(sync_db.db_reply_result);
-	for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {
-		AmArg &a = sync_db.db_reply_result.get(i);
-		//DBG("%zd %s", i, AmArg::print(a).data());
-		const char *vartype = a["vartype"].asCStr();
-		const char *varname = a["varname"].asCStr();
-		bool forcdr= a["forcdr"].asBool();
+    if(sync_db.exec_query("SELECT * FROM load_interface_out()", "load_interface_out"))
+        return 1;
+    assertArgArray(sync_db.db_reply_result);
+    for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {
+        AmArg &a = sync_db.db_reply_result.get(i);
+        //DBG("%zd %s", i, AmArg::print(a).data());
+        const char *vartype = a["vartype"].asCStr();
+        const char *varname = a["varname"].asCStr();
+        bool forcdr= a["forcdr"].asBool();
 
-		DBG("load_interface_out:     %zd: %s : %s, %d",
-			i, varname, vartype, forcdr);
-		if(forcdr) {
-			dyn_fields.emplace_back(varname, vartype);
-		}
-	}
+        DBG("load_interface_out:     %zd: %s : %s, %d",
+            i, varname, vartype, forcdr);
+        if(forcdr) {
+            dyn_fields.emplace_back(varname, vartype);
+        }
+    }
 
-	if(sync_db.exec_query("SELECT * FROM load_interface_in()", "load_interface_in"))
-		return 1;
-	assertArgArray(sync_db.db_reply_result);
-	for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {
-		AmArg &a = sync_db.db_reply_result.get(i);
-		const char *vartype = a["vartype"].asCStr();
-		DBG("load_interface_in:     %u: %s : %s",i,
-			a["varname"].asCStr(),vartype);
+    if(!isArgUndef(cfg_routing_headers)) {
+        DBG("apply load_interface_in() from route.headers");
+        apply_interface_in(cfg_routing_headers);
+    } else {
+        if(sync_db.exec_query("SELECT * FROM load_interface_in()", "load_interface_in"))
+            return 1;
+        apply_interface_in(sync_db.db_reply_result);
+    }
 
-		used_header_fields.emplace_back(a);
-		
-		string varname = a["varname"].asCStr();
-
-		//TODO: fix types in DB
-		if(varname=="X-ORIG-PROTO") {
-			getprofile_types.push_back("smallint");
-			auth_log_types.push_back("smallint");
-		} else if(varname=="X-ORIG-IP" || varname=="X-SRC-IP") {
-			getprofile_types.push_back("inet");
-			auth_log_types.push_back("inet");
-		} else {
-			getprofile_types.push_back(vartype);
-			auth_log_types.push_back(vartype);
-		}
-	}
-
-	return 0;
+    return 0;
 }
 
 int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)

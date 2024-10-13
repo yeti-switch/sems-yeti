@@ -22,6 +22,7 @@ extern char section_name_resources[];
 extern char section_name_redis[];
 extern char section_name_redis_write[];
 extern char section_name_redis_read[];
+extern char section_name_headers[];
 
 extern char opt_name_core_options_handling[];
 extern char opt_name_pcap_memory_logger[];

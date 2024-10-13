@@ -73,6 +73,7 @@ class SqlRouter
     DynFieldsT dyn_fields;
 
     int load_db_interface_in_out();
+    void apply_interface_in(const AmArg &data);
 
     void sanitize_query_params(
         QueryInfo &query_info,
@@ -91,9 +92,6 @@ class SqlRouter
         const AmSipRequest&,
         Auth::auth_id_type auth_id,
         AmArg *identity_data);
-
-    int start();
-    void stop();
 
     void align_cdr(Cdr &cdr);
     void write_cdr(std::unique_ptr<Cdr> &cdr, bool last);

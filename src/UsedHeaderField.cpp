@@ -160,7 +160,6 @@ UsedHeaderField::UsedHeaderField(const AmArg &a)
     name = DbAmArg_hash_get_str(a,"varname");
     param = DbAmArg_hash_get_str(a,"varparam");
     sql_type_name = DbAmArg_hash_get_str(a,"vartype");
-    hashkey = DbAmArg_hash_get_bool(a,"varhashkey");
     applyFormat(DbAmArg_hash_get_str(a,"varformat"));
 }
 
@@ -255,9 +254,7 @@ std::optional<AmArg> UsedHeaderField::getValue(const AmSipRequest &req) const
 
 void UsedHeaderField::getInfo(AmArg &arg) const
 {
-    string s;
     arg["name"] = name;
-    arg["hashkey"] = hashkey;
     arg["type"] = type2str();
     if(type!=Raw) {
         arg["part"] = part2str();
@@ -265,7 +262,7 @@ void UsedHeaderField::getInfo(AmArg &arg) const
             arg["param"] = param;
         }
     }
-    arg["multiple_headers"] = true;
+    arg["multiple_headers"] = multiple_headers;
 }
 
 const char* UsedHeaderField::type2str() const

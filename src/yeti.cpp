@@ -256,7 +256,6 @@ int Yeti::onLoad()
     http_sequencer.setHttpDestinationName(config.http_events_destination);
 
     //start threads
-    router.start();
     rctl.start();
     if(cdr_list.getSnapshotsEnabled())
         cdr_list.start();
@@ -330,7 +329,6 @@ void Yeti::on_stop()
 
     cdr_list.stop();
     rctl.stop();
-    router.stop();
 
     stopped = true;
 #pragma GCC diagnostic push

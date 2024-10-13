@@ -26,6 +26,7 @@ char section_name_resources[] = "resources";
 char section_name_redis[] = "redis";
 char section_name_redis_write[] = "write";
 char section_name_redis_read[] = "read";
+char section_name_headers[] = "headers";
 
 char opt_name_core_options_handling[] = "core_options_handling";
 char opt_name_pcap_memory_logger[] = "pcap_memory_logger";
@@ -65,6 +66,7 @@ char opt_redis_timeout[] = "timeout";
 char opt_redis_username[] = "username";
 char opt_redis_password[] = "password";
 
+int add_routing_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 int add_bleg_reply_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 
@@ -78,6 +80,11 @@ cfg_opt_t sig_yeti_routing_pool_opts[] = {
 	CFG_END()
 };
 
+cfg_opt_t routing_headers_opts[] = {
+    CFG_FUNC(opt_func_name_header, add_routing_header),
+    CFG_END()
+};
+
 cfg_opt_t sig_yeti_routing_opts[] = {
 	DCFG_STR(schema),
 	DCFG_STR(function),
@@ -88,6 +95,7 @@ cfg_opt_t sig_yeti_routing_opts[] = {
 	CFG_INT(opt_name_connection_lifetime,0,CFGF_NONE),
 	DCFG_SEC(master_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
 	DCFG_SEC(slave_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
+	CFG_SEC(section_name_headers, routing_headers_opts, CFGF_NONE),
 	CFG_END()
 };
 
