@@ -5,6 +5,8 @@
 #include "sip/parse_nameaddr.h"
 
 #include <string>
+#include <optional>
+#include <variant>
 
 using std::string;
 
@@ -42,7 +44,8 @@ class UsedHeaderField {
     UsedHeaderField(const string &hdr_name);
     UsedHeaderField(const AmArg &a);
 
-    bool getValue(const AmSipRequest &req,string &val) const;
+    std::optional<AmArg> getValue(const AmSipRequest &req) const;
+
     void getInfo(AmArg &arg) const;
     const char*type2str() const;
     const char*part2str() const;

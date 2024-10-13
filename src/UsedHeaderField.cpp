@@ -164,26 +164,28 @@ UsedHeaderField::UsedHeaderField(const AmArg &a)
     applyFormat(DbAmArg_hash_get_str(a,"varformat"));
 }
 
-bool UsedHeaderField::getValue(const AmSipRequest &req, string &val) const
+std::optional<AmArg> UsedHeaderField::getValue(const AmSipRequest &req) const
 {
     string hdr;
     sip_nameaddr na;
     list<cstring> na_list;
     sip_uri uri;
-    AmArg serialized_ret;
+
+    AmArg amarg_ret;
+    string string_ret;
 
     if(!getInternalHeader(req,name,hdr))
         hdr = getHeader(req.hdrs,name);
 
     if(hdr.empty()) {
         DBG("no header '%s' in SipRequest",name.c_str());
-        return false;
+        return std::nullopt;
     }
 
     switch(type) {
     case Raw:
-        val = hdr;
-        goto succ;
+        string_ret = hdr;
+        break;
     case Uri:
         if(parse_nameaddr_list(na_list, hdr.c_str(),hdr.length()) < 0) {
             ERROR("wrong nameaddr list '%s' in header '%s'",
@@ -215,10 +217,10 @@ bool UsedHeaderField::getValue(const AmSipRequest &req, string &val) const
             }
 
             if(part == uri_json) {
-                serialized_ret.push(AmArg());
-                serialize_nameaddr(na, serialized_ret.back());
+                amarg_ret.push(AmArg());
+                serialize_nameaddr(na, amarg_ret.back());
             } else {
-                if(!process_uri(na.uri, val)) {
+                if(!process_uri(na.uri, string_ret)) {
                     if(multiple_headers) continue;
                     return false;
                 }
@@ -230,23 +232,25 @@ bool UsedHeaderField::getValue(const AmSipRequest &req, string &val) const
     default:
         ERROR("unknown value type for header '%s'",
               name.c_str());
-        return false;
+        return std::nullopt;
     } //switch(type)
 
-succ:
-    if(part == uri_json) {
-        val = arg2json(serialized_ret);
+    if(!isArgUndef(amarg_ret)) {
+        DBG("%s[%s:%s:%s] processed. got serialized value",
+            name.c_str(), type2str(),part2str(), param.c_str());
+        return amarg_ret;
     }
 
-    if(val.empty()) {
+    if(string_ret.empty()) {
         DBG("%s[%s:%s:%s] processed. got empty value. return null",
             name.c_str(), type2str(),part2str(),param.c_str());
-        return false;
+        return std::nullopt;
     }
 
     DBG("%s[%s:%s:%s] processed. got '%s'",
-        name.c_str(), type2str(),part2str(),param.c_str(), val.c_str());
-    return true;
+        name.c_str(), type2str(),part2str(),param.c_str(), string_ret.c_str());
+
+    return string_ret;
 }
 
 void UsedHeaderField::getInfo(AmArg &arg) const

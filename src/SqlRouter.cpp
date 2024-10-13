@@ -644,14 +644,9 @@ AmArg SqlRouter::db_async_get_profiles(
     }
 
     //invoc headers from sip request
-    for(vector<UsedHeaderField>::const_iterator it = used_header_fields.begin();
-            it != used_header_fields.end(); ++it){
-        string value;
-        if(it->getValue(req,value)){
-            invoc_field(value);
-        } else {
-            invoc_null();
-        }
+    for(const auto &h : used_header_fields) {
+        auto value = h.getValue(req).value_or(AmArg());
+        invoc_field(value);
     }
 
 #undef invoc_field

@@ -15,9 +15,9 @@ static string good_diversion_hdrs =
 struct tparam {
     string varformat;
     string varparam;
-    string expected_result;
+    AmArg expected_result;
 
-    tparam(const string &varformat, const string &varparam, const string &expected_result)
+    tparam(const string &varformat, const string &varparam, const AmArg &expected_result)
       : varformat(varformat),
         varparam(varparam),
         expected_result(expected_result)
@@ -29,7 +29,7 @@ void PrintTo(const tparam& arg, std::ostream* os)
     *os << "[" <<
         arg.varformat << "," <<
         arg.varparam << "," <<
-        arg.expected_result;
+        arg.expected_result.print();
 }
 
 class UsedHeaderFieldTest
@@ -50,21 +50,62 @@ TEST_P(UsedHeaderFieldTest, getValue) {
     };
     UsedHeaderField hf(hf_params);
 
-    string value;
-    ASSERT_TRUE(hf.getValue(req, value));
-    ASSERT_EQ(value, param.expected_result);
+    auto ret = hf.getValue(req);
+    ASSERT_TRUE(ret.has_value());
+    ASSERT_EQ(ret.value(), param.expected_result);
 }
 
-static string uri_json_expected(
-    R"~([{"h":"domain1","n":null,"np":{"hparam1":"hval1","hparam2":""},"p":5060,"s":"sip","u":"user1","uh":{"uhdr1":"uhval1"},"up":{"uparam1":"uval11","uparam2":"uval12","uparam3":""}}])~"
-);
+static AmArg uri_json_expected({
+    AmArg{
+        { "n", AmArg() },
+        { "s", "sip" },
+        { "u", "user1" },
+        { "h", "domain1" },
+        { "p", 5060 },
+        { "up", {
+            { "uparam1", "uval11" },
+            { "uparam2", "uval12"},
+            { "uparam3", ""},
+        }},
+        { "uh", {
+            { "uhdr1", "uhval1" },
+        }},
+        { "np", {
+            { "hparam1", "hval1" },
+            { "hparam2", ""}
+        }}
+    }
+});
 
-static string uri_json_array_expected("["
-    R"~({"h":"domain1","n":null,"np":{"hparam1":"hval1","hparam2":""},"p":5060,"s":"sip","u":"user1","uh":{"uhdr1":"uhval1"},"up":{"uparam1":"uval11","uparam2":"uval12","uparam3":""}},)~"
-    R"~({"h":"domain2","n":"test2","p":5061,"s":"sip","u":"user2","up":{"uparam1":"uval21","uparam2":"uval22"}},)~"
-    R"~({"h":"domain3","n":"test3","p":5062,"s":"sips","u":"user3","up":{"uparam1":"uval31","uparam2":"uval32"}},)~"
-    R"~({"s":"tel","t":"1234567890"})~"
-"]");
+static AmArg uri_json_array_expected{
+    uri_json_expected[0],
+    AmArg{
+        { "n", "test2" },
+        { "s", "sip" },
+        { "u", "user2" },
+        { "h", "domain2" },
+        { "p", 5061 },
+        { "up", {
+            { "uparam1", "uval21" },
+            { "uparam2", "uval22"}
+        }},
+    },
+    AmArg{
+        { "n", "test3" },
+        { "s", "sips" },
+        { "u", "user3" },
+        { "h", "domain3" },
+        { "p", 5062 },
+        { "up", {
+            { "uparam1", "uval31" },
+            { "uparam2", "uval32"}
+        }},
+    },
+    AmArg{
+        { "s", "tel" },
+        { "t", "1234567890" }
+    }
+};
 
 INSTANTIATE_TEST_SUITE_P(YetiTest, UsedHeaderFieldTest, testing::Values(
     tparam("", "", good_na_1 + ", " + good_na_2 + ", " + good_na_3 + ", " + good_na_4),

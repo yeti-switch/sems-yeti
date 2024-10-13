@@ -90,8 +90,12 @@ AuthCdr::AuthCdr(
     auth_id(auth_id)
 {
     for(const auto &h: hdrs_to_parse) {
-        dynamic_fields.emplace_back();
-        h.getValue(req,dynamic_fields.back());
+        auto ret = h.getValue(req);
+        if(ret.has_value()) {
+            dynamic_fields.emplace_back(ret.value());
+        } else {
+            dynamic_fields.emplace_back();
+        }
     }
 
     string auth_hdr =  getHeader(req.hdrs, SIP_HDR_AUTHORIZATION);
@@ -151,7 +155,7 @@ void AuthCdr::apply_params(QueryInfo &query_info) const
     invoc_cond(auth_id, auth_id > 0);
 
     for(const auto &f : dynamic_fields)
-        invoc_cond(f, !f.empty());
+        invoc(f);
 
 #undef invoc_cond_typed
 #undef invoc_cond

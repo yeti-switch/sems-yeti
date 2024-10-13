@@ -38,7 +38,7 @@ class AuthCdr
     string realm;
     Auth::auth_id_type auth_id;
 
-    vector<string> dynamic_fields;
+    vector<AmArg> dynamic_fields;
 
   public:
     AuthCdr(const AmSipRequest& req,
