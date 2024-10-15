@@ -307,6 +307,8 @@ struct SBCCallProfile
   string ss_dtn;
   string ss_otn;
 
+  string push_token;
+
   struct TranscoderSettings {
     enum { DTMFAlways, DTMFNever } dtmf_mode;
 

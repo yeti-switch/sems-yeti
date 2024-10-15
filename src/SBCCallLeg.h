@@ -108,6 +108,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   msg_logger *logger;
   msg_sensor *sensor;
   bool memory_logger_enabled;
+  bool waiting_for_location;
 
   struct timeval profile_request_start_time;
 
@@ -176,6 +177,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   void onRadiusReply(const RadiusReplyEvent &ev);
   void onSipRegistrarResolveResponse(const SipRegistrarResolveResponseEvent &e);
   void onCertCacheReply(const CertCacheResponseEvent &e);
+  void onHttpPostResponse(const HttpPostResponseEvent &e);
   void onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event);
   bool onTimerEvent(int timer_id);
   void onInterimRadiusTimer();
@@ -199,6 +201,8 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
                                    int auth_feedback_code = Auth::NO_AUTH);
 
   void setRejectCdr(int disconnect_code_id);
+  void process_push_token_profile(SqlCallProfile &p);
+
  public:
 
   SqlRouter &router;

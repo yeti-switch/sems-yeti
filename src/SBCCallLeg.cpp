@@ -159,6 +159,7 @@ SBCCallLeg::SBCCallLeg(
     logger(nullptr),
     sensor(nullptr),
     memory_logger_enabled(false),
+    waiting_for_location(false),
     router(yeti.router),
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
@@ -310,23 +311,27 @@ void SBCCallLeg::processAorResolving()
 {
     DBG("%s(%p,leg%s)",FUNC_NAME,static_cast<void *>(this),a_leg?"A":"B");
 
+    std::unique_ptr<SipRegistrarResolveRequestEvent> event_ptr{
+        new SipRegistrarResolveRequestEvent{getLocalTag()}
+    };
+    auto &event = *event_ptr.get();
+
     //check for registered_aor_id in profiles
-    std::set<SipRegistrarEvent::RegistrationIdType> aor_ids;
     for(const auto &p : call_ctx->profiles) {
         if(0==p.disconnect_code_id && 0!=p.registered_aor_id) {
-            aor_ids.emplace(std::to_string(p.registered_aor_id));
+            event.aor_ids.emplace(std::to_string(p.registered_aor_id));
         }
     }
 
-    if(aor_ids.empty()) {
+    if(event.aor_ids.empty()) {
         //no aor resolving requested. continue as usual
         processResourcesAndSdp();
         return;
     }
 
-    if(false ==AmSessionContainer::instance()->postEvent(
-                SIP_REGISTRAR_QUEUE,
-                new SipRegistrarResolveRequestEvent(aor_ids, getLocalTag())))
+    if(false == AmSessionContainer::instance()->postEvent(
+        SIP_REGISTRAR_QUEUE,
+        event_ptr.release()))
     {
         ERROR("failed to post 'resolve request' event to registrar");
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
@@ -1203,19 +1208,133 @@ static void replace_profile_fields(const SipRegistrarResolveResponseEvent::aor_d
     }
 }
 
+void SBCCallLeg::process_push_token_profile(SqlCallProfile &p)
+{
+    //subscribe for the reg events
+    std::unique_ptr<SipRegistrarResolveAorsSubscribeEvent> event_ptr{
+        new SipRegistrarResolveAorsSubscribeEvent{getLocalTag()}
+    };
+    event_ptr->timeout = std::chrono::milliseconds(4000);
+    event_ptr->aor_ids.emplace(std::to_string(p.registered_aor_id));
+
+    if(false == AmSessionContainer::instance()->postEvent(
+        SIP_REGISTRAR_QUEUE,
+        event_ptr.release()))
+    {
+        ERROR("failed to post 'resolve subscribe' event to registrar");
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+
+    waiting_for_location = true;
+
+    //send push
+    auto semi_pos = p.push_token.find(':');
+    if(semi_pos==std::string::npos) {
+        ERROR("unexpected token format: missed ':' type/value separator");
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+    int token_type;
+    if(!str2int(p.push_token.substr(0, semi_pos), token_type)) {
+        ERROR("failed to get token type from string: %s", p.push_token.substr(0, semi_pos).data());
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+    DBG("token_type: %d", token_type);
+
+    //TODO: move type -> http_dest,payload format,etc mappings to the cfg
+    enum TokenTypes {
+        FCM = 0,
+        APNS_PROD = 1,
+        APNS_SAND = 2
+    };
+
+    switch(token_type) {
+    case FCM: {
+        AmUriParser from_uri;
+        auto from = p.from.empty() ? call_ctx->initial_invite->from : call_profile.from;
+        if(!from_uri.parse_nameaddr(from)) {
+            DBG("Error parsing From-URI '%s'",from.c_str());
+            throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        }
+        using sc = std::chrono::system_clock;
+        AmArg data{
+            { "message", AmArg{
+                { "data", AmArg {
+                    //TODO: clarify payload format
+                    { "born_at", std::to_string(sc::to_time_t(sc::now())) },
+                    { "from_user", from_uri.uri_user },
+                    { "from_display_name", from_uri.display_name },
+                    { "from_tag", getLocalTag() },
+                    { "call_id",  call_ctx->initial_invite->callid },
+                    { "type", "call_start" }
+                }},
+                { "android", AmArg{
+                    { "priority", "high" }
+                }},
+                { "token", p.push_token.substr(semi_pos+1) }
+            }}
+        };
+
+        DBG("data: %s", data.print().data());
+
+        std::unique_ptr<HttpPostEvent> http_event{
+            new HttpPostEvent(
+                "fcm",              //destination_name
+                arg2json(data),     //data
+                "push",             //token
+                getLocalTag())};    //session_id
+
+        if(!AmSessionContainer::instance()->postEvent(
+            HTTP_EVENT_QUEUE,
+            http_event.release()))
+        {
+            ERROR("failed to post push notification");
+            throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        }
+    } break;
+    default:
+        ERROR("token_type %d is not supported", token_type);
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        break;
+    }
+}
+
 void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponseEvent &e)
 {
     DBG("%s onSipRegistrarResolveResponse",getLocalTag().c_str());
 
     getCtx_void;
 
+    auto &profiles = call_ctx->profiles;
+
     if(e.aors.empty()) {
+        if(waiting_for_location) {
+            DBG("empty AoRs on second resolving stage. give up");
+            throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        }
+
+        //check if we have at least one non-rejecting profile without registered_aor_id requirement
+        auto it = std::find_if(profiles.begin(), profiles.end(), [](SqlCallProfile &p) {
+            return p.disconnect_code_id == 0 && p.registered_aor_id == 0;
+        });
+
+        if(it == profiles.end()) {
+            //no valid profiles to create Blegs
+            //search for the first profile with push_token
+            it = std::find_if(profiles.begin(), profiles.end(), [](SqlCallProfile &p) {
+                return !p.push_token.empty();
+            });
+
+            if(it != profiles.end()) {
+                process_push_token_profile(*it);
+                return;
+            }
+        }
+
+        //no non-rejecting profiles nor profile to wake up by push
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
     //resolve ruri in profiles
-    auto &profiles = call_ctx->profiles;
-
     DBG("profiles count before the processing: %lu", profiles.size());
 
     unsigned int profile_idx = 0, sub_profile_idx;
@@ -1359,6 +1478,13 @@ void SBCCallLeg::onCertCacheReply(const CertCacheResponseEvent &e)
     } else {
         DBG("%zd awaited certs left", awaited_identity_certs.size());
     }
+}
+
+void SBCCallLeg::onHttpPostResponse(const HttpPostResponseEvent &e)
+{
+    DBG("code: %ld, body:%s", e.code, e.data.data());
+    /* TODO: unsubscribe from reg event and terminate call here
+     * on http error reply for push notification */
 }
 
 void SBCCallLeg::onRtpTimeoutOverride(const AmRtpTimeoutEvent &)
@@ -2621,6 +2747,11 @@ void SBCCallLeg::process(AmEvent* ev)
 
     if(auto cert_cache_event = dynamic_cast<CertCacheResponseEvent *>(ev)) {
         onCertCacheReply(*cert_cache_event);
+        return;
+    }
+
+    if(auto http_event = dynamic_cast<HttpPostResponseEvent *>(ev)) {
+        onHttpPostResponse(*http_event);
         return;
     }
 
