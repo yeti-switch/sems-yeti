@@ -235,8 +235,15 @@ Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req,  AmArg &ret
         return NO_AUTH;
     }
 
-    if(auto ret = check_jwt_auth(auth_hdr); ret) {
-        return ret.value();
+    if(auto auth_id = check_jwt_auth(auth_hdr); auth_id) {
+        static AmArg jwt_auth_succ_ret{
+           AmArg(200),
+           AmArg("OK"),
+           AmArg(""),
+           AmArg("JWT Auth")
+        };
+        ret = jwt_auth_succ_ret;
+        return auth_id.value();
     }
 
     string username = find_attribute("username", auth_hdr);
