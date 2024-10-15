@@ -392,7 +392,8 @@ void Yeti::process(AmEvent *ev)
         ERROR("got PGResponseError '%s' for token: %s",
             e->error.data(), e->token.data());
         if(configuration_finished) {
-            //pass
+            if(auto it = db_config_timer_mappings.find(e->token); it != db_config_timer_mappings.end())
+                it->second.exceptions_counter->inc();
         } else {
             sync_db.db_reply_token = e->token;
             sync_db.db_reply_condition.set(sync_db::DB_REPLY_ERROR);
@@ -401,7 +402,8 @@ void Yeti::process(AmEvent *ev)
     ON_EVENT_TYPE(PGTimeout) {
         ERROR("got PGTimeout for token: %s", e->token.data());
         if(configuration_finished) {
-            //pass
+            if(auto it = db_config_timer_mappings.find(e->token); it != db_config_timer_mappings.end())
+                it->second.exceptions_counter->inc();
         } else {
             sync_db.db_reply_token = e->token;
             sync_db.db_reply_condition.set(sync_db::DB_REPLY_TIMEOUT);
