@@ -1,3 +1,8 @@
+sems-yeti (1.13.86) stable; urgency=medium
+  * Auth: fix segfault on JWT auth log writing
+  * increase sems_yeti_config_exceptions counters on db errors
+ -- dev <dev@yeti-switch.org>  Wed, 16 Oct 2024 13:26:36 +0300
+
 sems-yeti (1.13.85) stable; urgency=medium
   * add JWT auth support
   * UsedHeaderField: add uri_json,uri_json_array format support
