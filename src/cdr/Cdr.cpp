@@ -107,7 +107,7 @@ Cdr::Cdr()
 Cdr::Cdr(const SqlCallProfile &profile)
   : Cdr()
 {
-    DBG("Cdr[%p](profile = %p)", this, &profile);
+    DBG3("Cdr[%p](profile = %p)", this, &profile);
 
     update_sql(profile);
 }
@@ -115,7 +115,7 @@ Cdr::Cdr(const SqlCallProfile &profile)
 Cdr::Cdr(const Cdr& cdr, const SqlCallProfile &profile)
   : Cdr(profile)
 {
-    DBG("Cdr[%p](cdr = %p, profile = %p)", this, &cdr, &profile);
+    DBG3("Cdr[%p](cdr = %p, profile = %p)", this, &cdr, &profile);
 
     attempt_num = cdr.attempt_num+1;
     end_time = start_time = cdr.start_time;
@@ -142,7 +142,7 @@ Cdr::Cdr(const Cdr& cdr, const SqlCallProfile &profile)
 
 Cdr::~Cdr()
 {
-    DBG("~Cdr[%p]()",this);
+    DBG3("~Cdr[%p]()",this);
 }
 
 void Cdr::replace(string& s, const string& from, const string& to)
@@ -156,7 +156,7 @@ void Cdr::replace(string& s, const string& from, const string& to)
 
 void Cdr::update_sql(const SqlCallProfile &profile)
 {
-    DBG("Cdr::%s(SqlCallProfile)",FUNC_NAME);
+    DBG3("Cdr::%s(SqlCallProfile)",FUNC_NAME);
 
     trusted_hdrs_gw = profile.trusted_hdrs_gw;
     outbound_proxy = profile.route;
@@ -169,7 +169,7 @@ void Cdr::update_sql(const SqlCallProfile &profile)
 
 void Cdr::update_sbc(const SBCCallProfile &profile)
 {
-    DBG("Cdr::%s(SBCCallProfile)",FUNC_NAME);
+    DBG3("Cdr::%s(SBCCallProfile)",FUNC_NAME);
     msg_logger_path = profile.get_logger_path();
     audio_record_enabled = profile.record_audio;
 }
@@ -178,7 +178,7 @@ void Cdr::update_with_aleg_sip_request(const AmSipRequest &req)
 {
     size_t pos1,pos2,pos;
 
-    DBG("Cdr::%s(AmSipRequest)",FUNC_NAME);
+    DBG3("Cdr::%s(AmSipRequest)",FUNC_NAME);
 
     if(writed) return;
 
@@ -226,7 +226,7 @@ void Cdr::update_with_bleg_sip_reply(const AmSipReply &reply)
 {
     size_t pos1,pos2,pos;
 
-    DBG("Cdr::%s(AmSipReply)",FUNC_NAME);
+    DBG3("Cdr::%s(AmSipReply)",FUNC_NAME);
 
     if(writed) return;
 
@@ -283,7 +283,7 @@ void Cdr::update_reasons_with_sip_request(const AmSipRequest &req, bool a_leg)
 
 void Cdr::update_with_isup(const AmISUP &isup)
 {
-    DBG("Cdr::%s(AmISUP)",FUNC_NAME);
+    DBG3("Cdr::%s(AmISUP)",FUNC_NAME);
     isup_propagation_delay = isup.propagation_delay;
 }
 
@@ -311,7 +311,7 @@ void Cdr::update_init_bleg(
 
 void Cdr::update_with_action(UpdateAction act)
 {
-    DBG("Cdr::%s(act = %s)",FUNC_NAME,updateAction2str(act));
+    DBG3("Cdr::%s(act = %s)",FUNC_NAME,updateAction2str(act));
     if(writed) return;
 
     switch(act) {
@@ -404,7 +404,7 @@ void Cdr::set_start_time(const timeval &t)
 
 void Cdr::update_bleg_reason(string reason, int code)
 {
-    DBG("Cdr::%s(reason = '%s',code = %d)",FUNC_NAME,
+    DBG3("Cdr::%s(reason = '%s',code = %d)",FUNC_NAME,
         reason.c_str(),code);
 
     if(writed) return;
@@ -418,7 +418,7 @@ void Cdr::update_bleg_reason(string reason, int code)
 
 void Cdr::update_aleg_reason(string reason, int code)
 {
-    DBG("Cdr::%s(reason = '%s',code = %d)",FUNC_NAME,
+    DBG3("Cdr::%s(reason = '%s',code = %d)",FUNC_NAME,
         reason.c_str(),code);
 
     if(writed) return;
@@ -433,7 +433,7 @@ void Cdr::update_internal_reason(
     string reason, unsigned int code,
     unsigned int internal_code_id)
 {
-    DBG("Cdr[%p]::%s(initiator = %d,reason = '%s',code = %d) cdr.disconnect_initiator_writed = %d",
+    DBG3("Cdr[%p]::%s(initiator = %d,reason = '%s',code = %d) cdr.disconnect_initiator_writed = %d",
         this,FUNC_NAME,initiator,reason.c_str(),code,disconnect_initiator_writed);
 
     if(writed) return;

@@ -39,15 +39,15 @@ struct DynField {
 	DynField(string field_name, string field_type):
 		name(field_name), type_name(field_type)
 	{
-		if(type_name=="varchar"){
+		if(type_name=="varchar" || type_name=="numeric") {
 			type_id = VARCHAR;
-		} else if(type_name=="integer" || type_name=="smallint"){
+		} else if(type_name=="integer" || type_name=="smallint") {
 			type_id = INTEGER;
-		} else if(type_name=="bigint"){
+		} else if(type_name=="bigint") {
 			type_id = BIGINT;
-		} else if(type_name=="boolean"){
+		} else if(type_name=="boolean") {
 			type_id = BOOL;
-		} else if(type_name=="inet"){
+		} else if(type_name=="inet") {
 			type_id = INET;
 		} else {
 			DBG("unhandled sql type '%s' for field '%s'. consider it as varchar",

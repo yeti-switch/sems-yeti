@@ -177,7 +177,7 @@ std::optional<AmArg> UsedHeaderField::getValue(const AmSipRequest &req) const
         hdr = getHeader(req.hdrs,name);
 
     if(hdr.empty()) {
-        DBG("no header '%s' in SipRequest",name.c_str());
+        DBG3("no header '%s' in SipRequest",name.c_str());
         return std::nullopt;
     }
 

@@ -276,7 +276,7 @@ void Yeti::run()
     struct epoll_event events[EPOLL_MAX_EVENTS];
 
     setThreadName("yeti-worker");
-    DBG("start yeti-worker");
+    DBG3("start yeti-worker");
 
     AmEventDispatcher::instance()->addEventQueue(YETI_QUEUE_NAME, this);
 

@@ -164,7 +164,7 @@ SBCCallLeg::SBCCallLeg(
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
 {
-    DBG("SBCCallLeg[%p](%p,%p)",
+    DBG3("SBCCallLeg[%p](%p,%p)",
         to_void(this),to_void(p_dlg),to_void(p_subs));
 
     setLocalTag();
@@ -194,7 +194,7 @@ SBCCallLeg::SBCCallLeg(
     cdr_list(yeti.cdr_list),
     rctl(yeti.rctl)
 {
-    DBG("SBCCallLeg[%p](caller %p,%p,%p)",
+    DBG3("SBCCallLeg[%p](caller %p,%p,%p)",
         to_void(this),to_void(caller),to_void(p_dlg),to_void(p_subs));
 
     if(call_profile.bleg_rel100_mode_id!=-1) {
@@ -985,7 +985,7 @@ void SBCCallLeg::onProfilesReady()
         if(!call_profile.get_logger_path().empty() &&
            (call_profile.log_sip || call_profile.log_rtp))
         {
-            DBG("pcap logging requested by call_profile");
+            DBG3("pcap logging requested by call_profile");
             // open the logger if not already opened
             ParamReplacerCtx ctx(&call_profile);
             string log_path = ctx.replaceParameters(call_profile.get_logger_path(), "msg_logger_path",uac_req);
@@ -993,11 +993,11 @@ void SBCCallLeg::onProfilesReady()
                 WARN("can't open msg_logger_path: '%s'",log_path.c_str());
             }
         } else if(yeti.config.pcap_memory_logger) {
-            DBG("no pcap logging by call_profile, but pcap_memory_logger enabled. set in-memory logger");
+            DBG3("no pcap logging by call_profile, but pcap_memory_logger enabled. set in-memory logger");
             setLogger(new in_memory_msg_logger());
             memory_logger_enabled = true;
         } else {
-            DBG("continue without pcap logger");
+            DBG3("continue without pcap logger");
         }
     }
 
@@ -2085,7 +2085,7 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
 
 SBCCallLeg::~SBCCallLeg()
 {
-    DBG("~SBCCallLeg[%p]",to_void(this));
+    DBG3("~SBCCallLeg[%p]",to_void(this));
 
     if (auth) delete auth;
     if (logger) dec_ref(logger);
@@ -2148,7 +2148,7 @@ void SBCCallLeg::onBeforeDestroy()
         call_ctx->references--;
 
     if(!call_ctx->references) {
-        DBG("last leg destroy. a_leg: %d",a_leg);
+        DBG3("last leg destroy. a_leg: %d",a_leg);
 
         if(!call_ctx->profiles.empty()) {
             /* put lega_res from first profile */
@@ -4068,7 +4068,7 @@ void SBCCallLeg::setLogger(msg_logger *_logger)
 }
 
 void SBCCallLeg::setSensor(msg_sensor *_sensor){
-    DBG("SBCCallLeg[%p]: %cleg. change sensor to %p",
+    DBG3("SBCCallLeg[%p]: %cleg. change sensor to %p",
         to_void(this),a_leg?'A':'B',to_void(_sensor));
     if (sensor) dec_ref(sensor);
     sensor = _sensor;
@@ -4094,7 +4094,7 @@ void SBCCallLeg::setSensor(msg_sensor *_sensor){
             else m->setRtpBSensor(nullptr);
         }
     } else {
-        DBG("SBCCallLeg: no media session");
+        DBG3("SBCCallLeg: no media session");
     }
 }
 

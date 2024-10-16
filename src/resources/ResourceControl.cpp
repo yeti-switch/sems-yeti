@@ -244,10 +244,10 @@ ResourceCtlResponse ResourceControl::get(
 //void ResourceControl::put(ResourceList &rl){
 void ResourceControl::put(const string &handler){
 
-	DBG("ResourceControl::put(%s)",handler.c_str());
+	DBG3("ResourceControl::put(%s)",handler.c_str());
 
 	if(handler.empty()){
-		DBG("ResourceControl::put() empty handler");
+		DBG3("ResourceControl::put() empty handler");
 		return;
 	}
 
@@ -273,14 +273,14 @@ void ResourceControl::put(const string &handler){
 	if(!e.resources.empty()){
 		redis_conn.put(e.resources);
 	} else {
-		DBG("ResourceControl::put(%p) empty resources list",&e.resources);
+		DBG3("ResourceControl::put(%p) empty resources list",&e.resources);
 	}
 
 	handlers.erase(h);
 }
 
 void ResourceControl::GetConfig(AmArg& ret,bool types_only){
-	DBG("types_only = %d, size = %ld",types_only,type2cfg.size());
+	DBG3("types_only = %d, size = %ld",types_only,type2cfg.size());
 
 	if(types_only) {
 		for(map<int,ResourceConfig>::const_iterator it = type2cfg.begin();

@@ -277,7 +277,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
 
     cfg_t *auth_sec = cfg_getsec(confuse_cfg, section_name_auth);
     if(!auth_sec || 0==auth_configure(auth_sec)) {
-        DBG("SqlRouter::auth_configure: config successfuly readed");
+        DBG3("SqlRouter::auth_configure: config successfuly read");
     } else {
         ERROR("SqlRouter::auth_configure: config read error");
         return 1;
@@ -706,7 +706,7 @@ void SqlRouter::align_cdr(Cdr &cdr){
 
 void SqlRouter::write_cdr(std::unique_ptr<Cdr> &cdr, bool last)
 {
-  DBG("%s(%p) last = %d",FUNC_NAME,cdr.get(),last);
+  DBG3("%s(%p) last = %d",FUNC_NAME,cdr.get(),last);
   if(!cdr) return;
   if(!cdr->writed) {
     cdr->writed = true;
@@ -746,7 +746,7 @@ void SqlRouter::write_cdr(std::unique_ptr<Cdr> &cdr, bool last)
     AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_param_execute_event.release());
     //cdr_writer->postcdr(cdr);
   } else {
-    DBG("%s(%p) trying to write already writed cdr",FUNC_NAME, cdr.get());
+    DBG("%s(%p) trying to write already written cdr",FUNC_NAME, cdr.get());
   }
 }
 

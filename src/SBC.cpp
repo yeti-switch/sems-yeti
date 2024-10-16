@@ -142,7 +142,7 @@ int SBCFactory::onLoad()
     }
 
     core_options_handling = yeti->getCoreOptionsHandling();
-    DBG("OPTIONS messages handled by the core: %s", core_options_handling?"yes":"no");
+    DBG3("OPTIONS messages handled by the core: %s", core_options_handling?"yes":"no");
 
     if (!AmPlugIn::registerApplication(MOD_NAME, this)) {
         ERROR("registering " MOD_NAME " application");
