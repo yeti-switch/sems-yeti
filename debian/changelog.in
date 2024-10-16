@@ -1,3 +1,7 @@
+sems-yeti (1.13.87) stable; urgency=medium
+  * fix request headers serialization for CDRs
+ -- dev <dev@yeti-switch.org>  Wed, 16 Oct 2024 15:37:52 +0300
+
 sems-yeti (1.13.86) stable; urgency=medium
   * Auth: fix segfault on JWT auth log writing
   * increase sems_yeti_config_exceptions counters on db errors
