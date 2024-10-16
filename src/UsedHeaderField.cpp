@@ -189,7 +189,7 @@ std::optional<AmArg> UsedHeaderField::getValue(const AmSipRequest &req) const
         if(parse_nameaddr_list(na_list, hdr.c_str(),hdr.length()) < 0) {
             ERROR("wrong nameaddr list '%s' in header '%s'",
                   hdr.c_str(),name.c_str());
-            return false;
+            return std::nullopt;
         }
         DBG("got %zd nameaddr entries. multiple_headers:%d",
             na_list.size(), multiple_headers);
@@ -212,7 +212,7 @@ std::optional<AmArg> UsedHeaderField::getValue(const AmSipRequest &req) const
                       na_str.len, na_str.s, name.c_str());
 
                 if(multiple_headers) continue;
-                return false;
+                return std::nullopt;
             }
 
             if(part == uri_json) {
@@ -221,7 +221,7 @@ std::optional<AmArg> UsedHeaderField::getValue(const AmSipRequest &req) const
             } else {
                 if(!process_uri(na.uri, string_ret)) {
                     if(multiple_headers) continue;
-                    return false;
+                    return std::nullopt;
                 }
             }
 
