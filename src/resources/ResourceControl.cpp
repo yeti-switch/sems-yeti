@@ -126,29 +126,32 @@ void ResourceControl::replace(string &s,Resource &r,ResourceConfig &rc){
 
 int ResourceControl::load_resources_config()
 {
-	auto &sync_db = Yeti::instance().sync_db;
+    auto &sync_db = Yeti::instance().sync_db;
 
-	if(sync_db.exec_query("SELECT * FROM load_resource_types()", "load_resource_types"))
-		return 1;
+    if(sync_db.exec_query("SELECT * FROM load_resource_types()", "load_resource_types"))
+        return 1;
 
-	assertArgArray(sync_db.db_reply_result);
-	int id;
-	for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {
-		AmArg &a = sync_db.db_reply_result.get(i);
-		id = a["id"].asInt();
-		type2cfg.try_emplace(
-			id,
-			id,
-			a["name"].asCStr(),
-			DbAmArg_hash_get_int(a, "internal_code_id", 0),
-			DbAmArg_hash_get_int(a, "action_id", 0));
-	}
+    assertArgArray(sync_db.db_reply_result);
+    int id;
+    for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {
+        AmArg &a = sync_db.db_reply_result.get(i);
+        id = a["id"].asInt();
+        type2cfg.try_emplace(
+            id,
+            id,
+            a["name"].asCStr(),
+            DbAmArg_hash_get_int(a, "internal_code_id", 0),
+            DbAmArg_hash_get_int(a, "action_id", 0),
+            DbAmArg_hash_get_bool(a, "rate_limit", false) ?
+                ResourceConfig::ResRateLimit
+              : ResourceConfig::ResLimit);
+    }
 
-	for(const auto &it: type2cfg) {
-		DBG("resource cfg:     <%s>",it.second.print().c_str());
-	}
+    for(const auto &it: type2cfg) {
+        DBG("resource cfg:     <%s>",it.second.print().c_str());
+    }
 
-	return 0;
+    return 0;
 }
 
 void ResourceControl::on_resources_initialized()
@@ -160,6 +163,18 @@ void ResourceControl::on_resources_initialized()
 void ResourceControl::on_resources_disconnected()
 {
 	invalidate_resources();
+}
+
+void ResourceControl::eval_resources(ResourceList &rl) const
+{
+    for(auto &r : rl) {
+        auto it = type2cfg.find(r.type);
+        if (it != type2cfg.end() &&
+            it->second.type == ResourceConfig::ResRateLimit)
+        {
+            r.rate_limit = true;
+        }
+    }
 }
 
 ResourceCtlResponse ResourceControl::get(
@@ -178,7 +193,7 @@ ResourceCtlResponse ResourceControl::get(
 	ResourceResponse ret;
 
 	if(container_ready.get()){
-		ret = redis_conn.get(rl,rli);
+		ret = redis_conn.get(owner_tag, rl,rli);
 	} else {
 		WARN("%s: attempt to get resource from the unready container", owner_tag.data());
 		ret = RES_ERR;
@@ -271,7 +286,7 @@ void ResourceControl::put(const string &handler){
 	}
 
 	if(!e.resources.empty()){
-		redis_conn.put(e.resources);
+		redis_conn.put(e.owner_tag, e.resources);
 	} else {
 		DBG3("ResourceControl::put(%p) empty resources list",&e.resources);
 	}

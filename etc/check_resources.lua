@@ -15,8 +15,16 @@ local function rep2num(reply)
 end
 
 local ret = {}
-for _, key in ipairs(ARGV) do
-  local rep = redis.call('HVALS', key);
-  table.insert(ret, rep2num(rep))
+local now = tonumber(ARGV[1])
+local i = 2
+
+for _, key in ipairs(KEYS) do
+  if key:byte(2) == 108 then
+    table.insert(ret, #redis.call('ZRANGE', key, now - tonumber(ARGV[i]), now, 'BYSCORE'))
+    i = i + 1
+  else
+    local rep = redis.call('HVALS', key)
+    table.insert(ret, rep2num(rep))
+  end
 end
 return ret

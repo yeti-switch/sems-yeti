@@ -47,7 +47,7 @@ TEST_F(YetiTest, ResourceGetPut)
         res.active = true;
     }
 
-    conn.get(rl);
+    conn.get(string(),rl);
 
     ASSERT_TRUE(getPutSuccess.wait_for_to(3000));
 
@@ -114,7 +114,7 @@ TEST_F(YetiTest, ResourceGetCheck)
     }
 
     getPutSuccess.set(false);
-    conn.get(rl);
+    conn.get(string(),rl);
 
     time_ = time(0);
     while(!getPutSuccess.wait_for_to(500)) {
@@ -274,7 +274,7 @@ TEST_F(YetiTest, ResourceOverload)
     ResourceList rl;
     ResourceList::iterator rit;
     rl.parse("1:472:2:3");
-    ASSERT_EQ(conn.get(rl, rit), RES_SUCC);
+    ASSERT_EQ(conn.get(string(), rl, rit), RES_SUCC);
 
     time_ = time(0);
     while(!getPutSuccess.wait_for_to(500)) {
@@ -285,7 +285,7 @@ TEST_F(YetiTest, ResourceOverload)
     test_server->addCommandResponse("EVALSHA %s 0 %s", REDIS_TEST_REPLY_ARRAY, ret,
         check_resources_hash, "r:1:472");
 
-    ASSERT_EQ(conn.get(rl, rit), RES_BUSY);
+    ASSERT_EQ(conn.get(string(), rl, rit), RES_BUSY);
 
     json2arg(R"raw([3, 0, 0, 0])raw", ret);
     test_server->addCommandResponse("EVALSHA %s 0 %s %s %s %s", REDIS_TEST_REPLY_ARRAY, ret,
@@ -293,7 +293,7 @@ TEST_F(YetiTest, ResourceOverload)
 
     getPutSuccess.set(false);
     rl.parse("1:472:2:3|0:472:2:3|2:472:2:3;3:472:2:3");
-    ASSERT_EQ(conn.get(rl, rit), RES_SUCC);
+    ASSERT_EQ(conn.get(string(), rl, rit), RES_SUCC);
     time_ = time(0);
     while(!getPutSuccess.wait_for_to(500)) {
         ASSERT_FALSE(time(0) - time_ > 3);
@@ -303,14 +303,14 @@ TEST_F(YetiTest, ResourceOverload)
     test_server->addCommandResponse("EVALSHA %s 0 %s %s %s %s", REDIS_TEST_REPLY_ARRAY, ret,
         check_resources_hash, "r:1:472", "r:0:472", "r:2:472", "r:3:472");
 
-    ASSERT_EQ(conn.get(rl, rit), RES_BUSY);
+    ASSERT_EQ(conn.get(string(), rl, rit), RES_BUSY);
 
     json2arg(R"raw([3])raw", ret);
     test_server->addCommandResponse("EVALSHA %s 0 %s", REDIS_TEST_REPLY_ARRAY, ret,
         check_resources_hash, "r:3:472");
 
     rl.parse("3:472:2:3");
-    ASSERT_EQ(conn.get(rl, rit), RES_BUSY);
+    ASSERT_EQ(conn.get(string(), rl, rit), RES_BUSY);
 
     cleanResources(conn);
     conn.stop(true);
@@ -333,7 +333,7 @@ TEST_F(YetiTest, ResourceTimeout)
     ResourceList::iterator rit;
     rl.parse("1:472:2:3");
     test_server->addTail("HVALS r:1:472", 1);
-    ASSERT_EQ(conn.get(rl, rit), RES_ERR);
+    ASSERT_EQ(conn.get(string(), rl, rit), RES_ERR);
 
     conn.stop(true);
 }

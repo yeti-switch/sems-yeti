@@ -19,6 +19,11 @@ static string get_key(const Resource &r)
     return format("r:{}:{}", r.type, r.id);
 }
 
+static string get_ratelimit_key(const Resource &r)
+{
+    return format("rl:{}:{}", r.type, r.id);
+}
+
 /* InvalidateRequest */
 
 bool ResourceRedisConnection::InvalidateRequest::make_args(const string& script_hash, vector<AmArg> &args)
@@ -38,12 +43,30 @@ ResourceRedisConnection::OperationRequest::OperationRequest(ResourcesOperationLi
 bool ResourceRedisConnection::OperationRequest::make_args_reduce(vector<AmArg> &args)
 {
     std::unordered_map<string, int> accumulated_changes;
+    std::unordered_map<string, int> accumulated_slides;
+
+    using sc = std::chrono::system_clock;
+    auto now = sc::to_time_t(sc::now());
 
     for(auto &operation : operations) {
         switch(operation.op) {
         case ResourcesOperation::RES_GET:
             for(const auto &r: operation.resources) {
+                if(r.rate_limit) {
+                    accumulated_slides.emplace(get_ratelimit_key(r), r.takes);
+                }
+
                 if(!r.active) continue;
+
+                if(r.rate_limit) {
+                    //add self entry to the ordered set
+                    args.emplace_back(
+                        AmArg().assign_array("ZADD",
+                            get_ratelimit_key(r),
+                            now, operation.local_tag));
+                    continue;
+                }
+
                 auto [it, inserted] = accumulated_changes.try_emplace(
                     get_key(r), r.takes);
                 if(!inserted) {
@@ -55,6 +78,10 @@ bool ResourceRedisConnection::OperationRequest::make_args_reduce(vector<AmArg> &
             break;
         case ResourcesOperation::RES_PUT:
             for(const auto &r: operation.resources) {
+                if(r.rate_limit) {
+                    accumulated_slides.emplace(get_ratelimit_key(r), r.takes);
+                    continue;
+                }
                 if(!r.taken) continue;
                 auto [it, inserted] = accumulated_changes.try_emplace(
                     get_key(r), -(r.takes));
@@ -68,7 +95,8 @@ bool ResourceRedisConnection::OperationRequest::make_args_reduce(vector<AmArg> &
         } //switch(operation.op)
     }
 
-    if(accumulated_changes.empty()) { //no changes for resources
+    if(accumulated_changes.empty() && accumulated_slides.empty()) {
+        //no changes for resources
         on_finish();
         return false;
     }
@@ -76,6 +104,12 @@ bool ResourceRedisConnection::OperationRequest::make_args_reduce(vector<AmArg> &
     for(auto &[key, value] : accumulated_changes) {
         args.emplace_back(
             AmArg().assign_array("HINCRBY", key, AmConfig.node_id, value));
+    }
+
+    for(auto &[key, value] : accumulated_slides) {
+        //cleanup entries by sliding window
+        args.emplace_back(
+            AmArg().assign_array("ZREMRANGEBYSCORE", key, 0, now-value));
     }
 
     return true;
@@ -189,16 +223,39 @@ ResourceRedisConnection::CheckRequest::CheckRequest(const ResourceList& rl)
 
 bool ResourceRedisConnection::CheckRequest::make_args(const string& script_hash, vector<AmArg> &args)
 {
-    args = {"EVALSHA", script_hash.c_str(), 0};
+    /* keys,args layout:
+     *   EVALSHA
+     *   sha1
+     *   numkeys
+     *
+     *   rate_limit_key_1
+     *   arg_rate_limit_key_takes_1
+     *   ...
+     *   rate_limit_key_n
+     *   arg_rate_limit_key_takes_n
+     *
+     *   now_unix_timestamp
+     *
+     *   arg_rate_limit_key_takes_1
+     *   ...
+     *   arg_rate_limit_key_takes_n
+     */
 
-    auto make_arg = [](const Resource &r) -> string {
-        ostringstream ss;
-        ss << "r:" << r.type << ':' << r.id;
-        return ss.str();
-    };
+    using sc = std::chrono::system_clock;
 
-    for(const auto & res : rl)
-        args.emplace_back(make_arg(res));
+    args = {"EVALSHA", script_hash.c_str(), rl.size()};
+
+    for(const auto &r : rl) {
+        args.push_back(r.rate_limit ?
+            get_ratelimit_key(r) : get_key(r));
+    }
+
+    args.push_back(sc::to_time_t(sc::now()));
+
+    for(const auto &r : rl) {
+        if(r.rate_limit)
+            args.push_back(r.takes);
+    }
 
     return true;
 }
@@ -227,7 +284,11 @@ ResourceRedisConnection::~ResourceRedisConnection()
     event_dispatcher->delEventQueue(queue_name);
 }
 
-bool ResourceRedisConnection::post_request(Request* req, Connection* conn, const char* script_name, UserTypeId user_type_id)
+bool ResourceRedisConnection::post_request(
+    Request* req,
+    Connection* conn,
+    const char* script_name,
+    UserTypeId user_type_id)
 {
     unique_ptr<Request> req_ptr(req);
     vector<AmArg> args;
@@ -236,7 +297,12 @@ bool ResourceRedisConnection::post_request(Request* req, Connection* conn, const
     }
 
     return session_container->postEvent(REDIS_APP_QUEUE,
-        new RedisRequest(queue_name, conn->id, args, req_ptr.release(), (int)user_type_id));
+        new RedisRequest(
+            queue_name,
+            conn->id,
+            args,
+            req_ptr.release(),
+            (int)user_type_id));
 }
 
 /* AmThread */
@@ -416,11 +482,11 @@ void ResourceRedisConnection::process_operations_queue()
     process_operations_queue_unsafe();
 }
 
-void ResourceRedisConnection::process_operation(const ResourceList& rl, ResourcesOperation::Operation op)
+void ResourceRedisConnection::process_operation(const string &local_tag, const ResourceList& rl, ResourcesOperation::Operation op)
 {
     AmLock l(queue_and_state_mutex);
 
-    resource_operations_queue.emplace_back(rl, op);
+    resource_operations_queue.emplace_back(local_tag, rl, op);
     write_queue_size.inc();
 
     process_operations_queue_unsafe();
@@ -698,26 +764,26 @@ void ResourceRedisConnection::registerOperationResultCallback(Request::cb_func f
     operation_result_cb = func;
 }
 
-void ResourceRedisConnection::put(ResourceList& rl)
+void ResourceRedisConnection::put(const string &local_tag, ResourceList& rl)
 {
-    process_operation(rl, ResourcesOperation::RES_PUT);
+    process_operation(local_tag, rl, ResourcesOperation::RES_PUT);
 }
 
-void ResourceRedisConnection::get(ResourceList& rl)
+void ResourceRedisConnection::get(const string &local_tag, ResourceList& rl)
 {
     for(auto& res : rl) {
         if(!res.active || res.taken) continue;
         res.taken = true;
     }
 
-    process_operation(rl, ResourcesOperation::RES_GET);
+    process_operation(local_tag, rl, ResourcesOperation::RES_GET);
 }
 
 #define CHECK_STATE_NORMAL 0
 #define CHECK_STATE_FAILOVER 1
 #define CHECK_STATE_SKIP 2
 
-ResourceResponse ResourceRedisConnection::get(ResourceList &rl, ResourceList::iterator &resource)
+ResourceResponse ResourceRedisConnection::get(const string &local_tag, ResourceList &rl, ResourceList::iterator &resource)
 {
     ResourceResponse ret = RES_ERR;
 
@@ -743,6 +809,7 @@ ResourceResponse ResourceRedisConnection::get(ResourceList &rl, ResourceList::it
     bool resources_available = true;
     int check_state = CHECK_STATE_NORMAL;
     AmArg result = req->get_result();
+    DBG("result: %s", result.print().data());
     for(size_t i = 0; i < result.size(); i++,++resource) {
         Resource &res = *resource;
         if(CHECK_STATE_SKIP==check_state){
@@ -781,7 +848,7 @@ ResourceResponse ResourceRedisConnection::get(ResourceList &rl, ResourceList::it
         DBG("resources are unavailable");
         ret = RES_BUSY;
     } else {
-        get(rl);
+        get(local_tag, rl);
         ret = RES_SUCC;
     }
     return ret;

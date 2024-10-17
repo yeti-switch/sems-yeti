@@ -26,9 +26,16 @@ struct Resource
          active,            //whether we should grab resource after checking phase
          failover_to_next;  //whether we should use resource which follows if current overloaded
 
+    /* resource rate-limit mode
+     *  'takes' size of the sliding window size in seconds
+     *  'limit' max allowed entries within window
+     */
+    bool rate_limit; //'takes' will mean sliding window size in seconds
+
     Resource()
       : id(0),type(0),takes(0),limit(0),
-        taken(false), active(false), failover_to_next(false)
+        taken(false), active(false), failover_to_next(false),
+        rate_limit(false)
     {}
 
     string print() const;
@@ -44,6 +51,7 @@ struct ResourcesOperation
 {
   public:
     ResourceList resources;
+    string local_tag;
 
     enum Operation {
         RES_PUT,
@@ -54,8 +62,10 @@ struct ResourcesOperation
       : op(op)
     {}
 
-    ResourcesOperation(const ResourceList& resources, Operation op)
-      : resources(resources), op(op)
+    ResourcesOperation(const string &local_tag, const ResourceList& resources, Operation op)
+      : resources(resources),
+        local_tag(local_tag),
+        op(op)
     {}
 
     ResourcesOperation(const ResourcesOperation &) = delete;

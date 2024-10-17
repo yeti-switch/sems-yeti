@@ -136,7 +136,7 @@ class ResourceRedisConnection
     bool is_ready();
 
     void process_operations_queue();
-    void process_operation(const ResourceList& rl, ResourcesOperation::Operation op);
+    void process_operation(const string &local_tag, const ResourceList& rl, ResourcesOperation::Operation op);
     void process_operations_list(ResourcesOperationList& rol);
 
     void connect(const Connection &conn) override;
@@ -171,9 +171,9 @@ class ResourceRedisConnection
     void registerResourcesInitializedCallback(Request::cb_func func);
     void registerOperationResultCallback(Request::cb_func func);
 
-    void put(ResourceList &rl);
-    void get(ResourceList &rl);
-    ResourceResponse get(ResourceList &rl, ResourceList::iterator &resource);
+    void put(const string &local_tag, ResourceList &rl);
+    void get(const string &local_tag, ResourceList &rl);
+    ResourceResponse get(const string &local_tag, ResourceList &rl, ResourceList::iterator &resource);
 
     bool get_resource_state(const string& connection_id, const AmArg& request_id, const AmArg& params);
 
@@ -189,6 +189,11 @@ class ResourceRedisConnection
         None
     };
 
-    bool post_request(Request* req, Connection* conn, const char* script_name = nullptr, UserTypeId user_type_id = None);
+    bool post_request(
+        Request* req,
+        Connection* conn,
+        const char* script_name = nullptr,
+        UserTypeId user_type_id = None);
+
     string get_queue_name() { return queue_name; }
 };

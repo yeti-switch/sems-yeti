@@ -4,6 +4,7 @@
 #include <string>
 
 #include "resources/Resource.h"
+#include "resources/ResourceControl.h"
 #include "db/DbTypes.h"
 
 #define REFRESH_METHOD_INVITE					1
@@ -57,11 +58,11 @@ struct SqlCallProfile
     bool readCodecPrefs(const AmArg &t);
     bool readDynFields(const AmArg &t,const DynFieldsT &df);
     bool eval_media_encryption();
-    bool eval_resources();
+    bool eval_resources(const ResourceControl &rctl);
     bool eval_radius();
     bool eval_transport_ids();
     bool eval_protocol_priority();
-    bool eval();
+    bool eval(const ResourceControl &rctl);
 
     void infoPrint(const DynFieldsT &df);
     void info(AmArg &s);

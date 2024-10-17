@@ -818,7 +818,7 @@ void SBCCallLeg::onPostgresResponse(PGResponse &e)
                 throw GetProfileException(FC_READ_FROM_TUPLE_FAILED,false);
             }
 
-            if(!p.eval()) {
+            if(!p.eval(rctl)) {
                 throw GetProfileException(FC_EVALUATION_FAILED,false);
             }
         }

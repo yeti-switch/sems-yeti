@@ -773,11 +773,14 @@ bool SqlCallProfile::readDynFields(const AmArg &t,const DynFieldsT &df)
     return true;
 }
 
-bool SqlCallProfile::eval_resources()
+bool SqlCallProfile::eval_resources(const ResourceControl &rctl)
 {
     try {
         lega_rl.parse(lega_res);
         rl.parse(resources);
+
+        rctl.eval_resources(lega_rl);
+        rctl.eval_resources(rl);
     } catch(ResourceParseException &e){
         ERROR("%s: resources parse error:  %s <ctx = '%s'>",
             aleg_local_tag.data(), e.what.c_str(),e.ctx.c_str());
@@ -943,7 +946,7 @@ bool SqlCallProfile::eval_protocol_priority()
     return false;
 }
 
-bool SqlCallProfile::eval()
+bool SqlCallProfile::eval(const ResourceControl &rctl)
 {
     if (0!=disconnect_code_id) {
         DBG("skip evals for refusing profile");
@@ -972,7 +975,7 @@ bool SqlCallProfile::eval()
     return
         eval_transport_ids() &&
         eval_protocol_priority() &&
-        eval_resources() &&
+        eval_resources(rctl) &&
         eval_radius() &&
         eval_media_encryption();
 }

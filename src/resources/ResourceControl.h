@@ -26,11 +26,16 @@ struct ResourceConfig {
 		Accept
 	} action;
 	string str_action;
+	enum ResourceType {
+		ResLimit,
+		ResRateLimit
+	} type;
 
-	ResourceConfig(int i,string n, int internal_code_id, int a)
+	ResourceConfig(int i,string n, int internal_code_id, int a, ResourceType type)
 	  : id(i),
 		name(n),
-		internal_code_id(internal_code_id)
+		internal_code_id(internal_code_id),
+		type(type)
 	{
 		set_action(a);
 	}
@@ -115,6 +120,8 @@ public:
 	bool invalidate_resources_rpc();
 	void on_resources_initialized();
 	void on_resources_disconnected();
+
+    void eval_resources(ResourceList &rl) const;
 
 	void replace(string &s,Resource &r,ResourceConfig &rc);
 
