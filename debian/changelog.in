@@ -1,3 +1,7 @@
+sems-yeti (1.13.88) stable; urgency=medium
+  * add rate-limiting resources. 'rate_limit: true' resource cfg field
+ -- dev <dev@yeti-switch.org>  Tue, 29 Oct 2024 10:24:04 +0200
+
 sems-yeti (1.13.87) stable; urgency=medium
   * fix request headers serialization for CDRs
  -- dev <dev@yeti-switch.org>  Wed, 16 Oct 2024 15:37:52 +0300
