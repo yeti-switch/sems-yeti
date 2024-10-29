@@ -310,6 +310,7 @@ void ResourceControl::GetConfig(AmArg& ret,bool types_only){
 			p["name"] =  c.name;
 			p["internal_code_id"] = c.internal_code_id;
 			p["action"] = c.str_action;
+			p["rate_limit"] = c.type == ResourceConfig::ResRateLimit;
 		}
 		return;
 	}

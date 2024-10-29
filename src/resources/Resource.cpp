@@ -50,7 +50,7 @@ string Resource::print() const{
     s << "type: " << type << ", ";
     s << "id: " << id << ", ";
     s << "limit: " << limit << ", ";
-    s << "takes: " << takes << ", ";
+    s << (rate_limit ? "wsize: " : "takes: ") << takes << ", ";
     s << "failover_to_next: " << failover_to_next << ", ";
     s << "active: " << active << ", ";
     s << "taken: " << taken;

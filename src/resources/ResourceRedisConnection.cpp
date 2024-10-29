@@ -631,7 +631,7 @@ void ResourceRedisConnection::process_get_all_resources_reply(RedisReply& ev)
         }
 
     if(isArgArray(ev.data) == false) {
-        req->on_error(500, "undesired reply from the storage");
+        req->on_error(500, "unexpected reply from the storage");
         return;
     }
 
@@ -643,27 +643,35 @@ void ResourceRedisConnection::process_get_all_resources_reply(RedisReply& ev)
     for(size_t i = 0; i < ev.data.size(); ++i) {
         AmArg& item = ev.data[i];
         if(isArgArray(item) == false || item.size() < 2) {
-            req->on_error(500, "undesired reply from the storage");
+            req->on_error(500, "unexpected reply from the storage");
             return;
         }
 
         AmArg& key = item[0];
-        AmArg& all_res = item[1];
+        AmArg& data = item[1];
 
-        if(isArgCStr(key) == false || isArgArray(all_res) == false) {
-            req->on_error(500, "undesired reply from the storage");
+        if(isArgCStr(key) == false) {
+            req->on_error(500, "unexpected reply from the storage");
             return;
         }
 
         AmArg &q = single_key ? result : result[key.asCStr()];
-        for(size_t j = 0; j < all_res.size(); j+=2) {
-            try {
-                q.push(
-                    int2str(all_res[j].asInt()), //node_id
-                    AmArg(all_res[j+1]).asInt()); //value
-            } catch(...) {
-                req->on_error(500, "can't parse response");
+
+        if (isArgArray(data)) {
+            for(size_t j = 0; j < data.size(); j+=2) {
+                try {
+                    q.push(
+                        int2str(data[j].asInt()), //node_id
+                        AmArg(data[j+1]).asInt()); //value
+                } catch(...) {
+                    req->on_error(500, "can't parse response");
+                }
             }
+        } else if(data.isNumber()) {
+            q = data;
+        } else {
+            req->on_error(500, "unexpected reply from the storage");
+            return;
         }
     }
 
