@@ -28,6 +28,8 @@
 #define DC_TRANSACTION_TIMEOUT		130
 
 #define SC_NOT_REGISTERED			131
+#define DC_LEGA_RTP_TIMEOUT         132
+#define DC_LEGB_RTP_TIMEOUT         133
 
 #define FC_CG_GROUP_NOT_FOUND       140
 #define FC_CODECS_NOT_MATCHED       141
