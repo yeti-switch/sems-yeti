@@ -166,9 +166,13 @@ int CallCtx::getOverrideId(bool aleg){
 }
 
 ResourceList &CallCtx::getCurrentResourceList(){
-	if(current_profile == profiles.end())
-		throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-	return (*current_profile).rl;
+    if(current_profile == profiles.end()) {
+        ERROR("empty profiles ci:%s r_uri: %s",
+            initial_invite ? initial_invite->callid.data() : "empty",
+            initial_invite ? initial_invite->r_uri.data() : "empty");
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+    return (*current_profile).rl;
 }
 
 vector<SdpMedia> &CallCtx::get_self_negotiated_media(bool a_leg){

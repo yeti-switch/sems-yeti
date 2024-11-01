@@ -361,8 +361,10 @@ void SBCCallLeg::processResourcesAndSdp()
 
     profile = call_ctx->getCurrentProfile();
 
-    if (!profile)
+    if (!profile) {
+        ERROR("%s no profile. ci:%s", getLocalTag().data(), uac_req.callid.data());
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
 
     lega_res_chk_step = profile->legab_res_mode_enabled;
 
@@ -1252,7 +1254,7 @@ void SBCCallLeg::process_push_token_profile(SqlCallProfile &p)
         AmUriParser from_uri;
         auto from = p.from.empty() ? call_ctx->initial_invite->from : call_profile.from;
         if(!from_uri.parse_nameaddr(from)) {
-            DBG("Error parsing From-URI '%s'",from.c_str());
+            ERROR("Error parsing From-URI '%s'",from.c_str());
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
         using sc = std::chrono::system_clock;
@@ -1308,19 +1310,19 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
 
     if(e.aors.empty()) {
         if(waiting_for_location) {
-            DBG("empty AoRs on second resolving stage. give up");
+            ERROR("empty AoRs on second resolving stage. give up");
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
 
         //check if we have at least one non-rejecting profile without registered_aor_id requirement
-        auto it = std::find_if(profiles.begin(), profiles.end(), [](SqlCallProfile &p) {
+        auto it = std::find_if(profiles.begin(), profiles.end(), [](const SqlCallProfile &p) {
             return p.disconnect_code_id == 0 && p.registered_aor_id == 0;
         });
 
         if(it == profiles.end()) {
             //no valid profiles to create Blegs
             //search for the first profile with push_token
-            it = std::find_if(profiles.begin(), profiles.end(), [](SqlCallProfile &p) {
+            it = std::find_if(profiles.begin(), profiles.end(), [](const SqlCallProfile &p) {
                 return !p.push_token.empty();
             });
 
@@ -1750,6 +1752,7 @@ void SBCCallLeg::applyBProfile()
 
     if (call_profile.sst_enabled) {
         if(applySSTCfg(call_profile.sst_b_cfg,nullptr) < 0) {
+            ERROR("%s SST cfg apply error", getLocalTag().data());
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
     }
@@ -1978,7 +1981,8 @@ int SBCCallLeg::relayEvent(AmEvent* ev)
                         size_t name_end, val_begin, val_end, hdr_end;
                         if ((res = skip_header(call_profile.aleg_append_headers_reply, start_pos, name_end, val_begin,
                                 val_end, hdr_end)) != 0) {
-                            ERROR("skip_header for '%s' pos: %ld, return %d",
+                            ERROR("%s skip_header for '%s' pos: %ld, returned %d",
+                                    getLocalTag().data(),
                                     call_profile.aleg_append_headers_reply.c_str(),start_pos,res);
                             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
                         }
@@ -2496,7 +2500,8 @@ void SBCCallLeg::onSendRequest(AmSipRequest& req, int &flags)
                 if ((res = skip_header(call_profile.aleg_append_headers_req, start_pos, name_end, val_begin,
                      val_end, hdr_end)) != 0)
                 {
-                    ERROR("skip_header for '%s' pos: %ld, return %d",
+                    ERROR("%s skip_header for '%s' pos: %ld, returned %d",
+                        getLocalTag().data(),
                         call_profile.aleg_append_headers_req.c_str(),start_pos,res);
                     throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
                 }
@@ -2518,7 +2523,8 @@ void SBCCallLeg::onSendRequest(AmSipRequest& req, int &flags)
             if ((res = skip_header(call_profile.append_headers_req, start_pos, name_end, val_begin,
                  val_end, hdr_end)) != 0)
             {
-                ERROR("skip_header for '%s' pos: %ld, return %d",
+                ERROR("%s skip_header for '%s' pos: %ld, return %d",
+                    getLocalTag().data(),
                     call_profile.append_headers_req.c_str(),start_pos,res);
                 throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
             }
@@ -3198,6 +3204,7 @@ void SBCCallLeg::onRoutingReady()
     if (call_profile.sst_aleg_enabled) {
         call_profile.eval_sst_config(ctx,aleg_modified_req,call_profile.sst_a_cfg);
         if(applySSTCfg(call_profile.sst_a_cfg,&aleg_modified_req) < 0) {
+            ERROR("%s SST apply error", getLocalTag().data());
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
     }
@@ -3205,12 +3212,12 @@ void SBCCallLeg::onRoutingReady()
     unique_ptr<AmSipDialog> callee_dlg(new AmSipDialog());
 
     if(!call_profile.evaluate_routing(ctx, aleg_modified_req, *callee_dlg)) {
-        ERROR("call profile routing evaluation failed");
+        ERROR("%s call profile routing evaluation failed", getLocalTag().data());
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
     if (!call_profile.evaluate(ctx, aleg_modified_req)) {
-        ERROR("call profile evaluation failed");
+        ERROR("%s call profile evaluation failed", getLocalTag().data());
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
@@ -3286,7 +3293,8 @@ void SBCCallLeg::onRoutingReady()
         if ((res = skip_header(call_profile.append_headers, start_pos, name_end, val_begin,
             val_end, hdr_end)) != 0)
         {
-            ERROR("skip_header for '%s' pos: %ld, return %d",
+            ERROR("%s skip_header for '%s' pos: %ld, return %d",
+                getLocalTag().data(),
                 call_profile.append_headers.c_str(),start_pos,res);
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
