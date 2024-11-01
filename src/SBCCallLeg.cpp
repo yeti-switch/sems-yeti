@@ -1308,12 +1308,7 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
 
     auto &profiles = call_ctx->profiles;
 
-    if(e.aors.empty()) {
-        if(waiting_for_location) {
-            ERROR("empty AoRs on second resolving stage. give up");
-            throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-        }
-
+    if(e.aors.empty() && (!waiting_for_location)) {
         //check if we have at least one non-rejecting profile without registered_aor_id requirement
         auto it = std::find_if(profiles.begin(), profiles.end(), [](const SqlCallProfile &p) {
             return p.disconnect_code_id == 0 && p.registered_aor_id == 0;
@@ -1331,9 +1326,6 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
                 return;
             }
         }
-
-        //no non-rejecting profiles nor profile to wake up by push
-        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
     //resolve ruri in profiles
@@ -1356,10 +1348,10 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
 
         auto a = e.aors.find(std::to_string(p.registered_aor_id));
         if(a == e.aors.end()) {
-            p.skip_code_id = SC_NOT_REGISTERED;
+            p.skip_code_id = DC_NOT_REGISTERED;
             ++it;
             DBG("< mark profile %u as not registered using disconnect code %d",
-                profile_idx, SC_NOT_REGISTERED);
+                profile_idx, DC_NOT_REGISTERED);
             continue;
         }
 
