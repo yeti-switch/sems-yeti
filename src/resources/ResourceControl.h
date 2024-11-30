@@ -123,7 +123,7 @@ public:
 
     void eval_resources(ResourceList &rl) const;
 
-	void replace(string &s,Resource &r,ResourceConfig &rc);
+	void replace(string &s,Resource &r, const ResourceConfig &rc);
 
 	ResourceCtlResponse get(ResourceList &rl,
 							  string &handler,

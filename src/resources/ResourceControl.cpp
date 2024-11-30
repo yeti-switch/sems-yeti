@@ -7,54 +7,59 @@
 
 void ResourceControl::handler_info(const HandlersIt &i, const struct timeval &now, AmArg &a) const
 {
-	a["handler"] = i->first;
-	i->second.info(a, now);
+    a["handler"] = i->first;
+    i->second.info(a, now);
 }
 
 void ResourceControl::handlers_entry::info(AmArg &a,const struct timeval &now) const
 {
-	a["onwer_tag"] = owner_tag;
-	a["valid"] = valid;
-	a["lifetime"] = now.tv_sec-created_at.tv_sec;
-	AmArg &r = a["resources"];
-	for(ResourceList::const_iterator j = resources.begin(); j!=resources.end();++j){
-		r.push(j->print());
-	}
+    a["onwer_tag"] = owner_tag;
+    a["valid"] = valid;
+    a["lifetime"] = now.tv_sec-created_at.tv_sec;
+
+    AmArg &r = a["resources"];
+    for(ResourceList::const_iterator j = resources.begin();
+        j!=resources.end();++j)
+    {
+        r.push(j->print());
+    }
 }
 
-void ResourceConfig::set_action(int a){
-	switch(a){
-	case ResourceAction_Reject:
-		action = Reject;
-		str_action = "Reject";
-		break;
-	case ResourceAction_NextRoute:
-		action = NextRoute;
-		str_action = "NextRoute";
-		break;
-	case ResourceAction_Accept:
-		action = Accept;
-		str_action = "Accept";
-		break;
-	default:
-		DBG("invalid action type. use Reject instead");
-		action = Reject;
-	}
-}
-
-string ResourceConfig::print() const{
-	ostringstream s;
-	s << "id: " << id << ", ";
-	s << "name: '" << name << "'', ";
-	s << "internal_code_id: " << internal_code_id << ", ";
-	s << "action: " << str_action;
-	return s.str();
-}
-
-ResourceControl::ResourceControl():
-	container_ready(false)
+void ResourceConfig::set_action(int a)
 {
-	stat.clear();
+    switch(a) {
+    case ResourceAction_Reject:
+        action = Reject;
+        str_action = "Reject";
+        break;
+    case ResourceAction_NextRoute:
+        action = NextRoute;
+        str_action = "NextRoute";
+        break;
+    case ResourceAction_Accept:
+        action = Accept;
+        str_action = "Accept";
+        break;
+    default:
+        DBG("invalid action type. use Reject instead");
+        action = Reject;
+    }
+}
+
+string ResourceConfig::print() const
+{
+    ostringstream s;
+    s << "id: " << id << ", ";
+    s << "name: '" << name << "'', ";
+    s << "internal_code_id: " << internal_code_id << ", ";
+    s << "action: " << str_action;
+    return s.str();
+}
+
+ResourceControl::ResourceControl()
+  : container_ready(false)
+{
+    stat.clear();
 }
 
 int ResourceControl::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
@@ -81,47 +86,51 @@ int ResourceControl::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
     return redis_conn.configure(resources_sec);
 }
 
-void ResourceControl::start(){
+void ResourceControl::start()
+{
     redis_conn.init();
     redis_conn.start();
 }
 
-void ResourceControl::stop(){
-	redis_conn.stop(true);
+void ResourceControl::stop()
+{
+    redis_conn.stop(true);
 }
 
 void ResourceControl::invalidate_resources()
 {
-	AmLock lk(handlers_mutex);
+    AmLock lk(handlers_mutex);
 
-	container_ready.set(false);
+    container_ready.set(false);
 
-	INFO("invalidate %ld handlers. mark container unready", handlers.size());
+    INFO("invalidate %ld handlers. mark container unready", handlers.size());
 
-	for(auto &h: handlers)
-		h.second.invalidate();
+    for(auto &h: handlers)
+        h.second.invalidate();
 }
 
 bool ResourceControl::invalidate_resources_rpc()
 {
-	invalidate_resources();
-	return redis_conn.invalidate_resources_sync();
+    invalidate_resources();
+    return redis_conn.invalidate_resources_sync();
 }
 
-void ResourceControl::replace(string& s, const string& from, const string& to){
-	size_t pos = 0;
-	while ((pos = s.find(from, pos)) != string::npos) {
-		 s.replace(pos, from.length(), to);
-		 pos += s.length();
-	}
+void ResourceControl::replace(string& s, const string& from, const string& to)
+{
+    size_t pos = 0;
+    while ((pos = s.find(from, pos)) != string::npos) {
+         s.replace(pos, from.length(), to);
+         pos += s.length();
+    }
 }
 
-void ResourceControl::replace(string &s,Resource &r,ResourceConfig &rc){
-	replace(s,"$id",int2str(r.id));
-	replace(s,"$type",int2str(r.type));
-	replace(s,"$takes",int2str(r.takes));
-	replace(s,"$limit",int2str(r.limit));
-	replace(s,"$name",rc.name);
+void ResourceControl::replace(string &s,Resource &r, const ResourceConfig &rc)
+{
+    replace(s,"$id",int2str(r.id));
+    replace(s,"$type",int2str(r.type));
+    replace(s,"$takes",int2str(r.takes));
+    replace(s,"$limit",int2str(r.limit));
+    replace(s,"$name",rc.name);
 }
 
 int ResourceControl::load_resources_config()
@@ -132,10 +141,9 @@ int ResourceControl::load_resources_config()
         return 1;
 
     assertArgArray(sync_db.db_reply_result);
-    int id;
     for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {
         AmArg &a = sync_db.db_reply_result.get(i);
-        id = a["id"].asInt();
+        auto id = a["id"].asInt();
         type2cfg.try_emplace(
             id,
             id,
@@ -156,13 +164,13 @@ int ResourceControl::load_resources_config()
 
 void ResourceControl::on_resources_initialized()
 {
-	INFO("resources reported to be intialized. mark container ready");
-	container_ready.set(true);
+    INFO("resources reported to be intialized. mark container ready");
+    container_ready.set(true);
 }
 
 void ResourceControl::on_resources_disconnected()
 {
-	invalidate_resources();
+    invalidate_resources();
 }
 
 void ResourceControl::eval_resources(ResourceList &rl) const
@@ -178,239 +186,251 @@ void ResourceControl::eval_resources(ResourceList &rl) const
 }
 
 ResourceCtlResponse ResourceControl::get(
-	ResourceList &rl,
-	string &handler,
-	const string &owner_tag,
-	ResourceConfig &resource_config,
-	ResourceList::iterator &rli)
+    ResourceList &rl,
+    string &handler,
+    const string &owner_tag,
+    ResourceConfig &resource_config,
+    ResourceList::iterator &rli)
 {
-	if(rl.empty()){
-		DBG("empty resources list. do nothing");
-		return RES_CTL_OK;
-	}
-	stat.hits++;
+    if(rl.empty()) {
+        DBG("empty resources list. do nothing");
+        return RES_CTL_OK;
+    }
+    stat.hits++;
 
-	ResourceResponse ret;
+    ResourceResponse ret;
 
-	if(container_ready.get()){
-		ret = redis_conn.get(owner_tag, rl,rli);
-	} else {
-		WARN("%s: attempt to get resource from the unready container", owner_tag.data());
-		ret = RES_ERR;
-	}
+    if(container_ready.get()) {
+        ret = redis_conn.get(owner_tag, rl,rli);
+    } else {
+        WARN("%s: attempt to get resource from the unready container", owner_tag.data());
+        ret = RES_ERR;
+    }
 
-	/*for(ResourceList::const_iterator i = rl.begin();i!=rl.end();++i)
-		DBG("ResourceControl::get() resource: <%s>",(*i).print().c_str());*/
+    /*for(ResourceList::const_iterator i = rl.begin();i!=rl.end();++i)
+        DBG("ResourceControl::get() resource: <%s>",(*i).print().c_str());*/
 
-	switch(ret){
-		case RES_SUCC: {
-			handler = AmSession::getNewId();
-			{
-				AmLock lk(handlers_mutex);
-				handlers.emplace(handler,handlers_entry(rl,owner_tag));
-			}
-			DBG("ResourceControl::get() return resources handler '%s' for %p",
-				handler.c_str(),&rl);
-			//TODO: add to internal handlers list
-			return RES_CTL_OK;
-		} break;
-		case RES_BUSY: {
-			stat.overloaded++;
-			map<int,ResourceConfig>::iterator ti = type2cfg.find(rli->type);
-			if(ti==type2cfg.end()) {
-				resource_config.internal_code_id = DC_RESOURCE_UNKNOWN_TYPE;
-				/*resource_config.reject_code = 404;
-				resource_config.reject_reason =
-					"Resource with unknown type "+int2str(rli->type)+" overloaded";*/
-				stat.rejected++;
-				return RES_CTL_REJECT;
-			} else {
-				ResourceConfig &rc  = ti->second;
-				DBG("overloaded resource %d:%d action: %s",rli->type,rli->id,rc.str_action.c_str());
-				if(rc.action==ResourceConfig::Accept){
-					return RES_CTL_OK;
-				} else { /* reject or choose next */
-					resource_config = rc;
-					ResourceConfig::ActionType a = rc.action;
+    switch(ret) {
+        case RES_SUCC: {
+            handler = AmSession::getNewId();
+            {
+                AmLock lk(handlers_mutex);
+                handlers.emplace(handler,handlers_entry(rl,owner_tag));
+            }
+            DBG("ResourceControl::get() return resources handler '%s' for %p",
+                handler.c_str(),&rl);
+            //TODO: add to internal handlers list
+            return RES_CTL_OK;
+        } break;
+        case RES_BUSY: {
+            stat.overloaded++;
+            map<int,ResourceConfig>::iterator ti = type2cfg.find(rli->type);
+            if(ti==type2cfg.end()) {
+                resource_config.internal_code_id = DC_RESOURCE_UNKNOWN_TYPE;
+                /*resource_config.reject_code = 404;
+                resource_config.reject_reason =
+                    "Resource with unknown type "+int2str(rli->type)+" overloaded";*/
+                stat.rejected++;
+                return RES_CTL_REJECT;
+            } else {
+                const ResourceConfig &rc  = ti->second;
+                DBG("overloaded resource %d:%d action: %s",rli->type,rli->id,rc.str_action.c_str());
+                if(rc.action==ResourceConfig::Accept) {
+                    return RES_CTL_OK;
+                } else { /* reject or choose next */
+                    resource_config = rc;
+                    ResourceConfig::ActionType a = rc.action;
 
-					if(a==ResourceConfig::NextRoute){
-						stat.nextroute++;
-						return RES_CTL_NEXT;
-					} else {
-						stat.rejected++;
-						return RES_CTL_REJECT;
-					}
-				}
-			}
-		} break;
-		case RES_ERR: {
-			stat.errors++;
-			if(reject_on_error) {
-				ERROR("%s: reject resource with code: %d", owner_tag.data(), DC_RESOURCE_CACHE_ERROR);
-				resource_config.internal_code_id = DC_RESOURCE_CACHE_ERROR;
-				return RES_CTL_ERROR;
-			}
-			return RES_CTL_OK;
-		} break;
-	}
-	return RES_CTL_OK;
+                    if(a==ResourceConfig::NextRoute){
+                        stat.nextroute++;
+                        return RES_CTL_NEXT;
+                    } else {
+                        stat.rejected++;
+                        return RES_CTL_REJECT;
+                    }
+                }
+            }
+        } break;
+        case RES_ERR: {
+            stat.errors++;
+            if(reject_on_error) {
+                ERROR("%s: reject resource with code: %d", owner_tag.data(), DC_RESOURCE_CACHE_ERROR);
+                resource_config.internal_code_id = DC_RESOURCE_CACHE_ERROR;
+                return RES_CTL_ERROR;
+            }
+            return RES_CTL_OK;
+        } break;
+    }
+    return RES_CTL_OK;
 }
 
-//void ResourceControl::put(ResourceList &rl){
-void ResourceControl::put(const string &handler){
+void ResourceControl::put(const string &handler)
+{
+    DBG3("ResourceControl::put(%s)",handler.c_str());
 
-	DBG3("ResourceControl::put(%s)",handler.c_str());
+    if(handler.empty()) {
+        DBG3("ResourceControl::put() empty handler");
+        return;
+    }
 
-	if(handler.empty()){
-		DBG3("ResourceControl::put() empty handler");
-		return;
-	}
+    AmLock lk(handlers_mutex);
 
-	AmLock lk(handlers_mutex);
+    Handlers::iterator h = handlers.find(handler);
+    if(h==handlers.end()) {
+        DBG("ResourceControl::put(%s) attempt to free resources using not existent handler",
+             handler.c_str());
+        return;
+    }
 
-	Handlers::iterator h = handlers.find(handler);
-	if(h==handlers.end()){
-		DBG("ResourceControl::put(%s) attempt to free resources using not existent handler",
-			 handler.c_str());
-		return;
-	}
+    handlers_entry &e = h->second;
 
-	//!TODO: validate handler. remove if found but invalid.
-	handlers_entry &e = h->second;
+    if(!e.is_valid()) {
+        DBG("ResourceControl::put(%s) invalid handler. remove it",
+            handler.c_str());
+        handlers.erase(h);
+        return;
+    }
 
-	if(!e.is_valid()){
-		DBG("ResourceControl::put(%s) invalid handler. remove it",
-			handler.c_str());
-		handlers.erase(h);
-		return;
-	}
+    if(!e.resources.empty()) {
+        redis_conn.put(e.owner_tag, e.resources);
+    } else {
+        DBG3("ResourceControl::put(%p) empty resources list",&e.resources);
+    }
 
-	if(!e.resources.empty()){
-		redis_conn.put(e.owner_tag, e.resources);
-	} else {
-		DBG3("ResourceControl::put(%p) empty resources list",&e.resources);
-	}
-
-	handlers.erase(h);
+    handlers.erase(h);
 }
 
-void ResourceControl::GetConfig(AmArg& ret,bool types_only){
-	DBG3("types_only = %d, size = %ld",types_only,type2cfg.size());
+void ResourceControl::GetConfig(AmArg& ret,bool types_only)
+{
+    DBG3("types_only = %d, size = %ld",types_only,type2cfg.size());
 
-	if(types_only) {
-		for(map<int,ResourceConfig>::const_iterator it = type2cfg.begin();
-			it!=type2cfg.end();++it)
-		{
-			string key = int2str(it->first);
+    if(types_only) {
+        for(map<int,ResourceConfig>::const_iterator it = type2cfg.begin();
+            it!=type2cfg.end();++it)
+        {
+            string key = int2str(it->first);
 
-			ret.push(key,AmArg());
+            ret.push(key,AmArg());
 
-			AmArg &p = ret[key];
-			const ResourceConfig &c = it->second;
-			p["name"] =  c.name;
-			p["internal_code_id"] = c.internal_code_id;
-			p["action"] = c.str_action;
-			p["rate_limit"] = c.type == ResourceConfig::ResRateLimit;
-		}
-		return;
-	}
+            AmArg &p = ret[key];
+            const ResourceConfig &c = it->second;
+            p["name"] =  c.name;
+            p["internal_code_id"] = c.internal_code_id;
+            p["action"] = c.str_action;
+            p["rate_limit"] = c.type == ResourceConfig::ResRateLimit;
+        }
+        return;
+    }
 
-	ret.push("cache",AmArg());
-	AmArg &u = ret["cache"];
-	redis_conn.get_config(u);
+    ret.push("cache",AmArg());
+    AmArg &u = ret["cache"];
+    redis_conn.get_config(u);
 }
 
-void ResourceControl::clearStats(){
-	stat.clear();
+void ResourceControl::clearStats()
+{
+    stat.clear();
 }
 
-void ResourceControl::getStats(AmArg &ret){
-	stat.get(ret);
+void ResourceControl::getStats(AmArg &ret)
+{
+    stat.get(ret);
 }
 
-bool ResourceControl::getResourceState(const string& connection_id,
-                                      const AmArg& request_id,
-                                      const AmArg& params){
-	int type, id;
+bool ResourceControl::getResourceState(
+    const string& connection_id,
+    const AmArg& request_id,
+    const AmArg& params)
+{
+    int type, id;
 
-	if(params.size()<2) {
-		throw AmSession::Exception(500,"specify type and id of the resource");
-	}
-	params.assertArrayFmt("ss");
-	if(!str2int(params.get(0).asCStr(),type)){
-		throw AmSession::Exception(500,"invalid resource type");
-	}
-	if(!str2int(params.get(1).asCStr(),id)){
-		throw AmSession::Exception(500,"invalid resource id");
-	}
-	if(type!=ANY_VALUE){
-		if(type2cfg.find(type)==type2cfg.end()){
-			throw AmSession::Exception(500, "unknown resource type");
-		}
-	}
-	return redis_conn.get_resource_state(connection_id,request_id,params);
+    if(params.size()<2) {
+        throw AmSession::Exception(500,"specify type and id of the resource");
+    }
+
+    params.assertArrayFmt("ss");
+    if(!str2int(params.get(0).asCStr(),type)) {
+        throw AmSession::Exception(500,"invalid resource type");
+    }
+
+    if(!str2int(params.get(1).asCStr(),id)) {
+        throw AmSession::Exception(500,"invalid resource id");
+    }
+
+    if(type!=ANY_VALUE){
+        if(type2cfg.find(type)==type2cfg.end()) {
+            throw AmSession::Exception(500, "unknown resource type");
+        }
+    }
+
+    return redis_conn.get_resource_state(connection_id,request_id,params);
 }
 
-void ResourceControl::showResources(AmArg &ret){
-	struct timeval now;
-	AmLock lk(handlers_mutex);
-	gettimeofday(&now,NULL);
-	for(HandlersIt i = handlers.begin();i!=handlers.end();++i){
-		//const handlers_entry &e = i->second;
-		ret.push(AmArg());
-		handler_info(i,now,ret.back());
-	}
+void ResourceControl::showResources(AmArg &ret)
+{
+    struct timeval now;
+    AmLock lk(handlers_mutex);
+    gettimeofday(&now,NULL);
+    for(HandlersIt i = handlers.begin();i!=handlers.end();++i) {
+        //const handlers_entry &e = i->second;
+        ret.push(AmArg());
+        handler_info(i,now,ret.back());
+    }
 }
 
-void ResourceControl::showResourceByHandler(const string &h, AmArg &ret){
-	AmLock lk(handlers_mutex);
-	HandlersIt i = handlers.find(h);
-	if(i==handlers.end()){
-		throw AmSession::Exception(500,"no such handler");
-	}
+void ResourceControl::showResourceByHandler(const string &h, AmArg &ret)
+{
+    AmLock lk(handlers_mutex);
+    HandlersIt i = handlers.find(h);
+    if(i==handlers.end()) {
+        throw AmSession::Exception(500,"no such handler");
+    }
 
-	struct timeval now;
-	gettimeofday(&now,NULL);
-	handler_info(i,now,ret);
+    struct timeval now;
+    gettimeofday(&now,NULL);
+    handler_info(i,now,ret);
 }
 
-void ResourceControl::showResourceByLocalTag(const string &tag, AmArg &ret){
-	AmLock lk(handlers_mutex);
+void ResourceControl::showResourceByLocalTag(const string &tag, AmArg &ret)
+{
+    AmLock lk(handlers_mutex);
 
-	HandlersIt i = handlers.begin();
-	for(;i!=handlers.end();++i){
-		const handlers_entry &e = i->second;
-		if (e.owner_tag.empty()) continue;
-		if(e.owner_tag==tag) break;
-	}
-	if(i==handlers.end()){
-		throw AmSession::Exception(500,"no such handler");
-	}
+    HandlersIt i = handlers.begin();
+    for(;i!=handlers.end();++i) {
+        const handlers_entry &e = i->second;
+        if (e.owner_tag.empty()) continue;
+        if(e.owner_tag==tag) break;
+    }
 
-	struct timeval now;
-	gettimeofday(&now,NULL);
-	handler_info(i,now,ret);
+    if(i==handlers.end()){
+        throw AmSession::Exception(500,"no such handler");
+    }
+
+    struct timeval now;
+    gettimeofday(&now,NULL);
+    handler_info(i,now,ret);
 }
 
-void ResourceControl::showResourcesById(int id, AmArg &ret){
-	struct timeval now;
+void ResourceControl::showResourcesById(int id, AmArg &ret)
+{
+    struct timeval now;
 
-	AmLock lk(handlers_mutex);
+    AmLock lk(handlers_mutex);
 
-	ret.assertArray();
-	gettimeofday(&now,NULL);
+    ret.assertArray();
+    gettimeofday(&now,NULL);
 
-	HandlersIt i = handlers.begin();
-	for(;i!=handlers.end();++i){
-		const handlers_entry &e = i->second;
-		ResourceList::const_iterator j = e.resources.begin();
-		for(;j!=e.resources.end();j++){
-			const Resource &r = *j;
-			if(r.id==id){
-				ret.push(AmArg());
-				handler_info(i,now,ret.back());
-				break; //loop over resources
-			}
-		}
-	}
+    HandlersIt i = handlers.begin();
+    for(;i!=handlers.end();++i) {
+        const handlers_entry &e = i->second;
+        ResourceList::const_iterator j = e.resources.begin();
+        for(;j!=e.resources.end();--j) {
+            const Resource &r = *j;
+            if(r.id==id){
+                ret.push(AmArg());
+                handler_info(i,now,ret.back());
+                break; //loop over resources
+            }
+        }
+    }
 }
