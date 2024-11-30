@@ -171,7 +171,7 @@ class ResourceRedisConnection
     void registerResourcesInitializedCallback(Request::cb_func func);
     void registerOperationResultCallback(Request::cb_func func);
 
-    void put(const string &local_tag, ResourceList &rl);
+    void put(const string &local_tag, const ResourceList &rl);
     void get(const string &local_tag, ResourceList &rl);
     ResourceResponse get(const string &local_tag, ResourceList &rl, ResourceList::iterator &resource);
 

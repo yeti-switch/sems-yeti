@@ -772,7 +772,7 @@ void ResourceRedisConnection::registerOperationResultCallback(Request::cb_func f
     operation_result_cb = func;
 }
 
-void ResourceRedisConnection::put(const string &local_tag, ResourceList& rl)
+void ResourceRedisConnection::put(const string &local_tag, const ResourceList& rl)
 {
     process_operation(local_tag, rl, ResourcesOperation::RES_PUT);
 }

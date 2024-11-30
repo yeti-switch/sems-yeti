@@ -273,31 +273,37 @@ void ResourceControl::put(const string &handler)
         return;
     }
 
-    AmLock lk(handlers_mutex);
+    std::optional<handlers_entry> handler_data;
+    {
+        AmLock lk(handlers_mutex);
 
-    Handlers::iterator h = handlers.find(handler);
-    if(h==handlers.end()) {
-        DBG("ResourceControl::put(%s) attempt to free resources using not existent handler",
-             handler.c_str());
-        return;
-    }
+        Handlers::iterator h = handlers.find(handler);
+        if(h==handlers.end()) {
+            DBG("ResourceControl::put(%s) attempt to free resources using not existent handler", handler.c_str());
+            return;
+        }
 
-    handlers_entry &e = h->second;
+        handlers_entry &e = h->second;
 
-    if(!e.is_valid()) {
-        DBG("ResourceControl::put(%s) invalid handler. remove it",
-            handler.c_str());
+        if(!e.is_valid()) {
+            DBG("ResourceControl::put(%s) invalid handler. remove it", handler.c_str());
+            handlers.erase(h);
+            return;
+        }
+
+        if(e.resources.empty()) {
+            DBG3("ResourceControl::put(%p) empty resources list",&e.resources);
+            handlers.erase(h);
+            return;
+        }
+
+        handler_data = std::move(e);
         handlers.erase(h);
-        return;
     }
 
-    if(!e.resources.empty()) {
-        redis_conn.put(e.owner_tag, e.resources);
-    } else {
-        DBG3("ResourceControl::put(%p) empty resources list",&e.resources);
-    }
-
-    handlers.erase(h);
+    redis_conn.put(
+        handler_data.value().owner_tag,
+        handler_data.value().resources);
 }
 
 void ResourceControl::GetConfig(AmArg& ret,bool types_only)
