@@ -25,28 +25,18 @@ jobs:
         uses: actions/checkout@v3
       - name: install build deps
         run: apt -y --no-install-recommends build-dep .
+
       - run: make deb
-      
-      - name: upload to pkg.yeti-switch.org. bookworm 1.13 main
-        run: ci/deploy.sh bookworm 1.13 main ../*.deb
-        env:
-          PKG_API_BASE: ${{secrets.PKG_API_BASE}}
-        if: startsWith(github.ref, 'refs/tags/v')
 
-      - name: Setup deb-s3
-        run: gem install deb-s3
-
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@v6
+      - uses: yeti-switch/upload-debian-pkg-action@v1
         with:
+          pkgs: '../*.deb'
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
-        
-      - name: Upload package
+          aws_bucket: ${{ secrets.DEB_AWS_BUCKET }}
         env:
+          PKG_API_BASE: ${{secrets.PKG_API_BASE}}
           AWS_ACCESS_KEY_ID: ${{secrets.DEB_AWS_ACCESS_KEY_ID}}
           AWS_SECRET_ACCESS_KEY: ${{secrets.DEB_AWS_SECRET_ACCESS_KEY}}
           AWS_ENDPOINT_URL: ${{secrets.DEB_AWS_ENDPOINT}}
-        run:  deb-s3 upload --bucket=${{secrets.DEB_AWS_BUCKET}} --prefix=1.13 --codename=bookworm --component=main --visibility=nil --force-path-style --sign=B104E10C35895CFAC0F91473C8D3BC80B6F22179 --gpg-options "\-\-pinentry-mode=loopback \-\-no-tty \-\-batch \-\-yes \-\-passphrase ${{ secrets.GPG_PASSPHRASE }}" ../*.deb
         if: startsWith(github.ref, 'refs/tags/v')
-        
