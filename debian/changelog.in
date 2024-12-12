@@ -1,3 +1,7 @@
+sems-yeti (1.13.93) stable; urgency=medium
+  * ci: upload pkg to aws s3
+ -- dev <dev@yeti-switch.org>  Thu, 12 Dec 2024 21:35:19 +0200
+
 sems-yeti (1.13.92) stable; urgency=medium
   * fix deadlock on resources redis connection disconnect
  -- dev <dev@yeti-switch.org>  Sat, 30 Nov 2024 14:10:37 +0200
