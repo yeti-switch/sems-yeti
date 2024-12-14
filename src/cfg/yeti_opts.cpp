@@ -19,6 +19,7 @@ char section_name_routing[] = "routing";
 char section_name_cdr[] = "cdr";
 char section_name_auth[] = "auth";
 char section_name_lega_cdr_headers[] = "lega_cdr_headers";
+char section_name_legb_cdr_headers[] = "legb_cdr_headers";
 char section_name_legb_reply_cdr_headers[] = "legb_response_cdr_headers";
 char section_name_identity[] = "identity";
 char section_name_statistics[] = "statistics";
@@ -68,6 +69,7 @@ char opt_redis_password[] = "password";
 
 int add_routing_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
+int add_bleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 int add_bleg_reply_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 
 //routing
@@ -174,6 +176,11 @@ cfg_opt_t lega_cdr_headers_opts[] = {
     CFG_END()
 };
 
+cfg_opt_t legb_cdr_headers_opts[] = {
+    CFG_FUNC(opt_func_name_header, add_bleg_cdr_header),
+    CFG_END()
+};
+
 cfg_opt_t legb_reply_cdr_headers_opts[] = {
     CFG_FUNC(opt_func_name_header, add_bleg_reply_cdr_header),
     CFG_BOOL(opt_name_cdr_headers_add_sip_reason, cfg_false, CFGF_NONE),
@@ -206,6 +213,7 @@ cfg_opt_t yeti_opts[] = {
     DCFG_SEC(auth,sig_yeti_auth_opts,CFGF_NONE),
     CFG_SEC(section_name_identity, identity_opts, CFGF_NODEFAULT),
     CFG_SEC(section_name_lega_cdr_headers,lega_cdr_headers_opts, CFGF_NONE),
+    CFG_SEC(section_name_legb_cdr_headers,legb_cdr_headers_opts, CFGF_NONE),
     CFG_SEC(section_name_legb_reply_cdr_headers,legb_reply_cdr_headers_opts, CFGF_NONE),
     CFG_BOOL(opt_name_core_options_handling, cfg_true, CFGF_NONE),
     CFG_BOOL(opt_name_pcap_memory_logger, cfg_false, CFGF_NONE),

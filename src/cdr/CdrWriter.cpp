@@ -68,6 +68,10 @@ static_field cdr_static_fields[] = {
 	/* space to optionally add
 	 * { "disconnect_code", "smallint" }
 	 * at the index 26. see: SqlRouter::configure() */
+	{ nullptr, nullptr },
+	/* space to optionally add
+	 * { "i_bleg_cdr_headers", "json" }
+	 * after i_aleg_cdr_headers. see: SqlRouter::configure() */
 	{ nullptr, nullptr }
 };
 

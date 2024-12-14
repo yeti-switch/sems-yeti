@@ -12,6 +12,7 @@
 #define LOG_BUF_SIZE 2048
 
 cdr_headers_t cfg_aleg_cdr_headers;
+cdr_headers_t cfg_bleg_cdr_headers;
 cdr_headers_t cfg_bleg_reply_cdr_headers;
 
 int add_aleg_cdr_header(cfg_t */*cfg*/, cfg_opt_t */*opt*/, int argc, const char **argv)
@@ -23,6 +24,20 @@ int add_aleg_cdr_header(cfg_t */*cfg*/, cfg_opt_t */*opt*/, int argc, const char
         return 1;
     }
     if(cfg_aleg_cdr_headers.add_header(argv[0],argv[1])) {
+        return 1;
+    }
+    return 0;
+}
+
+int add_bleg_cdr_header(cfg_t */*cfg*/, cfg_opt_t */*opt*/, int argc, const char **argv)
+{
+    if(argc != 2) {
+        ERROR("header(%s,%s): unexpected option args count."
+              "expected format: header(header_name, string|array)",
+              argv[0],argv[1]);
+        return 1;
+    }
+    if(cfg_bleg_cdr_headers.add_header(argv[0],argv[1])) {
         return 1;
     }
     return 0;
@@ -86,6 +101,7 @@ int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
     write_internal_disconnect_code = cfg_getbool(cfg, opt_name_write_internal_disconnect_code);
 
     aleg_cdr_headers = cfg_aleg_cdr_headers;
+    bleg_cdr_headers = cfg_bleg_cdr_headers;
     bleg_reply_cdr_headers = cfg_bleg_reply_cdr_headers;
     headers_processing.configure(cfg);
 

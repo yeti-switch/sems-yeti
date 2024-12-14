@@ -11,7 +11,7 @@ static int normalize_aleg_header_name(int c) {
     return ::tolower(c);
 }
 
-bool cdr_headers_t::enabled()
+bool cdr_headers_t::enabled() const
 {
     return !headers.empty();
 }

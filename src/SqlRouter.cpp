@@ -457,6 +457,26 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         cdr_static_fields[26].name = "disconnect_code_id";
         cdr_static_fields[26].type = "smallint";
     }
+    if (ycfg.bleg_cdr_headers.enabled()) {
+        n++;
+        std::string i_aleg_cdr_headers("i_aleg_cdr_headers");
+
+        auto idx = std::distance(cdr_static_fields, std::find_if(
+            cdr_static_fields, cdr_static_fields + WRITECDR_STATIC_FIELDS_COUNT,
+            [&i_aleg_cdr_headers](const static_field &f) {
+                return i_aleg_cdr_headers == f.name;
+        }));
+        //shift all fields after the i_aleg_cdr_headers
+        for(int i = n;
+            i > idx /* i_aleg_cdr_headers pos */; i--)
+        {
+            cdr_static_fields[i].name = cdr_static_fields[i-1].name;
+            cdr_static_fields[i].type = cdr_static_fields[i-1].type;
+        }
+        idx++;
+        cdr_static_fields[idx].name = "i_bleg_cdr_headers";
+        cdr_static_fields[idx].type = "json";
+    }
     for(int i = 0;i<n;i++)
         cdr_types.push_back(cdr_static_fields[i].type);
 

@@ -3501,6 +3501,10 @@ void SBCCallLeg::connectCallee(
     const AmSipRequest &invite,
     AmSipDialog *p_dlg)
 {
+    with_cdr_for_read {
+        cdr->update_with_bleg_sip_request(invite);
+    }
+
     SBCCallLeg* callee_session =
         SBCFactory::instance()->getCallLegCreator()->create(this, p_dlg);
 

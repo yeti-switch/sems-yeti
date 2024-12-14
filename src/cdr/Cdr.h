@@ -129,6 +129,7 @@ struct Cdr
     std::queue<dtmf_event_info> dtmf_events_b2a;
 
     AmArg aleg_headers_amarg;
+    AmArg bleg_headers_amarg;
     AmArg bleg_reply_headers_amarg;
     AmArg identity_data;
 
@@ -151,6 +152,7 @@ struct Cdr
     void update_sbc(const SBCCallProfile &profile);
 
     void update_with_aleg_sip_request(const AmSipRequest &req);
+    void update_with_bleg_sip_request(const AmSipRequest &req);
     void update_with_bleg_sip_reply(const AmSipReply &reply);
     void update_reasons_with_sip_request(const AmSipRequest &req, bool a_leg);
     void update_with_isup(const AmISUP &isup);

@@ -208,6 +208,13 @@ void Cdr::update_with_aleg_sip_request(const AmSipRequest &req)
     }
 }
 
+void Cdr::update_with_bleg_sip_request(const AmSipRequest &req)
+{
+    DBG("UPDATE with hdrs: %s", req.hdrs.data());
+    bleg_headers_amarg =
+        Yeti::instance().config.bleg_cdr_headers.serialize_headers(req.hdrs);
+}
+
 inline void remove_ipv6_reference_inplace(string &s)
 {
     //detect ipv6 reference
@@ -1071,6 +1078,10 @@ void Cdr::apply_params(
     invoc_cond(arg2json(aleg_headers_amarg), isArgStruct(aleg_headers_amarg) && aleg_headers_amarg.size());
     //}
 
+    if(cfg.bleg_cdr_headers.enabled()) {
+        invoc_cond(arg2json(bleg_headers_amarg), isArgStruct(bleg_headers_amarg) && bleg_headers_amarg.size());
+    }
+
     /* invocate trusted hdrs  */
     /*for(const auto &h : trusted_hdrs)
         invoc_AmArg(invoc,h);*/
@@ -1261,6 +1272,7 @@ void Cdr::serialize_for_http_common(AmArg &a, const DynFieldsT &df) const
     add_field(resources);
 
     add_field_as("aleg_headers", aleg_headers_amarg);
+    add_field_as("bleg_headers", bleg_headers_amarg);
 
     AmArg &routing = a["routing"];
     for(const auto &dit: df) {

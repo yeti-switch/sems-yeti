@@ -577,6 +577,7 @@ void YetiRpc::GetConfig(const AmArg& args, AmArg& ret) {
 	ret["pcap_memory_logger"] = config.pcap_memory_logger;
 	ret["auth_feedback"] = config.auth_feedback;
 	ret["lega_cdr_headers_enabled"] = config.aleg_cdr_headers.enabled();
+	ret["legb_cdr_headers_enabled"] = config.bleg_cdr_headers.enabled();
 	ret["http_events_destination"] = config.http_events_destination;
 
 	router.getConfig(ret["router"]);

@@ -29,6 +29,7 @@ struct YetiCfg {
     string http_events_destination;
 
     cdr_headers_t aleg_cdr_headers;
+    cdr_headers_t bleg_cdr_headers;
     cdr_headers_t bleg_reply_cdr_headers;
 
     bool core_options_handling;
