@@ -10,11 +10,11 @@ sems-yeti is a part of project [Yeti]
 
 ## Installation via Package (Debian 11)
 ```sh
-# apt install curl gnupg
+# apt install wget gnupg
 # echo "deb [arch=amd64] http://apt.postgresql.org/pub/repos/apt bullseye-pgdg main" > /etc/apt/sources.list.d/pgdg.list
-# curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg
-# echo "deb [arch=amd64] http://pkg.yeti-switch.org/debian/buster 1.10 main" > /etc/apt/sources.list.d/yeti.list
-# curl https://pkg.yeti-switch.org/key.gpg | apt-key add -
+# wget -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg
+# echo "deb [arch=amd64] https://deb.yeti-switch.org/debian/1.13 bookworm main" > /etc/apt/sources.list.d/yeti.list
+# wget http://deb.yeti-switch.org/yeti.gpg -O /etc/apt/trusted.gpg.d/deb.yeti-switch.org.asc
 # apt update
 # apt install sems-modules-yeti
 ```
@@ -33,14 +33,14 @@ $ git clone git@github.com:yeti-switch/sems-yeti.git
 $ cd sems-yeti
 ```
 
-### build and install dependencies package
+### install build dependencies
 ```sh
-# mk-build-deps -i
+# apt build-deps .
 ```
 
 ### build package
 ```sh
-$ debuild -us -uc -b -j$(nproc)
+$ dpkg-buildpackage -us -uc -b -j$(nproc)
 ```
 
 [Yeti]:http://yeti-switch.org/
