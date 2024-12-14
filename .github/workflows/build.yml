@@ -30,15 +30,12 @@ jobs:
       - name: build
         run: make deb
 
-      - uses: yeti-switch/upload-debian-pkg-action@v1
+      - uses: yeti-switch/upload-debian-pkg-action@v2
         with:
           pkgs: '../*.deb'
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
-          aws_bucket: ${{ secrets.DEB_AWS_BUCKET }}
-        env:
-          PKG_API_BASE: ${{secrets.PKG_API_BASE}}
-          AWS_ACCESS_KEY_ID: ${{secrets.DEB_AWS_ACCESS_KEY_ID}}
-          AWS_SECRET_ACCESS_KEY: ${{secrets.DEB_AWS_SECRET_ACCESS_KEY}}
-          AWS_ENDPOINT_URL: ${{secrets.DEB_AWS_ENDPOINT}}
+          gpg_passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          s3_access_key_id: ${{ secrets.DEB_AWS_ACCESS_KEY_ID }}
+          s3_secret_access_key: ${{ secrets.DEB_AWS_SECRET_ACCESS_KEY }}
+          s3_endpoint_url: ${{ secrets.DEB_AWS_ENDPOINT }}
         if: startsWith(github.ref, 'refs/tags/v')
