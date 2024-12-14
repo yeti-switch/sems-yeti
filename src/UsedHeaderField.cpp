@@ -105,6 +105,27 @@ bool UsedHeaderField::process_uri(const sip_uri &uri, string &ret) const
     } //switch(part)
 }
 
+static void serialize_params(AmArg &ret, const std::list<sip_avp*> &sip_avp_list, const string &key)
+{
+    if(sip_avp_list.empty())
+        return;
+
+    AmArg &params = ret[key];
+    AmArg &params_arr = ret[key + "_arr"];
+    for(const auto &p: sip_avp_list) {
+        params[c2stlstr(p->name)] = p->value.len ? c2stlstr(p->value) : string();
+
+        string param_str;
+        param_str.reserve(p->name.len + p->value.len + 1);
+        param_str.assign(p->name.s, p->name.len);
+        if(p->value.len) {
+            param_str.append("=");
+            param_str.append(p->value.s, p->value.len);
+        }
+        params_arr.push(param_str);
+    }
+}
+
 void UsedHeaderField::serialize_nameaddr(const sip_nameaddr &na, AmArg &ret) const
 {
     switch(na.uri.scheme) {
@@ -127,26 +148,9 @@ void UsedHeaderField::serialize_nameaddr(const sip_nameaddr &na, AmArg &ret) con
         return;
     }
 
-    if(!na.uri.params.empty()) {
-        AmArg &params = ret["up"];
-        for(const auto &p: na.uri.params) {
-            params[c2stlstr(p->name)] = p->value.len ? c2stlstr(p->value) : string();
-        }
-    }
-
-    if(!na.uri.hdrs.empty()) {
-        AmArg &params = ret["uh"];
-        for(const auto &p: na.uri.hdrs) {
-            params[c2stlstr(p->name)] = p->value.len ? c2stlstr(p->value) : string();
-        }
-    }
-
-    if(!na.params.empty()) {
-        AmArg &params = ret["np"];
-        for(const auto &p: na.params) {
-            params[c2stlstr(p->name)] = p->value.len ? c2stlstr(p->value) : string();
-        }
-    }
+    serialize_params(ret, na.uri.params, "up");
+    serialize_params(ret, na.uri.hdrs, "uh");
+    serialize_params(ret, na.params, "np");
 }
 
 UsedHeaderField::UsedHeaderField(const string &hdr_name)

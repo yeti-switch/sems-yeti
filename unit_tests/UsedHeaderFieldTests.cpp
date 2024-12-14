@@ -67,12 +67,24 @@ static AmArg uri_json_expected({
             { "uparam2", "uval12"},
             { "uparam3", ""},
         }},
-        { "uh", {
-            { "uhdr1", "uhval1" },
+        { "up_arr", {
+            "uparam1=uval11",
+            "uparam2=uval12",
+            "uparam3"
+        }},
+        { "uh", {{
+            { "uhdr1", "uhval1"},
+        }}},
+        { "uh_arr", {
+            "uhdr1=uhval1",
         }},
         { "np", {
             { "hparam1", "hval1" },
             { "hparam2", ""}
+        }},
+        { "np_arr", {
+            "hparam1=hval1",
+            "hparam2",
         }}
     }
 });
@@ -89,6 +101,10 @@ static AmArg uri_json_array_expected{
             { "uparam1", "uval21" },
             { "uparam2", "uval22"}
         }},
+        { "up_arr", {
+            "uparam1=uval21",
+            "uparam2=uval22"
+        }},
     },
     AmArg{
         { "n", "test3" },
@@ -99,6 +115,10 @@ static AmArg uri_json_array_expected{
         { "up", {
             { "uparam1", "uval31" },
             { "uparam2", "uval32"}
+        }},
+        { "up_arr", {
+            "uparam1=uval31",
+            "uparam2=uval32"
         }},
     },
     AmArg{

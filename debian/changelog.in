@@ -1,5 +1,6 @@
 sems-yeti (1.13.94) stable; urgency=medium
   * tel URI serialization: change key 't' -> 'u'
+  * add up_arr,uh_arr,np_arr keys for URI serialized json
   * legb_cdr_headers.header(hdr, string|array) func
  -- dev <dev@yeti-switch.org>  Sat, 14 Dec 2024 13:33:19 +0200
 
