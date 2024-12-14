@@ -120,7 +120,7 @@ void UsedHeaderField::serialize_nameaddr(const sip_nameaddr &na, AmArg &ret) con
         break;
     case sip_uri::TEL:
         ret["s"] = "tel";
-        ret["t"] = na.uri.user.len ? c2stlstr(na.uri.user) : AmArg();
+        ret["u"] = na.uri.user.len ? c2stlstr(na.uri.user) : AmArg();
         break;
     case sip_uri::UNKNOWN:
         ret["s"] = "unknown";

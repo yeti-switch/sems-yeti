@@ -103,7 +103,7 @@ static AmArg uri_json_array_expected{
     },
     AmArg{
         { "s", "tel" },
-        { "t", "1234567890" }
+        { "u", "1234567890" }
     }
 };
 
