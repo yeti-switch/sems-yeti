@@ -604,6 +604,10 @@ void Yeti::initCfgTimerMappings()
          yeti_routing_db_query("SELECT * FROM load_gateway_attributes_cache()", key);
          },
          [&](const PGResponse &e) { gateways_cache.update(e.result); } }                                      },
+        // CallProfilesCache
+        {                       "callprofiles",
+         { [&](const string &key) { yeti_routing_db_query("SELECT * FROM load_callprofiles()", key); },
+         [&](const PGResponse &e) { callprofiles_cache.load_callprofiles(e); } }                              },
     };
 
     for (auto &mapping : db_config_timer_mappings)

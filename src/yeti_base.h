@@ -10,6 +10,7 @@
 #include "GatewaysCache.h"
 #include "cdr/CdrHeaders.h"
 #include "cfg/YetiCfg.h"
+#include "CallProfilesCache.h"
 
 #include "AmConfigReader.h"
 
@@ -94,6 +95,7 @@ struct YetiBase {
     CertCache            cert_cache;
     OriginationPreAuth   orig_pre_auth;
     GatewaysCache        gateways_cache;
+    CallProfilesCache    callprofiles_cache;
 
     // fields to provide synchronous configuration for DB-related entities
     struct sync_db {
