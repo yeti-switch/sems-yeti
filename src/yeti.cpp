@@ -662,6 +662,16 @@ void Yeti::initCfgTimerMappings()
                 options_prober_manager.load_probers(e.result);
             }}
         },
+
+        //CallProfilesCache
+        { "callprofiles", {
+            [&](const string &key) {
+                yeti_routing_db_query("SELECT * FROM load_callprofiles()", key);
+            },
+            [&](const PGResponse &e) {
+                callprofiles_cache.load_callprofiles(e);
+            }}
+        },
     };
 
     for(auto &mapping: db_config_timer_mappings)

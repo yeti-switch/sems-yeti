@@ -9,6 +9,7 @@
 #include "OriginationPreAuth.h"
 #include "cdr/CdrHeaders.h"
 #include "cfg/YetiCfg.h"
+#include "CallProfilesCache.h"
 
 #include "AmConfigReader.h"
 
@@ -84,6 +85,7 @@ struct YetiBase {
     OptionsProberManager options_prober_manager;
     CertCache cert_cache;
     OriginationPreAuth orig_pre_auth;
+    CallProfilesCache callprofiles_cache;
 
     //fields to provide synchronous configuration for DB-related entities
     struct sync_db {

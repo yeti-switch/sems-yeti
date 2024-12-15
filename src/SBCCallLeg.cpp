@@ -798,7 +798,18 @@ void SBCCallLeg::onPostgresResponse(PGResponse &e)
             //read profile
             ret = false;
             try {
-                ret = p.readFromTuple(a, getLocalTag(), router.getDynFields());
+                ret = yeti.callprofiles_cache.complete_profile(a);
+                if(ret) {
+                    if(yeti.config.postgresql_debug) {
+                        for(auto &it : *a.asStruct()) {
+                            DBG("%s/merged_profile[%d]: %s %s",
+                                getLocalTag().data(), i,
+                                it.first.data(),
+                                arg2json(it.second).data());
+                        }
+                    }
+                    ret = p.readFromTuple(a, getLocalTag(), router.getDynFields());
+                }
             } catch(AmArg::OutOfBoundsException &e) {
                 ERROR("OutOfBoundsException while reading from profile tuple: %s",
                       AmArg::print(a).data());
