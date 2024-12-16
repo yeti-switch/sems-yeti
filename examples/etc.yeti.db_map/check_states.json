@@ -12,6 +12,7 @@
         "radius_authorization_profiles": 1,
         "radius_accounting_profiles": 1,
         "auth_credentials": 1,
-        "options_probers": 1
+        "options_probers": 1,
+        "callprofiles": 1
     }
 ]
