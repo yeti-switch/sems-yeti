@@ -2,10 +2,18 @@
 
 #include "confuse.h"
 
+#include <vector>
+#include <string>
+
+using std::vector;
+using std::string;
+
 #define YETI_REDIS_DEFAULT_TIMEOUT 5000
 
 #define YETI_SCTP_DEFAULT_HOST "127.0.0.1"
 #define YETI_SCTP_DEFAULT_PORT 4444
+
+extern const vector<string> allowed_methods_default;
 
 extern char opt_name_auth_feedback[];
 extern char opt_name_http_events_destination[];
@@ -63,6 +71,8 @@ extern char opt_redis_hosts[];
 extern char opt_redis_timeout[];
 extern char opt_redis_username[];
 extern char opt_redis_password[];
+
+extern char opt_name_allowed_methods[];
 
 //routing
 extern cfg_opt_t sig_yeti_routing_pool_opts[];

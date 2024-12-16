@@ -100,6 +100,12 @@ int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
     postgresql_debug = cfg_getbool(cfg, opt_name_postgresql_debug);
     write_internal_disconnect_code = cfg_getbool(cfg, opt_name_write_internal_disconnect_code);
 
+    for(auto i = 0U; i < cfg_size(cfg, opt_name_allowed_methods); ++i)
+        allowed_methods.push_back(cfg_getnstr(cfg, opt_name_allowed_methods, i));
+
+    if(allowed_methods.empty())
+        allowed_methods = allowed_methods_default;
+
     aleg_cdr_headers = cfg_aleg_cdr_headers;
     bleg_cdr_headers = cfg_bleg_cdr_headers;
     bleg_reply_cdr_headers = cfg_bleg_reply_cdr_headers;

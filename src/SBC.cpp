@@ -297,6 +297,8 @@ AmSession* SBCFactory::onInvite(
         return nullptr;
     }
 
+    leg->dlg->setAllowedMethods(yeti->config.allowed_methods);
+
     /* not functional here after DB routing was moved to the SBCCallLeg
 
     SBCCallProfile& call_profile = leg->getCallProfile();

@@ -3510,6 +3510,7 @@ void SBCCallLeg::connectCallee(
 
     callee_session->setLocalParty(from, from);
     callee_session->setRemoteParty(remote_party, remote_uri);
+    callee_session->dlg->setAllowedMethods(yeti.config.allowed_methods);
 
     if (!callee_session->a_leg)
         callee_session->applyBProfile();

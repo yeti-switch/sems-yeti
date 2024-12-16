@@ -12,6 +12,10 @@
 #define IP_AUTH_DEFAULT_HEADER "X-ORIG-IP"
 #define YETI_DEFAULT_AUDIO_RECORDER_DIR "/var/spool/sems/record"
 
+const vector<string> allowed_methods_default = {
+    "INVITE", "ACK", "BYE", "CANCEL", "OPTIONS", "NOTIFY", "INFO", "UPDATE", "PRACK"
+};
+
 char opt_name_auth_feedback[] = "enable_auth_feedback";
 char opt_name_http_events_destination[] = "http_events_destination";
 
@@ -66,6 +70,8 @@ char opt_redis_hosts[] = "hosts";
 char opt_redis_timeout[] = "timeout";
 char opt_redis_username[] = "username";
 char opt_redis_password[] = "password";
+
+char opt_name_allowed_methods[] = "allowed_methods";
 
 int add_routing_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
@@ -224,6 +230,7 @@ cfg_opt_t yeti_opts[] = {
     CFG_STR(opt_name_ip_auth_header,IP_AUTH_DEFAULT_HEADER,CFGF_NONE),
     CFG_BOOL(opt_name_postgresql_debug, cfg_false, CFGF_NONE),
     CFG_BOOL(opt_name_write_internal_disconnect_code, cfg_false, CFGF_NONE),
+    CFG_STR_LIST(opt_name_allowed_methods, 0, CFGF_NODEFAULT),
 
     CFG_END()
 };
