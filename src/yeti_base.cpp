@@ -17,7 +17,6 @@ bool yeti_routing_db_query(const string &query, const string &token)
                 YETI_QUEUE_NAME,
                 token),
             PGTransactionData()));
-    return 0;
 }
 
 int YetiBase::sync_db::exec_query(const string &query, const string &token)

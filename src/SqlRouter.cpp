@@ -20,7 +20,7 @@
 #include "jsonArg.h"
 #include "cdr/CdrWriter.h"
 #include <botan/base64.h>
-
+#include "format_helper.h"
 #include "AmSession.h"
 #include "AmEventDispatcher.h"
 
@@ -205,8 +205,12 @@ int SqlRouter::load_db_interface_in_out()
 
     auto &sync_db = Yeti::instance().sync_db;
 
-    if(sync_db.exec_query("SELECT * FROM load_interface_out()", "load_interface_out"))
+    if(sync_db.exec_query(
+        format("SELECT * FROM {}.load_interface_out()", routing_schema),
+        "load_interface_out"))
+    {
         return 1;
+    }
     assertArgArray(sync_db.db_reply_result);
     for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {
         AmArg &a = sync_db.db_reply_result.get(i);
@@ -226,8 +230,12 @@ int SqlRouter::load_db_interface_in_out()
         DBG("apply load_interface_in() from route.headers");
         apply_interface_in(cfg_routing_headers);
     } else {
-        if(sync_db.exec_query("SELECT * FROM load_interface_in()", "load_interface_in"))
+        if(sync_db.exec_query(
+            format("SELECT * FROM {}.load_interface_in()", routing_schema),
+            "load_interface_in"))
+        {
             return 1;
+        }
         apply_interface_in(sync_db.db_reply_result);
     }
 
@@ -335,6 +343,14 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         }
     }
 
+    //modify/apply prepared queries here
+    if(0==load_db_interface_in_out()) {
+        DBG("SqlRouter::load_db_interface_in_out: finished");
+    } else {
+        ERROR("SqlRouter::load_db_interface_in_out: error");
+        return 1;
+    }
+
     PGWorkerConfig* pg_config_routing = new PGWorkerConfig(
         yeti_routing_pg_worker,
         failover_to_slave,
@@ -350,44 +366,32 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
     pg_config_routing->addSearchPath(routing_schema);
     pg_config_routing->addSearchPath("public");
 
-    AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_config_routing);
-
-    //modify/apply prepared queries here
-    if(0==load_db_interface_in_out()) {
-        DBG("SqlRouter::load_db_interface_in_out: finished");
-    } else {
-        ERROR("SqlRouter::load_db_interface_in_out: error");
-        return 1;
-    }
-
     //prepare routing getprofile
     sql.str("");
     sql << "SELECT * FROM " << routing_function << SqlPlaceHolderArgs(getprofile_types.size());
-
-    auto prepare_getprofile = new PGPrepare(
-        yeti_routing_pg_worker,
-        getprofile_sql_statement_name,
-        sql.str());
-    prepare_getprofile->pdata.sql_types = getprofile_types;
-    AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, prepare_getprofile);
+    auto &getprofile_prepared = pg_config_routing->addPrepared(
+        getprofile_sql_statement_name, sql.str());
+    getprofile_prepared.sql_types = getprofile_types;
 
     //prepare/execute routing connection init query
     auto routing_init_function = cfg.getParameter("routing_init_function");
     if(!routing_init_function.empty()) {
         sql.str("");
         sql << "SELECT " << routing_init_function << SqlPlaceHolderArgs(2);
-
-        auto query = new PGParamExecute(
+        pg_config_routing->addInitialQuery(PGParamExecute(
             PGQueryData(
                 yeti_routing_pg_worker,
                 sql.str(),
-                true /* single */),
+                false /* single */),
             PGTransactionData(),
-            false /* prepared */,
-            true /* initial */);
-        query->addParam(AmConfig.node_id).addParam(Yeti::instance().config.pop_id);
-        AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, query);
+            false /* prepared */));
+
+        std::get<PGParamExecute>(pg_config_routing->initial_queries.back())
+            .addParam(AmConfig.node_id)
+            .addParam(Yeti::instance().config.pop_id);
     }
+
+    AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_config_routing);
 
     //create CDR DB and Auth log worker
     CdrThreadCfg cdr_cfg;
