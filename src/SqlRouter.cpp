@@ -168,6 +168,9 @@ void SqlRouter::sanitize_query_params(
 
 void SqlRouter::apply_interface_in(const AmArg &data)
 {
+    if(isArgUndef(data))
+        return;
+
     assertArgArray(data);
     for(size_t i = 0; i < data.size(); i++) {
         AmArg &a = data.get(i);
@@ -208,18 +211,21 @@ int SqlRouter::load_db_interface_in_out()
     {
         return 1;
     }
-    assertArgArray(sync_db.db_reply_result);
-    for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {
-        AmArg &a = sync_db.db_reply_result.get(i);
-        //DBG("%zd %s", i, AmArg::print(a).data());
-        const char *vartype = a["vartype"].asCStr();
-        const char *varname = a["varname"].asCStr();
-        bool forcdr= a["forcdr"].asBool();
 
-        DBG("load_interface_out:     %zd: %s : %s, %d",
-            i, varname, vartype, forcdr);
-        if(forcdr) {
-            dyn_fields.emplace_back(varname, vartype);
+    if(!isArgUndef(sync_db.db_reply_result)) {
+        assertArgArray(sync_db.db_reply_result);
+        for(size_t i = 0; i < sync_db.db_reply_result.size(); i++) {
+            AmArg &a = sync_db.db_reply_result.get(i);
+            //DBG("%zd %s", i, AmArg::print(a).data());
+            const char *vartype = a["vartype"].asCStr();
+            const char *varname = a["varname"].asCStr();
+            bool forcdr= a["forcdr"].asBool();
+
+            DBG("load_interface_out:     %zd: %s : %s, %d",
+                i, varname, vartype, forcdr);
+            if(forcdr) {
+                dyn_fields.emplace_back(varname, vartype);
+            }
         }
     }
 
