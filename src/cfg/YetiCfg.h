@@ -27,6 +27,7 @@ struct YetiCfg {
     bool ip_auth_reject_if_no_matched;
     string ip_auth_hdr;
     string http_events_destination;
+    vector<string> supported_tags;
     vector<string> allowed_methods;
 
     cdr_headers_t aleg_cdr_headers;

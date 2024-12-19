@@ -72,6 +72,7 @@ extern char opt_redis_timeout[];
 extern char opt_redis_username[];
 extern char opt_redis_password[];
 
+extern char opt_name_supported_tags[];
 extern char opt_name_allowed_methods[];
 
 //routing

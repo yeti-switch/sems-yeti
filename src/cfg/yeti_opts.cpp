@@ -71,6 +71,7 @@ char opt_redis_timeout[] = "timeout";
 char opt_redis_username[] = "username";
 char opt_redis_password[] = "password";
 
+char opt_name_supported_tags[] = "supported_tags";
 char opt_name_allowed_methods[] = "allowed_methods";
 
 int add_routing_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
@@ -230,6 +231,7 @@ cfg_opt_t yeti_opts[] = {
     CFG_STR(opt_name_ip_auth_header,IP_AUTH_DEFAULT_HEADER,CFGF_NONE),
     CFG_BOOL(opt_name_postgresql_debug, cfg_false, CFGF_NONE),
     CFG_BOOL(opt_name_write_internal_disconnect_code, cfg_false, CFGF_NONE),
+    CFG_STR_LIST(opt_name_supported_tags, 0, CFGF_NODEFAULT),
     CFG_STR_LIST(opt_name_allowed_methods, 0, CFGF_NODEFAULT),
 
     CFG_END()
