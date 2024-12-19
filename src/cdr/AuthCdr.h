@@ -37,12 +37,10 @@ class AuthCdr
     string username;
     string realm;
     Auth::auth_id_type auth_id;
-
-    vector<AmArg> dynamic_fields;
+    AmArg aleg_headers_amarg;
 
   public:
     AuthCdr(const AmSipRequest& req,
-            const vector<UsedHeaderField> &hdrs_to_parse,
             bool success,
             int code,
             const string &reason,

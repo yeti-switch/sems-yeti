@@ -5,6 +5,7 @@
 
 #include <vector>
 #include "../yeti.h"
+#include "jsonArg.h"
 
 const string auth_log_statement_name("writeauth");
 
@@ -14,9 +15,9 @@ const std::vector<static_field> auth_log_static_fields = {
     { "pop_id", "integer" },
     { "request_time", "double" },
     { "transport_proto_id", "smallint" },
-    { "remote_ip", "varchar" },
+    { "remote_ip", "inet" },
     { "remote_port", "integer" },
-    { "local_ip", "varchar" },
+    { "local_ip", "inet" },
     { "local_port", "integer" },
     { "username", "varchar" },
     { "realm", "varchar" },
@@ -31,7 +32,8 @@ const std::vector<static_field> auth_log_static_fields = {
     { "internal_reason", "varchar" },
     { "nonce", "varchar" },
     { "response", "varchar" },
-    { "auth_id" ,"integer" }
+    { "auth_id" ,"integer" },
+    { "i_aleg_cdr_headers", "json" }
 };
 
 inline string find_attribute(const string& name, const string& header) {
@@ -63,7 +65,6 @@ inline string find_attribute(const string& name, const string& header) {
 
 AuthCdr::AuthCdr(
     const AmSipRequest& req,
-    const vector<UsedHeaderField> &hdrs_to_parse,
     bool success,
     int code,
     const string &reason,
@@ -87,17 +88,12 @@ AuthCdr::AuthCdr(
     code(code),
     reason(reason),
     internal_reason(internal_reason),
-    auth_id(auth_id)
+    auth_id(auth_id),
+    aleg_headers_amarg(
+        Yeti::instance()
+            .config.aleg_cdr_headers
+            .serialize_headers(req.hdrs))
 {
-    for(const auto &h: hdrs_to_parse) {
-        auto ret = h.getValue(req);
-        if(ret.has_value()) {
-            dynamic_fields.emplace_back(ret.value());
-        } else {
-            dynamic_fields.emplace_back();
-        }
-    }
-
     string auth_hdr =  getHeader(req.hdrs, SIP_HDR_AUTHORIZATION);
     if(auth_hdr.empty())
         return;
@@ -154,8 +150,7 @@ void AuthCdr::apply_params(QueryInfo &query_info) const
     invoc_cond(response, !response.empty());
     invoc_cond(auth_id, auth_id > 0);
 
-    for(const auto &f : dynamic_fields)
-        invoc(f);
+    invoc_cond(arg2json(aleg_headers_amarg), isArgStruct(aleg_headers_amarg) && aleg_headers_amarg.size());
 
 #undef invoc_cond_typed
 #undef invoc_cond

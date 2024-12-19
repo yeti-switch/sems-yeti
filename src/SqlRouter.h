@@ -68,8 +68,6 @@ class SqlRouter
     string routing_schema;
     string routing_function;
     PreparedQueryArgs auth_log_types, getprofile_types;
-    //PreparedQueriesT prepared_queries;
-    //PreparedQueriesT cdr_prepared_queries;
     DynFieldsT dyn_fields;
 
     int load_db_interface_in_out();

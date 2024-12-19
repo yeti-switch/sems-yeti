@@ -183,13 +183,10 @@ void SqlRouter::apply_interface_in(const AmArg &data)
         //TODO: fix types in DB
         if(varname=="X-ORIG-PROTO") {
             getprofile_types.push_back("smallint");
-            auth_log_types.push_back("smallint");
         } else if(varname=="X-ORIG-IP" || varname=="X-SRC-IP") {
             getprofile_types.push_back("inet");
-            auth_log_types.push_back("inet");
         } else {
             getprofile_types.push_back(vartype);
-            auth_log_types.push_back(vartype);
         }
     }
 }
@@ -791,21 +788,11 @@ void SqlRouter::write_auth_log(const AuthCdr &auth_log)
 
     auto &query_info = pg_param_execute_event->qdata.info.front();
 
-    sanitize_query_params(
-        query_info, auth_log.getOrigCallId(), "AuthLog",
-        [this](auto i) {
-            return i < auth_log_static_fields.size() ?
-                auth_log_static_fields[i].name :
-                used_header_fields[i - auth_log_static_fields.size()].getName().data();
-        });
-
     if(Yeti::instance().config.postgresql_debug) {
         for(unsigned int i = 0; i < query_info.params.size(); i++) {
             DBG("%p/auth_log %d(%s/%s): %s %s",
                 &auth_log, i+1,
-                i < auth_log_static_fields.size() ?
-                    auth_log_static_fields[i].name :
-                    used_header_fields[i - auth_log_static_fields.size()].getName().data(),
+                auth_log_static_fields[i].name,
                 auth_log_types[i].data(),
                 AmArg::t2str(query_info.params[i].getType()),
                 AmArg::print(query_info.params[i]).data());
@@ -822,7 +809,7 @@ void SqlRouter::log_auth(
     Auth::auth_id_type auth_id)
 {
     write_auth_log(AuthCdr(
-        req,used_header_fields,
+        req,
         success,
         ret[0].asInt(), ret[1].asCStr(),ret[3].asCStr(),
         auth_id));
@@ -836,7 +823,7 @@ void SqlRouter::send_and_log_auth_challenge(
     Auth::send_auth_challenge(req, hdrs);
     if(post_auth_log) {
         write_auth_log(AuthCdr(
-            req,used_header_fields, false,
+            req, false,
             401, "Unauthorized", internal_reason, 0));
     }
 }
