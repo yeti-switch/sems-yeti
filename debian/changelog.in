@@ -1,3 +1,8 @@
+sems-yeti (1.13.95) stable; urgency=medium
+  * use lega_cdr_headers for auth_log
+  * use PGWorkerConfig initial queries
+ -- dev <dev@yeti-switch.org>  Thu, 19 Dec 2024 20:35:29 +0200
+
 sems-yeti (1.13.94) stable; urgency=medium
   * tel URI serialization: change key 't' -> 'u'
   * add up_arr,uh_arr,np_arr keys for URI serialized json
