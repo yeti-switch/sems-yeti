@@ -1,3 +1,7 @@
+sems-yeti (1.13.96) stable; urgency=medium
+  * cdr,auth_log: fix 'inet' type invoc for empty values
+ -- dev <dev@yeti-switch.org>  Sat, 21 Dec 2024 17:35:52 +0200
+
 sems-yeti (1.13.95) stable; urgency=medium
   * use lega_cdr_headers for auth_log
   * use PGWorkerConfig initial queries
