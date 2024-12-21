@@ -971,6 +971,10 @@ void Cdr::apply_params(
     if(condition) { invoc(field_value); }\
     else { invoc_null(); }
 
+#define invoc_str_no_empty(field_value)\
+    if(!field_value.empty()) { invoc(field_value); }\
+    else { invoc_null(); }
+
 #define invoc_cond_typed(type, field_value,condition)\
     if(condition) { invoc_typed(type, field_value); }\
     else { invoc_null(); }
@@ -994,17 +998,17 @@ void Cdr::apply_params(
     invoc_cond_typed("smallint", legA_transport_protocol_id,legA_transport_protocol_id!=0);
     //invoc_cond(legA_transport_protocol_id,legA_transport_protocol_id!=0);
 
-    invoc(legA_local_ip);
+    invoc_str_no_empty(legA_local_ip);
     invoc(legA_local_port);
-    invoc(legA_remote_ip);
+    invoc_str_no_empty(legA_remote_ip);
     invoc(legA_remote_port);
 
     invoc_cond_typed("smallint", legB_transport_protocol_id,legB_transport_protocol_id!=0);
     //invoc_cond(legB_transport_protocol_id,legB_transport_protocol_id!=0);
 
-    invoc(legB_local_ip);
+    invoc_str_no_empty(legB_local_ip);
     invoc(legB_local_port);
-    invoc(legB_remote_ip);
+    invoc_str_no_empty(legB_remote_ip);
     invoc(legB_remote_port);
     invoc(ruri);
     invoc(outbound_proxy);

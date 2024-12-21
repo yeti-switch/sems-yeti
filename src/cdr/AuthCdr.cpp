@@ -120,6 +120,10 @@ void AuthCdr::apply_params(QueryInfo &query_info) const
     if(condition) { invoc(field_value); }\
     else { invoc_null(); }
 
+#define invoc_str_no_empty(field_value)\
+    if(!field_value.empty()) { invoc(field_value); }\
+    else { invoc_null(); }
+
 #define invoc_cond_typed(type, field_value,condition)\
     if(condition) { invoc_typed(type, field_value); }\
     else { invoc_null(); }
@@ -130,9 +134,9 @@ void AuthCdr::apply_params(QueryInfo &query_info) const
 
     invoc(timeval2double(request_time));
     invoc_typed("smallint",transport_proto_id);
-    invoc(remote_ip);
+    invoc_str_no_empty(remote_ip);
     invoc(remote_port);
-    invoc(local_ip)
+    invoc_str_no_empty(local_ip)
     invoc(local_port);
     invoc_cond(username, !username.empty());
     invoc_cond(realm, !realm.empty());
