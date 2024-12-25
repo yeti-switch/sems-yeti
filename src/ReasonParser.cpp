@@ -41,8 +41,8 @@ void ReasonParser::parse_reason(const std::string &hdrs, size_t reason_begin, si
     auto pos = hdrs.find_first_not_of(' ', reason_begin);
 
     char last_c = 0;
-    string::size_type name_start_pos, name_end_pos,
-                      value_start_pos, value_end_pos;
+    string::size_type name_start_pos {}, name_end_pos {},
+                      value_start_pos {}, value_end_pos {};
     enum {
         ST_START,
         ST_NAME_SKIP_WS_BEFORE, ST_NAME, ST_NAME_SKIP_WS_AFTER,
