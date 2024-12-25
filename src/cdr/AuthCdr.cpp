@@ -65,11 +65,11 @@ inline string find_attribute(const string& name, const string& header) {
 
 AuthCdr::AuthCdr(
     const AmSipRequest& req,
-    bool success,
-    int code,
-    const string &reason,
-    const string &internal_reason,
-    Auth::auth_id_type auth_id)
+    bool _success,
+    int _code,
+    const string &_reason,
+    const string &_internal_reason,
+    Auth::auth_id_type _auth_id)
   : CdrBase(CdrBase::Auth),
     //fields from SIP request
     request_time(req.recv_timestamp),
@@ -84,11 +84,11 @@ AuthCdr::AuthCdr(
     to_uri(req.to),
     orig_call_id(req.callid),
     //auth-related fields
-    success(success),
-    code(code),
-    reason(reason),
-    internal_reason(internal_reason),
-    auth_id(auth_id),
+    success(_success),
+    code(_code),
+    reason(_reason),
+    internal_reason(_internal_reason),
+    auth_id(_auth_id),
     aleg_headers_amarg(
         Yeti::instance()
             .config.aleg_cdr_headers
