@@ -1,0 +1,19 @@
+# error: There is an unknown macro here somewhere. Configuration is required. If EXPORT_PLUGIN_CLASS_FACTORY is a macro then please configure it.
+#EXPORT_PLUGIN_CLASS_FACTORY(SBCFactory)
+unknownMacro:src/SBC.cpp:66
+
+# error: There is an unknown macro here somewhere. Configuration is required. If SIP_HDR_AUTHORIZATION is a macro then please configure it.
+#        DBG("no username attribute in " SIP_HDR_AUTHORIZATION " header");
+unknownMacro:src/Auth.cpp:251
+
+# error: There is an unknown macro here somewhere. Configuration is required. If MOD_NAME is a macro then please configure it.
+#        ERROR("registering " MOD_NAME " application");
+unknownMacro:src/SBC.cpp:148
+
+# error: failed to expand 'CALL_EVENT_H', Invalid ## usage when expanding 'CALL_EVENT_H': Unexpected token '('
+#define CALL_EVENT_H(method,args...) \
+preprocessorErrorDirective:/usr/include/sems/AmSessionEventHandler.h:98
+
+# error: Exception thrown in function declared not to throw exceptions.
+#    relayEvent(new SBCOtherLegExceptionEvent(code,reason));
+throwInNoexceptFunction:src/SBCCallLeg.cpp:3417
