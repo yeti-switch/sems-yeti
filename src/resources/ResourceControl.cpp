@@ -126,7 +126,7 @@ void ResourceControl::replace(string& s, const string& from, const string& to)
 
 void ResourceControl::replace(string &s,Resource &r, const ResourceConfig &rc)
 {
-    replace(s,"$id",int2str(r.id));
+    replace(s,"$id",r.id);
     replace(s,"$type",int2str(r.type));
     replace(s,"$takes",int2str(r.takes));
     replace(s,"$limit",int2str(r.limit));
@@ -234,7 +234,7 @@ ResourceCtlResponse ResourceControl::get(
                 return RES_CTL_REJECT;
             } else {
                 const ResourceConfig &rc  = ti->second;
-                DBG("overloaded resource %d:%d action: %s",rli->type,rli->id,rc.str_action.c_str());
+                DBG("overloaded resource %d:%s action: %s",rli->type,rli->id.data(),rc.str_action.c_str());
                 if(rc.action==ResourceConfig::Accept) {
                     return RES_CTL_OK;
                 } else { /* reject or choose next */

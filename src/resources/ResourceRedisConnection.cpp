@@ -821,18 +821,18 @@ ResourceResponse ResourceRedisConnection::get(const string &local_tag, ResourceL
     for(size_t i = 0; i < result.size(); i++,++resource) {
         Resource &res = *resource;
         if(CHECK_STATE_SKIP==check_state){
-            DBG("skip %d:%d intended for failover",res.type,res.id);
+            DBG("skip %d:%s intended for failover",res.type,res.id.data());
             if(!res.failover_to_next) //last failover resource
                 check_state = CHECK_STATE_NORMAL;
             continue;
         }
 
-        DBG("check_resource %d:%d %ld/%d",
-            res.type,res.id,result[i].asLongLong(),res.limit);
+        DBG("check_resource %d:%s %ld/%d",
+            res.type,res.id.data(),result[i].asLongLong(),res.limit);
         //check limit
         if(result[i].asLongLong() >= res.limit){
-            DBG("resource %d:%d overload ",
-                res.type,res.id);
+            DBG("resource %d:%s overload ",
+                res.type,res.id.data());
             if(res.failover_to_next){
                 DBG("failover_to_next enabled. check the next resource");
                 check_state = CHECK_STATE_FAILOVER;
@@ -843,7 +843,7 @@ ResourceResponse ResourceRedisConnection::get(const string &local_tag, ResourceL
         } else {
             res.active = true;
             if(CHECK_STATE_FAILOVER==check_state) {
-                DBG("failovered to the resource %d:%d",res.type,res.id);
+                DBG("failovered to the resource %d:%s",res.type,res.id.data());
                 //if(res.failover_to_next)	//skip if not last
                 //    check_state = CHECK_STATE_SKIP;
             }

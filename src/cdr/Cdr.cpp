@@ -81,7 +81,7 @@ Cdr::Cdr()
     bleg_sdp_completed(false),
     active_resources("[]"),
     failed_resource_type_id(-1),
-    failed_resource_id(-1),
+    failed_resource_id{},
     isup_propagation_delay(0),
     is_redirected(false)
 {
@@ -378,7 +378,7 @@ void Cdr::update_with_resource_list(const SqlCallProfile &profile)
 
         cJSON_AddNumberToObject(i,"type",r.type);
         a["type"] = r.type;
-        cJSON_AddNumberToObject(i,"id",r.id);
+        cJSON_AddStringToObject(i,"id",r.id.data());
         a["id"] = r.id;
         cJSON_AddNumberToObject(i,"takes",r.takes);
         a["takes"] = r.takes;
@@ -1054,7 +1054,19 @@ void Cdr::apply_params(
     invoc(active_resources);
 
     invoc_cond_typed("smallint", failed_resource_type_id, failed_resource_type_id!=-1);
-    invoc_cond_typed("bigint", failed_resource_id, failed_resource_id!=-1);
+
+    if(failed_resource_id.empty()) {
+        invoc_null();
+    } else {
+        long long failed_resource_id_bigint;
+        if(str2longlong(failed_resource_id, failed_resource_id_bigint)) {
+            invoc_typed("bigint", failed_resource_id_bigint);
+        } else {
+            DBG("[%s] failed to write failed_resource_id:'%s' as bigint. use null",
+                local_tag.data(), failed_resource_id.data());
+            invoc_null();
+        }
+    }
 
     if(dtmf_events_a2b.empty() && dtmf_events_b2a.empty()) {
         invoc_null();

@@ -18,8 +18,8 @@ struct ResourceParseException {
 
 struct Resource
 {
-    int id,                 //unique id within type space
-        type,               //determines behavior when resource is busy
+    string id;              //unique id within type space
+    int type,               //determines behavior when resource is busy
         takes,              //how many takes one get()
         limit;              //upper limit for such active resources
     bool taken,             //resource grabbed
@@ -33,7 +33,7 @@ struct Resource
     bool rate_limit; //'takes' will mean sliding window size in seconds
 
     Resource()
-      : id(0),type(0),takes(0),limit(0),
+      : id{},type(0),takes(0),limit(0),
         taken(false), active(false), failover_to_next(false),
         rate_limit(false)
     {}
@@ -44,7 +44,7 @@ struct Resource
 struct ResourceList
   : public list<Resource>
 {
-    void parse(const string s);
+    void parse(const string &s);
 };
 
 struct ResourcesOperation

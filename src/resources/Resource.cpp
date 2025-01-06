@@ -8,7 +8,7 @@
 #define RES_OPTION_SEPARATOR "|"
 #define RES_FIELDS_SEPARATOR ":"
 
-void ResourceList::parse(const std::string rs)
+void ResourceList::parse(const std::string &rs)
 {
     this->clear();
     //DBG("rs = %s",rs.c_str());
@@ -27,8 +27,8 @@ void ResourceList::parse(const std::string rs)
             if(vc.size()!=4){
                 throw ResourceParseException("invalid format: params count",(*ai));
             }
+            r.id = vc[1];
             if(	str2int(vc[0],r.type) &&
-                str2int(vc[1],r.id) &&
                 str2int(vc[2],r.limit) &&
                 str2int(vc[3],r.takes))
             {
