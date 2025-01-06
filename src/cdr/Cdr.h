@@ -1,5 +1,4 @@
-#ifndef CDR_H
-#define CDR_H
+#pragma once
 
 #include "../SqlCallProfile.h"
 #include "../resources/Resource.h"
@@ -10,7 +9,6 @@
 #include "cJSON.h"
 #include "ampi/PostgreSqlAPI.h"
 #include "CdrBase.h"
-#include "CdrHeaders.h"
 
 #include <unordered_set>
 
@@ -169,16 +167,15 @@ struct Cdr
 
     void set_start_time(const timeval &t);
 
-    void update_bleg_reason(string reason, int code);
-    void update_aleg_reason(string reason, int code);
+    void update_bleg_reason(const string &reason, int code);
+    void update_aleg_reason(const string &reason, int code);
     void update_internal_reason(
         DisconnectInitiator initiator,
-        string reason, unsigned int code,
+        const string &reason, unsigned int code,
         unsigned int internal_code_id);
 
     void setSuppress(bool s);
 
-    void replace(ParamReplacerCtx &ctx,const AmSipRequest &req);
     void replace(string& s, const string& from, const string& to);
 
     void setSdpCompleted(bool a_leg);
@@ -206,5 +203,3 @@ struct Cdr
 
     void info(AmArg &s) override;
 };
-
-#endif // CDR_H

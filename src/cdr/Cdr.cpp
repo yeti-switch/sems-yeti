@@ -7,12 +7,9 @@
 #include "sip/defs.h"
 #include "sems.h"
 #include "yeti_version.h"
-#include "../RTPParameters.h"
 #include "../yeti.h"
 
 #include <stdio.h>
-//#include <float.h>
-#include <type_traits>
 
 #define DTMF_EVENTS_MAX 50
 
@@ -409,7 +406,7 @@ void Cdr::set_start_time(const timeval &t)
     end_time = start_time = t;
 }
 
-void Cdr::update_bleg_reason(string reason, int code)
+void Cdr::update_bleg_reason(const string &reason, int code)
 {
     DBG3("Cdr::%s(reason = '%s',code = %d)",FUNC_NAME,
         reason.c_str(),code);
@@ -423,7 +420,7 @@ void Cdr::update_bleg_reason(string reason, int code)
     bleg_reason_writed = true;
 }
 
-void Cdr::update_aleg_reason(string reason, int code)
+void Cdr::update_aleg_reason(const string &reason, int code)
 {
     DBG3("Cdr::%s(reason = '%s',code = %d)",FUNC_NAME,
         reason.c_str(),code);
@@ -437,7 +434,7 @@ void Cdr::update_aleg_reason(string reason, int code)
 
 void Cdr::update_internal_reason(
     DisconnectInitiator initiator,
-    string reason, unsigned int code,
+    const string &reason, unsigned int code,
     unsigned int internal_code_id)
 {
     DBG3("Cdr[%p]::%s(initiator = %d,reason = '%s',code = %d) cdr.disconnect_initiator_writed = %d",
@@ -471,11 +468,6 @@ void Cdr::setSdpCompleted(bool a_leg)
 {
     if(a_leg) aleg_sdp_completed = true;
     else bleg_sdp_completed = true;
-}
-
-void Cdr::replace(ParamReplacerCtx &ctx,const AmSipRequest &req)
-{
-    //msg_logger_path = ctx.replaceParameters(msg_logger_path,"msg_logger_path",req);
 }
 
 static string join_str_vector2(const vector<string> &v1,
@@ -720,7 +712,7 @@ char *Cdr::serialize_media_stats()
 
     if(aleg_sdp_completed)
     {
-        if(!j) j = cJSON_CreateArray();
+        j = cJSON_CreateArray();
         for(auto& leg_media_stats : aleg_media_stats) {
             i = cJSON_CreateObject();
             cJSON_AddItemToArray(j,i);
@@ -956,7 +948,7 @@ static string cdr_sql_statement_name("writecdr");
 
 void Cdr::apply_params(
     QueryInfo &query_info,
-    const DynFieldsT &df)
+    const DynFieldsT &)
 {
 #define invoc(field_value) \
     query_info.addParam(field_value);
