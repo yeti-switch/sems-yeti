@@ -1,3 +1,8 @@
+sems-yeti (1.13.97) stable; urgency=medium
+  * add supported_tags, allowed_methods options
+  * change resources id type: int -> string
+ -- dev <dev@yeti-switch.org>  Mon, 06 Jan 2025 14:06:16 +0200
+
 sems-yeti (1.13.96) stable; urgency=medium
   * cdr,auth_log: fix 'inet' type invoc for empty values
  -- dev <dev@yeti-switch.org>  Sat, 21 Dec 2024 17:35:52 +0200
