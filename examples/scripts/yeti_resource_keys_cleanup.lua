@@ -4,7 +4,7 @@
 -- * iterate r:* keys
 --    * delete key if all values in the hash are 0
 -- usage:
--- $ redis-cli --eval yeti_rl_cleanup.lua
+-- $ redis-cli --eval yeti_resource_keys_cleanup.lua
 
 local removed_keys = {}
 
