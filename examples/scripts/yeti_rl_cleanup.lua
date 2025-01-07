@@ -2,7 +2,7 @@
 -- * iterate rl:* keys
 --   * delete key if no entries within [now-1day, now] range for it
 -- usage:
--- $ redis-cli --eval rl_cleanup.lua
+-- $ redis-cli --eval yeti_rl_cleanup.lua
 
 local removed_keys = {}
 
