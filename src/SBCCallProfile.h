@@ -415,6 +415,7 @@ struct SBCCallProfile
       ringing_timeout(0),
       inv_transaction_timeout(0),
       inv_srv_failover_timeout(0),
+      record_audio(false),
       fake_ringing_timeout(0),
       bleg_max_30x_redirects(0),
       bleg_max_transfers(0),

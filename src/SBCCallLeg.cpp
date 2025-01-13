@@ -2122,7 +2122,9 @@ void SBCCallLeg::onBeforeDestroy()
                 );
 
                 // upload audio file
-                if(!yeti.config.audio_recorder_http_destination.empty()) {
+                if(!global_tag.empty() &&
+                   !yeti.config.audio_recorder_http_destination.empty())
+                {
                     string audio_record_path(AmConfig.rsr_path);
                     audio_record_path += "/" + global_tag + ".rsr";
 
