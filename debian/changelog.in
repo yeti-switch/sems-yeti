@@ -1,3 +1,7 @@
+sems-yeti (1.13.99) stable; urgency=medium
+  * send zero auth feedback code in X-Yeti-Auth-Error
+ -- dev <dev@yeti-switch.org>  Tue, 14 Jan 2025 11:35:50 +0200
+
 sems-yeti (1.13.98) stable; urgency=medium
   * fix ERROR: can't open file to upload: /var/spool/sems/rsr//.rsr
   * add examples/scripts/yeti_resource_keys_cleanup.lua
