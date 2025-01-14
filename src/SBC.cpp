@@ -192,7 +192,7 @@ void SBCFactory::send_auth_error_reply(
     int auth_feedback_code)
 {
     string hdr;
-    if(auth_feedback && auth_feedback_code) {
+    if(auth_feedback) {
         hdr = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
     }
     AmSipDialog::reply_error(
@@ -210,7 +210,7 @@ void SBCFactory::send_and_log_auth_challenge(
     int auth_feedback_code)
 {
     string hdrs;
-    if(auth_feedback && auth_feedback_code) {
+    if(auth_feedback) {
         hdrs = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
     }
     yeti->router.send_and_log_auth_challenge(req,internal_reason, hdrs, post_auth_log);
