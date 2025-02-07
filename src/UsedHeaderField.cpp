@@ -220,8 +220,12 @@ std::optional<AmArg> UsedHeaderField::getValue(const AmSipRequest &req) const
             }
 
             if(part == uri_json) {
-                amarg_ret.push(AmArg());
-                serialize_nameaddr(na, amarg_ret.back());
+                if(multiple_headers) {
+                    amarg_ret.push(AmArg());
+                    serialize_nameaddr(na, amarg_ret.back());
+                } else {
+                    serialize_nameaddr(na, amarg_ret);
+                }
             } else {
                 if(!process_uri(na.uri, string_ret)) {
                     if(multiple_headers) continue;
