@@ -56,41 +56,39 @@ TEST_P(UsedHeaderFieldTest, getValue) {
 }
 
 static AmArg uri_json_expected({
-    AmArg{
-        { "n", AmArg() },
-        { "s", "sip" },
-        { "u", "user1" },
-        { "h", "domain1" },
-        { "p", 5060 },
-        { "up", {
-            { "uparam1", "uval11" },
-            { "uparam2", "uval12"},
-            { "uparam3", ""},
-        }},
-        { "up_arr", {
-            "uparam1=uval11",
-            "uparam2=uval12",
-            "uparam3"
-        }},
-        { "uh", {{
-            { "uhdr1", "uhval1"},
-        }}},
-        { "uh_arr", {
-            "uhdr1=uhval1",
-        }},
-        { "np", {
-            { "hparam1", "hval1" },
-            { "hparam2", ""}
-        }},
-        { "np_arr", {
-            "hparam1=hval1",
-            "hparam2",
-        }}
-    }
+    { "n", AmArg() },
+    { "s", "sip" },
+    { "u", "user1" },
+    { "h", "domain1" },
+    { "p", 5060 },
+    { "up", {
+        { "uparam1", "uval11" },
+        { "uparam2", "uval12"},
+        { "uparam3", ""},
+    }},
+    { "up_arr", {
+        "uparam1=uval11",
+        "uparam2=uval12",
+        "uparam3"
+    }},
+    { "uh", {{
+        { "uhdr1", "uhval1"},
+    }}},
+    { "uh_arr", {
+        "uhdr1=uhval1",
+    }},
+    { "np", {
+        { "hparam1", "hval1" },
+        { "hparam2", ""}
+    }},
+    { "np_arr", {
+        "hparam1=hval1",
+        "hparam2",
+    }}
 });
 
 static AmArg uri_json_array_expected{
-    uri_json_expected[0],
+    uri_json_expected,
     AmArg{
         { "n", "test2" },
         { "s", "sip" },
