@@ -689,14 +689,14 @@ void ResourceRedisConnection::process_check_resources_reply(RedisReply& ev)
         ev.user_data.release();
     }
 
-    if(ev.result != RedisReply::SuccessReply)
+    if(ev.result != RedisReply::SuccessReply) {
         req->on_error(500, "reply error in the request");
-    else if(isArgArray(ev.data) == false)
+    } else if(isArgArray(ev.data) == false) {
         req->on_error(500, "undesired reply from the storage");
-    else
+    } else {
         req->set_result(ev.data);
-
-    req->on_finish();
+        req->on_finish();
+    }
 }
 
 void ResourceRedisConnection::process_jsonrpc_request(const JsonRpcRequestEvent& request)
