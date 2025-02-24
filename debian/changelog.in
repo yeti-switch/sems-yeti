@@ -1,3 +1,7 @@
+sems-yeti (1.13.101) stable; urgency=medium
+  * fix redis segfault on resources redis connection errors
+ -- dev <dev@yeti-switch.org>  Mon, 24 Feb 2025 14:01:26 +0200
+
 sems-yeti (1.13.100) stable; urgency=medium
   * serialize routing headers to struct for single uri_json format
  -- dev <dev@yeti-switch.org>  Sat, 08 Feb 2025 13:23:11 +0200
