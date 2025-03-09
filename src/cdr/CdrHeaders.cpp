@@ -121,14 +121,6 @@ AmArg cdr_headers_t::serialize_headers(const string &hdrs) const
 
                 //https://www.postgresql.org/docs/current/datatype-numeric.html
                 //integer  4 bytes  typical choice for integer  -2147483648 to +2147483647
-                if(ret < std::numeric_limits<int>().min() ||
-                   ret > std::numeric_limits<int>().max())
-                {
-                    ERROR("header '%s' integer overflow for value '%s'. failover to null",
-                        hdr_name.c_str(), hdr_value.c_str());
-                    a[hdr_name] = AmArg();
-                    break;
-                }
 
                 if(int2str(ret) != hdr_value) {
                     ERROR("header '%s' conversion overflow for value '%s'. failover to null",

@@ -14,7 +14,6 @@ TEST_F(YetiTest, cdr_headers_parsing)
     hdrs.add_header("X-IntegerTest", "integer");
     hdrs.add_header("X-IntegerOverflowMaxTest", "integer");
     hdrs.add_header("X-IntegerOverflowMinTest", "integer");
-    hdrs.add_header("X-IntegerConversionOverflowTest", "integer");
 
     auto ret = hdrs.serialize_headers(
         "X-StringTest: qwe\r\n"
@@ -25,9 +24,8 @@ TEST_F(YetiTest, cdr_headers_parsing)
         "X-SmallintOverflowMaxTest: 65535\r\n"
         "X-SmallintOverflowMinTest: -65535\r\n"
         "X-IntegerTest: 42\r\n"
-        "X-IntegerOverflowMaxTest: 3147483648\r\n"
-        "X-IntegerOverflowMinTest: -3147483649\r\n"
-        "X-IntegerConversionOverflowTest: -3147483648\r\n"
+        "X-IntegerOverflowMaxTest: 2147483648\r\n"
+        "X-IntegerOverflowMinTest: -2147483649\r\n"
     );
 
     DBG("%s", arg2json(ret).data());
