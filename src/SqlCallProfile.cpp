@@ -383,6 +383,11 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string& local_tag, cons
     ss_otn = DbAmArg_hash_get_str(t, "ss_otn");
     ss_dtn = DbAmArg_hash_get_str(t, "ss_dtn");
 
+    if(ss_otn.empty() || ss_dtn.empty()) {
+        //disable jwt signing on empty orig_tn/dest_tn
+        ss_crt_id = 0;
+    }
+
     push_token = DbAmArg_hash_get_str(t, "push_token");
 
     DBG("Yeti: loaded SQL profile");
