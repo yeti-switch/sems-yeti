@@ -5,6 +5,8 @@
 #include "../HeaderFilter.h"
 
 #include <algorithm>
+#include <limits>
+#include "AmUtils.h"
 
 static int normalize_aleg_header_name(int c) {
     if(c=='-') return '_';
@@ -23,6 +25,10 @@ int cdr_headers_t::add_header(std::string header_name, const std::string &serial
         type = SerializeFirstAsString;
     } else if(serialization_type=="array") {
         type = SerializeAllAsArrayOfStrings;
+    } else if(serialization_type=="smallint") {
+        type = SerializeFirstAsSmallint;
+    } else if(serialization_type=="integer") {
+        type = SerializeFirstAsInteger;
     } else {
         ERROR("header(%s,%s) unexpected serialization type '%s'. allowed values: string, array",
               header_name.data(), serialization_type.data(), serialization_type.data());
@@ -57,16 +63,83 @@ AmArg cdr_headers_t::serialize_headers(const string &hdrs) const
 
         auto it = headers.find(hdr_name);
         if(it != headers.end()) {
+            auto hdr_value = hdrs.substr(val_begin, val_end - val_begin);
             switch(it->second) {
             case SerializeFirstAsString:
                 if(!a.hasMember(hdr_name)) {
-                    a[hdr_name] = hdrs.substr(val_begin, val_end - val_begin);
+                    a[hdr_name] = hdr_value;
                 }
                 break;
             case SerializeAllAsArrayOfStrings:
-                a[hdr_name].push(hdrs.substr(val_begin, val_end - val_begin));
+                a[hdr_name].push(hdr_value);
                 break;
-            }
+            case SerializeFirstAsSmallint: {
+                if(a.hasMember(hdr_name)) {
+                    break;
+                }
+
+                int ret;
+                if(!str2int(hdr_value, ret)) {
+                    ERROR("header '%s' smallint overflow for value '%s'. failover to null",
+                        hdr_name.c_str(), hdr_value.c_str());
+                    a[hdr_name] = AmArg();
+                    break;
+                }
+
+                //https://www.postgresql.org/docs/current/datatype-numeric.html
+                //smallint  2 bytes  small-range integer  -32768 to +32767
+                if(ret < std::numeric_limits<signed short>().min() ||
+                   ret > std::numeric_limits<signed short>().max())
+                {
+                    ERROR("header '%s' smallint overflow for value '%s'. failover to null",
+                        hdr_name.c_str(), hdr_value.c_str());
+                    a[hdr_name] = AmArg();
+                    break;
+                }
+
+                if(int2str(ret) != hdr_value) {
+                    ERROR("header '%s' conversion overflow for value '%s'. failover to null",
+                        hdr_name.c_str(), hdr_value.c_str());
+                    a[hdr_name] = AmArg();
+                    break;
+                }
+
+                a[hdr_name] = ret;
+            } break;
+            case SerializeFirstAsInteger: {
+                if(a.hasMember(hdr_name)) {
+                    break;
+                }
+
+                int ret;
+                if(!str2int(hdr_value, ret)) {
+                    ERROR("header '%s' integer overflow for value '%s'. failover to null",
+                        hdr_name.c_str(), hdr_value.c_str());
+                    a[hdr_name] = AmArg();
+                    break;
+                }
+
+                //https://www.postgresql.org/docs/current/datatype-numeric.html
+                //integer  4 bytes  typical choice for integer  -2147483648 to +2147483647
+                if(ret < std::numeric_limits<int>().min() ||
+                   ret > std::numeric_limits<int>().max())
+                {
+                    ERROR("header '%s' integer overflow for value '%s'. failover to null",
+                        hdr_name.c_str(), hdr_value.c_str());
+                    a[hdr_name] = AmArg();
+                    break;
+                }
+
+                if(int2str(ret) != hdr_value) {
+                    ERROR("header '%s' conversion overflow for value '%s'. failover to null",
+                        hdr_name.c_str(), hdr_value.c_str());
+                    a[hdr_name] = AmArg();
+                    break;
+                }
+
+                a[hdr_name] = ret;
+            } break;
+            } //switch
         }
         start_pos = hdr_end;
     }

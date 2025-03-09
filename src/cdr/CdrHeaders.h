@@ -9,7 +9,9 @@ class cdr_headers_t
 {
     enum cdr_header_serialization_type_t {
         SerializeFirstAsString,
-        SerializeAllAsArrayOfStrings
+        SerializeAllAsArrayOfStrings,
+        SerializeFirstAsSmallint,
+        SerializeFirstAsInteger,
     };
     std::map<std::string,cdr_header_serialization_type_t> headers;
 
