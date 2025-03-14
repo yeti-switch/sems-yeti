@@ -870,6 +870,19 @@ void SBCCallLeg::onPostgresTimeout(PGTimeout &)
 
 void SBCCallLeg::onProfilesReady()
 {
+    bool max_log_sip = false;
+    bool max_log_rtp = false;
+
+    for(const auto &p: call_ctx->profiles) {
+        max_log_sip |= p.log_sip;
+        max_log_rtp |= p.log_rtp;
+    }
+
+    for(auto &p: call_ctx->profiles) {
+        p.log_sip = max_log_sip;
+        p.log_rtp = max_log_rtp;
+    }
+
     SqlCallProfile *profile = call_ctx->getFirstProfile();
     if(nullptr == profile) {
         delete call_ctx;
