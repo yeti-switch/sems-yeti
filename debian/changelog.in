@@ -1,3 +1,7 @@
+sems-yeti (1.13.104) stable; urgency=medium
+  * fix segfault on no-media SDP offer in 200ok
+ -- dev <dev@yeti-switch.org>  Mon, 17 Mar 2025 20:11:22 +0200
+
 sems-yeti (1.13.103) stable; urgency=medium
   * set max log_{sip,rtp} for all call_profiles. fixes SIP/RTP logging on rerouting
  -- dev <dev@yeti-switch.org>  Fri, 14 Mar 2025 16:46:12 +0200
