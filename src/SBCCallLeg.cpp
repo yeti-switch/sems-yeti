@@ -2725,6 +2725,12 @@ void SBCCallLeg::onDtmf(AmDtmfEvent* e)
 void SBCCallLeg::updateLocalSdp(AmSdp &sdp,
                                 const string &sip_msg_method, unsigned int sip_msg_cseq)
 {
+    if(sdp.media.empty()) {
+        throw InternalException(
+            DC_REPLY_SDP_EMPTY_ANSWER,
+            call_ctx->getOverrideId(a_leg));
+    }
+
     normalizeSDP(sdp);
     anonymizeSDP(sdp);
 
