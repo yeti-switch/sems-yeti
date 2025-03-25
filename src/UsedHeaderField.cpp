@@ -126,6 +126,13 @@ static void serialize_params(AmArg &ret, const std::list<sip_avp*> &sip_avp_list
     }
 }
 
+static const string strip_dquotes(const cstring &in) {
+    if(in.len > 2 && in.s[0]=='\"') {
+        return string(in.s + 1, in.len - 2);
+    }
+    return c2stlstr(in);
+}
+
 void UsedHeaderField::serialize_nameaddr(const sip_nameaddr &na, AmArg &ret) const
 {
     switch(na.uri.scheme) {
@@ -133,7 +140,7 @@ void UsedHeaderField::serialize_nameaddr(const sip_nameaddr &na, AmArg &ret) con
     case sip_uri::SIPS:
         ret["s"] = na.uri.scheme == sip_uri::SIP ? "sip" : "sips";
 
-        ret["n"] = na.name.len ? c2stlstr(na.name) : AmArg();
+        ret["n"] = na.name.len ? strip_dquotes(na.name) : AmArg();
 
         ret["p"] = na.uri.port;
         ret["u"] = na.uri.user.len ? c2stlstr(na.uri.user) : AmArg();
