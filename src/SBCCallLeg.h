@@ -70,7 +70,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   string ruri, to, from;
   ParamReplacerCtx ctx;
   string last_refer_cseq;
-  unsigned int sdp_session_version;
+  uint64_t sdp_session_version;
   bool has_sdp_session_version;
   unsigned int sdp_session_offer_last_cseq;
   unsigned int sdp_session_answer_last_cseq;
@@ -226,7 +226,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder
   bool onException(int code,const string &reason) noexcept override;
   void onOtherException(int code,const string &reason) noexcept;
   void onEarlyEventException(unsigned int code,const string &reason);
-  void normalizeSdpVersion(unsigned int &sdp_session_version_in, unsigned int cseq, bool offer);
+  void normalizeSdpVersion(uint64_t &sdp_session_version_in, unsigned int cseq, bool offer);
 
   void onDtmf(AmDtmfEvent* e) override;
 

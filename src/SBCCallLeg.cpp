@@ -3491,7 +3491,7 @@ void SBCCallLeg::onEarlyEventException(unsigned int code,const string &reason)
     dlg->reply(uac_req,code,reason);
 }
 
-void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in, unsigned int cseq, bool offer)
+void SBCCallLeg::normalizeSdpVersion(uint64_t &sdp_session_version_in, unsigned int cseq, bool offer)
 {
     auto &sdp_session_last_cseq = offer ? sdp_session_offer_last_cseq : sdp_session_answer_last_cseq;
     if(has_sdp_session_version) {
@@ -3505,7 +3505,7 @@ void SBCCallLeg::normalizeSdpVersion(unsigned int &sdp_session_version_in, unsig
         has_sdp_session_version = true;
     }
 
-    DBG("%s[%p]leg%s(%u, %u,%d) -> %u",
+    DBG("%s[%p]leg%s(%lu, %u,%d) -> %u",
         FUNC_NAME,this,a_leg?"A":"B",
         sdp_session_version_in,
         cseq, offer,
