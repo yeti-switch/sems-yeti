@@ -1,3 +1,9 @@
+sems-yeti (1.13.106) stable; urgency=medium
+  * fix legA resources leak on unregistered gateways failover
+  * fix incorrect call termination on initial INVITE sending error for legB
+  * libsems1.161
+ -- dev <dev@yeti-switch.org>  Fri, 28 Mar 2025 21:45:22 +0200
+
 sems-yeti (1.13.105) stable; urgency=medium
   * strip display name dquotes
     on uri_json/uri_json_array routing headers serialization
