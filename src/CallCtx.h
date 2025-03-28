@@ -43,6 +43,8 @@ struct CallCtx
 
 	AmSdp bleg_initial_offer;
 
+	string lega_resource_handler;
+
 	SqlRouter &router;
 
 	CallCtx(SqlRouter &router);
@@ -63,4 +65,6 @@ struct CallCtx
 
 	ResourceList &getCurrentResourceList();
 	int getOverrideId(bool aleg = true);
+
+	string& getResourceHandler(SqlCallProfile &profile, bool a_leg = false);
 };

@@ -344,18 +344,16 @@ void SBCCallLeg::processResourcesAndSdp()
 
     SqlCallProfile *profile = nullptr;
 
-    ResourceCtlResponse rctl_ret;
     ResourceList::iterator ri;
     ResourceConfig resource_config;
-    /*string refuse_reason;
-    int refuse_code;*/
-    int attempt = 0;
     bool lega_res_chk_step = 0; /* use additional resource check for lega_res */
     Cdr *cdr = call_ctx->cdr.get();
 
     PROF_START(func);
 
     try {
+
+    ResourceCtlResponse rctl_ret;
 
     PROF_START(rchk);
 
@@ -369,10 +367,12 @@ void SBCCallLeg::processResourcesAndSdp()
     lega_res_chk_step = profile->legab_res_mode_enabled;
 
     do {
+        int attempt = 0;
+
         DBG("%s() check resources for profile. attempt %d",FUNC_NAME,attempt);
 
         ResourceList &rl = profile->getResourceList(lega_res_chk_step);
-        string& handler = profile->getResourceHandler(lega_res_chk_step);
+        string& handler = call_ctx->getResourceHandler(*profile, lega_res_chk_step);
 
         if(rl.empty()) {
             rctl_ret = RES_CTL_OK;
@@ -519,7 +519,7 @@ void SBCCallLeg::processResourcesAndSdp()
         DBG("%s() catched InternalException(%d)",FUNC_NAME,
             e.icode);
         rctl.put(call_profile.resource_handler);
-        rctl.put(call_profile.lega_resource_handler);
+        rctl.put(call_ctx->lega_resource_handler);
         cdr->update_internal_reason(DisconnectByTS,
             e.internal_reason,e.internal_code, e.icode);
         throw AmSession::Exception(
@@ -528,7 +528,7 @@ void SBCCallLeg::processResourcesAndSdp()
         DBG("%s() catched AmSession::Exception(%d,%s)",FUNC_NAME,
             e.code,e.reason.c_str());
         rctl.put(call_profile.resource_handler);
-        rctl.put(call_profile.lega_resource_handler);
+        rctl.put(call_ctx->lega_resource_handler);
         cdr->update_internal_reason(DisconnectByTS,
             e.reason, static_cast<unsigned int>(e.code), 0);
         throw e;
@@ -573,7 +573,7 @@ bool SBCCallLeg::chooseNextProfile()
 
         DBG("%s() no refuse field. check it for resources",FUNC_NAME);
         ResourceList &rl = profile->getResourceList();
-        string& handler = profile->getResourceHandler();
+        string& handler = call_ctx->getResourceHandler(*profile);
 
         if(rl.empty()) {
             rctl_ret = RES_CTL_OK;
@@ -1619,7 +1619,9 @@ void SBCCallLeg::onServerShutdown()
     }
     //may never reach onDestroy callback so free resources here
     rctl.put(call_profile.resource_handler);
-    rctl.put(call_profile.lega_resource_handler);
+    if(call_ctx) {
+        rctl.put(call_ctx->lega_resource_handler);
+    }
 }
 
 void SBCCallLeg::onStart()
@@ -2165,11 +2167,8 @@ void SBCCallLeg::onBeforeDestroy()
         DBG3("last leg destroy. a_leg: %d",a_leg);
 
         if(!call_ctx->profiles.empty()) {
-            /* put lega_res from first profile */
-            const auto &lega_resource_handler =
-                call_ctx->profiles.begin()->lega_resource_handler;
-            if(!lega_resource_handler.empty())
-                rctl.put(lega_resource_handler);
+            /* put lega resources */
+            rctl.put(call_ctx->lega_resource_handler);
 
             /* put legb_res/resources from the current profile */
             if(const auto p = call_ctx->getCurrentProfile(); p != nullptr)
@@ -3810,7 +3809,7 @@ void SBCCallLeg::onBLegRefused(AmSipReply& reply)
 
     DBG("continue hunting");
     //put current resources
-    rctl.put(call_ctx->getCurrentProfile()->getResourceHandler());
+    rctl.put(call_ctx->getResourceHandler(*call_ctx->getCurrentProfile()));
 
     if(call_ctx->initial_invite==nullptr){
         ERROR("%s() intial_invite == NULL",FUNC_NAME);

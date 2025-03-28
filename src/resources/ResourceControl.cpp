@@ -266,12 +266,11 @@ ResourceCtlResponse ResourceControl::get(
 
 void ResourceControl::put(const string &handler)
 {
-    DBG3("ResourceControl::put(%s)",handler.c_str());
-
     if(handler.empty()) {
-        DBG3("ResourceControl::put() empty handler");
         return;
     }
+
+    DBG3("ResourceControl::put(%s)",handler.c_str());
 
     std::optional<handlers_entry> handler_data;
     {

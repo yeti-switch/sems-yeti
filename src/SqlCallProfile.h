@@ -48,7 +48,6 @@ struct SqlCallProfile
     static bool is_empty_profile(const AmArg &a);
     bool readFromTuple(const AmArg &t, const string& local_tag, const DynFieldsT &df);
     ResourceList & getResourceList(bool a_leg = false);
-    string& getResourceHandler(bool a_leg = false);
 
     bool readFilter(const AmArg &t, const char* cfg_key_filter,
         vector<FilterEntry>& filter_list, bool keep_transparent_entry,

@@ -402,13 +402,6 @@ ResourceList& SqlCallProfile::getResourceList(bool a_leg)
         : rl;
 }
 
-string& SqlCallProfile::getResourceHandler(bool a_leg)
-{
-    return legab_res_mode_enabled
-        ? (a_leg ? lega_resource_handler: resource_handler)
-        : resource_handler;
-}
-
 inline void printFilterList(const char *name, const vector<FilterEntry>& filter_list)
 {
     int i = 0;

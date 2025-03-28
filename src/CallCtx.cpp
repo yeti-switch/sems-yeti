@@ -175,6 +175,13 @@ ResourceList &CallCtx::getCurrentResourceList(){
     return (*current_profile).rl;
 }
 
+string& CallCtx::getResourceHandler(SqlCallProfile &profile, bool a_leg)
+{
+    return profile.legab_res_mode_enabled
+        ? (a_leg ? lega_resource_handler : profile.resource_handler)
+        : profile.resource_handler;
+}
+
 vector<SdpMedia> &CallCtx::get_self_negotiated_media(bool a_leg){
 	if(a_leg) return aleg_negotiated_media;
 	else return bleg_negotiated_media;

@@ -195,7 +195,6 @@ struct SBCCallProfile
   bool aleg_relay_hold, bleg_relay_hold;
   bool relay_timestamp_aligning;
 
-  string lega_resource_handler;
   string resource_handler;
 
   int static_codecs_aleg_id;
