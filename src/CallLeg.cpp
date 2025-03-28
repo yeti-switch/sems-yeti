@@ -472,7 +472,7 @@ void CallLeg::onB2BConnect(ConnectLegEvent* co_ev)
     if (res < 0) {
         DBG("sending INVITE failed, relaying back error reply");
         relayError(SIP_METH_INVITE, co_ev->r_cseq, true, res);
-        stopCall(StatusChangeCause::InternalError);
+        terminateLeg();
         return;
     }
 
