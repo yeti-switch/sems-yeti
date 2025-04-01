@@ -82,7 +82,7 @@ class ResourceRedisClient
     virtual void on_connect(const string &conn_id, const RedisConnectionInfo &info);
     virtual void on_disconnect(const string &conn_id, const RedisConnectionInfo &info);
 
-    bool prepare_request(Request* req, Connection* conn, const char* script_name, vector<AmArg> &args);
+    virtual bool prepare_request(Request* req, Connection* conn, const char* script_name, vector<AmArg> &args);
     string get_script_path(const string &sript_name) const;
 
   public:

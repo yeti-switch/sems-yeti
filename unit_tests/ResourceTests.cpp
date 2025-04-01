@@ -4,6 +4,24 @@
 
 #include <jsonArg.h>
 
+#include <functional>
+
+class TestResourceRedisConnection: public ResourceRedisConnection {
+public:
+    using ResourceRedisConnection::ResourceRedisConnection;
+    std::function<void(const vector<AmArg> &args)> on_prepare_request;
+
+protected:
+    bool prepare_request(Request* req, Connection* conn, const char* script_name, vector<AmArg> &args) override {
+        const bool res = ResourceRedisConnection::prepare_request(req, conn, script_name, args);
+
+        if(on_prepare_request)
+            on_prepare_request(args);
+
+        return res;
+    }
+};
+
 static AmCondition<bool> inited(false);
 static void InitCallback(bool is_error, const AmArg&) {
     inited.set(!is_error);
@@ -11,7 +29,7 @@ static void InitCallback(bool is_error, const AmArg&) {
 
 TEST_F(YetiTest, ResourceInit)
 {
-    ResourceRedisConnection conn("resourceTest1");
+    TestResourceRedisConnection conn("resourceTest1");
     configure_run_redis_connection(conn, nullptr, InitCallback);
 
     time_t time_ = time(0);
@@ -30,7 +48,7 @@ static void GetPutCallback(bool is_error, const AmArg&) {
 
 TEST_F(YetiTest, ResourceGetPut)
 {
-    ResourceRedisConnection conn("resourceTest2");
+    TestResourceRedisConnection conn("resourceTest2");
     configure_run_redis_connection(conn, GetPutCallback);
 
     time_t time_ = time(0);
@@ -57,7 +75,7 @@ TEST_F(YetiTest, ResourceGetPut)
 
 TEST_F(YetiTest, ResourceCheck)
 {
-    ResourceRedisConnection conn("resourceTest3");
+    TestResourceRedisConnection conn("resourceTest3");
     configure_run_redis_connection(conn);
 
     time_t time_ = time(0);
@@ -95,7 +113,7 @@ TEST_F(YetiTest, ResourceCheck)
 
 TEST_F(YetiTest, ResourceGetCheck)
 {
-    ResourceRedisConnection conn("resourceTest4");
+    TestResourceRedisConnection conn("resourceTest4");
     configure_run_redis_connection(conn, GetPutCallback);
 
     time_t time_ = time(0);
@@ -159,7 +177,7 @@ static bool isArgNumber(const AmArg& arg)
 
 TEST_F(YetiTest, ResourceGetAll)
 {
-    ResourceRedisConnection conn("resourceTest5");
+    TestResourceRedisConnection conn("resourceTest5");
     configure_run_redis_connection(conn);
 
     time_t time_ = time(0);
@@ -254,7 +272,7 @@ TEST_F(YetiTest, ResourceGetAll)
 
 TEST_F(YetiTest, ResourceOverload)
 {
-    ResourceRedisConnection conn("resourceTest6");
+    TestResourceRedisConnection conn("resourceTest6");
     configure_run_redis_connection(conn, GetPutCallback);
 
     time_t time_ = time(0);
@@ -322,7 +340,7 @@ TEST_F(YetiTest, ResourceTimeout)
     if(redis_test::instance()->settings.external)
         return;
 
-    ResourceRedisConnection conn("resourceTest7");
+    TestResourceRedisConnection conn("resourceTest7");
     configure_run_redis_connection(conn, nullptr, InitCallback, 0);
 
     time_t time_ = time(0);
