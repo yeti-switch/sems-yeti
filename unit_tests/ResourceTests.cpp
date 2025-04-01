@@ -318,6 +318,10 @@ TEST_F(YetiTest, ResourceOverload)
 
 TEST_F(YetiTest, ResourceTimeout)
 {
+    // this test works only with test_server
+    if(redis_test::instance()->settings.external)
+        return;
+
     ResourceRedisConnection conn("resourceTest7");
     configure_run_redis_connection(conn, nullptr, InitCallback, 0);
 
