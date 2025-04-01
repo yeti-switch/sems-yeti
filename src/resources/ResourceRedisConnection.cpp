@@ -288,7 +288,9 @@ bool ResourceRedisConnection::post_request(
     Request* req,
     Connection* conn,
     const char* script_name,
-    UserTypeId user_type_id)
+    UserTypeId user_type_id,
+    bool persistent_ctx,
+    bool multi)
 {
     unique_ptr<Request> req_ptr(req);
     vector<AmArg> args;
@@ -302,7 +304,9 @@ bool ResourceRedisConnection::post_request(
             conn->id,
             args,
             req_ptr.release(),
-            (int)user_type_id));
+            (int)user_type_id,
+            persistent_ctx,
+            multi));
 }
 
 /* AmThread */
@@ -902,15 +906,7 @@ bool ResourceRedisConnection::invalidate(InvalidateRequest* req)
 
 bool ResourceRedisConnection::operation(OperationRequest* req)
 {
-    unique_ptr<Request> req_ptr(req);
-    vector<AmArg> args;
-
-    if(prepare_request(req_ptr.get(), write_conn, nullptr, args) == false)
-        return false;
-
-    return session_container->postEvent(REDIS_APP_QUEUE,
-            new RedisRequest(queue_name, write_conn->id, args, req_ptr.release(),
-                             UserTypeId::Operation, false, true));
+    return post_request(req, write_conn, nullptr, UserTypeId::Operation, false, true);
 }
 
 bool ResourceRedisConnection::get_all(GetAllRequest* req)

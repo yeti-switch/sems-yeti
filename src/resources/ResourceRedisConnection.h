@@ -193,7 +193,9 @@ class ResourceRedisConnection
         Request* req,
         Connection* conn,
         const char* script_name = nullptr,
-        UserTypeId user_type_id = None);
+        UserTypeId user_type_id = None,
+        bool persistent_ctx = false,
+        bool multi = false);
 
     string get_queue_name() { return queue_name; }
 };
