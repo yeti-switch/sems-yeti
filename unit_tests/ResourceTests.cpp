@@ -86,10 +86,21 @@ TEST_F(YetiTest, ResourceCheck)
 
     initResources(conn);
 
-    AmArg ret;
-    json2arg(R"raw([0, 0])raw", ret);
-    test_server->addCommandResponse("EVALSHA %s 0 %s %s", REDIS_TEST_REPLY_ARRAY, ret,
-        check_resources_hash, "r:0:472", "r:1:472");
+    // add response for CheckRequest command
+    // CheckRequest can contain timestamp as an attr's value so check only some of them
+    conn.on_prepare_request = [&](const vector<AmArg> &args) {
+        if(args.size() > 4 &&
+            args[0].getType() == AmArg::CStr && strcmp(args[0].asCStr(), "EVALSHA") == 0 &&
+            args[1].getType() == AmArg::CStr && strcmp(args[1].asCStr(), check_resources_hash) == 0 &&
+            args[2].isNumber() && args[2].asInt() == 2 &&
+            args[3].getType() == AmArg::CStr && strcmp(args[3].asCStr(), "r:0:472") == 0 &&
+            args[4].getType() == AmArg::CStr && strcmp(args[4].asCStr(), "r:1:472") == 0)
+        {
+            AmArg ret;
+            json2arg(R"raw([0, 0])raw", ret);
+            test_server->addCommandResponse(args, REDIS_TEST_REPLY_ARRAY, ret);
+        }
+    };
 
     ResourceList rl;
     rl.parse("0:472:100:2;1:472:100:2");
@@ -140,10 +151,22 @@ TEST_F(YetiTest, ResourceGetCheck)
     }
 
     // check
-    AmArg ret;
-    json2arg(R"raw([2, 2])raw", ret);
-    test_server->addCommandResponse("EVALSHA %s 0 %s %s", REDIS_TEST_REPLY_ARRAY, ret,
-        check_resources_hash, "r:0:472", "r:1:472");
+
+    // add response for CheckRequest command
+    // CheckRequest can contain timestamp as an attr's value so check only some of them
+    conn.on_prepare_request = [&](const vector<AmArg> &args) {
+        if(args.size() > 4 &&
+            args[0].getType() == AmArg::CStr && strcmp(args[0].asCStr(), "EVALSHA") == 0 &&
+            args[1].getType() == AmArg::CStr && strcmp(args[1].asCStr(), check_resources_hash) == 0 &&
+            args[2].isNumber() && args[2].asInt() == 2 &&
+            args[3].getType() == AmArg::CStr && strcmp(args[3].asCStr(), "r:0:472") == 0 &&
+            args[4].getType() == AmArg::CStr && strcmp(args[4].asCStr(), "r:1:472") == 0)
+        {
+            AmArg ret;
+            json2arg(R"raw([2, 2])raw", ret);
+            test_server->addCommandResponse(args, REDIS_TEST_REPLY_ARRAY, ret);
+        }
+    };
 
     auto *cr = new ResourceRedisConnection::CheckRequest(rl);
     conn.check(cr);
@@ -283,10 +306,20 @@ TEST_F(YetiTest, ResourceOverload)
 
     initResources(conn);
 
-    AmArg ret;
-    json2arg(R"raw([0])raw", ret);
-    test_server->addCommandResponse("EVALSHA %s 0 %s", REDIS_TEST_REPLY_ARRAY, ret,
-        check_resources_hash, "r:1:472");
+    // add response for CheckRequest command
+    // CheckRequest can contain timestamp as an attr's value so check only some of them
+    conn.on_prepare_request = [&](const vector<AmArg> &args) {
+        if(args.size() > 3 &&
+            args[0].getType() == AmArg::CStr && strcmp(args[0].asCStr(), "EVALSHA") == 0 &&
+            args[1].getType() == AmArg::CStr && strcmp(args[1].asCStr(), check_resources_hash) == 0 &&
+            args[2].isNumber() && args[2].asInt() == 1 &&
+            args[3].getType() == AmArg::CStr && strcmp(args[3].asCStr(), "r:1:472") == 0)
+        {
+            AmArg ret;
+            json2arg(R"raw([0])raw", ret);
+            test_server->addCommandResponse(args, REDIS_TEST_REPLY_ARRAY, ret);
+        }
+    };
 
     getPutSuccess.set(false);
     ResourceList rl;
@@ -299,15 +332,39 @@ TEST_F(YetiTest, ResourceOverload)
         ASSERT_FALSE(time(0) - time_ > 3);
     }
 
-    json2arg(R"raw([3])raw", ret);
-    test_server->addCommandResponse("EVALSHA %s 0 %s", REDIS_TEST_REPLY_ARRAY, ret,
-        check_resources_hash, "r:1:472");
+    // add response for CheckRequest command
+    // CheckRequest can contain timestamp as an attr's value so check only some of them
+    conn.on_prepare_request = [&](const vector<AmArg> &args) {
+        if(args.size() > 3 &&
+            args[0].getType() == AmArg::CStr && strcmp(args[0].asCStr(), "EVALSHA") == 0 &&
+            args[1].getType() == AmArg::CStr && strcmp(args[1].asCStr(), check_resources_hash) == 0 &&
+            args[2].isNumber() && args[2].asInt() == 1 &&
+            args[3].getType() == AmArg::CStr && strcmp(args[3].asCStr(), "r:1:472") == 0)
+        {
+            AmArg ret;
+            json2arg(R"raw([3])raw", ret);
+            test_server->addCommandResponse(args, REDIS_TEST_REPLY_ARRAY, ret);
+        }
+    };
 
     ASSERT_EQ(conn.get(string(), rl, rit), RES_BUSY);
 
-    json2arg(R"raw([3, 0, 0, 0])raw", ret);
-    test_server->addCommandResponse("EVALSHA %s 0 %s %s %s %s", REDIS_TEST_REPLY_ARRAY, ret,
-        check_resources_hash, "r:1:472", "r:0:472", "r:2:472", "r:3:472");
+    // add response for CheckRequest command
+    conn.on_prepare_request = [&](const vector<AmArg> &args) {
+        if(args.size() > 6 &&
+            args[0].getType() == AmArg::CStr && strcmp(args[0].asCStr(), "EVALSHA") == 0 &&
+            args[1].getType() == AmArg::CStr && strcmp(args[1].asCStr(), check_resources_hash) == 0 &&
+            args[2].isNumber() && args[2].asInt() == 4 &&
+            args[3].getType() == AmArg::CStr && strcmp(args[3].asCStr(), "r:1:472") == 0 &&
+            args[4].getType() == AmArg::CStr && strcmp(args[4].asCStr(), "r:0:472") == 0 &&
+            args[5].getType() == AmArg::CStr && strcmp(args[5].asCStr(), "r:2:472") == 0 &&
+            args[6].getType() == AmArg::CStr && strcmp(args[6].asCStr(), "r:3:472") == 0)
+        {
+            AmArg ret;
+            json2arg(R"raw([3, 0, 0, 0])raw", ret);
+            test_server->addCommandResponse(args, REDIS_TEST_REPLY_ARRAY, ret);
+        }
+    };
 
     getPutSuccess.set(false);
     rl.parse("1:472:2:3|0:472:2:3|2:472:2:3;3:472:2:3");
@@ -317,15 +374,38 @@ TEST_F(YetiTest, ResourceOverload)
         ASSERT_FALSE(time(0) - time_ > 3);
     }
 
-    json2arg(R"raw([3, 0, 0, 3])raw", ret);
-    test_server->addCommandResponse("EVALSHA %s 0 %s %s %s %s", REDIS_TEST_REPLY_ARRAY, ret,
-        check_resources_hash, "r:1:472", "r:0:472", "r:2:472", "r:3:472");
+    // add response for CheckRequest command
+    conn.on_prepare_request = [&](const vector<AmArg> &args) {
+        if(args.size() > 6 &&
+            args[0].getType() == AmArg::CStr && strcmp(args[0].asCStr(), "EVALSHA") == 0 &&
+            args[1].getType() == AmArg::CStr && strcmp(args[1].asCStr(), check_resources_hash) == 0 &&
+            args[2].isNumber() && args[2].asInt() == 4 &&
+            args[3].getType() == AmArg::CStr && strcmp(args[3].asCStr(), "r:1:472") == 0 &&
+            args[4].getType() == AmArg::CStr && strcmp(args[4].asCStr(), "r:0:472") == 0 &&
+            args[5].getType() == AmArg::CStr && strcmp(args[5].asCStr(), "r:2:472") == 0 &&
+            args[6].getType() == AmArg::CStr && strcmp(args[6].asCStr(), "r:3:472") == 0)
+        {
+            AmArg ret;
+            json2arg(R"raw([3, 0, 0, 3])raw", ret);
+            test_server->addCommandResponse(args, REDIS_TEST_REPLY_ARRAY, ret);
+        }
+    };
 
     ASSERT_EQ(conn.get(string(), rl, rit), RES_BUSY);
 
-    json2arg(R"raw([3])raw", ret);
-    test_server->addCommandResponse("EVALSHA %s 0 %s", REDIS_TEST_REPLY_ARRAY, ret,
-        check_resources_hash, "r:3:472");
+    // add response for CheckRequest command
+    conn.on_prepare_request = [&](const vector<AmArg> &args) {
+        if(args.size() > 3 &&
+            args[0].getType() == AmArg::CStr && strcmp(args[0].asCStr(), "EVALSHA") == 0 &&
+            args[1].getType() == AmArg::CStr && strcmp(args[1].asCStr(), check_resources_hash) == 0 &&
+            args[2].isNumber() && args[2].asInt() == 1 &&
+            args[3].getType() == AmArg::CStr && strcmp(args[3].asCStr(), "r:3:472") == 0)
+        {
+            AmArg ret;
+            json2arg(R"raw([3])raw", ret);
+            test_server->addCommandResponse(args, REDIS_TEST_REPLY_ARRAY, ret);
+        }
+    };
 
     rl.parse("3:472:2:3");
     ASSERT_EQ(conn.get(string(), rl, rit), RES_BUSY);
