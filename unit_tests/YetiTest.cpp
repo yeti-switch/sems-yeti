@@ -105,8 +105,7 @@ int YetiTest::configure_run_redis_connection(
         cfg_setint(redis_read, opt_redis_timeout, timeout);
     }
 
-    auto resources_sec = cfg_getsec(Yeti::instance().confuse_cfg, section_name_resources);
-    conn.configure(resources_sec);
+    conn.configure(cfg_resources);
 
     if(result_cb)
         conn.registerOperationResultCallback(result_cb);
