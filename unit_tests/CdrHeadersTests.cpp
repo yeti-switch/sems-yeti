@@ -44,3 +44,21 @@ TEST_F(YetiTest, cdr_headers_parsing)
     ASSERT_EQ(ret["x_integeroverflowmaxtest"], AmArg());
     ASSERT_EQ(ret["x_integerconversionoverflowtest"], AmArg());
 }
+
+TEST_F(YetiTest, cdr_headers_parsing_activecalls)
+{
+    cdr_headers_t hdrs;
+
+    hdrs.add_snapshot_header("p-charge-info", "charge_key", "String");
+    hdrs.add_snapshot_header("X-StringTest", "testkey", "String");
+
+    auto ret = hdrs.serialize_headers_for_snapshot(
+        "P-Charge-Info: pchargetest\r\n"
+        "X-StringTest: xtest\r\n"
+    );
+
+    DBG("%s", arg2json(ret).data());
+
+    ASSERT_EQ(ret["charge_key"], AmArg("pchargetest"));
+    ASSERT_EQ(ret["testkey"], AmArg("xtest"));
+}

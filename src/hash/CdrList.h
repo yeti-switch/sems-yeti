@@ -87,7 +87,7 @@ class CdrList
     long int getCallsCount();
     bool getCall(SBCCallLeg* leg, AmArg& call, const SqlRouter *router);
     bool getCallsFields(SBCCallLeg* leg, AmArg &calls, const SqlRouter *router,
-                        cmp_rules& rules, const vector<string>& fields);
+                        const cmp_rules& rules, const vector<string>& fields);
 
     void onSessionFinalize(Cdr *cdr);
 

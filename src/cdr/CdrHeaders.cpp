@@ -29,9 +29,15 @@ int cdr_headers_t::add_header(std::string header_name, const std::string &serial
         type = SerializeFirstAsSmallint;
     } else if(serialization_type=="integer") {
         type = SerializeFirstAsInteger;
+    } else if(serialization_type=="none") {
+        //skip serialization to the CDRs
+        return 0;
     } else {
-        ERROR("header(%s,%s) unexpected serialization type '%s'. allowed values: string, array",
-              header_name.data(), serialization_type.data(), serialization_type.data());
+        ERROR(
+            "unexpected serialization type '%s' for header '%s'. "
+            "allowed values: string, array, smallint, integer, none",
+            serialization_type.data(),
+            header_name.data());
         return 1;
     }
 
@@ -41,6 +47,32 @@ int cdr_headers_t::add_header(std::string header_name, const std::string &serial
         header_name.data(), serialization_type.data());
 
     headers.emplace(header_name, type);
+
+    return 0;
+}
+
+int cdr_headers_t::add_snapshot_header(
+    std::string header_name,
+    const std::string &snapshot_key,
+    const std::string &serialization_type)
+{
+    cdr_header_snapshot_serialization_type_t type;
+    if(serialization_type=="String") {
+        type = SnapshotSerializeFirstAsString;
+    } else {
+        ERROR("activecalls_header(%s,%s) unexpected serialization type '%s'. allowed values: String",
+              header_name.data(), serialization_type.data(), serialization_type.data());
+        return 1;
+    }
+
+    std::transform(header_name.begin(), header_name.end(), header_name.begin(), normalize_aleg_header_name);
+
+    DBG("add aleg_cdr_header activecalls field for header '%s' "
+        "with type '%s' and key '%s'",
+        header_name.data(), serialization_type.data(),
+        snapshot_key.data());
+
+    snapshot_headers.try_emplace(header_name, type, snapshot_key);
 
     return 0;
 }
@@ -142,5 +174,43 @@ AmArg cdr_headers_t::serialize_headers(const string &hdrs) const
             a[hdr.first] = AmArg();
     }*/
 
+    return a;
+}
+
+AmArg cdr_headers_t::serialize_headers_for_snapshot(const string &hdrs) const
+{
+    AmArg a;
+
+    size_t start_pos = 0, name_end, val_begin, val_end, hdr_end;
+
+    a.assertStruct();
+    while(start_pos<hdrs.length()) {
+        if (skip_header(hdrs, start_pos,
+            name_end, val_begin, val_end, hdr_end) != 0)
+        {
+            break;
+        }
+
+        string hdr_name = hdrs.substr(start_pos, name_end-start_pos);
+        std::transform(hdr_name.begin(), hdr_name.end(), hdr_name.begin(), normalize_aleg_header_name);
+
+        auto it = snapshot_headers.find(hdr_name);
+        if(it != snapshot_headers.end()) {
+            auto hdr_value = hdrs.substr(val_begin, val_end - val_begin);
+            switch(it->second.type) {
+            case SnapshotSerializeFirstAsString:
+                if(!a.hasMember(it->second.snapshot_key)) {
+                    a[it->second.snapshot_key] = hdr_value;
+                }
+            } //switch
+        }
+        start_pos = hdr_end;
+    }
+
+    //add null entries
+    for(const auto &it : snapshot_headers) {
+        if(!a.hasMember(it.second.snapshot_key))
+            a[it.second.snapshot_key] = AmArg();
+    }
     return a;
 }

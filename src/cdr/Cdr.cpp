@@ -99,6 +99,7 @@ Cdr::Cdr()
     bleg_reply_headers_amarg.assertStruct();
     identity_data.assertArray();
     dyn_fields.assertStruct();
+    aleg_headers_snapshot_amarg.assertStruct();
 }
 
 Cdr::Cdr(const SqlCallProfile &profile)
@@ -132,6 +133,7 @@ Cdr::Cdr(const Cdr& cdr, const SqlCallProfile &profile)
     legA_transport_protocol_id = cdr.legA_transport_protocol_id;
 
     aleg_headers_amarg = cdr.aleg_headers_amarg;
+    aleg_headers_snapshot_amarg = cdr.aleg_headers_snapshot_amarg;
     identity_data = cdr.identity_data;
 
     audio_record_enabled = cdr.audio_record_enabled;
@@ -200,8 +202,10 @@ void Cdr::update_with_aleg_sip_request(const AmSipRequest &req)
                 update_with_isup(isup);
             }
         }
-        aleg_headers_amarg =
-            Yeti::instance().config.aleg_cdr_headers.serialize_headers(req.hdrs);
+
+        const auto &hdr = Yeti::instance().config.aleg_cdr_headers;
+        aleg_headers_amarg = hdr.serialize_headers(req.hdrs);
+        aleg_headers_snapshot_amarg = hdr.serialize_headers_for_snapshot(req.hdrs);
     }
 }
 
@@ -1171,6 +1175,10 @@ void Cdr::snapshot_info(AmArg &s, const DynFieldsT &df) const
         add_field_as(fname,f);
     }
 
+    for(const auto &[k, v]: *aleg_headers_snapshot_amarg.asStruct()) {
+        add_field_as(k, v);
+    }
+
 #undef add_field
 #undef add_field_as
 #undef add_timeval_field
@@ -1242,6 +1250,11 @@ void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df,
 
         if(wanted_fields.count(fname))
             s[fname] = f;
+    }
+
+    for(const auto &[k, v]: *aleg_headers_snapshot_amarg.asStruct()) {
+        if(wanted_fields.count(k))
+            s[k] = v;
     }
 
 #undef add_field

@@ -18,15 +18,27 @@ cdr_headers_t cfg_bleg_reply_cdr_headers;
 
 int add_aleg_cdr_header(cfg_t */*cfg*/, cfg_opt_t */*opt*/, int argc, const char **argv)
 {
-    if(argc != 2) {
-        ERROR("header(%s,%s): unexpected option args count."
-              "expected format: header(header_name, string|array)",
-              argv[0],argv[1]);
+    if(argc != 2 && argc != 4) {
+        ERROR(
+            "unexpected option args count for header(). "
+            "expected formats: "
+            "header(header_name, none|string|array|smallint|integer [, active_call_key, String])",
+            argv[0],argv[1]);
         return 1;
     }
+
     if(cfg_aleg_cdr_headers.add_header(argv[0],argv[1])) {
         return 1;
     }
+
+    if(argc == 4) {
+        if(cfg_aleg_cdr_headers.add_snapshot_header(
+            argv[0], argv[2], argv[3]))
+        {
+            return 1;
+        }
+    }
+
     return 0;
 }
 

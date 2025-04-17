@@ -127,6 +127,7 @@ struct Cdr
     std::queue<dtmf_event_info> dtmf_events_b2a;
 
     AmArg aleg_headers_amarg;
+    AmArg aleg_headers_snapshot_amarg;
     AmArg bleg_headers_amarg;
     AmArg bleg_reply_headers_amarg;
     AmArg identity_data;

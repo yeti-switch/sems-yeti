@@ -60,7 +60,7 @@ long int CdrList::getCallsCount()
 }
 
 bool CdrList::getCall(SBCCallLeg* leg, AmArg& call, const SqlRouter *router) {
-    auto &gc = Yeti::instance().config;
+    const auto &gc = Yeti::instance().config;
     const get_calls_ctx ctx(AmConfig.node_id,gc.pop_id,router);
 
     if(!leg->isALeg()) return false;
@@ -75,10 +75,10 @@ bool CdrList::getCall(SBCCallLeg* leg, AmArg& call, const SqlRouter *router) {
 
 bool CdrList::getCallsFields(SBCCallLeg* leg, AmArg &call,
                              const SqlRouter *router,
-                             cmp_rules& filter_rules,
+                             const cmp_rules& filter_rules,
                              const vector<string>& fields)
 {
-    auto &gc = Yeti::instance().config;
+    const auto &gc = Yeti::instance().config;
     const get_calls_ctx ctx(AmConfig.node_id,gc.pop_id,router,&fields);
 
     if(!leg) return false;
@@ -100,6 +100,8 @@ void CdrList::getFields(AmArg &ret,SqlRouter *r)
 {
     ret.assertStruct();
 
+    const auto &cfg = Yeti::instance().config;
+
     for(const static_call_field *f = static_call_fields; f->name; f++){
         AmArg &a = ret[f->name];
         a["type"] = f->type;
@@ -112,12 +114,22 @@ void CdrList::getFields(AmArg &ret,SqlRouter *r)
         a["type"] = df.type_name;
         a["is_dynamic"] = true;
     }
+
+    for(const auto &[hdr_name, data]: cfg.aleg_cdr_headers.get_snapshot_headers()) {
+        AmArg &a = ret[data.snapshot_key];
+        a["header_name"] = hdr_name;
+        a["type"] = data.type;
+        a["is_dynamic"] = true;
+    }
 }
 
 void CdrList::validate_fields(const vector<string> &wanted_fields, const SqlRouter *router){
     bool ret = true;
     AmArg failed_fields;
     const DynFieldsT &df = router->getDynFields();
+    const auto &cfg = Yeti::instance().config;
+
+    //TODO: collect available fields into std::set/std::map for faster checking
     for(const auto &f: wanted_fields) {
         int k = static_call_fields_count - 1;
         for(;k>=0;k--) {
@@ -130,7 +142,17 @@ void CdrList::validate_fields(const vector<string> &wanted_fields, const SqlRout
             for(;it!=df.end();++it)
                 if(f==it->name)
                     break;
-            if(it==df.end()){ //not found in dynamic fields too
+
+            if(it==df.end()) { //not found in dynamic fields too
+                //search in cfg.aleg_cdr_headers snapshot headers
+                const auto &hdrs = cfg.aleg_cdr_headers.get_snapshot_headers();
+                if(hdrs.end() != std::find_if(
+                    hdrs.begin(), hdrs.end(),
+                    [&f](const auto &hdr) { return hdr.second.snapshot_key==f; }))
+                {
+                    break;
+                }
+                //not found
                 ret = false;
                 failed_fields.push(f);
             }
@@ -216,7 +238,6 @@ void CdrList::run()
 {
     if(!snapshots_enabled) return;
 
-    int ret;
     bool running;
     struct epoll_event events[EPOLL_MAX_EVENTS];
 
@@ -228,7 +249,7 @@ void CdrList::run()
 
     running = true;
     do {
-        ret = epoll_wait(epoll_fd, events, EPOLL_MAX_EVENTS, -1);
+        int ret = epoll_wait(epoll_fd, events, EPOLL_MAX_EVENTS, -1);
         if(ret == -1 && errno != EINTR){
             ERROR("epoll_wait: %s",strerror(errno));
         }
@@ -360,7 +381,7 @@ void CdrList::onTimer()
 
     AmSessionProcessor::sendIterateRequest([](AmSession* session, void* user_data, AmArg& ret)
     {
-        SnapshotInfo* info = (SnapshotInfo*)user_data;
+        SnapshotInfo* info = reinterpret_cast<SnapshotInfo*>(user_data);
         SBCCallLeg* leg = dynamic_cast<SBCCallLeg*>(session);
         if(!leg) return;
 
@@ -395,10 +416,10 @@ void CdrList::onTimer()
         }
     }, [](const AmArg& ret, void* user_data)
     {
-        SnapshotInfo* info = (SnapshotInfo*)user_data;
-        for(int i = 0 ; i < ret.size(); i++) {
+        SnapshotInfo* info = reinterpret_cast<SnapshotInfo*>(user_data);
+        for(auto i = 0u ; i < ret.size(); i++) {
             if (!isArgArray(ret[i])) continue;
-            for(int j = 0 ; j < ret[i].size(); j++)
+            for(auto j = 0u ; j < ret[i].size(); j++)
                 info->calls.push(ret[i][j]);
         }
         info->cdr_list->sendSnapshot(info->calls);
@@ -435,7 +456,6 @@ void CdrList::cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) cons
         arg[#val] = timeval2double(cdr->val);
 
     struct timeval duration;
-    double duration_double;
 
     arg.assertStruct();
 
@@ -452,6 +472,7 @@ void CdrList::cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) cons
     const struct timeval &connect_time = cdr->connect_time;
     arg["connect_time"] = timeval2double(connect_time);
     if(timerisset(&connect_time)) {
+        double duration_double;
         timersub(&ctx.now,&connect_time,&duration);
         duration_double = timeval2double(duration);
         if(duration_double<0) duration_double = 0;
@@ -496,9 +517,15 @@ void CdrList::cdr2arg(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) cons
     for(const auto &dit: df) {
         const string &fname = dit.name;
         AmArg &f = cdr->dyn_fields[fname];
-        if(f.getType()==AmArg::Undef && (dit.type_id==DynField::VARCHAR))
+        if(f.getType()==AmArg::Undef && (dit.type_id==DynField::VARCHAR)) {
             arg[fname] = "";
-        arg[fname] = f;
+        } else {
+            arg[fname] = f;
+        }
+    }
+
+    for(const auto &[k, v]: *cdr->aleg_headers_snapshot_amarg.asStruct()) {
+        arg[k] = v;
     }
 
     #undef add_timeval_field
@@ -517,7 +544,6 @@ void CdrList::cdr2arg_filtered(AmArg& arg, const Cdr *cdr, const get_calls_ctx &
             arg[#val] = timeval2double(cdr->val);
 
     struct timeval duration;
-    double duration_double;
     const vector<string> &wanted_fields = *ctx.fields;
     (void)wanted_fields;
 
@@ -541,6 +567,7 @@ void CdrList::cdr2arg_filtered(AmArg& arg, const Cdr *cdr, const get_calls_ctx &
     filter("connect_time") arg["connect_time"] = timeval2double(connect_time);
     filter("duration") {
         if(timerisset(&connect_time)){
+            double duration_double;
             timersub(&ctx.now,&connect_time,&duration);
             duration_double = timeval2double(duration);
             if(duration_double<0) duration_double = 0;
@@ -581,9 +608,17 @@ void CdrList::cdr2arg_filtered(AmArg& arg, const Cdr *cdr, const get_calls_ctx &
         const string &fname = dit.name;
         filter(fname) {
             AmArg &f = cdr->dyn_fields[fname];
-            if(f.getType()==AmArg::Undef && (dit.type_id==DynField::VARCHAR))
+            if(f.getType()==AmArg::Undef && (dit.type_id==DynField::VARCHAR)) {
                 arg[fname] = "";
-            arg[fname] = f;
+            } else {
+                arg[fname] = f;
+            }
+        }
+    }
+
+    for(const auto &[k, v]: *cdr->aleg_headers_snapshot_amarg.asStruct()) {
+        filter(k) {
+            arg[k] = v;
         }
     }
 
