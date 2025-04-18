@@ -1,3 +1,9 @@
+sems-yeti (1.13.107) stable; urgency=medium
+  * allow to show lega_cdr_headers as active calls data:
+    lega_cdr_headers.header(header_name, none|string|array|smallint|integer [, active_call_key, String])
+  * libsems1.162
+ -- dev <dev@yeti-switch.org>  Fri, 18 Apr 2025 20:54:17 +0300
+
 sems-yeti (1.13.106) stable; urgency=medium
   * fix legA resources leak on unregistered gateways failover
   * fix incorrect call termination on initial INVITE sending error for legB
