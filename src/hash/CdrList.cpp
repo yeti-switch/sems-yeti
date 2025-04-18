@@ -96,68 +96,59 @@ bool CdrList::getCallsFields(SBCCallLeg* leg, AmArg &call,
     return false;
 }
 
-void CdrList::getFields(AmArg &ret,SqlRouter *r)
+int CdrList::init_supported_fields()
 {
-    ret.assertStruct();
+    supported_fields.assertStruct();
 
     const auto &cfg = Yeti::instance().config;
 
     for(const static_call_field *f = static_call_fields; f->name; f++){
-        AmArg &a = ret[f->name];
+        AmArg &a = supported_fields[f->name];
         a["type"] = f->type;
         a["is_dynamic"] = false;
     }
 
-    const DynFieldsT &router_dyn_fields = r->getDynFields();
+    const DynFieldsT &router_dyn_fields = router->getDynFields();
     for(const auto &df : router_dyn_fields) {
-        AmArg &a = ret[df.name];
+        if(supported_fields.hasMember(df.name)) {
+            ERROR("routing dynamic field '%s' conflict. existent field: %s",
+                df.name.data(),
+                supported_fields[df.name].print().data());
+            return -1;
+        }
+        AmArg &a = supported_fields[df.name];
         a["type"] = df.type_name;
         a["is_dynamic"] = true;
     }
 
     for(const auto &[hdr_name, data]: cfg.aleg_cdr_headers.get_snapshot_headers()) {
-        AmArg &a = ret[data.snapshot_key];
+        if(supported_fields.hasMember(data.snapshot_key)) {
+            ERROR("aleg_cdr_headers field key '%s' conflict. existent field: %s",
+                data.snapshot_key.data(),
+                supported_fields[data.snapshot_key].print().data());
+            return -1;
+        }
+        AmArg &a = supported_fields[data.snapshot_key];
         a["header_name"] = hdr_name;
         a["type"] = data.type;
         a["is_dynamic"] = true;
     }
+
+    return 0;
 }
 
-void CdrList::validate_fields(const vector<string> &wanted_fields, const SqlRouter *router){
+void CdrList::validate_fields(const vector<string> &wanted_fields)
+{
     bool ret = true;
     AmArg failed_fields;
-    const DynFieldsT &df = router->getDynFields();
-    const auto &cfg = Yeti::instance().config;
 
-    //TODO: collect available fields into std::set/std::map for faster checking
     for(const auto &f: wanted_fields) {
-        int k = static_call_fields_count - 1;
-        for(;k>=0;k--) {
-            if(f==static_call_fields[k].name)
-                break;
-        }
-        if(k<0) {
-            //not present in static fields. search in dynamic
-            DynFieldsT::const_iterator it = df.begin();
-            for(;it!=df.end();++it)
-                if(f==it->name)
-                    break;
-
-            if(it==df.end()) { //not found in dynamic fields too
-                //search in cfg.aleg_cdr_headers snapshot headers
-                const auto &hdrs = cfg.aleg_cdr_headers.get_snapshot_headers();
-                if(hdrs.end() != std::find_if(
-                    hdrs.begin(), hdrs.end(),
-                    [&f](const auto &hdr) { return hdr.second.snapshot_key==f; }))
-                {
-                    break;
-                }
-                //not found
-                ret = false;
-                failed_fields.push(f);
-            }
+        if(!supported_fields.hasMember(f)) {
+            failed_fields.push(f);
+            ret = false;
         }
     }
+
     if(!ret) {
         throw std::string(
             string("passed one or more unknown fields:") +
@@ -167,6 +158,11 @@ void CdrList::validate_fields(const vector<string> &wanted_fields, const SqlRout
 
 int CdrList::configure(cfg_t *confuse_cfg)
 {
+    router = &Yeti::instance().router;
+
+    if(0!=init_supported_fields())
+        return -1;
+
     auto statistics_sec = cfg_getsec(confuse_cfg, section_name_statistics);
     if(!statistics_sec) return 0;
 
@@ -185,7 +181,6 @@ int CdrList::configure(cfg_t *confuse_cfg)
     }
 
     snapshots_enabled = true;
-    router = &Yeti::instance().router;
 
     snapshots_interval = cfg_getint(active_calls_sec, opt_name_period);
     if(0==snapshots_interval) {

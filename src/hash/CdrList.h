@@ -31,6 +31,7 @@ class CdrList
     AmTimerFd timer;
     AmCondition<bool> stopped;
     SqlRouter *router;
+    AmArg supported_fields;
 
     typedef queue<Cdr> PostponedCdrsContainer;
     PostponedCdrsContainer postponed_active_calls;
@@ -79,6 +80,7 @@ class CdrList
     void cdr2arg_filtered(AmArg& arg, const Cdr *cdr, const get_calls_ctx &ctx) const noexcept;
 
     void parse_field(const AmArg &field);
+    int init_supported_fields();
 
   public:
     CdrList();
@@ -91,8 +93,7 @@ class CdrList
 
     void onSessionFinalize(Cdr *cdr);
 
-    void getFields(AmArg &ret,SqlRouter *r);
-    void validate_fields(const vector<string> &wanted_fields, const SqlRouter *router);
+    void validate_fields(const vector<string> &wanted_fields);
     void sendSnapshot(const AmArg& calls);
 
     int configure(cfg_t *confuse_cfg);
@@ -101,4 +102,5 @@ class CdrList
     void onTimer();
 
     bool getSnapshotsEnabled() { return snapshots_enabled; }
+    const AmArg& getSupportedFields() { return supported_fields; }
 };

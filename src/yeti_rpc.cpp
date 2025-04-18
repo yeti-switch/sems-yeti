@@ -436,15 +436,18 @@ bool YetiRpc::getCallsFields(const string& connection_id,
 		vector<string> fields;
 		string connection_id;
 		AmArg request_id;
+
+		CallFields(const string& connection_id, const AmArg &request_id)
+		  : connection_id(connection_id),
+			request_id(request_id)
+		{}
 	};
 
-	CallFields *call_fields = new CallFields;
-	call_fields->connection_id = connection_id;
-	call_fields->request_id = request_id;
+	CallFields *call_fields = new CallFields(connection_id, request_id);
 
 	try {
 		parse_fields(call_fields->filter_rules, args, call_fields->fields);
-		cdr_list.validate_fields(call_fields->fields, &router);
+		cdr_list.validate_fields(call_fields->fields);
 	} catch(std::string& s) {
 		throw AmSession::Exception(500, s);
 	}
@@ -482,7 +485,7 @@ bool YetiRpc::getCallsFields(const string& connection_id,
 }
 
 void YetiRpc::showCallsFields(const AmArg &, AmArg &ret){
-	cdr_list.getFields(ret,&router);
+	ret = cdr_list.getSupportedFields();
 }
 
 void YetiRpc::GetRegistration(const AmArg& args, AmArg& ret){

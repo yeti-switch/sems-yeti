@@ -195,13 +195,13 @@ int Yeti::onLoad()
         return -1;
     }*/
 
-    if (cdr_list.configure(confuse_cfg)) {
-        ERROR("CdrList configure failed");
+    if(router.configure(confuse_cfg, cfg)) {
+        ERROR("SqlRouter configure failed");
         return -1;
     }
 
-    if(router.configure(confuse_cfg, cfg)) {
-        ERROR("SqlRouter configure failed");
+    if (cdr_list.configure(confuse_cfg)) {
+        ERROR("CdrList configure failed");
         return -1;
     }
 
