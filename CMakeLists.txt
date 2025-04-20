@@ -1,9 +1,11 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.22)
 
 set(CMAKE_C_COMPILER clang CACHE STRING "c compiler" FORCE)
 set(CMAKE_CXX_COMPILER clang++ CACHE STRING "c++ compiler" FORCE)
 
 project(yeti)
+
+include(CTest)
 
 if(NOT EXISTS ${CMAKE_SOURCE_DIR}/.git)
 	MESSAGE(FATAL_ERROR "git repository required")
@@ -63,4 +65,4 @@ message(STATUS "build user: " ${BUILD_USER})
 add_subdirectory(src)
 add_subdirectory(etc)
 
-add_custom_target(test USES_TERMINAL COMMAND /bin/bash ${CMAKE_SOURCE_DIR}/run_unit_test.sh YetiTest.*:YetiTest/*)
+add_subdirectory(unit_tests)

@@ -15,26 +15,6 @@ SEMS_TESTER_CFG=./unit_tests/etc/sems_test.cfg
 MODULE_PREFIX=YetiTest
 DEFAULT_FILTER=$MODULE_PREFIX.*:$MODULE_PREFIX/*
 
-for d in rsr logs lib dump record; do
-    mkdir -p $TEST_TMP_DIR/$d
-done
-
-#prepare lib dir
-for m in \
-$BUILD_DIR/src/yeti_unit.so \
-/usr/lib/sems/plug-in/wav.so \
-/usr/lib/sems/plug-in/uac_auth.so \
-/usr/lib/sems/plug-in/jsonrpc.so \
-/usr/lib/sems/plug-in/postgresql.so \
-/usr/lib/sems/plug-in/registrar_client.so \
-/usr/lib/sems/plug-in/session_timer.so \
-/usr/lib/sems/plug-in/unit_tests/redis_unit.so \
-/usr/lib/sems/plug-in/registrar.so
-do
-    name=$(basename $m)
-    cp -uv $m $TEST_TMP_DIR/lib/${name//"_unit"/}
-done
-
 if [ $# -gt 0 ]; then
     filter=$1
     shift
