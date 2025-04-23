@@ -491,6 +491,25 @@ inline void reduce_codecs_to_single(std::vector<SdpMedia> &media)
     }
 }
 
+void apply_sdp_to_body(
+    AmMimeBody &body, AmMimeBody* sdp_body,
+    AmSdp &sdp, bool reduce_to_singlepart_sdp = false)
+{
+    string n_body;
+    sdp.print(n_body);
+
+    if(reduce_to_singlepart_sdp) {
+        body.clear();
+        body.parse(
+            SIP_APPLICATION_SDP,
+            (const unsigned char*)n_body.c_str(),
+            n_body.length());
+    } else {
+        sdp_body->setPayload((const unsigned char*)n_body.c_str(), n_body.length());
+        sdp_body->normalizeContentType();
+    }
+}
+
 int processSdpOffer(
     SBCCallLeg *call,
     SBCCallProfile &call_profile,
@@ -598,10 +617,7 @@ int processSdpOffer(
     DBG_SDP_PAYLOAD(static_codecs_filter,"static_codecs_filter");
     DBG_SDP(sdp,"negotiateRequestSdp");
 
-    string n_body;
-    sdp.print(n_body);
-    sdp_body->setPayload((const unsigned char*)n_body.c_str(), n_body.length());
-    sdp_body->normalizeContentType();
+    apply_sdp_to_body(body, sdp_body, sdp, false);
 
     return res;
 }
@@ -817,12 +833,10 @@ int filterSdpOffer(SBCCallLeg *call,
 
     DBG_SDP(sdp,"filterSdpOffer_out");
 
-    //update body
-    string n_body;
-    sdp.print(n_body);
     if(out_sdp) *out_sdp = sdp;
-    sdp_body->setPayload((const unsigned char*)n_body.c_str(), n_body.length());
-    sdp_body->normalizeContentType();
+
+    apply_sdp_to_body(body, sdp_body, sdp,
+        true /* TODO: get it from the callprofile */);
 
     return res;
 }
@@ -1083,11 +1097,8 @@ int processSdpAnswer(
 
     negotiated_media = sdp.media;
 
-    //update body
-    string n_body;
-    sdp.print(n_body);
-    sdp_body->setPayload((const unsigned char*)n_body.c_str(), n_body.length());
-    sdp_body->normalizeContentType();
+    apply_sdp_to_body(body, sdp_body, sdp,
+        true /* TODO: get it from the callprofile */);
 
     return 0;
 }
