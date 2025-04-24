@@ -1,3 +1,9 @@
+sems-yeti (1.13.108) stable; urgency=medium
+  * fix out-of-bounds memory corruption with cdr_static_fields idx.
+    fixes disabled clickhouse statistics on non-empty legb_cdr_headers section
+  * sdp_filter: reduce body to a singlepart SDP
+ -- dev <dev@yeti-switch.org>  Thu, 24 Apr 2025 19:30:51 +0300
+
 sems-yeti (1.13.107) stable; urgency=medium
   * allow to show lega_cdr_headers as active calls data:
     lega_cdr_headers.header(header_name, none|string|array|smallint|integer [, active_call_key, String])
