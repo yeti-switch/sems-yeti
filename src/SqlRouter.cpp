@@ -474,7 +474,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
                 return i_aleg_cdr_headers == f.name;
         }));
         //shift all fields after the i_aleg_cdr_headers
-        for(int i = n;
+        for(int i = n - 1;
             i > idx /* i_aleg_cdr_headers pos */; i--)
         {
             cdr_static_fields[i].name = cdr_static_fields[i-1].name;
