@@ -396,7 +396,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
 
     AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_config_routing);
 
-    //create CDR DB and Auth log worker
+    //create CDR DB worker
     CdrThreadCfg cdr_cfg;
     if(cdr_cfg.cfg2CdrThCfg(cdr_sec, cfg)) {
         INFO("Cdr writer pool config loading error");

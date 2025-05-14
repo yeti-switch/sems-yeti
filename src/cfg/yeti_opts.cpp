@@ -11,6 +11,7 @@
 
 #define IP_AUTH_DEFAULT_HEADER "X-ORIG-IP"
 #define YETI_DEFAULT_AUDIO_RECORDER_DIR "/var/spool/sems/record"
+#define YETI_DEFAULT_MSG_LOGGER_DIR "/var/spool/sems/dump"
 
 const vector<string> allowed_methods_default = {
     "INVITE", "ACK", "BYE", "CANCEL", "OPTIONS", "NOTIFY", "INFO", "UPDATE", "PRACK"
@@ -28,6 +29,7 @@ char section_name_legb_reply_cdr_headers[] = "legb_response_cdr_headers";
 char section_name_identity[] = "identity";
 char section_name_statistics[] = "statistics";
 char section_name_resources[] = "resources";
+char section_name_rpc[] = "rpc";
 char section_name_redis[] = "redis";
 char section_name_redis_write[] = "write";
 char section_name_redis_read[] = "read";
@@ -43,6 +45,8 @@ char opt_name_write_internal_disconnect_code[] = "write_internal_disconnect_code
 char opt_name_connection_lifetime[] = "connection_lifetime";
 char opt_name_pass_input_interface_name[] = "pass_input_interface_name";
 char opt_name_new_codec_groups[] = "new_codec_groups";
+char opt_name_pop_id[] = "pop_id";
+char opt_name_msg_logger_dir[] = "msg_logger_dir";
 char opt_name_audio_recorder_dir[] = "audio_recorder_dir";
 char opt_name_audio_recorder_compress[] = "audio_recorder_compress";
 char opt_name_audio_recorder_http_destination[] = "audio_recorder_http_destination";
@@ -84,7 +88,6 @@ cfg_opt_t sig_yeti_routing_pool_opts[] = {
 	db_opts,
 	DCFG_INT(size),
 	DCFG_INT(check_interval),
-	DCFG_INT(max_exceptions),
 	DCFG_INT(statement_timeout),
 	CFG_END()
 };
@@ -95,12 +98,12 @@ cfg_opt_t routing_headers_opts[] = {
 };
 
 cfg_opt_t sig_yeti_routing_opts[] = {
-	DCFG_STR(schema),
-	DCFG_STR(function),
+	VCFG_STR(schema, switch21),
+	VCFG_STR(function, route_release),
 	DCFG_STR(init),
 	DCFG_BOOL(failover_to_slave),
 	CFG_BOOL(opt_name_pass_input_interface_name, cfg_false, CFGF_NONE),
-	CFG_BOOL(opt_name_new_codec_groups, cfg_false, CFGF_NONE),
+	CFG_BOOL(opt_name_new_codec_groups, cfg_true, CFGF_NONE),
 	CFG_INT(opt_name_connection_lifetime,0,CFGF_NONE),
 	DCFG_SEC(master_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
 	DCFG_SEC(slave_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
@@ -117,9 +120,6 @@ cfg_opt_t sig_yeti_cdr_db_opts[] = {
 
 cfg_opt_t sig_yeti_cdr_opts[] = {
 	DCFG_BOOL(failover_to_slave),
-	DCFG_BOOL(failover_to_file),
-	DCFG_BOOL(failover_requeue),
-	DCFG_BOOL(serialize_dynamic_fields),
 	DCFG_INT(pool_size),
 	DCFG_INT(auth_pool_size),
 	DCFG_INT(check_interval),
@@ -128,10 +128,8 @@ cfg_opt_t sig_yeti_cdr_opts[] = {
 	DCFG_INT(batch_timeout),
 	DCFG_INT(auth_batch_timeout),
 	CFG_INT(opt_name_connection_lifetime,0,CFGF_NONE),
-	DCFG_STR(dir),
-	DCFG_STR(completed_dir),
-	DCFG_STR(schema),
-	DCFG_STR(function),
+	VCFG_STR(schema, switch),
+	VCFG_STR(function, writecdr),
 	DCFG_SEC(master,sig_yeti_cdr_db_opts,CFGF_NONE),
 	DCFG_SEC(slave,sig_yeti_cdr_db_opts,CFGF_NONE),
 	CFG_END()
@@ -159,12 +157,6 @@ cfg_opt_t sig_yeti_resources_opts[] = {
 cfg_opt_t sig_yeti_rpc_opts[] = {
 	DCFG_INT(calls_show_limit),
 	CFG_END()
-};
-
-//registrations
-cfg_opt_t sig_yeti_reg_opts[] = {
-	DCFG_INT(check_interval),
-    CFG_END()
 };
 
 //auth
@@ -196,8 +188,8 @@ cfg_opt_t legb_reply_cdr_headers_opts[] = {
 };
 
 cfg_opt_t identity_opts[] {
-    CFG_INT(opt_identity_expires, 60,CFGF_NONE),
     CFG_STR(opt_identity_http_destination,0,CFGF_NODEFAULT),
+    CFG_INT(opt_identity_expires, 60,CFGF_NONE),
     CFG_INT(opt_identity_certs_cache_ttl, 86400,CFGF_NONE),
     CFG_INT(opt_identity_certs_cache_failed_ttl, 86400,CFGF_NONE),
     CFG_INT(opt_identity_certs_cache_failed_verify_ttl, 86400,CFGF_NONE),
@@ -206,33 +198,42 @@ cfg_opt_t identity_opts[] {
 
 //yeti
 cfg_opt_t yeti_opts[] = {
-    DCFG_INT(pop_id),
-    DCFG_STR(msg_logger_dir),
+    CFG_INT(opt_name_pop_id, 0, CFGF_NONE),
+    CFG_INT(opt_name_db_refresh_interval, 300 /* 5 min */,CFGF_NONE),
+
+    CFG_STR(opt_name_msg_logger_dir, YETI_DEFAULT_MSG_LOGGER_DIR, CFGF_NONE),
+
     CFG_STR(opt_name_audio_recorder_dir, YETI_DEFAULT_AUDIO_RECORDER_DIR, CFGF_NONE),
     CFG_STR(opt_name_audio_recorder_http_destination, "", CFGF_NONE),
     CFG_BOOL(opt_name_audio_recorder_compress, cfg_true, CFGF_NONE),
+
+    CFG_BOOL(opt_name_core_options_handling, cfg_true, CFGF_NONE),
+    CFG_BOOL(opt_name_pcap_memory_logger, cfg_false, CFGF_NONE),
+
+    CFG_STR(opt_name_ip_auth_header,IP_AUTH_DEFAULT_HEADER,CFGF_NONE),
+    CFG_BOOL(opt_name_ip_auth_reject_if_no_matched, cfg_false, CFGF_NONE),
+    CFG_BOOL(opt_name_auth_feedback, cfg_false, CFGF_NONE),
+
+    CFG_STR(opt_name_http_events_destination,"",CFGF_NONE),
+
+    CFG_BOOL(opt_name_write_internal_disconnect_code, cfg_false, CFGF_NONE),
+
+    CFG_BOOL(opt_name_postgresql_debug, cfg_false, CFGF_NONE),
+
+    CFG_STR_LIST(opt_name_supported_tags, 0, CFGF_NODEFAULT),
+    CFG_STR_LIST(opt_name_allowed_methods, 0, CFGF_NODEFAULT),
+
     CFG_SEC(section_name_routing, sig_yeti_routing_opts, CFGF_NONE),
     CFG_SEC(section_name_cdr, sig_yeti_cdr_opts, CFGF_NONE),
     CFG_SEC(section_name_resources, sig_yeti_resources_opts, CFGF_NONE),
-    DCFG_SEC(registrations,sig_yeti_reg_opts,CFGF_NONE),
-    DCFG_SEC(rpc,sig_yeti_rpc_opts,CFGF_NONE),
+    CFG_SEC(section_name_rpc,sig_yeti_rpc_opts,CFGF_NONE),
     CFG_SEC(section_name_statistics, sig_yeti_statistics_opts, CFGF_NONE),
-    DCFG_SEC(auth,sig_yeti_auth_opts,CFGF_NONE),
+    CFG_SEC(section_name_auth,sig_yeti_auth_opts,CFGF_NONE),
     CFG_SEC(section_name_identity, identity_opts, CFGF_NODEFAULT),
+
     CFG_SEC(section_name_lega_cdr_headers,lega_cdr_headers_opts, CFGF_NONE),
     CFG_SEC(section_name_legb_cdr_headers,legb_cdr_headers_opts, CFGF_NONE),
     CFG_SEC(section_name_legb_reply_cdr_headers,legb_reply_cdr_headers_opts, CFGF_NONE),
-    CFG_BOOL(opt_name_core_options_handling, cfg_true, CFGF_NONE),
-    CFG_BOOL(opt_name_pcap_memory_logger, cfg_false, CFGF_NONE),
-    CFG_INT(opt_name_db_refresh_interval, 300 /* 5 min */,CFGF_NONE),
-    CFG_BOOL(opt_name_ip_auth_reject_if_no_matched, cfg_false, CFGF_NONE),
-    CFG_BOOL(opt_name_auth_feedback, cfg_false, CFGF_NONE),
-    CFG_STR(opt_name_http_events_destination,"",CFGF_NONE),
-    CFG_STR(opt_name_ip_auth_header,IP_AUTH_DEFAULT_HEADER,CFGF_NONE),
-    CFG_BOOL(opt_name_postgresql_debug, cfg_false, CFGF_NONE),
-    CFG_BOOL(opt_name_write_internal_disconnect_code, cfg_false, CFGF_NONE),
-    CFG_STR_LIST(opt_name_supported_tags, 0, CFGF_NODEFAULT),
-    CFG_STR_LIST(opt_name_allowed_methods, 0, CFGF_NODEFAULT),
 
     CFG_END()
 };

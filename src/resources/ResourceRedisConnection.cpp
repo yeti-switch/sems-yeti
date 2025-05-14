@@ -442,8 +442,9 @@ int ResourceRedisConnection::cfg2RedisCfg(cfg_t *cfg, RedisConfig &rcfg)
     }
 
     if(rcfg.addrs.empty()) {
-        ERROR("empty hosts in resources.redis.%s", rcfg.role == RedisMaster ? "write" : "read");
-        return -1;
+        WARN("empty resources.redis.%s.hosts. use: 127.0.0.1:6379",
+            rcfg.role == RedisMaster ? "write" : "read");
+        rcfg.addrs.emplace_back("127.0.0.1", 6379);
     }
 
     rcfg.timeout = cfg_getint(cfg, opt_redis_timeout);

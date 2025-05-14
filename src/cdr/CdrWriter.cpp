@@ -86,46 +86,6 @@ int CdrThreadCfg::cfg2CdrThCfg(cfg_t *cdr_sec, AmConfigReader& cfg)
 	failover_to_slave = cfg.getParameterInt("cdr_failover_to_slave",1);
 	connection_lifetime = cfg_getint(cdr_sec, opt_name_connection_lifetime);
 
-	string cdr_file_dir = "cdr_dir";
-	string cdr_file_completed_dir = "cdr_completed_dir";
-
-	failover_requeue = cfg.getParameterInt("failover_requeue",0);
-
-	failover_to_file = cfg.getParameterInt("failover_to_file",1);
-	if(failover_to_file){
-		if(!cfg.hasParameter(cdr_file_dir)){
-			ERROR("missed '%s'' parameter",cdr_file_dir.c_str());
-			return -1;
-		}
-		if(!cfg.hasParameter(cdr_file_completed_dir)){
-			ERROR("missed '%s'' parameter",cdr_file_completed_dir.c_str());
-			return -1;
-		}
-		failover_file_dir = cfg.getParameter(cdr_file_dir);
-		failover_file_completed_dir = cfg.getParameter(cdr_file_completed_dir);
-
-		//check for permissions
-		ofstream t1;
-		ostringstream dir_test_file;
-		dir_test_file << failover_file_dir << "/test";
-		t1.open(dir_test_file.str().c_str(),std::ofstream::out | std::ofstream::trunc);
-		if(!t1.is_open()){
-			ERROR("can't write test file in '%s' directory",failover_file_dir.c_str());
-			return -1;
-		}
-		remove(dir_test_file.str().c_str());
-
-		ofstream t2;
-		ostringstream completed_dir_test_file;
-		completed_dir_test_file << failover_file_completed_dir << "/test";
-		t2.open(completed_dir_test_file.str().c_str(),std::ofstream::out | std::ofstream::trunc);
-		if(!t2.is_open()){
-			ERROR("can't write test file in '%s' directory",failover_file_completed_dir.c_str());
-			return -1;
-		}
-		remove(completed_dir_test_file.str().c_str());
-	}
-
 	masterdb.cfg2dbcfg(cfg,"mastercdr");
 	slavedb.cfg2dbcfg(cfg,"slavecdr");
 

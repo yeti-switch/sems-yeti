@@ -59,6 +59,5 @@ void apply_pool_cfg(
     //apply pool-specific opts
     add2hash(c,prefix+"pool_size","size",out);
     add2hash(c,prefix+"check_interval","check_interval",out);
-    add2hash(c,prefix+"max_exceptions","max_exceptions",out);
     add2hash(c,prefix+"statement_timeout","statement_timeout",out);
 }

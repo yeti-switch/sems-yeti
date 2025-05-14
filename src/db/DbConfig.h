@@ -9,11 +9,9 @@
 struct DbConfig {
     string host,name,user,pass;
     unsigned int port;
-    unsigned int timeout;
-    string conn_str();
     string info_str();
 
-    int cfg2dbcfg(AmConfigReader& cfg,const string& prefix);
+    int cfg2dbcfg(AmConfigReader& cfg,const string& prefix, bool silent = false);
 };
 
 #endif

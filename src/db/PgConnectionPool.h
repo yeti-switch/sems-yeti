@@ -13,9 +13,7 @@ struct PgConnectionPoolCfg {
     string name;
     string routing_init_function;
     unsigned int size;
-    unsigned int max_exceptions;
     unsigned int check_interval;
-    unsigned int max_wait;
     unsigned int statement_timeout;
 
     int cfg2PgCfg(AmConfigReader& cfg);

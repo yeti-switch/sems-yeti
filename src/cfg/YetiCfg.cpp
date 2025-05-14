@@ -156,7 +156,7 @@ int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
     audio_recorder_http_destination = cfg_getstr(cfg, opt_name_audio_recorder_http_destination);
     audio_recorder_compress = cfg_getbool(cfg, opt_name_audio_recorder_compress);
 
-    routing_db_master.cfg2dbcfg(am_cfg, "master");
+    routing_db_master.cfg2dbcfg(am_cfg, "master", true);
 
     if(!am_cfg.hasParameter("routing_schema")) {
         ERROR("Missed parameter 'routing_schema'");
@@ -189,11 +189,7 @@ void YetiCfg::serialize_to_amconfig(cfg_t *y, AmConfigReader &out)
 		//cdr
 		c = cfg_getsec(y,"cdr");
 		add2hash(c,"cdr_failover_to_slave","failover_to_slave",out);
-		add2hash(c,"failover_to_file","failover_to_file",out);
-		add2hash(c,"failover_requeue","failover_requeue",out);
-		add2hash(c,"serialize_dynamic_fields","serialize_dynamic_fields",out);
 		add2hash(c,"cdr_pool_size","pool_size",out);
-		add2hash(c,"cdr_dir","dir",out);
 		add2hash(c,"writecdr_schema","schema",out);
 		add2hash(c,"writecdr_function","function",out);
 		add2hash(c,"cdr_check_interval","check_interval",out);
@@ -203,10 +199,6 @@ void YetiCfg::serialize_to_amconfig(cfg_t *y, AmConfigReader &out)
 			apply_db_cfg(cfg_getsec(c,"master"),"mastercdr_",out);
 			//slave
 			apply_db_cfg(cfg_getsec(c,"slave"),"slavecdr_",out);
-
-		//registrations
-		c = cfg_getsec(y,"registrations");
-		add2hash(c,"reg_check_interval","check_interval",out);
 
 		//rpc
 		c = cfg_getsec(y,"rpc");
