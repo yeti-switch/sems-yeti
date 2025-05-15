@@ -1,6 +1,5 @@
 CMakeLists.txt.user
 build
-etc/yeti.conf
 debian/changelog
 debian/files
 debian/.debhelper
