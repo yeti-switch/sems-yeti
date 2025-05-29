@@ -62,14 +62,14 @@ void OriginationPreAuth::reloadLoadBalancers(const AmArg &data)
 
 void OriginationPreAuth::reloadLoadIPAuth(const AmArg &data)
 {
-    DBG("reloadLoadIPAuth AmArg: %s", AmArg::print(data).data());
-
     IPAuthDataContainer tmp_ip_auths;
     if(isArgArray(data)) {
         for(size_t i = 0; i < data.size(); i++) {
             tmp_ip_auths.emplace_back(data[i]);
         }
     }
+
+    DBG("loaded %zd IP auth data entries", tmp_ip_auths.size());
 
     AmLock l(mutex);
 
