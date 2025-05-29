@@ -173,8 +173,6 @@ int Yeti::onLoad()
 {
     start_time = time(nullptr);
 
-    cfg.dump();
-
     init_rpc();
     init_counters();
     apply_yeti_signatures();
