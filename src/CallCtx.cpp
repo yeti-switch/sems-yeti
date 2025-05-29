@@ -86,7 +86,7 @@ SqlCallProfile *CallCtx::getFirstProfile()
  */
 SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover)
 {
-	DBG("%s()",FUNC_NAME);
+	DBG("early_state:%d, resource_failover:%d", early_state, resource_failover);
 
 	auto next_profile = current_profile;
 	int attempts_counter = cdr->attempt_num;

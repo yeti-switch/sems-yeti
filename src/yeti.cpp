@@ -660,6 +660,15 @@ void Yeti::initCfgTimerMappings()
                 options_prober_manager.load_probers(e.result);
             }}
         },
+        { "gateways_cache", {
+            [&](const string &key) {
+                if(!router.get_throttling_gateway_key().empty())
+                    yeti_routing_db_query("SELECT * FROM load_gateway_attributes_cache()", key);
+            },
+            [&](const PGResponse &e) {
+                gateways_cache.update(e.result);
+            }}
+        },
     };
 
     for(auto &mapping: db_config_timer_mappings)

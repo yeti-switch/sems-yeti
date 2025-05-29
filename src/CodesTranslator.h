@@ -29,6 +29,7 @@
 
 #define DC_NOT_REGISTERED           131
 #define DC_LEGB_RTP_TIMEOUT         132
+#define DC_FAILURE_RATE_THROTTLING  133
 
 #define FC_CG_GROUP_NOT_FOUND       140
 #define FC_CODECS_NOT_MATCHED       141

@@ -78,6 +78,8 @@ extern char opt_redis_password[];
 extern char opt_name_supported_tags[];
 extern char opt_name_allowed_methods[];
 
+extern char opt_name_throttling_gateway_key[];
+
 //routing
 extern cfg_opt_t sig_yeti_routing_pool_opts[];
 extern cfg_opt_t sig_yeti_routing_cache_opts[];

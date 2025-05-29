@@ -346,7 +346,6 @@ void SBCCallLeg::processResourcesAndSdp()
 
     ResourceList::iterator ri;
     ResourceConfig resource_config;
-    bool lega_res_chk_step = 0; /* use additional resource check for lega_res */
     Cdr *cdr = call_ctx->cdr.get();
 
     PROF_START(func);
@@ -364,12 +363,54 @@ void SBCCallLeg::processResourcesAndSdp()
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
-    lega_res_chk_step = profile->legab_res_mode_enabled;
-
+    /* lega_res_chk_step:
+     *   true - checking legA resources
+     *   false - checking legB or combined resources
+     */
+    bool lega_res_chk_step = profile->legab_res_mode_enabled;
+    auto now = uac_req.recv_timestamp.tv_sec;
+    int attempt = 0;
     do {
-        int attempt = 0;
+        DBG("check throttling for profile. attempt %d", attempt);
 
-        DBG("%s() check resources for profile. attempt %d",FUNC_NAME,attempt);
+        if(profile->term_gw_id &&
+            //check throttling before first resource checking only
+            (!profile->legab_res_mode_enabled || lega_res_chk_step))
+        {
+            DBG("check throttling for profile. attempt %d", attempt);
+            if(yeti.gateways_cache.should_skip(profile->term_gw_id, now)) {
+                DBG("skipped by throttling for term_gw_id:%d", profile->term_gw_id);
+
+                //get next profile
+                profile = call_ctx->getNextProfile(false, true);
+                /* save throttling disconnect reason if refuse_profile
+                 * follows throttled profile */
+                if(nullptr==profile) {
+                    unsigned int internal_code,response_code;
+                    string internal_reason,response_reason;
+
+                    CodesTranslator::instance()->translate_db_code(
+                        DC_FAILURE_RATE_THROTTLING,
+                        internal_code, internal_reason,
+                        response_code, response_reason,
+                        call_ctx->getCurrentProfile()->aleg_override_id);
+
+                    cdr->update_internal_reason(
+                        DisconnectByTS,
+                        internal_reason,internal_code,
+                        DC_FAILURE_RATE_THROTTLING);
+
+                        throw AmSession::Exception(
+                            response_code,
+                            response_reason);
+                }
+
+                attempt++;
+                continue;
+            }
+        }
+
+        DBG("check resources for profile. attempt %d", attempt);
 
         ResourceList &rl = profile->getResourceList(lega_res_chk_step);
         string& handler = call_ctx->getResourceHandler(*profile, lega_res_chk_step);
@@ -385,33 +426,33 @@ void SBCCallLeg::processResourcesAndSdp()
         }
 
         if(rctl_ret == RES_CTL_OK) {
-            DBG("%s() check resources succ",FUNC_NAME);
+            DBG("check resources succ");
             if (!lega_res_chk_step)
                 break;
             /* lega_res checked, try legb_res */
             lega_res_chk_step = false;
             continue;
-        } else if(	rctl_ret ==  RES_CTL_REJECT ||
-                    rctl_ret ==  RES_CTL_ERROR)
+        } else if(rctl_ret ==  RES_CTL_REJECT ||
+                  rctl_ret ==  RES_CTL_ERROR)
         {
-            DBG("%s() check resources failed with code %d. internal code: %d",FUNC_NAME,
+            DBG("check resources failed with code %d. internal code: %d",
                 rctl_ret,resource_config.internal_code_id);
             if(rctl_ret == RES_CTL_REJECT) {
                 cdr->update_failed_resource(*ri);
             }
             break;
-        } else if(	rctl_ret == RES_CTL_NEXT) {
-            DBG("%s() check resources failed with code %d. internal code: %d",FUNC_NAME,
+        } else if(rctl_ret == RES_CTL_NEXT) {
+            DBG("check resources failed with code %d. internal code: %d",
                 rctl_ret,resource_config.internal_code_id);
             profile = call_ctx->getNextProfile(true);
 
             if(nullptr==profile){
                 cdr->update_failed_resource(*ri);
-                DBG("%s() there are no profiles more",FUNC_NAME);
+                DBG("there are no more profiles");
                 throw AmSession::Exception(503,"no more profiles");
             }
 
-            DBG("%s() choosed next profile",FUNC_NAME);
+            DBG("choosed next profile");
 
             /* show resource disconnect reason instead of
              * refuse_profile if refuse_profile follows failed resource with
@@ -420,13 +461,13 @@ void SBCCallLeg::processResourcesAndSdp()
                 unsigned int internal_code, response_code;
                 string internal_reason, response_reason;
 
-                cdr->update_failed_resource(*ri);
-
                 CodesTranslator::instance()->translate_db_code(
                     static_cast<unsigned int>(resource_config.internal_code_id),
                     internal_code,internal_reason,
                     response_code,response_reason,
                     call_ctx->getOverrideId(a_leg));
+
+                cdr->update_failed_resource(*ri);
 
                 rctl.replace(internal_reason, *ri, resource_config);
                 rctl.replace(response_reason, *ri, resource_config);
@@ -482,7 +523,7 @@ void SBCCallLeg::processResourcesAndSdp()
                               call_ctx->aleg_negotiated_media,
                               call_profile.static_codecs_aleg_id);
     if(res != 0) {
-        DBG("%s() processSdpOffer: %d",FUNC_NAME, res);
+        DBG("processSdpOffer: %d", res);
         throw InternalException(res, call_ctx->getOverrideId());
     }
 
@@ -495,7 +536,7 @@ void SBCCallLeg::processResourcesAndSdp()
                          nullptr,
                          &call_ctx->bleg_initial_offer);
     if(res != 0) {
-        DBG("%s() filterSdpOffer: %d",FUNC_NAME, res);
+        DBG("filterSdpOffer: %d", res);
         throw AmSession::Exception(488, SIP_REPLY_NOT_ACCEPTABLE_HERE);
     }
     PROF_END(sdp_processing);
@@ -504,7 +545,7 @@ void SBCCallLeg::processResourcesAndSdp()
     call_ctx->bleg_negotiated_media = call_ctx->bleg_initial_offer.media;
 
     if(profile->time_limit) {
-        DBG("%s() save timer %d with timeout %d",FUNC_NAME,
+        DBG("save timer %d with timeout %d",
             YETI_CALL_DURATION_TIMER, profile->time_limit);
         saveCallTimer(YETI_CALL_DURATION_TIMER,profile->time_limit);
     }
@@ -516,7 +557,7 @@ void SBCCallLeg::processResourcesAndSdp()
     onRoutingReady();
 
     } catch(InternalException &e) {
-        DBG("%s() catched InternalException(%d)",FUNC_NAME,
+        DBG("catched InternalException(%d)",
             e.icode);
         rctl.put(call_profile.resource_handler);
         rctl.put(call_ctx->lega_resource_handler);
@@ -525,7 +566,7 @@ void SBCCallLeg::processResourcesAndSdp()
         throw AmSession::Exception(
             static_cast<int>(e.response_code),e.response_reason);
     } catch(AmSession::Exception &e) {
-        DBG("%s() catched AmSession::Exception(%d,%s)",FUNC_NAME,
+        DBG("catched AmSession::Exception(%d,%s)",
             e.code,e.reason.c_str());
         rctl.put(call_profile.resource_handler);
         rctl.put(call_ctx->lega_resource_handler);
@@ -541,7 +582,7 @@ void SBCCallLeg::processResourcesAndSdp()
 
 bool SBCCallLeg::chooseNextProfile()
 {
-    DBG("%s()",FUNC_NAME);
+    DBG("%s", getLocalTag().data());
 
     ResourceConfig resource_config;
     SqlCallProfile *profile = nullptr;
@@ -553,25 +594,55 @@ bool SBCCallLeg::chooseNextProfile()
         profile = call_ctx->getNextProfile(false);
         if(nullptr==profile) {
             //pretend that nothing happen. we were never called
-            DBG("%s() no more profiles or refuse profile on serial fork. ignore it",FUNC_NAME);
+            DBG("no more profiles or refuse profile on serial fork. ignore it");
             return false;
         }
     }
 
     auto cdr = call_ctx->cdr.get();
+    auto now = uac_req.recv_timestamp.tv_sec;
 
     do {
-        DBG("%s() choosed next profile. check it for refuse",FUNC_NAME);
+        DBG("choosed next profile. check it for refuse");
 
         {
             ParamReplacerCtx rctx(profile);
             if(router.check_and_refuse(profile,cdr,*call_ctx->initial_invite,rctx)) {
-                DBG("%s() profile contains refuse code",FUNC_NAME);
+                DBG("profile contains refuse code");
                 break;
             }
         }
 
-        DBG("%s() no refuse field. check it for resources",FUNC_NAME);
+        DBG("no refuse field. check it for throttling");
+        if(profile->term_gw_id &&
+            yeti.gateways_cache.should_skip(profile->term_gw_id, now))
+        {
+            DBG("skipped by throttling for term_gw_id:%d", profile->term_gw_id);
+
+            profile = call_ctx->getNextProfile(false, true);
+            if(nullptr==profile) {
+                unsigned int internal_code,response_code;
+                string internal_reason,response_reason;
+
+                CodesTranslator::instance()->translate_db_code(
+                    DC_FAILURE_RATE_THROTTLING,
+                    internal_code, internal_reason,
+                    response_code, response_reason,
+                    call_ctx->getOverrideId(a_leg));
+
+                cdr->update_internal_reason(
+                    DisconnectByTS,
+                    internal_reason,internal_code,
+                    DC_FAILURE_RATE_THROTTLING);
+
+                return false;
+            }
+
+            //has next non-disconnecting profile
+            continue;
+        }
+
+        DBG("no throttling. check it for resources");
         ResourceList &rl = profile->getResourceList();
         string& handler = call_ctx->getResourceHandler(*profile);
 
@@ -586,11 +657,11 @@ bool SBCCallLeg::chooseNextProfile()
         }
 
         if(rctl_ret == RES_CTL_OK) {
-            DBG("%s() check resources  successed",FUNC_NAME);
+            DBG("check resources  successed");
             has_profile = true;
             break;
         } else {
-            DBG("%s() check resources failed with code %d. internal code: %d", FUNC_NAME,
+            DBG("check resources failed with code %d. internal code: %d",
                 rctl_ret,resource_config.internal_code_id);
             if(rctl_ret ==  RES_CTL_ERROR) {
                 break;
@@ -601,12 +672,12 @@ bool SBCCallLeg::chooseNextProfile()
                 profile = call_ctx->getNextProfile(false,true);
                 if(nullptr==profile){
                     cdr->update_failed_resource(*ri);
-                    DBG("%s() there are no profiles more",FUNC_NAME);
+                    DBG("there are no profiles more");
                     break;
                 }
                 if(profile->disconnect_code_id!=0) {
                     cdr->update_failed_resource(*ri);
-                    DBG("%s() failovered to refusing profile %d",FUNC_NAME,
+                    DBG("failovered to refusing profile %d",
                         profile->disconnect_code_id);
                     break;
                 }
@@ -631,7 +702,7 @@ bool SBCCallLeg::chooseNextProfile()
 
         return false;
     } else {
-        DBG("%s() update call profile for legA",FUNC_NAME);
+        DBG("update call profile for legA");
         cdr->update_with_resource_list(*profile);
         updateCallProfile(*profile);
         return true;
@@ -798,7 +869,10 @@ void SBCCallLeg::onPostgresResponse(PGResponse &e)
             //read profile
             ret = false;
             try {
-                ret = p.readFromTuple(a, getLocalTag(), router.getDynFields());
+                ret = p.readFromTuple(
+                    a, getLocalTag(),
+                    router.getDynFields(),
+                    router.get_throttling_gateway_key());
             } catch(AmArg::OutOfBoundsException &e) {
                 ERROR("OutOfBoundsException while reading from profile tuple: %s",
                       AmArg::print(a).data());
@@ -2469,18 +2543,23 @@ void SBCCallLeg::onSipReply(const AmSipRequest& req, const AmSipReply& reply,
         }
     }
 
-    if(!a_leg) {
-        if(call_ctx ) {
-            if(call_ctx->transfer_intermediate_state &&
-               reply.cseq_method==SIP_METH_INVITE)
-            {
-                if(reply.code >= 200 && reply.code < 300) {
-                    dlg->send_200_ack(reply.cseq);
-                }
-            } else {
-                with_cdr_for_read
-                    cdr->update_with_bleg_sip_reply(reply);
+    if(!a_leg && call_ctx) {
+        if(reply.code>=200 &&
+           reply.cseq_method==SIP_METH_INVITE)
+        {
+            auto &gw_id = call_ctx->getCurrentProfile()->term_gw_id;
+            if(gw_id) yeti.gateways_cache.update_reply_stats(gw_id, reply);
+        }
+
+        if(call_ctx->transfer_intermediate_state &&
+           reply.cseq_method==SIP_METH_INVITE)
+        {
+            if(reply.code >= 200 && reply.code < 300) {
+                dlg->send_200_ack(reply.cseq);
             }
+        } else {
+            with_cdr_for_read
+                cdr->update_with_bleg_sip_reply(reply);
         }
     }
 

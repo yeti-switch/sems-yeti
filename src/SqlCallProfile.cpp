@@ -57,7 +57,9 @@ bool SqlCallProfile::is_empty_profile(const AmArg &a)
     return true;
 }
 
-bool SqlCallProfile::readFromTuple(const AmArg &t, const string& local_tag, const DynFieldsT &df)
+bool SqlCallProfile::readFromTuple(
+    const AmArg &t, const string& local_tag,
+    const DynFieldsT &df, const string &throttling_gateway_key)
 {
     aleg_local_tag = local_tag;
 
@@ -389,6 +391,10 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string& local_tag, cons
     }
 
     push_token = DbAmArg_hash_get_str(t, "push_token");
+
+    term_gw_id = !throttling_gateway_key.empty()
+        ? DbAmArg_hash_get_int(t, throttling_gateway_key, 0)
+        : 0;
 
     DBG("Yeti: loaded SQL profile");
 

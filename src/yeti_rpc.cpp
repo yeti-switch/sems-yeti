@@ -184,6 +184,8 @@ void YetiRpc::init_rpc_tree()
 		leaf(show,show_reload,"reload","db setting reload");
 			method(show_reload,"status","show db reloading status",showReloadStatus,"");
 
+		method(show,"gateways_cache","show gateways cache",showGatewaysCache,"");
+
 	/* request */
 	leaf(root,request,"request","modify commands");
 
@@ -1070,6 +1072,17 @@ void YetiRpc::requestTrustedBalancersReload(const AmArg&, AmArg& ret)
 void YetiRpc::requestIPAuthReload(const AmArg&, AmArg& ret)
 {
     ret = RPC_CMD_DEPRECATED;
+}
+
+void YetiRpc::showGatewaysCache(const AmArg &arg, AmArg& ret)
+{
+    if(router.get_throttling_gateway_key().empty()) {
+        throw AmSession::Exception(
+            500,
+            "gateways cache is disabled. "
+            "set routing.throttling_gateway_key");
+    }
+    gateways_cache.info(arg, ret);
 }
 
 void YetiRpc::showReloadStatus(const AmArg&, AmArg& ret)

@@ -136,5 +136,7 @@ class YetiRpc
     rpc_handler showIPAuth;
     rpc_handler requestIPAuthReload;
 
+    rpc_handler showGatewaysCache;
+
     rpc_handler showReloadStatus;
 };

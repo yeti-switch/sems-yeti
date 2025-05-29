@@ -7,6 +7,7 @@
 #include "resources/ResourceControl.h"
 #include "CertCache.h"
 #include "OriginationPreAuth.h"
+#include "GatewaysCache.h"
 #include "cdr/CdrHeaders.h"
 #include "cfg/YetiCfg.h"
 
@@ -84,6 +85,7 @@ struct YetiBase {
     OptionsProberManager options_prober_manager;
     CertCache cert_cache;
     OriginationPreAuth orig_pre_auth;
+    GatewaysCache gateways_cache;
 
     //fields to provide synchronous configuration for DB-related entities
     struct sync_db {
