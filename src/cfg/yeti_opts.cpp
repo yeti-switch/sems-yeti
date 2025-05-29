@@ -102,7 +102,7 @@ cfg_opt_t sig_yeti_routing_opts[] = {
 	VCFG_STR(function, route_release),
 	DCFG_STR(init),
 	DCFG_BOOL(failover_to_slave),
-	CFG_BOOL(opt_name_pass_input_interface_name, cfg_false, CFGF_NONE),
+	CFG_BOOL(opt_name_pass_input_interface_name, cfg_true, CFGF_NONE),
 	CFG_BOOL(opt_name_new_codec_groups, cfg_true, CFGF_NONE),
 	CFG_INT(opt_name_connection_lifetime,0,CFGF_NONE),
 	DCFG_SEC(master_pool,sig_yeti_routing_pool_opts,CFGF_NONE),
