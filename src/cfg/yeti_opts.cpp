@@ -100,7 +100,7 @@ cfg_opt_t routing_headers_opts[] = {
 cfg_opt_t sig_yeti_routing_opts[] = {
 	VCFG_STR(schema, switch22),
 	VCFG_STR(function, route_release),
-	DCFG_STR(init),
+	VCFG_STR(init, init),
 	DCFG_BOOL(failover_to_slave),
 	CFG_BOOL(opt_name_pass_input_interface_name, cfg_true, CFGF_NONE),
 	CFG_BOOL(opt_name_new_codec_groups, cfg_true, CFGF_NONE),
