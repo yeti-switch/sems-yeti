@@ -71,7 +71,7 @@ class SqlRouter
     DynFieldsT dyn_fields;
 
     int load_db_interface_in_out();
-    void apply_interface_in(const AmArg &data);
+    void apply_routing_headers(const AmArg &data);
 
     void sanitize_query_params(
         QueryInfo &query_info,

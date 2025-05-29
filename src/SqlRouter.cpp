@@ -166,7 +166,7 @@ void SqlRouter::sanitize_query_params(
     }
 }
 
-void SqlRouter::apply_interface_in(const AmArg &data)
+void SqlRouter::apply_routing_headers(const AmArg &data)
 {
     if(isArgUndef(data))
         return;
@@ -181,16 +181,7 @@ void SqlRouter::apply_interface_in(const AmArg &data)
 
         used_header_fields.emplace_back(a);
 
-        string varname = a["varname"].asCStr();
-
-        //TODO: fix types in DB
-        if(varname=="X-ORIG-PROTO") {
-            getprofile_types.push_back("smallint");
-        } else if(varname=="X-ORIG-IP" || varname=="X-SRC-IP") {
-            getprofile_types.push_back("inet");
-        } else {
-            getprofile_types.push_back(vartype);
-        }
+        getprofile_types.push_back(vartype);
     }
 }
 
@@ -229,18 +220,7 @@ int SqlRouter::load_db_interface_in_out()
         }
     }
 
-    if(!isArgUndef(cfg_routing_headers)) {
-        DBG("apply load_interface_in() from route.headers");
-        apply_interface_in(cfg_routing_headers);
-    } else {
-        if(sync_db.exec_query(
-            format("SELECT * FROM {}.load_interface_in()", routing_schema),
-            "load_interface_in"))
-        {
-            return 1;
-        }
-        apply_interface_in(sync_db.db_reply_result);
-    }
+    apply_routing_headers(cfg_routing_headers);
 
     return 0;
 }
