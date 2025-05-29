@@ -98,7 +98,7 @@ cfg_opt_t routing_headers_opts[] = {
 };
 
 cfg_opt_t sig_yeti_routing_opts[] = {
-	VCFG_STR(schema, switch21),
+	VCFG_STR(schema, switch22),
 	VCFG_STR(function, route_release),
 	DCFG_STR(init),
 	DCFG_BOOL(failover_to_slave),
