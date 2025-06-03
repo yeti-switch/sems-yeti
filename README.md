@@ -15,7 +15,7 @@ sems-yeti is a part of project [Yeti]
 # echo "deb [arch=amd64] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 # wget -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg
 
-# echo "deb [arch=amd64] https://deb.yeti-switch.org/debian/1.13 bookworm main" > /etc/apt/sources.list.d/yeti.list
+# echo "deb [arch=amd64] https://deb.yeti-switch.org/debian/1.14 bookworm main" > /etc/apt/sources.list.d/yeti.list
 # wget http://deb.yeti-switch.org/yeti.gpg -O /etc/apt/trusted.gpg.d/deb.yeti-switch.org.asc
 
 # apt update
