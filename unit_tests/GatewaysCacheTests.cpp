@@ -1,8 +1,6 @@
 #include "YetiTest.h"
 #include "../src/GatewaysCache.h"
 
-#include <ranges>
-
 TEST_F(YetiTest, GatewaysCacheThrottling)
 {
     GatewaysCache cache;
@@ -51,7 +49,7 @@ TEST_F(YetiTest, GatewaysCacheThrottling)
 
     //check skip probability
     int skipped = 0, allowed = 0;
-    for(int _ : std::ranges::iota_view{0, 10000}) {
+    for(auto _ = 10000; _--;) {
         if(cache.should_skip(1, now)) skipped +=1;
         else allowed+=1;
     }
@@ -64,7 +62,7 @@ TEST_F(YetiTest, GatewaysCacheThrottling)
     cache.update_reply_stats(1, reply);
     //skip probability should be decreased 60% -> 26.6(6)
     skipped = allowed = 0;
-    for(int _ : std::ranges::iota_view{0, 10000}) {
+    for(auto _ = 10000; _--;) {
         if(cache.should_skip(1, now)) skipped +=1;
         else allowed+=1;
     }
