@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 set(CMAKE_C_COMPILER clang CACHE STRING "c compiler" FORCE)
 set(CMAKE_CXX_COMPILER clang++ CACHE STRING "c++ compiler" FORCE)
+set(CMAKE_CXX_STANDARD 20)
 
 project(yeti)
 
@@ -22,7 +23,7 @@ list(APPEND CMAKE_CXX_FLAGS_DEBUG -D_DEBUG)
 list(APPEND CMAKE_C_FLAGS_DEBUG -D_DEBUG)
 
 add_compile_options(${SEMS_CFLAGS})
-add_compile_options(-std=c++2a -Wall -Werror -g)
+add_compile_options(-Wall -Werror -g)
 add_compile_options(-Wno-unknown-warning-option)
 add_compile_options(-Wno-vla-cxx-extension)
 
