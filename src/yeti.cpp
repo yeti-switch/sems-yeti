@@ -258,6 +258,11 @@ int Yeti::onLoad()
     if(cdr_list.getSnapshotsEnabled())
         cdr_list.start();
 
+    if(!verifyHttpDestination()) {
+        ERROR("verification of http destination failed");
+        return -1;
+    }
+
     configuration_finished = true;
 
     onDbCfgReloadTimer();
@@ -704,4 +709,38 @@ void Yeti::onDbCfgReloadTimerResponse(const PGResponse &e) noexcept
     } catch(...) {
         DBG("exception on CfgReloadTimer response processing");
     }
+}
+
+bool Yeti::verifyHttpDestination()
+{
+    AmDynInvokeFactory* di_f = AmPlugIn::instance()->getFactory4Di("http_client");
+    if(!di_f) {
+        ERROR("unable to get http_client factory");
+        return false;
+    }
+    AmDynInvoke* http_client = di_f->getInstance();
+    if(!http_client) {
+        ERROR("unable to get http_client invoke instance");
+        return false;
+    }
+    AmArg args, ret;
+    http_client->invoke("show.destinations", args, ret);
+    if(!isArgStruct(ret)) return -1;
+    vector<string> destinations;
+    destinations.push_back(config.http_events_destination);
+    // destinations.push_back("fcm"); ??? using in SBCCallLeg.cpp:1370, have to need check it???
+    if(!config.audio_recorder_http_destination.empty())
+        destinations.push_back(config.audio_recorder_http_destination);
+    if(config.identity_enabled)
+        destinations.push_back(cert_cache.getHttpDestination());
+    for(auto& shapshot_dst : cdr_list.getSnapshotsDestinations())
+        destinations.push_back(shapshot_dst);
+
+    for(auto& dst_name : destinations) {
+        if(!ret.hasMember(dst_name)) {
+            ERROR("absent %s destination in http_client", dst_name.c_str());
+            return false;
+        }
+    }
+    return true;
 }

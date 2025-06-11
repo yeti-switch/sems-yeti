@@ -47,6 +47,8 @@ class Yeti
     void onDbCfgReloadTimer() noexcept;
     void onDbCfgReloadTimerResponse(const PGResponse &e) noexcept;
 
+    bool verifyHttpDestination();
+
   public:
 
     struct Counters {

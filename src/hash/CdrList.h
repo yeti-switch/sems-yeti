@@ -102,5 +102,6 @@ class CdrList
     void onTimer();
 
     bool getSnapshotsEnabled() { return snapshots_enabled; }
+    const vector<string>& getSnapshotsDestinations() { return snapshots_destinations; }
     const AmArg& getSupportedFields() { return supported_fields; }
 };
