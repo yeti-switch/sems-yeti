@@ -41,11 +41,26 @@ class Yeti
 
         void init_exceptions_counter(const string &key);
     };
+
+    struct db_req_entry {
+        std::function<void (const PGResponse &e)> on_db_response;
+        std::function<void (const PGResponseError& e)> on_db_error;
+        std::function<void (const PGTimeout& e)> on_db_timeout;
+        db_req_entry(
+            std::function<void (const PGResponse &e)> on_db_response,
+            std::function<void (const PGResponseError& e)> on_db_error,
+            std::function<void (const PGTimeout& e)> on_db_timeout)
+          : on_db_response(on_db_response)
+          , on_db_error(on_db_error)
+          , on_db_timeout(on_db_timeout)
+        {}
+    };
     map<string, cfg_timer_mapping_entry> db_config_timer_mappings;
+    map<string, db_req_entry> db_requests;
 
     void initCfgTimerMappings();
-    void onDbCfgReloadTimer() noexcept;
-    void onDbCfgReloadTimerResponse(const PGResponse &e) noexcept;
+    void checkStates() noexcept;
+    void showStates(const JsonRpcRequestEvent& e);
 
     bool verifyHttpDestinations();
 

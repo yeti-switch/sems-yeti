@@ -266,7 +266,7 @@ int Yeti::onLoad()
 
     configuration_finished = true;
 
-    onDbCfgReloadTimer();
+    checkStates();
 
     // check dependencies
     is_registrar_availbale = (AmPlugIn::instance()->getFactory4Config("registrar") != nullptr);
@@ -306,7 +306,7 @@ void Yeti::run()
             f = e.data.fd;
 
             if(f==db_cfg_reload_timer) {
-                onDbCfgReloadTimer();
+                checkStates();
                 db_cfg_reload_timer.read();
             } else if(f==each_second_timer) {
                 const auto now(std::chrono::system_clock::now());
@@ -351,40 +351,50 @@ void Yeti::process(AmEvent *ev)
     ON_EVENT_TYPE(HttpGetResponseEvent) {
         cert_cache.processHttpReply(*e);
     } else
+    ON_EVENT_TYPE(JsonRpcRequestEvent) {
+        if(e->method_id == MethodReloadDBStates) {
+            checkStates();
+            postJsonRpcReply(*e, true);
+        } else if(e->method_id == MethodShowDBStates) {
+            showStates(*e);
+        } else {
+            ERROR("unknown rpc request: %s", e->method.c_str());
+        }
+    } else
     ON_EVENT_TYPE(PGResponse) {
         if(configuration_finished) {
-            if(e->token == "check_states") {
-                onDbCfgReloadTimerResponse(*e);
-            } else {
-                auto it = db_config_timer_mappings.find(e->token);
-                if(it != db_config_timer_mappings.end()) {
-                    bool exception = true;
-                    try {
-                        DBG("call on_db_response() for '%s'", e->token.data());
-                        it->second.on_db_response(*e);
-                        exception = false;
-                    } catch(AmArg::OutOfBoundsException &) {
-                        ERROR("AmArg::OutOfBoundsException in cfg timer handler: %s",
-                            e->token.data());
-                    } catch(AmArg::TypeMismatchException &) {
-                        ERROR("AmArg::TypeMismatchException in cfg timer handler: %s",
-                            e->token.data());
-                    } catch(std::exception &exception) {
-                        ERROR("std::exception in cfg timer handler '%s': %s",
-                            e->token.data(), exception.what());
-                    } catch(std::string &s) {
-                        ERROR("cfg timer handler %s exception: %s",
-                            e->token.data(), s.data());
-                    } catch(...) {
-                        ERROR("exception in cfg timer handler: %s", e->token.data());
-                    }
-
-                    if(exception) {
-                        it->second.exceptions_counter->inc();
-                    }
-                } else {
-                    ERROR("unknown db response token: %s", e->token.data());
+            auto it_req = db_requests.find(e->token);
+            auto it_cfg_map = db_config_timer_mappings.find(e->token);
+            if(it_req != db_requests.end()) {
+                it_req->second.on_db_response(*e);
+                db_requests.erase(it_req);
+            } else if(it_cfg_map != db_config_timer_mappings.end()) {
+                bool exception = true;
+                try {
+                    DBG("call on_db_response() for '%s'", e->token.data());
+                    it_cfg_map->second.on_db_response(*e);
+                    exception = false;
+                } catch(AmArg::OutOfBoundsException &) {
+                    ERROR("AmArg::OutOfBoundsException in cfg timer handler: %s",
+                        e->token.data());
+                } catch(AmArg::TypeMismatchException &) {
+                    ERROR("AmArg::TypeMismatchException in cfg timer handler: %s",
+                        e->token.data());
+                } catch(std::exception &exception) {
+                    ERROR("std::exception in cfg timer handler '%s': %s",
+                        e->token.data(), exception.what());
+                } catch(std::string &s) {
+                    ERROR("cfg timer handler %s exception: %s",
+                        e->token.data(), s.data());
+                } catch(...) {
+                    ERROR("exception in cfg timer handler: %s", e->token.data());
                 }
+
+                if(exception) {
+                    it_cfg_map->second.exceptions_counter->inc();
+                }
+            } else {
+                ERROR("unknown db response token: %s", e->token.data());
             }
         } else {
             sync_db.db_reply_token = e->token;
@@ -396,8 +406,16 @@ void Yeti::process(AmEvent *ev)
         ERROR("got PGResponseError '%s' for token: %s",
             e->error.data(), e->token.data());
         if(configuration_finished) {
-            if(auto it = db_config_timer_mappings.find(e->token); it != db_config_timer_mappings.end())
-                it->second.exceptions_counter->inc();
+            auto it_req = db_requests.find(e->token);
+            auto it_cfg_map = db_config_timer_mappings.find(e->token);
+            if(it_req != db_requests.end()) {
+                it_req->second.on_db_error(*e);
+                db_requests.erase(it_req);
+            } else if(it_cfg_map != db_config_timer_mappings.end()) {
+                it_cfg_map->second.exceptions_counter->inc();
+            } else {
+                ERROR("unknown db response token: %s", e->token.data());
+            }
         } else {
             sync_db.db_reply_token = e->token;
             sync_db.db_reply_condition.set(sync_db::DB_REPLY_ERROR);
@@ -406,8 +424,16 @@ void Yeti::process(AmEvent *ev)
     ON_EVENT_TYPE(PGTimeout) {
         ERROR("got PGTimeout for token: %s", e->token.data());
         if(configuration_finished) {
-            if(auto it = db_config_timer_mappings.find(e->token); it != db_config_timer_mappings.end())
-                it->second.exceptions_counter->inc();
+            auto it_req = db_requests.find(e->token);
+            auto it_cfg_map = db_config_timer_mappings.find(e->token);
+            if(it_req != db_requests.end()) {
+                it_req->second.on_db_timeout(*e);
+                db_requests.erase(it_req);
+            } else if(it_cfg_map != db_config_timer_mappings.end()) {
+                it_cfg_map->second.exceptions_counter->inc();
+            } else {
+                ERROR("unknown db response token: %s", e->token.data());
+            }
         } else {
             sync_db.db_reply_token = e->token;
             sync_db.db_reply_condition.set(sync_db::DB_REPLY_TIMEOUT);
@@ -681,35 +707,54 @@ void Yeti::initCfgTimerMappings()
         mapping.second.init_exceptions_counter(mapping.first);
 }
 
-void Yeti::onDbCfgReloadTimer() noexcept
+void Yeti::checkStates() noexcept
 {
-    yeti_routing_db_query("SELECT * FROM check_states()", "check_states");
-}
-
-void Yeti::onDbCfgReloadTimerResponse(const PGResponse &e) noexcept
-{
-    //DBG("onDbCfgReloadTimerResponse");
-    try {
-        const AmArg &r = e.result[0];
-        for(auto &a : r) {
-            //DBG("%s: %d",a.first.data(),a.second.asInt());
-            if(!db_cfg_states.hasMember(a.first) ||
-               a.second.asInt() > db_cfg_states[a.first].asInt())
-            {
-                DBG("new or newer db_state %d for: %s",
-                    a.second.asInt(), a.first.data());
-                auto it = db_config_timer_mappings.find(a.first);
-                if(it != db_config_timer_mappings.end()) {
-                    it->second.on_reload(it->first);
-                } else {
-                    ERROR("unknown db_state: %s", a.first.data());
+    string token = AmSession::getNewId();
+    yeti_routing_db_query("SELECT * FROM check_states()", token);
+    db_requests.emplace(token, db_req_entry([&](const PGResponse& e){
+        try {
+            const AmArg &r = e.result[0];
+            for(auto &a : r) {
+                //DBG("%s: %d",a.first.data(),a.second.asInt());
+                if(!db_cfg_states.hasMember(a.first) ||
+                a.second.asInt() > db_cfg_states[a.first].asInt())
+                {
+                    DBG("new or newer db_state %d for: %s",
+                        a.second.asInt(), a.first.data());
+                    auto it = db_config_timer_mappings.find(a.first);
+                    if(it != db_config_timer_mappings.end()) {
+                        it->second.on_reload(it->first);
+                    } else {
+                        ERROR("unknown db_state: %s", a.first.data());
+                    }
                 }
             }
+            db_cfg_states = r;
+        } catch(...) {
+            DBG("exception on check db state response processing");
         }
-        db_cfg_states = r;
-    } catch(...) {
-        DBG("exception on CfgReloadTimer response processing");
-    }
+    }, [](const PGResponseError& err){}, [](const PGTimeout& timeout){}));
+}
+
+void Yeti::showStates(const JsonRpcRequestEvent& e)
+{
+    string token = AmSession::getNewId();
+    yeti_routing_db_query("SELECT * FROM check_states()", token);
+    db_requests.emplace(token, db_req_entry([&, e](const PGResponse& resp){
+        AmArg ret;
+        ret.assertStruct();
+        const AmArg &r = resp.result[0];
+        for(auto &a : r) {
+            if(db_cfg_states.hasMember(a.first))
+                ret[a.first]["local"] = db_cfg_states[a.first];
+            ret[a.first]["db"] = a.second;
+        }
+        postJsonRpcReply(e, ret);
+    }, [e](const PGResponseError& err){
+        postJsonRpcReply(e, err.error);
+    }, [e](const PGTimeout& timeout){
+        postJsonRpcReply(e, "timeout");
+    }));
 }
 
 bool Yeti::verifyHttpDestinations()

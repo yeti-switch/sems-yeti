@@ -13,7 +13,9 @@ enum RpcMethodId {
     MethodGetResourceState,
     MethodRemoveCall,
     MethodShowSessionInfo,
-    MethodGetCall
+    MethodGetCall,
+    MethodShowDBStates,
+    MethodReloadDBStates
 };
 
 class YetiRpc
@@ -138,5 +140,6 @@ class YetiRpc
 
     rpc_handler showGatewaysCache;
 
-    rpc_handler showReloadStatus;
+    async_rpc_handler showDBStates;
+    async_rpc_handler reloadDBStates;
 };

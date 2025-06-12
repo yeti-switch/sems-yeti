@@ -27,7 +27,7 @@
 #include <cstdio>
 
 static const bool RPC_CMD_SUCC = true;
-static const string RPC_CMD_DEPRECATED("deprecated");
+static const string RPC_CMD_DEPRECATED("deprecated`");
 
 typedef YetiRpc::rpc_handler YetiRpc::*YetiRpcHandler;
 
@@ -180,9 +180,7 @@ void YetiRpc::init_rpc_tree()
 			method(show_cert_cache, "signing_keys", "show signing keys", showCertCacheSigningKeys, "");
 		method(show, "trusted_balancers", "show trusted balancers list", showTrustedBalancers, "");
 		method(show, "ip_auth", "show ip auth list", showIPAuth, "");
-
-		leaf(show,show_reload,"reload","db setting reload");
-			method(show_reload,"status","show db reloading status",showReloadStatus,"");
+		method(show,"db_states","show db reloading status",showDBStates,"");
 
 		method(show,"gateways_cache","show gateways cache",showGatewaysCache,"");
 
@@ -280,6 +278,9 @@ void YetiRpc::init_rpc_tree()
 
 		leaf(request,request_trusted_balancers,"trusted_balancers","trusted balancers");
 			method(request_trusted_balancers,"reload","",requestTrustedBalancersReload,"");
+
+		leaf(request, request_db_states, "db_states", "database states");
+			method(request_db_states, "reload", "", reloadDBStates, "");
 
 	/* set */
 	leaf(root,lset,"set","set");
@@ -1085,8 +1086,17 @@ void YetiRpc::showGatewaysCache(const AmArg &arg, AmArg& ret)
     gateways_cache.info(arg, ret);
 }
 
-void YetiRpc::showReloadStatus(const AmArg&, AmArg& ret)
+bool YetiRpc::showDBStates(const string& connection_id,
+						   const AmArg& request_id,
+						   const AmArg& params)
 {
-    //TODO: rewrite to use async postgres and show db values
-    ret = db_cfg_states;
+	AmEventDispatcher::instance()->post(YETI_QUEUE_NAME, new JsonRpcRequestEvent(connection_id, request_id, false, MethodShowDBStates, params));
+	return true;
+}
+bool YetiRpc::reloadDBStates(const string& connection_id,
+						   const AmArg& request_id,
+						   const AmArg& params) {
+	AmEventDispatcher::instance()->post(YETI_QUEUE_NAME, new JsonRpcRequestEvent(connection_id, request_id, false,
+								MethodReloadDBStates, params));
+	return true;
 }
