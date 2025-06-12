@@ -154,7 +154,7 @@ class CertCache
     };
 
     int getExpires() const { return expires; }
-    string getHttpDestination() { return http_destination; }
+    const string &getHttpDestination() { return http_destination; }
 
     //returns if cert is presented in cache and ready to be used
     bool checkAndFetch(const string& cert_url, const string& session_id);

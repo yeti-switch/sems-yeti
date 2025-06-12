@@ -1,11 +1,8 @@
 #include "yeti.h"
+
 #include "sdp_filter.h"
-
-#include <string.h>
-#include <ctime>
-#include <cstdio>
-
 #include "log.h"
+#include "format_helper.h"
 #include "AmPlugIn.h"
 #include "AmArg.h"
 #include "jsonArg.h"
@@ -26,9 +23,14 @@
 #include "ObjectsCounter.h"
 
 #include "cfg/yeti_opts.h"
+#include "cfg/statistics_opts.h"
 #include "cfg/cfg_helpers.h"
 
 #include "IPTree.h"
+
+#include <string.h>
+#include <ctime>
+#include <cstdio>
 
 #define EPOLL_MAX_EVENTS 2048
 
@@ -144,7 +146,7 @@ int Yeti::configure(const std::string& config_buf)
         }
         config.identity_enabled = true;
     } else {
-        WARN("missed identity section. Identity validation support will be disabled");
+        DBG("missed identity section. Identity validation support will be disabled");
         config.identity_enabled = false;
     }
 
@@ -243,6 +245,10 @@ int Yeti::onLoad()
         return -1;
     }
 
+    if(!verifyHttpDestinations()) {
+        return -1;
+    }
+
     each_second_timer.link(epoll_fd);
     each_second_timer.set(1e6 /* 1 second */,true);
 
@@ -257,11 +263,6 @@ int Yeti::onLoad()
     rctl.start();
     if(cdr_list.getSnapshotsEnabled())
         cdr_list.start();
-
-    if(!verifyHttpDestination()) {
-        ERROR("verification of http destination failed");
-        return -1;
-    }
 
     configuration_finished = true;
 
@@ -711,8 +712,40 @@ void Yeti::onDbCfgReloadTimerResponse(const PGResponse &e) noexcept
     }
 }
 
-bool Yeti::verifyHttpDestination()
+bool Yeti::verifyHttpDestinations()
 {
+    std::multimap<string, string> destinations;
+
+    //TODO: check "fcm" destination from SBCCallLeg::process_push_token_profile
+
+    if(!config.http_events_destination.empty())
+        destinations.emplace(
+            opt_name_http_events_destination,
+            config.http_events_destination);
+
+    if(!config.audio_recorder_http_destination.empty())
+        destinations.emplace(
+            opt_name_audio_recorder_http_destination,
+            config.audio_recorder_http_destination);
+
+    if(config.identity_enabled)
+        destinations.emplace(
+            format("{}.{}",
+                string(section_name_identity),
+                string(opt_identity_http_destination)),
+            cert_cache.getHttpDestination());
+
+    for(auto& shapshot_dst : cdr_list.getSnapshotsDestinations())
+        destinations.emplace(
+            format("{}.{}.{}.{}",
+                string(section_name_statistics),
+                string(section_name_active_calls),
+                string(section_name_clickhouse),
+                string(opt_name_destinations)),
+            shapshot_dst);
+
+    if(destinations.empty()) return true;
+
     AmDynInvokeFactory* di_f = AmPlugIn::instance()->getFactory4Di("http_client");
     if(!di_f) {
         ERROR("unable to get http_client factory");
@@ -725,22 +758,15 @@ bool Yeti::verifyHttpDestination()
     }
     AmArg args, ret;
     http_client->invoke("show.destinations", args, ret);
-    if(!isArgStruct(ret)) return -1;
-    vector<string> destinations;
-    destinations.push_back(config.http_events_destination);
-    // destinations.push_back("fcm"); ??? using in SBCCallLeg.cpp:1370, have to need check it???
-    if(!config.audio_recorder_http_destination.empty())
-        destinations.push_back(config.audio_recorder_http_destination);
-    if(config.identity_enabled)
-        destinations.push_back(cert_cache.getHttpDestination());
-    for(auto& shapshot_dst : cdr_list.getSnapshotsDestinations())
-        destinations.push_back(shapshot_dst);
+    if(!isArgStruct(ret)) return false;
 
-    for(auto& dst_name : destinations) {
+    auto result = true;
+    for(const auto& [dst_opt, dst_name] : destinations) {
         if(!ret.hasMember(dst_name)) {
-            ERROR("absent %s destination in http_client", dst_name.c_str());
-            return false;
+            ERROR("absent destination '%s' in the http_client. option: %s",
+                dst_name.c_str(), dst_opt.c_str());
+            result = false;
         }
     }
-    return true;
+    return result;
 }

@@ -47,7 +47,7 @@ class Yeti
     void onDbCfgReloadTimer() noexcept;
     void onDbCfgReloadTimerResponse(const PGResponse &e) noexcept;
 
-    bool verifyHttpDestination();
+    bool verifyHttpDestinations();
 
   public:
 
