@@ -27,7 +27,6 @@
 #include <cstdio>
 
 static const bool RPC_CMD_SUCC = true;
-static const string RPC_CMD_DEPRECATED("deprecated`");
 
 typedef YetiRpc::rpc_handler YetiRpc::*YetiRpcHandler;
 
@@ -55,6 +54,13 @@ struct CallNotFoundException: public AmSession::Exception {
                              local_tag+"' is not found")
     {}
 };
+
+static void deprecated_db_reload_cmd()
+{
+    throw AmSession::Exception(
+        410,
+        "deprecated. use: yeti.request.db_states.reload");
+}
 
 struct rpc_entry: public AmObject {
   YetiRpcHandler handler;
@@ -537,8 +543,9 @@ void YetiRpc::GetRegistrationsCount(const AmArg& args, AmArg& ret){
 	registrar_client_i->invoke("getRegistrationsCount", AmArg(), ret);
 }
 
-void YetiRpc::ClearStats(const AmArg&, AmArg& ret){
-	ret = RPC_CMD_DEPRECATED;
+void YetiRpc::ClearStats(const AmArg&, AmArg&)
+{
+	throw AmSession::Exception(410, "deprecated");
 }
 
 void YetiRpc::GetStats(const AmArg& args, AmArg& ret){
@@ -690,24 +697,29 @@ void YetiRpc::showVersion(const AmArg& args, AmArg& ret) {
 	CALL_CORE(showVersion);
 }
 
-void YetiRpc::reloadResources(const AmArg& args, AmArg& ret){
-	ret = RPC_CMD_DEPRECATED;
+void YetiRpc::reloadResources(const AmArg&, AmArg&)
+{
+	deprecated_db_reload_cmd();
 }
 
-void YetiRpc::reloadTranslations(const AmArg&, AmArg& ret){
-	ret = RPC_CMD_DEPRECATED;
+void YetiRpc::reloadTranslations(const AmArg&, AmArg&)
+{
+	deprecated_db_reload_cmd();
 }
 
-void YetiRpc::reloadRegistrations(const AmArg&, AmArg& ret){
-	ret = RPC_CMD_DEPRECATED;
+void YetiRpc::reloadRegistrations(const AmArg&, AmArg&)
+{
+	deprecated_db_reload_cmd();
 }
 
-void YetiRpc::reloadCodecsGroups(const AmArg&, AmArg& ret){
-	ret = RPC_CMD_DEPRECATED;
+void YetiRpc::reloadCodecsGroups(const AmArg&, AmArg&)
+{
+	deprecated_db_reload_cmd();
 }
 
-void YetiRpc::requestReloadSensors(const AmArg&, AmArg& ret){
-	ret = RPC_CMD_DEPRECATED;
+void YetiRpc::requestReloadSensors(const AmArg&, AmArg&)
+{
+	deprecated_db_reload_cmd();
 }
 
 void YetiRpc::showSensorsState(const AmArg& args, AmArg& ret){
@@ -863,12 +875,14 @@ void YetiRpc::showRadiusAccStat(const AmArg& args, AmArg& ret){
 	radius_invoke("showAccStat", args, ret);
 }
 
-void YetiRpc::requestRadiusAuthProfilesReload(const AmArg&, AmArg& ret){
-	ret = RPC_CMD_DEPRECATED;
+void YetiRpc::requestRadiusAuthProfilesReload(const AmArg&, AmArg&)
+{
+	deprecated_db_reload_cmd();
 }
 
-void YetiRpc::requestRadiusAccProfilesReload(const AmArg&, AmArg& ret){
-	ret = RPC_CMD_DEPRECATED;
+void YetiRpc::requestRadiusAccProfilesReload(const AmArg&, AmArg&)
+{
+	deprecated_db_reload_cmd();
 }
 
 void YetiRpc::showSystemStatus(const AmArg& args, AmArg& ret){
@@ -972,9 +986,9 @@ void YetiRpc::showAuthCredentialsById(const AmArg& args, AmArg& ret)
 	router.auth_info_by_id(id,ret);
 }
 
-void YetiRpc::requestAuthCredentialsReload(const AmArg&, AmArg& ret)
+void YetiRpc::requestAuthCredentialsReload(const AmArg&, AmArg&)
 {
-	ret = RPC_CMD_DEPRECATED;
+	deprecated_db_reload_cmd();
 }
 
 DEFINE_CORE_PROXY_METHOD(showMediaStreams);
@@ -1010,9 +1024,9 @@ void YetiRpc::showHttpSequencerData(const AmArg&, AmArg& ret)
 	http_sequencer.serialize(ret);
 }
 
-void YetiRpc::requestOptionsProberReload(const AmArg&, AmArg& ret)
+void YetiRpc::requestOptionsProberReload(const AmArg&, AmArg&)
 {
-	ret = RPC_CMD_DEPRECATED;
+	deprecated_db_reload_cmd();
 }
 
 void YetiRpc::showCertCacheEntries(const AmArg&, AmArg& ret)
@@ -1055,24 +1069,24 @@ void YetiRpc::showIPAuth(const AmArg& arg, AmArg& ret)
     orig_pre_auth.ShowIPAuth(arg, ret);
 }
 
-void YetiRpc::requestCertCacheTrustedCertsReload(const AmArg&, AmArg& ret)
+void YetiRpc::requestCertCacheTrustedCertsReload(const AmArg&, AmArg&)
 {
-    ret = RPC_CMD_DEPRECATED;
+    deprecated_db_reload_cmd();
 }
 
-void YetiRpc::requestCertCacheTrustedRepositoriesReload(const AmArg&, AmArg& ret)
+void YetiRpc::requestCertCacheTrustedRepositoriesReload(const AmArg&, AmArg&)
 {
-    ret = RPC_CMD_DEPRECATED;
+    deprecated_db_reload_cmd();
 }
 
-void YetiRpc::requestTrustedBalancersReload(const AmArg&, AmArg& ret)
+void YetiRpc::requestTrustedBalancersReload(const AmArg&, AmArg&)
 {
-    ret = RPC_CMD_DEPRECATED;
+    deprecated_db_reload_cmd();
 }
 
-void YetiRpc::requestIPAuthReload(const AmArg&, AmArg& ret)
+void YetiRpc::requestIPAuthReload(const AmArg&, AmArg&)
 {
-    ret = RPC_CMD_DEPRECATED;
+    deprecated_db_reload_cmd();
 }
 
 void YetiRpc::showGatewaysCache(const AmArg &arg, AmArg& ret)
