@@ -1,3 +1,8 @@
+sems-yeti (1.14.1) stable; urgency=medium
+  * verify destinations in http_client
+  * add rpc method: yeti.request.db_states.reload
+ -- dev <dev@yeti-switch.org>  Wed, 18 Jun 2025 17:08:58 +0300
+
 sems-yeti (1.14.0) stable; urgency=medium
   * add termination gateways throttling
   * drop load_interface_in() support
