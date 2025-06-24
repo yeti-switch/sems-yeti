@@ -61,6 +61,12 @@ int DbConfig::cfg2dbcfg(AmConfigReader& cfg, const string& prefix, bool silent)
     pass=default_db_password;
     if(!silent) WARN("missed %s.pass. use: %s", var_prefix.c_str(), pass.c_str());
   }
+  var=prefix+"_keepalives_interval";
+  if(cfg.hasParameter(var)){
+    keepalives_interval=cfg.getParameterInt(var);
+  } else {
+    keepalives_interval=std::nullopt;
+  }
 
   return 0;
 }

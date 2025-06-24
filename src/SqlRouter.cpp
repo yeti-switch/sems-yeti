@@ -288,6 +288,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         masterpoolcfg.dbconfig.user,
         masterpoolcfg.dbconfig.pass);
     master_routing_pool.pool_size = masterpoolcfg.size;
+    master_routing_pool.keepalives_interval = masterpoolcfg.dbconfig.keepalives_interval.value_or(PG_DEFAULT_KEEPALIVES_INTERVAL);
 
     //add master routing worker pool
     if(!AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE,
@@ -314,6 +315,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
             slavepoolcfg.dbconfig.user,
             slavepoolcfg.dbconfig.pass);
         slave_routing_pool.pool_size = slavepoolcfg.size;
+        slave_routing_pool.keepalives_interval = slavepoolcfg.dbconfig.keepalives_interval.value_or(PG_DEFAULT_KEEPALIVES_INTERVAL);
 
         //add slave routing worker pool
         if(!AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE,
@@ -391,6 +393,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
         cdr_cfg.masterdb.user,
         cdr_cfg.masterdb.pass);
     cdr_db_master_pool.pool_size = cdr_cfg.pool_size;
+    cdr_db_master_pool.keepalives_interval = cdr_cfg.masterdb.keepalives_interval.value_or(PG_DEFAULT_KEEPALIVES_INTERVAL);
 
     AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE,
         new PGWorkerPoolCreate(
@@ -406,6 +409,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
             cdr_cfg.slavedb.user,
             cdr_cfg.slavedb.pass);
         cdr_db_slave_pool.pool_size = cdr_cfg.pool_size;
+        cdr_db_slave_pool.keepalives_interval = cdr_cfg.slavedb.keepalives_interval.value_or(PG_DEFAULT_KEEPALIVES_INTERVAL);
 
         AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE,
             new PGWorkerPoolCreate(
@@ -502,6 +506,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
             cdr_cfg.slavedb.user,
             cdr_cfg.slavedb.pass);
         auth_db_slave_pool.pool_size = cdr_cfg.pool_size;
+        auth_db_slave_pool.keepalives_interval = cdr_cfg.slavedb.keepalives_interval.value_or(PG_DEFAULT_KEEPALIVES_INTERVAL);
 
         AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE,
             new PGWorkerPoolCreate(

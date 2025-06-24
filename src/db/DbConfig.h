@@ -9,6 +9,7 @@
 struct DbConfig {
     string host,name,user,pass;
     unsigned int port;
+    std::optional<int> keepalives_interval;
     string info_str();
 
     int cfg2dbcfg(AmConfigReader& cfg,const string& prefix, bool silent = false);
