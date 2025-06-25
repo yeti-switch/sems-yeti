@@ -262,6 +262,8 @@ bool GatewaysCache::should_skip(GatewayIdType gateway_id, int now)
 
 std::optional<GatewaysCache::TelRedirectData> GatewaysCache::get_redirect_data(GatewayIdType gateway_id)
 {
+    AmLock lock(mutex);
+
     auto gw_it = gateways.find(gateway_id);
     if(gw_it == gateways.end()) return std::nullopt;
 
