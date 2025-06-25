@@ -23,6 +23,7 @@ struct B2BReferEvent
 {
     string referrer_session;
     string referred_to;
+    list<string> append_headers;
 
     B2BReferEvent(const string &session, const string &target)
       : B2BEvent(B2BRefer),

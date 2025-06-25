@@ -9,6 +9,20 @@ GatewaysCache::GatewayData::GatewayData(GatewayIdType gateway_id, const AmArg &r
   : id(gateway_id),
     throttling_enabled(false)
 {
+    //tel: refer
+    const auto &transfer_tel_uri_host_arg = r["transfer_tel_uri_host"];
+    if(!isArgUndef(transfer_tel_uri_host_arg))
+        tel_redirect_data.transfer_tel_uri_host = transfer_tel_uri_host_arg.asCStr();
+
+    const auto &transfer_append_headers_req_arg = r["transfer_append_headers_req"];
+    if(isArgArray(transfer_append_headers_req_arg)) {
+        for(auto i = 0u; i < transfer_append_headers_req_arg.size(); i++) {
+            tel_redirect_data.transfer_append_headers_req.push_back(
+                transfer_append_headers_req_arg.get(i).asCStr());
+        }
+    }
+
+    //throttling
     auto &throttling_codes = r["throttling_codes"];
     if(!isArgArray(throttling_codes))
         return;
@@ -63,6 +77,16 @@ GatewaysCache::GatewayData::GatewayData(GatewayIdType gateway_id, const AmArg &r
 GatewaysCache::GatewayData::operator AmArg() const
 {
     AmArg a;
+
+    //tel: refer/redirect
+
+    a["transfer_tel_uri_host"] = tel_redirect_data.transfer_tel_uri_host;
+    auto &transfer_append_headers_req_arg = a["transfer_append_headers_req"];
+    transfer_append_headers_req_arg.assertArray();
+    for(const auto &hdr: tel_redirect_data.transfer_append_headers_req)
+        transfer_append_headers_req_arg.push(hdr);
+
+    //throttling
 
     a["throttling_enabled"] = throttling_enabled;
 
@@ -234,4 +258,12 @@ bool GatewaysCache::should_skip(GatewayIdType gateway_id, int now)
     if(ret) s.throttled_requests_randomly++;
 
     return ret;
+}
+
+std::optional<GatewaysCache::TelRedirectData> GatewaysCache::get_redirect_data(GatewayIdType gateway_id)
+{
+    auto gw_it = gateways.find(gateway_id);
+    if(gw_it == gateways.end()) return std::nullopt;
+
+    return gw_it->second.tel_redirect_data;
 }

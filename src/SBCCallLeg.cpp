@@ -2456,16 +2456,55 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
                 return;
             }
 
+            DBG("xfer. Refer-To: %s", refer_to.c_str());
+
             sip_nameaddr refer_to_nameaddr;
             const char *refer_to_ptr = refer_to.c_str();
-            if(0!=parse_nameaddr(&refer_to_nameaddr,
+            if(0!=parse_nameaddr_uri(&refer_to_nameaddr,
                 &refer_to_ptr,static_cast<int>(refer_to.length())))
             {
                 DBG("failed to parse Refer-To header: %s",refer_to.c_str());
                 dlg->reply(req,400,"Invalid Refer-To header");
                 return;
             }
-            refer_to = c2stlstr(refer_to_nameaddr.addr);
+
+            unique_ptr<B2BReferEvent> refer_event;
+
+            if(refer_to_nameaddr.uri.scheme == sip_uri::TEL) {
+                if(refer_to_nameaddr.uri.user.isEmpty()) {
+                    DBG("empty number. reject tel URI xfer: %s", refer_to.c_str());
+                    dlg->reply(req, 400, "Empty number in tel: URI");
+                    return;
+                }
+                auto profile = *call_ctx->getCurrentProfile();
+                auto term_gw_id = profile.term_gw_id;
+                auto tel_redirect_data_ret = yeti.gateways_cache.get_redirect_data(term_gw_id);
+                if(!tel_redirect_data_ret) {
+                    DBG("no gateway cache data for term_gw_id:%s. reject tel URI xfer: %s",
+                        term_gw_id, refer_to.c_str());
+                    dlg->reply(req, 603, "Unconfigured xfer for tel URIs");
+                    return;
+                }
+                auto &tel_redirect_data = tel_redirect_data_ret.value();
+                if(tel_redirect_data.transfer_tel_uri_host.empty()) {
+                    DBG("empty transfer_tel_uri_host for gateway %d. reject tel URI xfer: %s",
+                        term_gw_id, refer_to.c_str());
+                    dlg->reply(req, 603, "Unconfigured xfer for tel URIs");
+                    return;
+                }
+
+                refer_to = format("sip:{}@{}",
+                    c2stlstr(refer_to_nameaddr.uri.user),
+                    tel_redirect_data.transfer_tel_uri_host);
+
+                refer_event.reset(new B2BReferEvent(getLocalTag(), refer_to));
+                refer_event->append_headers = tel_redirect_data.transfer_append_headers_req;
+            } else {
+                refer_to = c2stlstr(refer_to_nameaddr.addr);
+                refer_event.reset(new B2BReferEvent(getLocalTag(), refer_to));
+            }
+
+            DBG("xfer to the: %s", refer_event->referred_to.c_str());
 
             if(!subs->onRequestIn(req))
                 return;
@@ -2480,7 +2519,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
             }
             call_ctx = nullptr; //forget about ctx
 
-            relayEvent(new B2BReferEvent(getLocalTag(),refer_to)); //notify Aleg about Refer
+            CallLeg::relayEvent(refer_event.release()); //notify Aleg about Refer
             clearRtpReceiverRelay(); //disconnect B2BMedia
             AmB2BSession::clear_other(); //forget about Aleg
 
@@ -2680,25 +2719,26 @@ void SBCCallLeg::onRemoteDisappeared(const AmSipReply& reply)
 void SBCCallLeg::onBye(const AmSipRequest& req)
 {
     DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
-    if(!call_ctx) return;
-    with_cdr_for_read {
-        cdr->update_reasons_with_sip_request(req, a_leg);
-        if(getCallStatus()!=CallLeg::Connected) {
-            if(a_leg) {
-                DBG("received Bye in not connected state");
-                cdr->update_internal_reason(DisconnectByORG,"EarlyBye",500,0);
-                cdr->update_aleg_reason("EarlyBye",200);
-                cdr->update_bleg_reason("Cancel",487);
+    if(call_ctx) {
+        with_cdr_for_read {
+            cdr->update_reasons_with_sip_request(req, a_leg);
+            if(getCallStatus()!=CallLeg::Connected) {
+                if(a_leg) {
+                    DBG("received Bye in not connected state");
+                    cdr->update_internal_reason(DisconnectByORG,"EarlyBye",500,0);
+                    cdr->update_aleg_reason("EarlyBye",200);
+                    cdr->update_bleg_reason("Cancel",487);
+                } else {
+                    DBG("generate reply for early BYE on Bleg and force leg termination");
+                    cdr->update_bleg_reason("EarlyBye",200);
+                    dlg->reply(req,200,"OK");
+                    terminateLeg();
+                    return;
+                }
             } else {
-                DBG("generate reply for early BYE on Bleg and force leg termination");
-                cdr->update_bleg_reason("EarlyBye",200);
-                dlg->reply(req,200,"OK");
-                terminateLeg();
-                return;
+                cdr->update_internal_reason(a_leg ? DisconnectByORG : DisconnectByDST,"Bye",200,0);
+                cdr->update_bleg_reason("Bye",200);
             }
-        } else {
-            cdr->update_internal_reason(a_leg ? DisconnectByORG : DisconnectByDST,"Bye",200,0);
-            cdr->update_bleg_reason("Bye",200);
         }
     }
     CallLeg::onBye(req);
@@ -4365,6 +4405,9 @@ void SBCCallLeg::onOtherRefer(const B2BReferEvent &refer)
         ERROR("%s failed to apply B routing after REFER", getLocalTag().data());
         throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
+
+    for(const auto &hdr: refer.append_headers)
+        modified_req.hdrs += hdr + CRLF;
 
     connectCallee(to, ruri, from,
                   aleg_modified_req, modified_req,

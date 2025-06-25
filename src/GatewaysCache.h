@@ -9,12 +9,22 @@
 #include <unordered_map>
 #include <set>
 #include <random>
+#include <optional>
 
 class GatewaysCache
 {
+  public:
+    struct TelRedirectData {
+        string transfer_tel_uri_host;
+        list<string> transfer_append_headers_req;
+    };
+
+  private:
     using GatewayIdType = int;
     struct GatewayData {
         GatewayIdType id;
+
+        //throttling
         bool throttling_enabled;
         int throttling_minimum_calls;
         int throttling_window;
@@ -23,6 +33,10 @@ class GatewaysCache
         double failure_rate_multiplier;
         std::set<int> throttling_local_codes;
         std::set<int> throttling_remote_codes;
+
+        //tel: refer
+        TelRedirectData tel_redirect_data;
+
         GatewayStats stats;
 
         GatewayData(GatewayIdType gateway_id, const AmArg &r);
@@ -48,4 +62,6 @@ class GatewaysCache
 
     void update_reply_stats(GatewayIdType gateway_id, const AmSipReply &reply);
     bool should_skip(GatewayIdType gateway_id, int now);
+
+    std::optional<TelRedirectData> get_redirect_data(GatewayIdType gateway_id);
 };
