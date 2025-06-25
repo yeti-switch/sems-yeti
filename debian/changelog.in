@@ -1,3 +1,7 @@
+sems-yeti (1.14.3) stable; urgency=medium
+  * GatewaysCache::get_redirect_data add mutex
+ -- dev <dev@yeti-switch.org>  Wed, 25 Jun 2025 21:32:57 +0300
+
 sems-yeti (1.14.2) stable; urgency=medium
   * fix transfers processing
   * support transfers to a tel-URI using transfer_tel_uri_host,transfer_append_headers_req from the gateways cache
