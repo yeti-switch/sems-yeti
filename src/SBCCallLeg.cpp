@@ -782,7 +782,6 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
     call_profile.apply_a_routing(ctx,orig_req,*dlg);
 
     AmSipRequest invite_req(orig_req);
-
     removeHeader(invite_req.hdrs,PARAM_HDR);
     removeHeader(invite_req.hdrs,"P-App-Name");
 
@@ -1069,6 +1068,10 @@ void SBCCallLeg::onProfilesReady()
 
     modified_req = uac_req;
     aleg_modified_req = uac_req;
+    if(modified_req.max_forwards)
+        modified_req.max_forwards -= yeti.config.max_forwards_decrement;
+    else
+        modified_req.max_forwards = AmConfig.max_forwards;
 
     if (!logger) {
         if(!call_profile.get_logger_path().empty() &&
@@ -3650,6 +3653,7 @@ void SBCCallLeg::connectCallee(
     callee_session->setLocalParty(from, from);
     callee_session->setRemoteParty(remote_party, remote_uri);
     callee_session->dlg->setAllowedMethods(yeti.config.allowed_methods);
+    callee_session->dlg->setMaxForwards(invite.max_forwards);
 
     if (!callee_session->a_leg)
         callee_session->applyBProfile();

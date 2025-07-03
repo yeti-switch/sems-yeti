@@ -29,6 +29,7 @@ struct YetiCfg {
     string http_events_destination;
     vector<string> supported_tags;
     vector<string> allowed_methods;
+    unsigned int max_forwards_decrement;
 
     cdr_headers_t aleg_cdr_headers;
     cdr_headers_t bleg_cdr_headers;

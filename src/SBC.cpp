@@ -226,6 +226,13 @@ AmSession* SBCFactory::onInvite(
     fake_logger *early_trying_logger = new fake_logger();
     inc_ref(early_trying_logger);
 
+    if(req.max_forwards) {
+        if(req.max_forwards < yeti->config.max_forwards_decrement + 1) {
+            AmSipDialog::reply_error(req, 483, SIP_REPLY_TOO_MANY_HOPS);
+            return nullptr;
+        }
+    }
+
     if(yeti->config.early_100_trying)
         answer_100_trying(req,early_trying_logger);
 

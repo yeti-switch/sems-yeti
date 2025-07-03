@@ -50,6 +50,7 @@ char opt_name_msg_logger_dir[] = "msg_logger_dir";
 char opt_name_audio_recorder_dir[] = "audio_recorder_dir";
 char opt_name_audio_recorder_compress[] = "audio_recorder_compress";
 char opt_name_audio_recorder_http_destination[] = "audio_recorder_http_destination";
+char opt_name_max_forwards_decrement[] = "max_forwards_decrement";
 
 char opt_name_auth_realm[] = "realm";
 char opt_name_auth_skip_logging_invite_challenge[] = "skip_logging_invite_challenge";
@@ -218,6 +219,8 @@ cfg_opt_t yeti_opts[] = {
     CFG_BOOL(opt_name_auth_feedback, cfg_false, CFGF_NONE),
 
     CFG_STR(opt_name_http_events_destination,"",CFGF_NONE),
+
+    CFG_INT(opt_name_max_forwards_decrement, 1, CFGF_NONE),
 
     CFG_BOOL(opt_name_write_internal_disconnect_code, cfg_false, CFGF_NONE),
 

@@ -112,6 +112,7 @@ int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
     http_events_destination = cfg_getstr(cfg, opt_name_http_events_destination);
     postgresql_debug = cfg_getbool(cfg, opt_name_postgresql_debug);
     write_internal_disconnect_code = cfg_getbool(cfg, opt_name_write_internal_disconnect_code);
+    max_forwards_decrement = cfg_getint(cfg, opt_name_max_forwards_decrement);
 
     for(auto i = 0U; i < cfg_size(cfg, opt_name_supported_tags); ++i)
         supported_tags.push_back(cfg_getnstr(cfg, opt_name_supported_tags, i));
