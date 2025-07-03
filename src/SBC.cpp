@@ -221,17 +221,17 @@ AmSession* SBCFactory::onInvite(
     const string&,
     const map<string,string>&)
 {
-    OriginationPreAuth::Reply ip_auth_data;
+    if((req.max_forwards - yeti->config.max_forwards_decrement) < 1) {
+        AmSipDialog::reply_error(req, 483, SIP_REPLY_TOO_MANY_HOPS);
+        ERROR("Max-Forwards:%d is too low. ci:%s remote:%s:%hu",
+            req.max_forwards, req.callid.c_str(),
+            req.remote_ip.c_str(), req.remote_port);
+        return nullptr;
+    }
 
+    OriginationPreAuth::Reply ip_auth_data;
     fake_logger *early_trying_logger = new fake_logger();
     inc_ref(early_trying_logger);
-
-    if(req.max_forwards) {
-        if(req.max_forwards < yeti->config.max_forwards_decrement + 1) {
-            AmSipDialog::reply_error(req, 483, SIP_REPLY_TOO_MANY_HOPS);
-            return nullptr;
-        }
-    }
 
     if(yeti->config.early_100_trying)
         answer_100_trying(req,early_trying_logger);
