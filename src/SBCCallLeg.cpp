@@ -1607,6 +1607,12 @@ bool SBCCallLeg::onTimerEvent(int timer_id)
 {
     DBG("%s(%p,%d,leg%s)",FUNC_NAME,to_void(this),timer_id,a_leg?"A":"B");
 
+    if(timer_id == YETI_REFER_TIMEOUT_TIMER) {
+        DBG("transferor leg timeout. terminate leg");
+        terminateLeg();
+        return true;
+    }
+
     if(!call_ctx) {
         return false;
     }
@@ -2516,6 +2522,8 @@ void SBCCallLeg::onSipRequest(const AmSipRequest& req)
 
             dlg->reply(req,202,"Accepted");
 
+            setTimer(YETI_REFER_TIMEOUT_TIMER, DEFAULT_B_TIMER/1000);
+
             call_ctx->references--;
             if(!call_ctx->references) {
                 ERROR("Bleg held last reference to call_ctx. possible ctx leak");
@@ -2722,7 +2730,18 @@ void SBCCallLeg::onRemoteDisappeared(const AmSipReply& reply)
 void SBCCallLeg::onBye(const AmSipRequest& req)
 {
     DBG("%s(%p,leg%s)",FUNC_NAME,to_void(this),a_leg?"A":"B");
-    if(call_ctx) {
+
+    while(call_ctx) {
+        if(a_leg && call_ctx->transfer_intermediate_state) {
+            //generate local BYE reply. transferee Bleg is not connected
+            with_cdr_for_read {
+                cdr->update_aleg_reason("EarlyBye",200);
+                cdr->update_internal_reason(DisconnectByORG,"Transfer Failed: EarlyBye",500,0);
+            }
+            dlg->reply(req,200,"OK");
+            break;
+        }
+
         with_cdr_for_read {
             cdr->update_reasons_with_sip_request(req, a_leg);
             if(getCallStatus()!=CallLeg::Connected) {
@@ -2743,7 +2762,10 @@ void SBCCallLeg::onBye(const AmSipRequest& req)
                 cdr->update_bleg_reason("Bye",200);
             }
         }
+
+        break;
     }
+
     CallLeg::onBye(req);
 }
 
@@ -2898,6 +2920,17 @@ void SBCCallLeg::process(AmEvent* ev)
         return;
     }
 
+    if(auto plugin_event = dynamic_cast<AmPluginEvent*>(ev)) {
+        DBG("%s plugin_event. name = %s, event_id = %d",FUNC_NAME,
+            plugin_event->name.c_str(),
+            plugin_event->event_id);
+
+        if(plugin_event->name=="timer_timeout"){
+            if(onTimerEvent(plugin_event->data.get(0).asInt()))
+                return;
+        }
+    }
+
     do {
         getCtx_chained
 
@@ -2975,17 +3008,6 @@ void SBCCallLeg::process(AmEvent* ev)
                     cdr->is_redirected = true;
             }
             return;
-        }
-
-        AmPluginEvent* plugin_event = dynamic_cast<AmPluginEvent*>(ev);
-        if(plugin_event){
-            DBG("%s plugin_event. name = %s, event_id = %d",FUNC_NAME,
-                plugin_event->name.c_str(),
-                plugin_event->event_id);
-            if(plugin_event->name=="timer_timeout"){
-                if(onTimerEvent(plugin_event->data.get(0).asInt()))
-                    return;
-            }
         }
 
         SBCControlEvent* sbc_event = dynamic_cast<SBCControlEvent*>(ev);
@@ -4365,6 +4387,7 @@ void SBCCallLeg::b2bConnectedErr(AmSipReply& reply)
             reply.code,reply.reason.c_str());
 
         with_cdr_for_read {
+            cdr->update_with_action(End);
             cdr->disconnect_initiator = DisconnectByTS;
             cdr->disconnect_internal_code = 200;
             cdr->disconnect_internal_reason =
