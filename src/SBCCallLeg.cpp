@@ -4446,7 +4446,14 @@ void SBCCallLeg::sendReferNotify(int code, string &reason)
     DBG("%s(%p) %d %s",FUNC_NAME,to_void(this),code,reason.c_str());
     if(last_refer_cseq.empty()) return;
     string body = "SIP/2.0 " + int2str(code) + " " + reason + CRLF;
-    subs->sendReferNotify(dlg,last_refer_cseq,body,code >= 200);
+
+    bool terminate_subscription = (code >= 200);
+
+    subs->sendReferNotify(dlg,last_refer_cseq,body,terminate_subscription);
+
+    if(terminate_subscription) {
+        setTimer(YETI_REFER_TIMEOUT_TIMER, 3);
+    }
 }
 
 void SBCCallLeg::httpCallStartedHook()
