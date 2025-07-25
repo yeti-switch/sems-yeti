@@ -1298,6 +1298,12 @@ static void replace_profile_fields(const SipRegistrarResolveResponseEvent::aor_d
     if (!data.path.empty()) {
         p.route = data.path;
     }
+
+    //replace outbound_interface and outbound_interface_value
+    if (!data.interface_name.empty()) {
+        p.outbound_interface = data.interface_name;
+        p.evaluateOutboundInterface();
+    }
 }
 
 void SBCCallLeg::process_push_token_profile(SqlCallProfile &p)
