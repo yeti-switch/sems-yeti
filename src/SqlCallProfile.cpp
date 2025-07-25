@@ -139,15 +139,20 @@ bool SqlCallProfile::readFromTuple(
     }
 
     // SDP alines filter
-    if (!readFilter(t, "sdp_alines_filter", sdpalinesfilter, false)) {
-        ERROR("failed to read sdp_alines_filter");
-        return false;
-    }
-
-    if (!readFilter(t, "bleg_sdp_alines_filter", bleg_sdpalinesfilter, false, FILTER_TYPE_WHITELIST)) {
-        ERROR("failed to read bleg_sdp_alines_filter");
-        return false;
-    }
+    // filter out all unknown a-lines
+    FilterEntry whitelist;
+    whitelist.filter_type = Whitelist;
+    sdpalinesfilter.push_back(whitelist);
+    bleg_sdpalinesfilter.push_back(whitelist);
+    // if (!readFilter(t, "sdp_alines_filter", sdpalinesfilter, false)) {
+    //     ERROR("failed to read sdp_alines_filter");
+    //     return false;
+    // }
+    //
+    // if (!readFilter(t, "bleg_sdp_alines_filter", bleg_sdpalinesfilter, false, FILTER_TYPE_WHITELIST)) {
+    //     ERROR("failed to read bleg_sdp_alines_filter");
+    //     return false;
+    // }
 
     sst_enabled = DbAmArg_hash_get_bool_any(t, "enable_session_timer", false);
     if(t.hasMember("enable_aleg_session_timer")) {
