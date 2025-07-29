@@ -158,7 +158,11 @@ std::optional<std::string> CertCache::getIdentityHeader(
 
     const auto &key_data = it->second;
     identity.set_x5u_url(key_data.x5u);
-    return identity.generate(key_data.key.get());
+    try {
+        return identity.generate(key_data.key.get());
+    } catch(Botan::Exception &e) {
+        throw AmSession::Exception(500, format("failed to generate Identity header: {}", e.what()));
+    }
 }
 
 void CertCache::processHttpReply(const HttpGetResponseEvent& resp)
