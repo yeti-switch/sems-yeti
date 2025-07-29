@@ -2,6 +2,7 @@
 #include "yeti.h"
 #include <AmSessionContainer.h>
 #include "cfg/yeti_opts.h"
+#include "format_helper.h"
 
 #include <botan/pk_keys.h>
 #include <botan/data_src.h>
