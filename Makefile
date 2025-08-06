@@ -7,10 +7,10 @@ init:
 	git config --local core.hooksPath .githooks
 
 check:
-	./run_clang_format.py --check src unit_tests
+	./run_clang_format.py --clang-format-binary /usr/bin/clang-format-19 --check src unit_tests
 
 format:
-	./run_clang_format.py src unit_tests
+	./run_clang_format.py --clang-format-binary /usr/bin/clang-format-19 src unit_tests
 
 debian/changelog: debian/changelog.in
 	cp debian/changelog.in debian/changelog
