@@ -1,3 +1,7 @@
+sems-yeti (1.14.6) stable; urgency=medium
+  * filter out all unknown a-lines from audio streams
+ -- dev <dev@yeti-switch.org>  Wed, 06 Aug 2025 13:09:59 +0300
+
 sems-yeti (1.14.5) stable; urgency=medium
   * use registrations interface for calls
   * catch Identity header generation exceptions
