@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e
+
+make -C $(git rev-parse --show-toplevel) check
+
+exit 0
