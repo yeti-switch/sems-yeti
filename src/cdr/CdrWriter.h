@@ -18,23 +18,22 @@
 #include <cstdio>
 #include <ctime>
 
-using std::string;
 using std::list;
+using std::string;
 using std::vector;
 
-struct CdrThreadCfg
-{
-    unsigned int pool_size;
-    bool failover_to_slave;
-    int connection_lifetime;
-    int check_interval;
-    int retry_interval;
-    int batch_timeout;
-    size_t batch_size;
-    DbConfig masterdb,slavedb;
-    PreparedQueriesT prepared_queries;
-    DynFieldsT dyn_fields;
+struct CdrThreadCfg {
+    unsigned int            pool_size;
+    bool                    failover_to_slave;
+    int                     connection_lifetime;
+    int                     check_interval;
+    int                     retry_interval;
+    int                     batch_timeout;
+    size_t                  batch_size;
+    DbConfig                masterdb, slavedb;
+    PreparedQueriesT        prepared_queries;
+    DynFieldsT              dyn_fields;
     vector<UsedHeaderField> used_header_fields;
-    string db_schema;
-    int cfg2CdrThCfg(cfg_t *cdr_sec, AmConfigReader& cfg);
+    string                  db_schema;
+    int                     cfg2CdrThCfg(cfg_t *cdr_sec, AmConfigReader &cfg);
 };

@@ -5,7 +5,7 @@ TEST_F(YetiTest, inplaceHeaderFilter)
 {
     {
         vector<FilterEntry> filters;
-        FilterEntry entry;
+        FilterEntry         entry;
         entry.filter_type = FilterType::Whitelist;
         entry.filter_list.emplace("x-origin");
         filters.push_back(entry);
@@ -15,7 +15,7 @@ TEST_F(YetiTest, inplaceHeaderFilter)
     }
     {
         vector<FilterEntry> filters;
-        FilterEntry entry;
+        FilterEntry         entry;
         entry.filter_type = FilterType::Blacklist;
         entry.filter_list.emplace("x-origin");
         filters.push_back(entry);
@@ -25,7 +25,7 @@ TEST_F(YetiTest, inplaceHeaderFilter)
     }
     {
         vector<FilterEntry> filters;
-        FilterEntry entry;
+        FilterEntry         entry;
         entry.filter_type = FilterType::Blacklist;
         entry.filter_list.emplace("x-origin");
         filters.push_back(entry);
@@ -41,7 +41,7 @@ TEST_F(YetiTest, inplaceHeaderFilterPattern)
 {
     {
         vector<FilterEntry> filters;
-        FilterEntry entry;
+        FilterEntry         entry;
         entry.filter_type = FilterType::Whitelist;
         entry.filter_list.emplace("x-*");
         filters.push_back(entry);
@@ -51,7 +51,7 @@ TEST_F(YetiTest, inplaceHeaderFilterPattern)
     }
     {
         vector<FilterEntry> filters;
-        FilterEntry entry;
+        FilterEntry         entry;
         entry.filter_type = FilterType::Blacklist;
         entry.filter_list.emplace("x-*");
         filters.push_back(entry);
@@ -61,7 +61,7 @@ TEST_F(YetiTest, inplaceHeaderFilterPattern)
     }
     {
         vector<FilterEntry> filters;
-        FilterEntry entry;
+        FilterEntry         entry;
         entry.filter_type = FilterType::Blacklist;
         entry.filter_list.emplace("x-*");
         filters.push_back(entry);

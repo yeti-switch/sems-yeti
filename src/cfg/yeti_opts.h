@@ -5,8 +5,8 @@
 #include <vector>
 #include <string>
 
-using std::vector;
 using std::string;
+using std::vector;
 
 #define YETI_REDIS_DEFAULT_TIMEOUT 5000
 
@@ -81,33 +81,33 @@ extern char opt_name_allowed_methods[];
 
 extern char opt_name_throttling_gateway_key[];
 
-//routing
+// routing
 extern cfg_opt_t sig_yeti_routing_pool_opts[];
 extern cfg_opt_t sig_yeti_routing_cache_opts[];
 extern cfg_opt_t sig_yeti_routing_opts[];
 
-//cdr
+// cdr
 extern cfg_opt_t sig_yeti_cdr_db_opts[];
 extern cfg_opt_t sig_yeti_cdr_opts[];
 
-//resources
+// resources
 extern cfg_opt_t sig_yeti_resources_opts[];
 
-//redis
+// redis
 extern cfg_opt_t sig_yeti_redis_pool_opts[];
 
-//rpc
+// rpc
 extern cfg_opt_t sig_yeti_rpc_opts[];
 
-//registrations
+// registrations
 extern cfg_opt_t sig_yeti_reg_opts[];
 
-//auth
+// auth
 extern cfg_opt_t sig_yeti_auth_opts[];
 extern cfg_opt_t lega_cdr_headers_opts[];
 
-//identity
+// identity
 extern cfg_opt_t identity_opts[];
 
-//yeti
+// yeti
 extern cfg_opt_t yeti_opts[];

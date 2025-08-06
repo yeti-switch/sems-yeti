@@ -23,7 +23,7 @@ TEST_F(YetiTest, GatewayStatsBasicOperations)
     ASSERT_EQ(s.getTimeSlots().at(11).success_replies, 1);
     ASSERT_EQ(s.getTimeSlots().at(11).failed_replies, 1);
 
-    //check obsolete slots cleanup
+    // check obsolete slots cleanup
 
     s.add_failed_reply(20);
     s.add_success_reply(20);

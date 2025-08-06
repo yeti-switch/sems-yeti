@@ -9,30 +9,29 @@
 class YetiTest;
 
 using std::string;
-using std::vector;
 using std::unique_ptr;
+using std::vector;
 
-#define READ_CONN_ID    "read"
-#define WRITE_CONN_ID   "write"
+#define READ_CONN_ID  "read"
+#define WRITE_CONN_ID "write"
 
-#define INVALIDATE_RESOURCES_SCRIPT     "invalidate_resources"
-#define GET_ALL_RESOURCES_SCRIPT        "get_all_resources"
-#define CHECK_RESOURCES_SCRIPT          "check_resources"
+#define INVALIDATE_RESOURCES_SCRIPT "invalidate_resources"
+#define GET_ALL_RESOURCES_SCRIPT    "get_all_resources"
+#define CHECK_RESOURCES_SCRIPT      "check_resources"
 
-class ResourceRedisClient
-{
+class ResourceRedisClient {
   protected:
     friend YetiTest;
 
     /* Connection */
     struct Connection {
-        string id;
+        string              id;
         RedisConnectionInfo info;
-        bool is_connected;
+        bool                is_connected;
 
         Connection(const string &id);
         virtual ~Connection();
-        const RedisScript* script(const string &name);
+        const RedisScript *script(const string &name);
 
         // for unit tests
         bool wait_connected() const;
@@ -40,50 +39,47 @@ class ResourceRedisClient
 
   public:
     /* Request */
-    class Request
-      : public AmObject
-    {
+    class Request : public AmObject {
       public:
-        using cb_func = std::function<void (bool, const AmArg&)>;
+        using cb_func = std::function<void(bool, const AmArg &)>;
 
       protected:
-        cb_func callback;
+        cb_func           callback;
         AmCondition<bool> finished;
-        bool iserror;
-        string error_msg;
-        int error_code;
-        AmArg result;
+        bool              iserror;
+        string            error_msg;
+        int               error_code;
+        AmArg             result;
 
         friend ResourceRedisClient;
-        virtual bool make_args(const string& script_hash, vector<AmArg> &args) = 0;
+        virtual bool make_args(const string &script_hash, vector<AmArg> &args) = 0;
 
       public:
         Request(cb_func callback = cb_func());
 
-        bool wait_finish(int timeout);
+        bool         wait_finish(int timeout);
         virtual void on_finish();
-        void on_error(int code, const char* error, ...);
+        void         on_error(int code, const char *error, ...);
 
-        bool is_error() const;
-        bool is_finished();
-        void set_result(const AmArg& result);
-        const AmArg& get_result() const;
+        bool              is_error() const;
+        bool              is_finished();
+        void              set_result(const AmArg &result);
+        const AmArg      &get_result() const;
         std::atomic<bool> is_persistent;
     };
 
   protected:
-
-    Connection* read_conn;
-    Connection* write_conn;
+    Connection                    *read_conn;
+    Connection                    *write_conn;
     vector<unique_ptr<Connection>> connections;
-    string scripts_dir;
+    string                         scripts_dir;
 
     virtual void connect(const Connection &conn) = 0;
     virtual void on_connect(const string &conn_id, const RedisConnectionInfo &info);
     virtual void on_disconnect(const string &conn_id, const RedisConnectionInfo &info);
 
-    virtual bool prepare_request(Request* req, Connection* conn, const char* script_name, vector<AmArg> &args);
-    string get_script_path(const string &sript_name) const;
+    virtual bool prepare_request(Request *req, Connection *conn, const char *script_name, vector<AmArg> &args);
+    string       get_script_path(const string &sript_name) const;
 
   public:
     ResourceRedisClient(const string &conn_id_prefix);

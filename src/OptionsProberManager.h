@@ -2,9 +2,8 @@
 
 #include "db/DbConfig.h"
 
-class OptionsProberManager
-{
+class OptionsProberManager {
   public:
-    int configure();
+    int  configure();
     void load_probers(const AmArg &data);
 };

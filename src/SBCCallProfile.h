@@ -41,60 +41,79 @@
 #include <map>
 #include <list>
 
-using std::string;
 using std::map;
-using std::set;
 using std::pair;
+using std::set;
+using std::string;
 
-class PlaceholdersHash: public std::map<string,string>
-{
+class PlaceholdersHash : public std::map<string, string> {
   public:
     void update(const PlaceholdersHash &h);
 };
 
-#define DTMF_RX_MODE_RFC2833			0x1		// telephone-event RTP payload
-#define DTMF_RX_MODE_INFO				0x2		// SIP INFO msg
-#define DTMF_RX_MODE_INBAND 			0x4		// inband dtmf
+#define DTMF_RX_MODE_RFC2833 0x1 // telephone-event RTP payload
+#define DTMF_RX_MODE_INFO    0x2 // SIP INFO msg
+#define DTMF_RX_MODE_INBAND  0x4 // inband dtmf
 
-#define DTMF_TX_MODE_DISABLED			0x0		// avoid sending
-#define DTMF_TX_MODE_RFC2833			0x1		// telephone-event RTP payload
-#define DTMF_TX_MODE_INFO_DTMF_RELAY	0x2		// application/dtmf-relay
-#define DTMF_TX_MODE_INFO_DTMF			0x4		// application/dtmf
-#define DTMF_TX_MODE_INBAND     		0x8		// inband dtmf
+#define DTMF_TX_MODE_DISABLED        0x0 // avoid sending
+#define DTMF_TX_MODE_RFC2833         0x1 // telephone-event RTP payload
+#define DTMF_TX_MODE_INFO_DTMF_RELAY 0x2 // application/dtmf-relay
+#define DTMF_TX_MODE_INFO_DTMF       0x4 // application/dtmf
+#define DTMF_TX_MODE_INBAND          0x8 // inband dtmf
 
-#define DTMF_RX_MODE_ALL	(DTMF_RX_MODE_RFC2833|DTMF_RX_MODE_INFO|DTMF_RX_MODE_INBAND)
+#define DTMF_RX_MODE_ALL (DTMF_RX_MODE_RFC2833 | DTMF_RX_MODE_INFO | DTMF_RX_MODE_INBAND)
 
-template <class T>
-class ref_counted_ptr
-{
+template <class T> class ref_counted_ptr {
   private:
     T *ptr;
 
   public:
-    void reset(T *p) { if (ptr) dec_ref(ptr); ptr = p; if (ptr) inc_ref(ptr); }
+    void reset(T *p)
+    {
+        if (ptr)
+            dec_ref(ptr);
+        ptr = p;
+        if (ptr)
+            inc_ref(ptr);
+    }
     T *get() const { return ptr; }
 
-    ref_counted_ptr(): ptr(0) { }
-    ~ref_counted_ptr() { if (ptr) dec_ref(ptr); }
+    ref_counted_ptr()
+        : ptr(0)
+    {
+    }
+    ~ref_counted_ptr()
+    {
+        if (ptr)
+            dec_ref(ptr);
+    }
 
-    ref_counted_ptr(const ref_counted_ptr &other): ptr(other.ptr) { if (ptr) inc_ref(ptr); }
-    ref_counted_ptr &operator=(const ref_counted_ptr &other) { reset(other.ptr); return *this; }
-
+    ref_counted_ptr(const ref_counted_ptr &other)
+        : ptr(other.ptr)
+    {
+        if (ptr)
+            inc_ref(ptr);
+    }
+    ref_counted_ptr &operator=(const ref_counted_ptr &other)
+    {
+        reset(other.ptr);
+        return *this;
+    }
 };
 
 class PayloadDesc {
   protected:
     std::string name;
-    unsigned clock_rate; // 0 means "doesn't matter"
+    unsigned    clock_rate; // 0 means "doesn't matter"
 
   public:
-    bool match(const SdpPayload &p) const;
+    bool        match(const SdpPayload &p) const;
     std::string print() const;
-    bool operator==(const PayloadDesc &other) const;
+    bool        operator==(const PayloadDesc &other) const;
 
     /* FIXME: really want all of this?
      * reads from format: name/clock_rate, nothing need to be set
-     * for example: 
+     * for example:
      *	  PCMU
      *	  bla/48000
      *	  /48000
@@ -102,370 +121,368 @@ class PayloadDesc {
     bool read(const std::string &s);
 };
 
-typedef pair<unsigned int, std::string> ReplyCodeReasonPair;
+typedef pair<unsigned int, std::string>        ReplyCodeReasonPair;
 typedef map<unsigned int, ReplyCodeReasonPair> ReplyTranslationMap;
 
-struct SBCCallProfile
-  : public AmObject
-{
-  enum {
-    REGISTERED_AOR_MODE_AS_IS = 1,
-    REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO = 2
-  };
+struct SBCCallProfile : public AmObject {
+    enum { REGISTERED_AOR_MODE_AS_IS = 1, REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO = 2 };
 
-  string aleg_local_tag;
+    string aleg_local_tag;
 
-  string md5hash;
-  //string profile_file;
+    string md5hash;
+    // string profile_file;
 
-  string ruri;       /* updated if set */
-  string ruri_host;  /* updated if set */
-  string from;       /* updated if set */
-  string to;         /* updated if set */
+    string ruri;      /* updated if set */
+    string ruri_host; /* updated if set */
+    string from;      /* updated if set */
+    string to;        /* updated if set */
 
-  unsigned int bleg_transport_id;
-  unsigned int bleg_protocol_priority_id;
+    unsigned int bleg_transport_id;
+    unsigned int bleg_protocol_priority_id;
 
-  PlaceholdersHash placeholders_hash;
+    PlaceholdersHash placeholders_hash;
 
-  string callid;
+    string callid;
 
-  string dlg_contact_params;
-  string bleg_dlg_contact_params;
+    string dlg_contact_params;
+    string bleg_dlg_contact_params;
 
-  bool dlg_nat_handling;
-  bool keep_vias;
-  bool bleg_keep_vias;
+    bool dlg_nat_handling;
+    bool keep_vias;
+    bool bleg_keep_vias;
 
-  string outbound_proxy;
-  bool force_outbound_proxy;
-  unsigned int outbound_proxy_transport_id;
+    string       outbound_proxy;
+    bool         force_outbound_proxy;
+    unsigned int outbound_proxy_transport_id;
 
-  string route;
+    string route;
 
-  string aleg_outbound_proxy;
-  bool aleg_force_outbound_proxy;
-  unsigned int aleg_outbound_proxy_transport_id;
+    string       aleg_outbound_proxy;
+    bool         aleg_force_outbound_proxy;
+    unsigned int aleg_outbound_proxy_transport_id;
 
-  string next_hop;
-  bool next_hop_1st_req;
-  bool patch_ruri_next_hop;
-  bool next_hop_fixed;
+    string next_hop;
+    bool   next_hop_1st_req;
+    bool   patch_ruri_next_hop;
+    bool   next_hop_fixed;
 
-  string aleg_next_hop;
+    string aleg_next_hop;
 
-  bool aleg_rtp_ping;
-  bool bleg_rtp_ping;
+    bool aleg_rtp_ping;
+    bool bleg_rtp_ping;
 
-  int aleg_conn_location_id;
-  int bleg_conn_location_id;
+    int aleg_conn_location_id;
+    int bleg_conn_location_id;
 
-  unsigned int dead_rtp_time;
+    unsigned int dead_rtp_time;
 
-  bool allow_1xx_without_to_tag;
+    bool allow_1xx_without_to_tag;
 
-  int aleg_sensor_id, bleg_sensor_id;
-  int aleg_sensor_level_id, bleg_sensor_level_id;
+    int aleg_sensor_id, bleg_sensor_id;
+    int aleg_sensor_level_id, bleg_sensor_level_id;
 
-  int aleg_dtmf_recv_modes, bleg_dtmf_recv_modes;
-  int aleg_dtmf_send_mode_id, bleg_dtmf_send_mode_id;
+    int aleg_dtmf_recv_modes, bleg_dtmf_recv_modes;
+    int aleg_dtmf_send_mode_id, bleg_dtmf_send_mode_id;
 
-  int aleg_rel100_mode_id;
-  int bleg_rel100_mode_id;
+    int aleg_rel100_mode_id;
+    int bleg_rel100_mode_id;
 
-  int radius_profile_id;
-  int aleg_radius_acc_profile_id;
-  int bleg_radius_acc_profile_id;
-  RadiusAccountingRules aleg_radius_acc_rules;
-  RadiusAccountingRules bleg_radius_acc_rules;
+    int                   radius_profile_id;
+    int                   aleg_radius_acc_profile_id;
+    int                   bleg_radius_acc_profile_id;
+    RadiusAccountingRules aleg_radius_acc_rules;
+    RadiusAccountingRules bleg_radius_acc_rules;
 
-  bool suppress_early_media;
-  bool force_one_way_early_media;
+    bool suppress_early_media;
+    bool force_one_way_early_media;
 
-  vector<FilterEntry> headerfilter_a2b;
-  vector<FilterEntry> headerfilter_b2a;
+    vector<FilterEntry> headerfilter_a2b;
+    vector<FilterEntry> headerfilter_b2a;
 
-  vector<FilterEntry> sdpfilter;
-  vector<FilterEntry> sdpalinesfilter;
-  vector<FilterEntry> bleg_sdpalinesfilter;
-  vector<FilterEntry> mediafilter;
+    vector<FilterEntry> sdpfilter;
+    vector<FilterEntry> sdpalinesfilter;
+    vector<FilterEntry> bleg_sdpalinesfilter;
+    vector<FilterEntry> mediafilter;
 
-  bool aleg_relay_prack,bleg_relay_prack;
-  bool aleg_relay_reinvite,bleg_relay_reinvite;
-  bool aleg_relay_hold, bleg_relay_hold;
-  bool relay_timestamp_aligning;
+    bool aleg_relay_prack, bleg_relay_prack;
+    bool aleg_relay_reinvite, bleg_relay_reinvite;
+    bool aleg_relay_hold, bleg_relay_hold;
+    bool relay_timestamp_aligning;
 
-  string resource_handler;
+    string resource_handler;
 
-  int static_codecs_aleg_id;
-  int static_codecs_bleg_id;
-  bool aleg_single_codec;
-  bool bleg_single_codec;
-  bool avoid_transcoding;
+    int  static_codecs_aleg_id;
+    int  static_codecs_bleg_id;
+    bool aleg_single_codec;
+    bool bleg_single_codec;
+    bool avoid_transcoding;
 
-  bool aleg_relay_options;
-  bool bleg_relay_options;
+    bool aleg_relay_options;
+    bool bleg_relay_options;
 
-  bool aleg_relay_update;
-  bool bleg_relay_update;
+    bool aleg_relay_update;
+    bool bleg_relay_update;
 
-  bool filter_noaudio_streams;
-  bool force_relay_CN;
+    bool filter_noaudio_streams;
+    bool force_relay_CN;
 
-  bool sst_enabled;
-  bool sst_aleg_enabled;
-  AmConfigReader sst_a_cfg;    // SST config (A leg)
-  AmConfigReader sst_b_cfg;    // SST config (B leg)
+    bool           sst_enabled;
+    bool           sst_aleg_enabled;
+    AmConfigReader sst_a_cfg; // SST config (A leg)
+    AmConfigReader sst_b_cfg; // SST config (B leg)
 
-  bool auth_enabled;
-  UACAuthCred auth_credentials;
+    bool        auth_enabled;
+    UACAuthCred auth_credentials;
 
-  bool auth_aleg_enabled;
-  UACAuthCred auth_aleg_credentials;
+    bool        auth_aleg_enabled;
+    UACAuthCred auth_aleg_credentials;
 
-  ReplyTranslationMap reply_translations;
+    ReplyTranslationMap reply_translations;
 
-  string append_headers;
-  string append_headers_req;
-  string aleg_append_headers_req;
-  string aleg_append_headers_reply;
+    string append_headers;
+    string append_headers_req;
+    string aleg_append_headers_req;
+    string aleg_append_headers_reply;
 
-  string refuse_with;
+    string refuse_with;
 
-  bool rtprelay_enabled;
-  bool force_symmetric_rtp;
-  bool aleg_force_symmetric_rtp;
+    bool rtprelay_enabled;
+    bool force_symmetric_rtp;
+    bool aleg_force_symmetric_rtp;
 
-  bool aleg_symmetric_rtp_nonstop;
-  bool bleg_symmetric_rtp_nonstop;
+    bool aleg_symmetric_rtp_nonstop;
+    bool bleg_symmetric_rtp_nonstop;
 
-  bool rtprelay_dtmf_filtering;
-  bool rtprelay_dtmf_detection;
-  bool rtprelay_force_dtmf_relay;
+    bool rtprelay_dtmf_filtering;
+    bool rtprelay_dtmf_detection;
+    bool rtprelay_force_dtmf_relay;
 
-  //wether to filter inbound dtmf in direction A->B
-  bool aleg_rtp_filter_inband_dtmf;
-  //whether to filter inbound dtmf in direction B->A
-  bool bleg_rtp_filter_inband_dtmf;
+    // wether to filter inbound dtmf in direction A->B
+    bool aleg_rtp_filter_inband_dtmf;
+    // whether to filter inbound dtmf in direction B->A
+    bool bleg_rtp_filter_inband_dtmf;
 
-  bool force_transcoding;
+    bool force_transcoding;
 
-  string rtprelay_interface;
-  int rtprelay_interface_value;
-  string aleg_rtprelay_interface;
-  int aleg_rtprelay_interface_value;
+    string rtprelay_interface;
+    int    rtprelay_interface_value;
+    string aleg_rtprelay_interface;
+    int    aleg_rtprelay_interface_value;
 
-  int rtprelay_bw_limit_rate;
-  int rtprelay_bw_limit_peak;
+    int rtprelay_bw_limit_rate;
+    int rtprelay_bw_limit_peak;
 
-  list<::atomic_int*> aleg_rtp_counters;
-  list<::atomic_int*> bleg_rtp_counters;
+    list<::atomic_int *> aleg_rtp_counters;
+    list<::atomic_int *> bleg_rtp_counters;
 
-  string outbound_interface;
-  int outbound_interface_value;
+    string outbound_interface;
+    int    outbound_interface_value;
 
-  string aleg_outbound_interface;
-  int aleg_outbound_interface_value;
+    string aleg_outbound_interface;
+    int    aleg_outbound_interface_value;
 
-  bool bleg_force_cancel_routeset;
+    bool bleg_force_cancel_routeset;
 
-  int ringing_timeout;
-  unsigned int inv_transaction_timeout;
-  unsigned int inv_srv_failover_timeout;
+    int          ringing_timeout;
+    unsigned int inv_transaction_timeout;
+    unsigned int inv_srv_failover_timeout;
 
-  string global_tag;
+    string global_tag;
 
-  bool record_audio;
-  string audio_record_path;
+    bool   record_audio;
+    string audio_record_path;
 
-  int fake_ringing_timeout;
+    int fake_ringing_timeout;
 
-  unsigned int bleg_max_30x_redirects;
-  unsigned int bleg_max_transfers;
+    unsigned int bleg_max_30x_redirects;
+    unsigned int bleg_max_transfers;
 
-  bool auth_required;
+    bool auth_required;
 
-  int registered_aor_id;
-  int registered_aor_mode_id;
-  int skip_code_id;
+    int registered_aor_id;
+    int registered_aor_mode_id;
+    int skip_code_id;
 
-  int aleg_media_encryption_mode_id;
-  int bleg_media_encryption_mode_id;
+    int aleg_media_encryption_mode_id;
+    int bleg_media_encryption_mode_id;
 
-  TransProt aleg_media_transport;
-  bool  aleg_media_allow_zrtp;
+    TransProt aleg_media_transport;
+    bool      aleg_media_allow_zrtp;
 
-  TransProt bleg_media_transport;
-  bool  bleg_media_allow_zrtp;
+    TransProt bleg_media_transport;
+    bool      bleg_media_allow_zrtp;
 
-  std::vector<AmSubnet> aleg_rtp_acl;
-  std::vector<AmSubnet> bleg_rtp_acl;
+    std::vector<AmSubnet> aleg_rtp_acl;
+    std::vector<AmSubnet> bleg_rtp_acl;
 
-  int ss_crt_id;
-  int ss_attest_id;
-  string ss_dtn;
-  string ss_otn;
+    int    ss_crt_id;
+    int    ss_attest_id;
+    string ss_dtn;
+    string ss_otn;
 
-  string push_token;
+    string push_token;
 
-  struct TranscoderSettings {
-    enum { DTMFAlways, DTMFNever } dtmf_mode;
+    struct TranscoderSettings {
+        enum { DTMFAlways, DTMFNever } dtmf_mode;
 
-    bool enabled;
-    bool evaluate(ParamReplacerCtx& ctx, const AmSipRequest& req);
+        bool enabled;
+        bool evaluate(ParamReplacerCtx &ctx, const AmSipRequest &req);
 
-    bool readConfig(AmConfigReader &cfg);
-    void infoPrint() const;
-    bool operator==(const TranscoderSettings& rhs) const;
-    string print() const;
+        bool   readConfig(AmConfigReader &cfg);
+        void   infoPrint() const;
+        bool   operator==(const TranscoderSettings &rhs) const;
+        string print() const;
 
-    bool isActive() { return enabled; }
-	TranscoderSettings(): enabled(true) { }
-  } transcoder;
+        bool isActive() { return enabled; }
+        TranscoderSettings()
+            : enabled(true)
+        {
+        }
+    } transcoder;
 
-  // hold settings
-  class HoldSettings {
-    public:
+    // hold settings
+    class HoldSettings {
+      public:
         enum Activity { sendrecv, sendonly, recvonly, inactive };
 
-    private:
-      struct HoldParams {
-        // non-replaced params
-        string mark_zero_connection_str, activity_str, alter_b2b_str;
+      private:
+        struct HoldParams {
+            // non-replaced params
+            string mark_zero_connection_str, activity_str, alter_b2b_str;
 
-        bool mark_zero_connection;
-        Activity activity;
-        bool alter_b2b; // transform B2B hold requests (not locally generated ones)
+            bool     mark_zero_connection;
+            Activity activity;
+            bool     alter_b2b; // transform B2B hold requests (not locally generated ones)
 
-        bool setActivity(const string &s);
-        HoldParams(): mark_zero_connection(false), activity(sendonly), alter_b2b(false) { }
-      } aleg, bleg;
+            bool setActivity(const string &s);
+            HoldParams()
+                : mark_zero_connection(false)
+                , activity(sendonly)
+                , alter_b2b(false)
+            {
+            }
+        } aleg, bleg;
 
-    public:
-      bool mark_zero_connection(bool a_leg) { return a_leg ? aleg.mark_zero_connection : bleg.mark_zero_connection; }
-      Activity activity(bool a_leg) { return a_leg ? aleg.activity : bleg.activity; }
-      const string &activity_str(bool a_leg) { return a_leg ? aleg.activity_str : bleg.activity_str; }
-      bool alter_b2b(bool a_leg) { return a_leg ? aleg.alter_b2b : bleg.alter_b2b; }
+      public:
+        bool mark_zero_connection(bool a_leg) { return a_leg ? aleg.mark_zero_connection : bleg.mark_zero_connection; }
+        Activity      activity(bool a_leg) { return a_leg ? aleg.activity : bleg.activity; }
+        const string &activity_str(bool a_leg) { return a_leg ? aleg.activity_str : bleg.activity_str; }
+        bool          alter_b2b(bool a_leg) { return a_leg ? aleg.alter_b2b : bleg.alter_b2b; }
 
-      void readConfig(AmConfigReader &cfg);
-      bool evaluate(ParamReplacerCtx& ctx, const AmSipRequest& req);
-  } hold_settings;
+        void readConfig(AmConfigReader &cfg);
+        bool evaluate(ParamReplacerCtx &ctx, const AmSipRequest &req);
+    } hold_settings;
 
- private:
-  // message logging feature
-  string msg_logger_path;
-  ref_counted_ptr<msg_logger> logger;
+  private:
+    // message logging feature
+    string                      msg_logger_path;
+    ref_counted_ptr<msg_logger> logger;
 
-  void create_logger(const AmSipRequest& req);
+    void create_logger(const AmSipRequest &req);
 
- public:
-  bool log_rtp;
-  bool log_sip;
-  bool has_logger() { return logger.get() != NULL; }
-  msg_logger* get_logger(const AmSipRequest& req);
-  void set_logger_path(const std::string path) { msg_logger_path = path; }
-  const string &get_logger_path() const { return msg_logger_path; }
+  public:
+    bool          log_rtp;
+    bool          log_sip;
+    bool          has_logger() { return logger.get() != NULL; }
+    msg_logger   *get_logger(const AmSipRequest &req);
+    void          set_logger_path(const std::string path) { msg_logger_path = path; }
+    const string &get_logger_path() const { return msg_logger_path; }
 
-  SBCCallProfile()
-    : bleg_transport_id(0),
-      bleg_protocol_priority_id(dns_priority::IPv4_only),
-      dlg_nat_handling(false),
-      keep_vias(false),
-      bleg_keep_vias(false),
-      outbound_proxy_transport_id(0),
-      aleg_outbound_proxy_transport_id(0),next_hop_1st_req(false),
-      patch_ruri_next_hop(false),
-      next_hop_fixed(false),
-      allow_1xx_without_to_tag(false),
-      aleg_sensor_id(-1),
-      bleg_sensor_id(-1),
-      aleg_sensor_level_id(0),
-      bleg_sensor_level_id(0),
-      aleg_dtmf_recv_modes(DTMF_RX_MODE_ALL),
-      bleg_dtmf_recv_modes(DTMF_RX_MODE_ALL),
-      aleg_dtmf_send_mode_id(DTMF_RX_MODE_RFC2833),
-      bleg_dtmf_send_mode_id(DTMF_RX_MODE_RFC2833),
-      aleg_rel100_mode_id(-1),
-      bleg_rel100_mode_id(-1),
-      radius_profile_id(0),
-      aleg_radius_acc_profile_id(0),
-      bleg_radius_acc_profile_id(0),
-      suppress_early_media(false),
-      force_one_way_early_media(false),
-      aleg_relay_prack(false),
-      bleg_relay_prack(false),
-      aleg_relay_reinvite(true),
-      bleg_relay_reinvite(true),
-      aleg_relay_hold(true),
-      bleg_relay_hold(true),
-      relay_timestamp_aligning(false),
-      force_relay_CN(false),
-      sst_enabled(false),
-      sst_aleg_enabled(false),
-      auth_enabled(false), rtprelay_enabled(false),
-      force_symmetric_rtp(false), aleg_force_symmetric_rtp(false),
-      force_transcoding(false),
-      rtprelay_interface_value(-1),
-      aleg_rtprelay_interface_value(-1),
-      rtprelay_bw_limit_rate(-1),
-      rtprelay_bw_limit_peak(-1),
-      outbound_interface_value(-1),
-      bleg_force_cancel_routeset(false),
-      ringing_timeout(0),
-      inv_transaction_timeout(0),
-      inv_srv_failover_timeout(0),
-      record_audio(false),
-      fake_ringing_timeout(0),
-      bleg_max_30x_redirects(0),
-      bleg_max_transfers(0),
-      auth_required(false),
-      registered_aor_id(0),
-      registered_aor_mode_id(REGISTERED_AOR_MODE_AS_IS),
-      skip_code_id(0),
-      aleg_media_encryption_mode_id(0),
-      bleg_media_encryption_mode_id(0),
-      aleg_media_allow_zrtp(false),
-      bleg_media_allow_zrtp(false),
-      ss_crt_id(0),
-      ss_attest_id(0),
-      log_rtp(false),
-      log_sip(false)
-  { }
+    SBCCallProfile()
+        : bleg_transport_id(0)
+        , bleg_protocol_priority_id(dns_priority::IPv4_only)
+        , dlg_nat_handling(false)
+        , keep_vias(false)
+        , bleg_keep_vias(false)
+        , outbound_proxy_transport_id(0)
+        , aleg_outbound_proxy_transport_id(0)
+        , next_hop_1st_req(false)
+        , patch_ruri_next_hop(false)
+        , next_hop_fixed(false)
+        , allow_1xx_without_to_tag(false)
+        , aleg_sensor_id(-1)
+        , bleg_sensor_id(-1)
+        , aleg_sensor_level_id(0)
+        , bleg_sensor_level_id(0)
+        , aleg_dtmf_recv_modes(DTMF_RX_MODE_ALL)
+        , bleg_dtmf_recv_modes(DTMF_RX_MODE_ALL)
+        , aleg_dtmf_send_mode_id(DTMF_RX_MODE_RFC2833)
+        , bleg_dtmf_send_mode_id(DTMF_RX_MODE_RFC2833)
+        , aleg_rel100_mode_id(-1)
+        , bleg_rel100_mode_id(-1)
+        , radius_profile_id(0)
+        , aleg_radius_acc_profile_id(0)
+        , bleg_radius_acc_profile_id(0)
+        , suppress_early_media(false)
+        , force_one_way_early_media(false)
+        , aleg_relay_prack(false)
+        , bleg_relay_prack(false)
+        , aleg_relay_reinvite(true)
+        , bleg_relay_reinvite(true)
+        , aleg_relay_hold(true)
+        , bleg_relay_hold(true)
+        , relay_timestamp_aligning(false)
+        , force_relay_CN(false)
+        , sst_enabled(false)
+        , sst_aleg_enabled(false)
+        , auth_enabled(false)
+        , rtprelay_enabled(false)
+        , force_symmetric_rtp(false)
+        , aleg_force_symmetric_rtp(false)
+        , force_transcoding(false)
+        , rtprelay_interface_value(-1)
+        , aleg_rtprelay_interface_value(-1)
+        , rtprelay_bw_limit_rate(-1)
+        , rtprelay_bw_limit_peak(-1)
+        , outbound_interface_value(-1)
+        , bleg_force_cancel_routeset(false)
+        , ringing_timeout(0)
+        , inv_transaction_timeout(0)
+        , inv_srv_failover_timeout(0)
+        , record_audio(false)
+        , fake_ringing_timeout(0)
+        , bleg_max_30x_redirects(0)
+        , bleg_max_transfers(0)
+        , auth_required(false)
+        , registered_aor_id(0)
+        , registered_aor_mode_id(REGISTERED_AOR_MODE_AS_IS)
+        , skip_code_id(0)
+        , aleg_media_encryption_mode_id(0)
+        , bleg_media_encryption_mode_id(0)
+        , aleg_media_allow_zrtp(false)
+        , bleg_media_allow_zrtp(false)
+        , ss_crt_id(0)
+        , ss_attest_id(0)
+        , log_rtp(false)
+        , log_sip(false)
+    {
+    }
 
-  bool operator==(const SBCCallProfile& rhs) const;
-  string print() const;
+    bool   operator==(const SBCCallProfile &rhs) const;
+    string print() const;
 
 #if 0
   int refuse(ParamReplacerCtx& ctx, const AmSipRequest& req) const;
 #endif
 
-  int apply_a_routing(ParamReplacerCtx& ctx,
-		      const AmSipRequest& req,
-		      AmBasicSipDialog& dlg) const;
-  
-  bool apply_b_routing(const string &ruri,
-                       AmBasicSipDialog& dlg) const;
+    int apply_a_routing(ParamReplacerCtx &ctx, const AmSipRequest &req, AmBasicSipDialog &dlg) const;
 
-  int apply_common_fields(ParamReplacerCtx& ctx,
-			  AmSipRequest& req) const;
+    bool apply_b_routing(const string &ruri, AmBasicSipDialog &dlg) const;
 
-  bool evaluateOutboundInterface();
+    int apply_common_fields(ParamReplacerCtx &ctx, AmSipRequest &req) const;
 
-  bool evaluate_routing(ParamReplacerCtx& ctx,
-                        const AmSipRequest& req,
-                        AmSipDialog &dlg);
+    bool evaluateOutboundInterface();
 
-  bool evaluate(ParamReplacerCtx& ctx, const AmSipRequest& req);
+    bool evaluate_routing(ParamReplacerCtx &ctx, const AmSipRequest &req, AmSipDialog &dlg);
 
-  bool evaluateRTPRelayInterface();
-  bool evaluateRTPRelayAlegInterface();
+    bool evaluate(ParamReplacerCtx &ctx, const AmSipRequest &req);
 
-  void eval_sst_config(ParamReplacerCtx& ctx,
-		       const AmSipRequest& req,
-		       AmConfigReader& sst_cfg);
+    bool evaluateRTPRelayInterface();
+    bool evaluateRTPRelayAlegInterface();
 
-  void fix_append_hdrs(ParamReplacerCtx& ctx, const AmSipRequest& req);
+    void eval_sst_config(ParamReplacerCtx &ctx, const AmSipRequest &req, AmConfigReader &sst_cfg);
 
+    void fix_append_hdrs(ParamReplacerCtx &ctx, const AmSipRequest &req);
 };
 
 #endif // _SBCCallProfile_h

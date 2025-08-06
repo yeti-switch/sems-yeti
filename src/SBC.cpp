@@ -23,7 +23,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/* 
+/*
 SBC - feature-wishlist
 - accounting (MySQL DB, cassandra DB)
 - RTP transcoding mode (bridging)
@@ -66,14 +66,9 @@ using std::map;
 EXPORT_PLUGIN_CLASS_FACTORY(SBCFactory)
 EXPORT_PLUGIN_CONF_FACTORY(SBCFactory)
 
-static AmArg jwt_auth_ret{
-    AmArg(403),
-    AmArg("Forbidden"),
-    AmArg(""),
-    AmArg("JWT Auth")
-};
+static AmArg jwt_auth_ret{ AmArg(403), AmArg("Forbidden"), AmArg(""), AmArg("JWT Auth") };
 
-SBCFactory* SBCFactory::instance()
+SBCFactory *SBCFactory::instance()
 {
     static auto _instance = new SBCFactory(MOD_NAME);
     return _instance;
@@ -81,38 +76,35 @@ SBCFactory* SBCFactory::instance()
 
 // helper functions
 
-void assertEndCRLF(string& s) {
-    if (s[s.size()-2] != '\r' ||
-        s[s.size()-1] != '\n')
-    {
-        while ((s[s.size()-1] == '\r') ||
-               (s[s.size()-1] == '\n'))
-            s.erase(s.size()-1);
+void assertEndCRLF(string &s)
+{
+    if (s[s.size() - 2] != '\r' || s[s.size() - 1] != '\n') {
+        while ((s[s.size() - 1] == '\r') || (s[s.size() - 1] == '\n'))
+            s.erase(s.size() - 1);
         s += "\r\n";
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-SBCCallLeg* CallLegCreator::create(fake_logger *logger,
-                                   OriginationPreAuth::Reply &ip_auth_data,
+SBCCallLeg *CallLegCreator::create(fake_logger *logger, OriginationPreAuth::Reply &ip_auth_data,
                                    Auth::auth_id_type auth_result_id)
 {
     return new SBCCallLeg(logger, ip_auth_data, auth_result_id, new AmSipDialog());
 }
 
-SBCCallLeg* CallLegCreator::create(SBCCallLeg* caller, AmSipDialog* dlg)
+SBCCallLeg *CallLegCreator::create(SBCCallLeg *caller, AmSipDialog *dlg)
 {
     return new SBCCallLeg(caller, dlg);
 }
 
-SBCFactory::SBCFactory(const string& _app_name)
-  : AmSessionFactory(_app_name), 
-    AmConfigFactory(_app_name),
-    AmDynInvokeFactory(_app_name),
-    yeti_invoke(nullptr),
-    core_options_handling(false),
-    callLegCreator(new CallLegCreator())
+SBCFactory::SBCFactory(const string &_app_name)
+    : AmSessionFactory(_app_name)
+    , AmConfigFactory(_app_name)
+    , AmDynInvokeFactory(_app_name)
+    , yeti_invoke(nullptr)
+    , core_options_handling(false)
+    , callLegCreator(new CallLegCreator())
 {
     pre_auth_ret[0] = 403;
     pre_auth_ret[1] = "Forbidden";
@@ -120,13 +112,14 @@ SBCFactory::SBCFactory(const string& _app_name)
     pre_auth_ret[3] = "IP auth";
 }
 
-SBCFactory::~SBCFactory() {
+SBCFactory::~SBCFactory()
+{
     yeti.reset();
 }
 
 int SBCFactory::onLoad()
 {
-    if(yeti->onLoad()) {
+    if (yeti->onLoad()) {
         ERROR("yeti configuration error");
         yeti->stop();
         return -1;
@@ -136,13 +129,13 @@ int SBCFactory::onLoad()
     auth_feedback = yeti->config.auth_feedback;
 
     session_timer_fact = AmPlugIn::instance()->getFactory4Seh("session_timer");
-    if(!session_timer_fact) {
+    if (!session_timer_fact) {
         WARN("session_timer plug-in not loaded - "
              "SIP Session Timers will not be supported\n");
     }
 
     core_options_handling = yeti->getCoreOptionsHandling();
-    DBG3("OPTIONS messages handled by the core: %s", core_options_handling?"yes":"no");
+    DBG3("OPTIONS messages handled by the core: %s", core_options_handling ? "yes" : "no");
 
     if (!AmPlugIn::registerApplication(MOD_NAME, this)) {
         ERROR("registering " MOD_NAME " application");
@@ -155,17 +148,17 @@ int SBCFactory::onLoad()
     return 0;
 }
 
-int SBCFactory::configure(const std::string& config)
+int SBCFactory::configure(const std::string &config)
 {
     yeti.reset(Yeti::create_instance());
 
-    if(yeti->configure(config))
+    if (yeti->configure(config))
         return -1;
 
     return 0;
 }
 
-int SBCFactory::reconfigure(const std::string& config)
+int SBCFactory::reconfigure(const std::string &config)
 {
     WARN("runtime reconfiguration has not implemented yet");
     return 0;
@@ -174,67 +167,52 @@ int SBCFactory::reconfigure(const std::string& config)
 inline void answer_100_trying(const AmSipRequest &req, fake_logger *logger)
 {
     AmSipReply reply;
-    reply.code = 100;
+    reply.code   = 100;
     reply.reason = "Connecting";
-    reply.tt = req.tt;
+    reply.tt     = req.tt;
 
     AmLcConfig::instance().addSignatureHdr(reply);
 
-    if(SipCtrlInterface::send(reply,string(""),logger,nullptr)) {
-        ERROR("Could not send early 100 Trying. call-id=%s, cseq = %i",
-              req.callid.c_str(),req.cseq);
+    if (SipCtrlInterface::send(reply, string(""), logger, nullptr)) {
+        ERROR("Could not send early 100 Trying. call-id=%s, cseq = %i", req.callid.c_str(), req.cseq);
     }
 }
 
-void SBCFactory::send_auth_error_reply(
-    const AmSipRequest& req,
-    AmArg &ret,
-    int auth_feedback_code)
+void SBCFactory::send_auth_error_reply(const AmSipRequest &req, AmArg &ret, int auth_feedback_code)
 {
     string hdr;
-    if(auth_feedback) {
+    if (auth_feedback) {
         hdr = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
     }
-    AmSipDialog::reply_error(
-        req,
-        static_cast<unsigned int>(ret[0].asInt()),
-        ret[1].asCStr(),
-        hdr + ret[2].asCStr());
-    yeti->router.log_auth(req,false,ret);
+    AmSipDialog::reply_error(req, static_cast<unsigned int>(ret[0].asInt()), ret[1].asCStr(), hdr + ret[2].asCStr());
+    yeti->router.log_auth(req, false, ret);
 }
 
-void SBCFactory::send_and_log_auth_challenge(
-    const AmSipRequest& req,
-    const string &internal_reason,
-    bool post_auth_log,
-    int auth_feedback_code)
+void SBCFactory::send_and_log_auth_challenge(const AmSipRequest &req, const string &internal_reason, bool post_auth_log,
+                                             int auth_feedback_code)
 {
     string hdrs;
-    if(auth_feedback) {
+    if (auth_feedback) {
         hdrs = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
     }
-    yeti->router.send_and_log_auth_challenge(req,internal_reason, hdrs, post_auth_log);
+    yeti->router.send_and_log_auth_challenge(req, internal_reason, hdrs, post_auth_log);
 }
 
-AmSession* SBCFactory::onInvite(
-    const AmSipRequest& req,
-    const string&,
-    const map<string,string>&)
+AmSession *SBCFactory::onInvite(const AmSipRequest &req, const string &, const map<string, string> &)
 {
-    if((req.max_forwards - yeti->config.max_forwards_decrement) < 1) {
+    if ((req.max_forwards - yeti->config.max_forwards_decrement) < 1) {
         AmSipDialog::reply_error(req, 483, SIP_REPLY_TOO_MANY_HOPS);
-        ERROR("Max-Forwards:%d is too low. ci:%s remote:%s:%hu",
-            req.max_forwards, req.callid.c_str(),
-            req.remote_ip.c_str(), req.remote_port);
+        ERROR("Max-Forwards:%d is too low. ci:%s remote:%s:%hu", req.max_forwards, req.callid.c_str(),
+              req.remote_ip.c_str(), req.remote_port);
         return nullptr;
     }
 
     OriginationPreAuth::Reply ip_auth_data;
-    fake_logger *early_trying_logger = new fake_logger();
+    fake_logger              *early_trying_logger = new fake_logger();
     inc_ref(early_trying_logger);
 
-    if(yeti->config.early_100_trying)
-        answer_100_trying(req,early_trying_logger);
+    if (yeti->config.early_100_trying)
+        answer_100_trying(req, early_trying_logger);
 
     PROF_START(pre_auth);
     auto pre_auth_result = yeti->orig_pre_auth.onInvite(req, ip_auth_data);
@@ -243,33 +221,32 @@ AmSession* SBCFactory::onInvite(
 
     DBG("pre auth result: %d", pre_auth_result);
 
-    if(!pre_auth_result) {
-        DBG("INVITE %s from %s:%hu not matched by origination pre auth",
-            req.r_uri.data(), req.remote_ip.data(), req.remote_port);
-        if(yeti->config.ip_auth_reject_if_no_matched) {
+    if (!pre_auth_result) {
+        DBG("INVITE %s from %s:%hu not matched by origination pre auth", req.r_uri.data(), req.remote_ip.data(),
+            req.remote_port);
+        if (yeti->config.ip_auth_reject_if_no_matched) {
             send_auth_error_reply(req, pre_auth_ret, Auth::NO_IP_AUTH);
             dec_ref(early_trying_logger);
             return nullptr;
         } else {
-            //yeti->router.log_auth(req,false,pre_auth_ret);
+            // yeti->router.log_auth(req,false,pre_auth_ret);
             INFO("INVITE not matched by ip auth. "
                  "ruri:%s,remote_endpoint:%s:%hu,orig_ip:%s,x_yeti_auth:'%s'",
-                 req.r_uri.data(), req.remote_ip.data(), req.remote_port,
-                 ip_auth_data.orig_ip.data(),
+                 req.r_uri.data(), req.remote_ip.data(), req.remote_port, ip_auth_data.orig_ip.data(),
                  ip_auth_data.x_yeti_auth.data());
         }
     }
 
     AmArg ret;
-    auto auth_result_id = yeti->router.check_request_auth(req,ret);
-    if(auth_result_id > 0) {
-        DBG("successfully authorized with id %d",auth_result_id);
-        if(!yeti->router.is_skip_logging_invite_success())
-            yeti->router.log_auth(req,true,ret,auth_result_id);
-    } else if(auth_result_id < 0) {
+    auto  auth_result_id = yeti->router.check_request_auth(req, ret);
+    if (auth_result_id > 0) {
+        DBG("successfully authorized with id %d", auth_result_id);
+        if (!yeti->router.is_skip_logging_invite_success())
+            yeti->router.log_auth(req, true, ret, auth_result_id);
+    } else if (auth_result_id < 0) {
         auto auth_result_id_negated = -auth_result_id;
-        if(auth_result_id_negated > Auth::NO_IP_AUTH) {
-            if(auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
+        if (auth_result_id_negated > Auth::NO_IP_AUTH) {
+            if (auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
                 DBG("auth error %d. reply with 401", auth_result_id);
                 send_auth_error_reply(req, ret, auth_result_id_negated);
             } else {
@@ -283,22 +260,17 @@ AmSession* SBCFactory::onInvite(
 
         dec_ref(early_trying_logger);
         return nullptr;
-    } else if(ip_auth_data.require_incoming_auth) { //Auth::NO_AUTH
+    } else if (ip_auth_data.require_incoming_auth) { // Auth::NO_AUTH
         DBG("SIP auth required. reply with 401");
         static string no_auth_internal_reason("no Authorization header");
-        send_and_log_auth_challenge(
-            req,no_auth_internal_reason,
-            !yeti->router.is_skip_logging_invite_challenge());
+        send_and_log_auth_challenge(req, no_auth_internal_reason, !yeti->router.is_skip_logging_invite_challenge());
         dec_ref(early_trying_logger);
         return nullptr;
     }
 
-    SBCCallLeg* leg = callLegCreator->create(
-        early_trying_logger,
-        ip_auth_data,
-        auth_result_id);
+    SBCCallLeg *leg = callLegCreator->create(early_trying_logger, ip_auth_data, auth_result_id);
 
-    if(!leg) {
+    if (!leg) {
         DBG("failed to create B2B leg");
         dec_ref(early_trying_logger);
         return nullptr;
@@ -328,7 +300,7 @@ AmSession* SBCFactory::onInvite(
     return leg;
 }
 
-void SBCFactory::onOoDRequest(const AmSipRequest& req)
+void SBCFactory::onOoDRequest(const AmSipRequest &req)
 {
     DBG("processing message %s %s", req.method.c_str(), req.r_uri.c_str());
 
@@ -338,24 +310,24 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
         return;
     }
 
-    if(req.method == SIP_METH_REGISTER) {
-        if(!yeti->isRegistrarAvailable()) {
+    if (req.method == SIP_METH_REGISTER) {
+        if (!yeti->isRegistrarAvailable()) {
             AmSipDialog::reply_error(req, 405, "Method Not Allowed");
             return;
         }
 
-        AmArg ret;
-        Auth::auth_id_type auth_id = yeti->router.check_request_auth(req,ret);
+        AmArg              ret;
+        Auth::auth_id_type auth_id = yeti->router.check_request_auth(req, ret);
 
-        if(auth_id == Auth::NO_AUTH) {
-            send_and_log_auth_challenge(req,"no Authorization header", true);
+        if (auth_id == Auth::NO_AUTH) {
+            send_and_log_auth_challenge(req, "no Authorization header", true);
             return;
         }
 
-        if(auth_id < 0) {
+        if (auth_id < 0) {
             auto auth_result_id_negated = -auth_id;
-            if(auth_result_id_negated > Auth::NO_IP_AUTH) {
-                if(auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
+            if (auth_result_id_negated > Auth::NO_IP_AUTH) {
+                if (auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
                     DBG("REGISTER auth error. reply with 401");
                     send_auth_error_reply(req, ret, auth_result_id_negated);
                 } else {
@@ -369,12 +341,12 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
             return;
         }
 
-        DBG("REGISTER successfully authorized with id %d",auth_id);
-        yeti->router.log_auth(req,true,ret,auth_id);
+        DBG("REGISTER successfully authorized with id %d", auth_id);
+        yeti->router.log_auth(req, true, ret, auth_id);
 
-        if(false ==AmSessionContainer::instance()->postEvent(
-            SIP_REGISTRAR_QUEUE,
-            new SipRegistrarRegisterRequestEvent(req, string(), std::to_string(auth_id))))
+        if (false ==
+            AmSessionContainer::instance()->postEvent(
+                SIP_REGISTRAR_QUEUE, new SipRegistrarRegisterRequestEvent(req, string(), std::to_string(auth_id))))
         {
             ERROR("failed to post 'register' event to registrar");
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
@@ -387,15 +359,14 @@ void SBCFactory::onOoDRequest(const AmSipRequest& req)
     return;
 }
 
-void SBCFactory::invoke(const string& method, const AmArg& args, 
-				AmArg& ret)
+void SBCFactory::invoke(const string &method, const AmArg &args, AmArg &ret)
 {
-    if (method == "postControlCmd"){
+    if (method == "postControlCmd") {
         args.assertArrayFmt("ss"); // at least call-ltag, cmd
-        postControlCmd(args,ret);
-    } else if(method == "printCallStats") {
+        postControlCmd(args, ret);
+    } else if (method == "printCallStats") {
         B2BMediaStatistics::instance()->getReport(args, ret);
-    } else if(method == "_list"){
+    } else if (method == "_list") {
         ret.push(AmArg("postControlCmd"));
         ret.push(AmArg("printCallStats"));
     } else {
@@ -403,10 +374,11 @@ void SBCFactory::invoke(const string& method, const AmArg& args,
     }
 }
 
-void SBCFactory::postControlCmd(const AmArg& args, AmArg& ret) {
-    SBCControlEvent* evt;
+void SBCFactory::postControlCmd(const AmArg &args, AmArg &ret)
+{
+    SBCControlEvent *evt;
 
-    if (args.size()<3) {
+    if (args.size() < 3) {
         evt = new SBCControlEvent(args[1].asCStr());
     } else {
         evt = new SBCControlEvent(args[1].asCStr(), args[2]);
@@ -420,4 +392,3 @@ void SBCFactory::postControlCmd(const AmArg& args, AmArg& ret) {
         ret.push("Accepted");
     }
 }
-

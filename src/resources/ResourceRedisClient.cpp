@@ -6,7 +6,9 @@
 /* Connection */
 
 ResourceRedisClient::Connection::Connection(const string &id)
-  : id(id), info(), is_connected(false)
+    : id(id)
+    , info()
+    , is_connected(false)
 {
     DBG("ResourceRedisClient::Connection::Connection(..)");
 }
@@ -16,37 +18,47 @@ ResourceRedisClient::Connection::~Connection()
     DBG("ResourceRedisClient::Connection::~Connection()");
 }
 
-const RedisScript* ResourceRedisClient::Connection::script(const string &name) {
-    for(const auto & s : info.scripts)
-        if(s.name == name)
+const RedisScript *ResourceRedisClient::Connection::script(const string &name)
+{
+    for (const auto &s : info.scripts)
+        if (s.name == name)
             return &s;
 
     return nullptr;
 }
 
-bool ResourceRedisClient::Connection::wait_connected() const {
-    while(!is_connected) { usleep(100); }
+bool ResourceRedisClient::Connection::wait_connected() const
+{
+    while (!is_connected) {
+        usleep(100);
+    }
     return true;
 }
 
 /* Request */
 
 ResourceRedisClient::Request::Request(cb_func callback)
-  : callback(callback), finished(false), iserror(false), error_msg(), error_code(0), is_persistent(false)
-{}
+    : callback(callback)
+    , finished(false)
+    , iserror(false)
+    , error_msg()
+    , error_code(0)
+    , is_persistent(false)
+{
+}
 
 void ResourceRedisClient::Request::on_finish()
 {
-    if(callback)
+    if (callback)
         callback(iserror, result);
 
     finished.set(true);
 }
 
-void ResourceRedisClient::Request::on_error(int code, const char* error, ...)
+void ResourceRedisClient::Request::on_error(int code, const char *error, ...)
 {
     va_list argptr;
-    va_start (argptr, error);
+    va_start(argptr, error);
     size_t len = vsnprintf(0, 0, error, argptr);
     error_msg.resize(len + 1);
     vsnprintf(&error_msg[0], len + 1, error, argptr);
@@ -59,17 +71,32 @@ void ResourceRedisClient::Request::on_error(int code, const char* error, ...)
     on_finish();
 }
 
-bool ResourceRedisClient::Request::wait_finish(int timeout) { return finished.wait_for_to(timeout); }
-bool ResourceRedisClient::Request::is_error() const { return iserror; }
-bool ResourceRedisClient::Request::is_finished() { return finished.get(); }
-void ResourceRedisClient::Request::set_result(const AmArg& result) { this->result = result; }
-const AmArg& ResourceRedisClient::Request::get_result() const { return result; }
+bool ResourceRedisClient::Request::wait_finish(int timeout)
+{
+    return finished.wait_for_to(timeout);
+}
+bool ResourceRedisClient::Request::is_error() const
+{
+    return iserror;
+}
+bool ResourceRedisClient::Request::is_finished()
+{
+    return finished.get();
+}
+void ResourceRedisClient::Request::set_result(const AmArg &result)
+{
+    this->result = result;
+}
+const AmArg &ResourceRedisClient::Request::get_result() const
+{
+    return result;
+}
 
 /* ResourceRedisClient */
 
 ResourceRedisClient::ResourceRedisClient(const string &conn_id_prefix)
 {
-    read_conn = new Connection(conn_id_prefix + "_" + READ_CONN_ID);
+    read_conn  = new Connection(conn_id_prefix + "_" + READ_CONN_ID);
     write_conn = new Connection(conn_id_prefix + "_" + WRITE_CONN_ID);
 
     connections.emplace_back(read_conn);
@@ -78,37 +105,37 @@ ResourceRedisClient::ResourceRedisClient(const string &conn_id_prefix)
 
 void ResourceRedisClient::connect_all()
 {
-    for(const auto & conn : connections)
+    for (const auto &conn : connections)
         connect(*conn);
 }
 
 void ResourceRedisClient::on_connect(const string &conn_id, const RedisConnectionInfo &info)
 {
-    for(auto & conn : connections)
-        if(conn->id == conn_id) {
+    for (auto &conn : connections)
+        if (conn->id == conn_id) {
             conn->is_connected = true;
-            conn->info = info;
+            conn->info         = info;
             break;
         }
 }
 
 void ResourceRedisClient::on_disconnect(const string &conn_id, const RedisConnectionInfo &info)
 {
-    for(auto & conn : connections)
-        if(conn->id == conn_id) {
+    for (auto &conn : connections)
+        if (conn->id == conn_id) {
             conn->is_connected = false;
-            conn->info = info;
+            conn->info         = info;
             break;
         }
 }
 
-bool ResourceRedisClient::prepare_request(Request* req, Connection* conn, const char* script_name, vector<AmArg> &args)
+bool ResourceRedisClient::prepare_request(Request *req, Connection *conn, const char *script_name, vector<AmArg> &args)
 {
     string script_hash = "";
 
-    if(script_name) {
+    if (script_name) {
         auto script = conn->script(script_name);
-        if(!script || !script->is_loaded()) {
+        if (!script || !script->is_loaded()) {
             req->on_error(500, "%s script not loaded", script_name);
             return false;
         }

@@ -25,41 +25,40 @@
 #include "RegexMapper.h"
 #include "log.h"
 
-bool RegexMapper::mapRegex(const string& mapping_name, const char* test_s,
-			   string& result) {
-  lock();
-  std::map<string, RegexMappingVector>::iterator it=regex_mappings.find(mapping_name);
-  if (it == regex_mappings.end()) {
-    unlock();
-    ERROR("regex mapping '%s' is not loaded!", mapping_name.c_str());
-    return false;
-  }
-
-  bool res = run_regex_mapping(it->second, test_s, result);
-  unlock();
-  return res;
-}
-
-void RegexMapper::setRegexMap(const string& mapping_name, const RegexMappingVector& r) {
-  lock();
-  std::map<string, RegexMappingVector>::iterator it=regex_mappings.find(mapping_name);
-  if (it != regex_mappings.end()) {
-    for (RegexMappingVector::iterator r_it =
-	   it->second.begin(); r_it != it->second.end(); r_it++) {
-      regfree(&r_it->first);
+bool RegexMapper::mapRegex(const string &mapping_name, const char *test_s, string &result)
+{
+    lock();
+    std::map<string, RegexMappingVector>::iterator it = regex_mappings.find(mapping_name);
+    if (it == regex_mappings.end()) {
+        unlock();
+        ERROR("regex mapping '%s' is not loaded!", mapping_name.c_str());
+        return false;
     }
-  }
-  regex_mappings[mapping_name] = r;
-  unlock();
+
+    bool res = run_regex_mapping(it->second, test_s, result);
+    unlock();
+    return res;
 }
 
-std::vector<std::string> RegexMapper::getNames() {
-  std::vector<std::string> res;
-  lock();
-  for (std::map<string, RegexMappingVector>::iterator it=
-	 regex_mappings.begin(); it != regex_mappings.end(); it++)
-    res.push_back(it->first);
-  unlock();
-  return res;
+void RegexMapper::setRegexMap(const string &mapping_name, const RegexMappingVector &r)
+{
+    lock();
+    std::map<string, RegexMappingVector>::iterator it = regex_mappings.find(mapping_name);
+    if (it != regex_mappings.end()) {
+        for (RegexMappingVector::iterator r_it = it->second.begin(); r_it != it->second.end(); r_it++) {
+            regfree(&r_it->first);
+        }
+    }
+    regex_mappings[mapping_name] = r;
+    unlock();
 }
 
+std::vector<std::string> RegexMapper::getNames()
+{
+    std::vector<std::string> res;
+    lock();
+    for (std::map<string, RegexMappingVector>::iterator it = regex_mappings.begin(); it != regex_mappings.end(); it++)
+        res.push_back(it->first);
+    unlock();
+    return res;
+}

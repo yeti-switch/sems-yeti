@@ -17,35 +17,32 @@ class HttpSequencer {
 
     struct sequencer_state_t {
         sequencer_stage_t stage;
-        bool invalidated;
+        bool              invalidated;
 
         AmArg connected_data;
         AmArg disconnected_data;
 
         sequencer_state_t(sequencer_stage_t initial_stage)
-          : stage(initial_stage),
-            invalidated(false)
-        {}
+            : stage(initial_stage)
+            , invalidated(false)
+        {
+        }
     };
 
     using states_t = std::unordered_map<string, sequencer_state_t>;
     states_t states;
-    AmMutex states_mutex;
+    AmMutex  states_mutex;
 
     string http_destination_name;
 
-    //true if posted successfully
+    // true if posted successfully
     bool postHttpRequest(const string &token, const AmArg &data);
     bool postHttpRequestNoReply(const AmArg &data);
 
   public:
     HttpSequencer();
 
-    enum call_stage_type_t {
-        CallStarted = 0,
-        CallConnected,
-        CallDisconnected
-    };
+    enum call_stage_type_t { CallStarted = 0, CallConnected, CallDisconnected };
 
     void setHttpDestinationName(const std::string &queue_name);
     void serialize(AmArg &ret);

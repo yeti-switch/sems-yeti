@@ -17,24 +17,22 @@ struct DbConfigStates {
     unsigned long trusted_lb;
 
     DbConfigStates()
-      : auth_credentials(0),
-        codec_groups(0),
-        ip_auth(0),
-        options_probers(0),
-        radius_accounting_profiles(0),
-        radius_authorization_profiles(0),
-        registrations(0),
-        sensors(0),
-        stir_shaken_trusted_certificates(0),
-        stir_shaken_trusted_repositories(0),
-        translations(0),
-        trusted_lb(0)
-    {}
-
-    DbConfigStates(const AmArg &r)
+        : auth_credentials(0)
+        , codec_groups(0)
+        , ip_auth(0)
+        , options_probers(0)
+        , radius_accounting_profiles(0)
+        , radius_authorization_profiles(0)
+        , registrations(0)
+        , sensors(0)
+        , stir_shaken_trusted_certificates(0)
+        , stir_shaken_trusted_repositories(0)
+        , translations(0)
+        , trusted_lb(0)
     {
-        readFromDbReply(r);
     }
+
+    DbConfigStates(const AmArg &r) { readFromDbReply(r); }
 
     void readFromDbReply(const AmArg &r);
 };

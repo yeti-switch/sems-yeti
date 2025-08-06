@@ -18,32 +18,29 @@ enum RpcMethodId {
     MethodReloadDBStates
 };
 
-class YetiRpc
-  : public RpcTreeHandler<YetiRpc>,
-    virtual YetiBase,
-    virtual YetiRadius
-{
+class YetiRpc : public RpcTreeHandler<YetiRpc>, virtual YetiBase, virtual YetiRadius {
   public:
     YetiRpc()
-      : RpcTreeHandler<YetiRpc>(true)
-    { }
+        : RpcTreeHandler<YetiRpc>(true)
+    {
+    }
 
-    void invoke(const string& method, const AmArg& args, AmArg& ret);
+    void invoke(const string &method, const AmArg &args, AmArg &ret);
 
   protected:
-    int calls_show_limit;
+    int  calls_show_limit;
     void init_rpc_tree();
 
   private:
     friend class SBCCallLeg;
     async_rpc_handler removeCall;
-    void RemoveCall(SBCCallLeg* leg, AmArg& ret);
+    void              RemoveCall(SBCCallLeg *leg, AmArg &ret);
 
     async_rpc_handler showSessionsInfo;
-    void ShowSessionInfo(SBCCallLeg* leg, const JsonRpcRequestEvent& request);
+    void              ShowSessionInfo(SBCCallLeg *leg, const JsonRpcRequestEvent &request);
 
     async_rpc_handler getCall;
-    void GetCall(SBCCallLeg* leg, AmArg& ret);
+    void              GetCall(SBCCallLeg *leg, AmArg &ret);
     async_rpc_handler getCalls;
     async_rpc_handler getCallsFields;
 
@@ -89,13 +86,13 @@ class YetiRpc
     rpc_handler showSystemDumpLevel;
 
     async_rpc_handler getResourceState;
-    rpc_handler showResources;
-    rpc_handler showResourceTypes;
-    rpc_handler showResourceByHandler;
-    rpc_handler showResourceByLocalTag;
-    rpc_handler showResourcesById;
-    rpc_handler requestResourcesInvalidate;
-    rpc_handler requestResourcesHandlerInvalidate;
+    rpc_handler       showResources;
+    rpc_handler       showResourceTypes;
+    rpc_handler       showResourceByHandler;
+    rpc_handler       showResourceByLocalTag;
+    rpc_handler       showResourcesById;
+    rpc_handler       requestResourcesInvalidate;
+    rpc_handler       requestResourcesHandlerInvalidate;
 
     rpc_handler requestResolverClear;
     rpc_handler requestResolverGet;

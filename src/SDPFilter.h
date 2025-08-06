@@ -35,14 +35,14 @@ using std::string;
 #include <set>
 
 
-int filterSDP(AmSdp& sdp, const vector<FilterEntry>& filter_list);
-int filterSDPalines(AmSdp& sdp, const vector<FilterEntry>& filter_list);
-int filterMedia(AmSdp& sdp, const vector<FilterEntry>& filter_list);
+int filterSDP(AmSdp &sdp, const vector<FilterEntry> &filter_list);
+int filterSDPalines(AmSdp &sdp, const vector<FilterEntry> &filter_list);
+int filterMedia(AmSdp &sdp, const vector<FilterEntry> &filter_list);
 
 /** normalize SDP, fixing some common issues */
-int normalizeSDP(AmSdp& sdp);
+int normalizeSDP(AmSdp &sdp);
 
 /** anonymize SDP origin line, session name, uri */
-int anonymizeSDP(AmSdp& sdp);
+int anonymizeSDP(AmSdp &sdp);
 
 #endif

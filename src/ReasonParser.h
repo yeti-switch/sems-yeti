@@ -5,17 +5,17 @@
 
 #include <string>
 
-class ReasonParser
-{
+class ReasonParser {
     struct Reason {
-        bool parsed;
-        int cause;
+        bool        parsed;
+        int         cause;
         std::string text;
         std::string params;
         Reason()
-          : parsed(false),
-            cause(0)
-        {}
+            : parsed(false)
+            , cause(0)
+        {
+        }
         void serialize(AmArg &ret);
     } sip_reason, q850_reason;
 
@@ -26,12 +26,8 @@ class ReasonParser
 
     bool has_data(const YetiCfg::headers_processing_config::leg_reasons &cfg);
 
-    void serialize(
-        AmArg &ret,
-        const YetiCfg::headers_processing_config::leg_reasons &cfg);
+    void serialize(AmArg &ret, const YetiCfg::headers_processing_config::leg_reasons &cfg);
 
-    void serialize_flat(
-        AmArg &ret,
-        const YetiCfg::headers_processing_config::leg_reasons &cfg,
-        const string &local_tag);
+    void serialize_flat(AmArg &ret, const YetiCfg::headers_processing_config::leg_reasons &cfg,
+                        const string &local_tag);
 };

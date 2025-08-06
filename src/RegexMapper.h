@@ -35,21 +35,20 @@
 
 struct RegexMapper {
 
-  RegexMapper() { }
-  ~RegexMapper() { }
+    RegexMapper() {}
+    ~RegexMapper() {}
 
-  std::map<string, RegexMappingVector> regex_mappings;
-  AmMutex regex_mappings_mut;
+    std::map<string, RegexMappingVector> regex_mappings;
+    AmMutex                              regex_mappings_mut;
 
-  void lock() { regex_mappings_mut.lock(); }
-  void unlock() { regex_mappings_mut.unlock(); }
+    void lock() { regex_mappings_mut.lock(); }
+    void unlock() { regex_mappings_mut.unlock(); }
 
-  bool mapRegex(const string& mapping_name, const char* test_s,
-		string& result);
+    bool mapRegex(const string &mapping_name, const char *test_s, string &result);
 
-  void setRegexMap(const string& mapping_name, const RegexMappingVector& r);
+    void setRegexMap(const string &mapping_name, const RegexMappingVector &r);
 
-  std::vector<std::string> getNames();
+    std::vector<std::string> getNames();
 };
 
 #endif

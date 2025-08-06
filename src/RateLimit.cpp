@@ -1,44 +1,45 @@
 #include "RateLimit.h"
 #include "AmAppTimer.h"
 
-#define min(a,b) ((a) < (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
 
 DynRateLimit::DynRateLimit(unsigned int time_base_ms)
-  : last_update(0), counter(0)
+    : last_update(0)
+    , counter(0)
 {
-  // wall_clock has a resolution of 20ms
-  time_base = time_base_ms / 20;
+    // wall_clock has a resolution of 20ms
+    time_base = time_base_ms / 20;
 }
 
 DynRateLimit::DynRateLimit(const DynRateLimit &other)
-  : last_update(0), counter(0),
-    time_base(other.time_base)
-{}
-
-bool DynRateLimit::limit(unsigned int rate, unsigned int peak, 
-			 unsigned int size)
+    : last_update(0)
+    , counter(0)
+    , time_base(other.time_base)
 {
-  lock();
+}
 
-  if(AmAppTimer::instance()->wall_clock - last_update 
-     > time_base) {
+bool DynRateLimit::limit(unsigned int rate, unsigned int peak, unsigned int size)
+{
+    lock();
 
-    update_limit(rate,peak);
-  }
+    if (AmAppTimer::instance()->wall_clock - last_update > time_base) {
 
-  if(counter <= 0) {
+        update_limit(rate, peak);
+    }
+
+    if (counter <= 0) {
+        unlock();
+        return true; // limit reached
+    }
+
+    counter -= size;
     unlock();
-    return true; // limit reached
-  }
 
-  counter -= size;
-  unlock();
-
-  return false; // do not limit
+    return false; // do not limit
 }
 
 void DynRateLimit::update_limit(int rate, int peak)
 {
-  counter = min(peak, counter+rate);
-  last_update = AmAppTimer::instance()->wall_clock;
+    counter     = min(peak, counter + rate);
+    last_update = AmAppTimer::instance()->wall_clock;
 }

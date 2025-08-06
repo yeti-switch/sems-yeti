@@ -15,70 +15,64 @@
 
 #include <functional>
 
-using std::string;
 using std::list;
+using std::string;
 using std::vector;
 
 string const getprofile_sql_statement_name("getprofile");
 
 struct GetProfileException {
-    int code;
-    bool fatal; //if true we should reload pg connection
+    int  code;
+    bool fatal; // if true we should reload pg connection
     GetProfileException(int c, bool h)
-      : code(c),
-        fatal(h)
-    {}
+        : code(c)
+        , fatal(h)
+    {
+    }
 };
 
 class UsageCounterHelper {
     AtomicCounter &counter;
+
   public:
     UsageCounterHelper(AtomicCounter &counter)
-      : counter(counter)
+        : counter(counter)
     {
         counter.inc();
     }
-    ~UsageCounterHelper()
-    {
-        counter.dec();
-    }
+    ~UsageCounterHelper() { counter.dec(); }
 };
 
-class SqlRouter
-  : public Auth
-{
-    //stats
+class SqlRouter : public Auth {
+    // stats
     AtomicCounter &db_hits, &db_hits_time, &hits, &active_requests;
-    double gt_min,gt_max;
-    double gps_max,gps_avg;
-    time_t mi_start;
-    time_t mi;
-    unsigned int gpi;
+    double         gt_min, gt_max;
+    double         gps_max, gps_avg;
+    time_t         mi_start;
+    time_t         mi;
+    unsigned int   gpi;
 
-    //CdrWriter *cdr_writer;
+    // CdrWriter *cdr_writer;
 
     vector<UsedHeaderField> used_header_fields;
-    int failover_to_slave;
-    int connection_lifetime;
-    bool pass_input_interface_name;
-    bool new_codec_groups;
-    string throttling_gateway_key;
-    string writecdr_schema;
-    string writecdr_function;
-    string authlog_function;
-    string routing_schema;
-    string routing_function;
-    PreparedQueryArgs auth_log_types, getprofile_types;
-    DynFieldsT dyn_fields;
+    int                     failover_to_slave;
+    int                     connection_lifetime;
+    bool                    pass_input_interface_name;
+    bool                    new_codec_groups;
+    string                  throttling_gateway_key;
+    string                  writecdr_schema;
+    string                  writecdr_function;
+    string                  authlog_function;
+    string                  routing_schema;
+    string                  routing_function;
+    PreparedQueryArgs       auth_log_types, getprofile_types;
+    DynFieldsT              dyn_fields;
 
-    int load_db_interface_in_out();
+    int  load_db_interface_in_out();
     void apply_routing_headers(const AmArg &data);
 
-    void sanitize_query_params(
-        QueryInfo &query_info,
-        const std::string &local_tag,
-        const char *context_name,
-        std::function<const char * (unsigned int)> get_param_name);
+    void sanitize_query_params(QueryInfo &query_info, const std::string &local_tag, const char *context_name,
+                               std::function<const char *(unsigned int)> get_param_name);
 
   public:
     SqlRouter();
@@ -86,25 +80,17 @@ class SqlRouter
 
     int configure(cfg_t *confuse_cfg, AmConfigReader &cfg);
 
-    AmArg db_async_get_profiles(
-        const std::string &local_tag,
-        const AmSipRequest&,
-        Auth::auth_id_type auth_id,
-        AmArg *identity_data);
+    AmArg db_async_get_profiles(const std::string &local_tag, const AmSipRequest &, Auth::auth_id_type auth_id,
+                                AmArg *identity_data);
 
     void align_cdr(Cdr &cdr);
     void write_cdr(std::unique_ptr<Cdr> &cdr, bool last);
     void write_auth_log(const AuthCdr &auth_log);
 
-    void log_auth(
-        const AmSipRequest& req,
-        bool success,
-        AmArg &ret,
-        Auth::auth_id_type auth_id = 0);
+    void log_auth(const AmSipRequest &req, bool success, AmArg &ret, Auth::auth_id_type auth_id = 0);
 
-    void send_and_log_auth_challenge(
-        const AmSipRequest &req, const string &internal_reason,
-        const string &hdrs, bool post_auth_log);
+    void send_and_log_auth_challenge(const AmSipRequest &req, const string &internal_reason, const string &hdrs,
+                                     bool post_auth_log);
 
     void dump_config();
     void getStats(AmArg &arg);
@@ -113,12 +99,10 @@ class SqlRouter
     const DynFieldsT &getDynFields() const { return dyn_fields; }
 
     /*! return true if call refused */
-    bool check_and_refuse(
-        SqlCallProfile *profile,Cdr *cdr,
-        const AmSipRequest& req,ParamReplacerCtx& ctx,
-        bool send_reply = false);
+    bool check_and_refuse(SqlCallProfile *profile, Cdr *cdr, const AmSipRequest &req, ParamReplacerCtx &ctx,
+                          bool send_reply = false);
 
-    void update_counters(struct timeval &start_time);
-    bool is_new_codec_groups() { return new_codec_groups; }
+    void          update_counters(struct timeval &start_time);
+    bool          is_new_codec_groups() { return new_codec_groups; }
     const string &get_throttling_gateway_key() const { return throttling_gateway_key; }
 };

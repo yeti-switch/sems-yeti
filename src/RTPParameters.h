@@ -27,10 +27,10 @@
 #define _RTPParameters_h_
 
 struct iana_rtp_payload {
-  const char* payload_name;
-  bool is_audio;
-  unsigned int clock_rate;
-  unsigned int channels;
+    const char  *payload_name;
+    bool         is_audio;
+    unsigned int clock_rate;
+    unsigned int channels;
 };
 
 #define IANA_RTP_PAYLOADS_SIZE 35

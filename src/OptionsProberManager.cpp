@@ -11,13 +11,11 @@ int OptionsProberManager::configure()
 
 void OptionsProberManager::load_probers(const AmArg &data)
 {
-    AmSessionContainer::instance()->postEvent(
-        OPTIONS_PROBER_QUEUE,
-        new OptionsProberCtlEvent(OptionsProberCtlEvent::Flush, AmArg()));
+    AmSessionContainer::instance()->postEvent(OPTIONS_PROBER_QUEUE,
+                                              new OptionsProberCtlEvent(OptionsProberCtlEvent::Flush, AmArg()));
 
-    if(isArgArray(data)) {
-        AmSessionContainer::instance()->postEvent(
-            OPTIONS_PROBER_QUEUE,
-            new OptionsProberCtlEvent(OptionsProberCtlEvent::Add, data));
+    if (isArgArray(data)) {
+        AmSessionContainer::instance()->postEvent(OPTIONS_PROBER_QUEUE,
+                                                  new OptionsProberCtlEvent(OptionsProberCtlEvent::Add, data));
     }
 }

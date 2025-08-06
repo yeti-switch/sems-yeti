@@ -5,102 +5,100 @@
 
 // TODO: global event numbering
 enum {
-  ConnectLeg = B2BDtmfEvent + 16,
-  /*ReconnectLeg,
-  ReplaceLeg,
-  ReplaceInProgress,
-  DisconnectLeg,
-  ChangeRtpModeEventId,*/
-  ResumeHeld,
-  B2BRefer,
-  B2BNotify
+    ConnectLeg = B2BDtmfEvent + 16,
+    /*ReconnectLeg,
+    ReplaceLeg,
+    ReplaceInProgress,
+    DisconnectLeg,
+    ChangeRtpModeEventId,*/
+    ResumeHeld,
+    B2BRefer,
+    B2BNotify
 };
 
 #define LAST_B2B_CALL_LEG_EVENT_ID B2BNotify
 
-struct B2BReferEvent
-  : public B2BEvent
-{
-    string referrer_session;
-    string referred_to;
+struct B2BReferEvent : public B2BEvent {
+    string       referrer_session;
+    string       referred_to;
     list<string> append_headers;
 
     B2BReferEvent(const string &session, const string &target)
-      : B2BEvent(B2BRefer),
-        referrer_session(session),
-        referred_to(target)
-    {}
-
+        : B2BEvent(B2BRefer)
+        , referrer_session(session)
+        , referred_to(target)
+    {
+    }
 };
 
-struct B2BNotifyEvent
-  : public B2BEvent
-{
-    int code;
+struct B2BNotifyEvent : public B2BEvent {
+    int    code;
     string reason;
 
     B2BNotifyEvent(int code, const string &reason)
-      : B2BEvent(B2BNotify),
-        code(code),
-        reason(reason)
-    {}
+        : B2BEvent(B2BNotify)
+        , code(code)
+        , reason(reason)
+    {
+    }
 };
 
-struct ConnectLegEvent: public B2BEvent
-{
-  AmMimeBody body;
-  string hdrs;
+struct ConnectLegEvent : public B2BEvent {
+    AmMimeBody body;
+    string     hdrs;
 
-  unsigned int r_cseq;
-  bool relayed_invite;
+    unsigned int r_cseq;
+    bool         relayed_invite;
 
-  // constructor from relayed INVITE request
-  ConnectLegEvent(const AmSipRequest &_relayed_invite):
-    B2BEvent(ConnectLeg),
-    body(_relayed_invite.body),
-    hdrs(_relayed_invite.hdrs),
-    r_cseq(_relayed_invite.cseq),
-    relayed_invite(true)
-  { }
+    // constructor from relayed INVITE request
+    ConnectLegEvent(const AmSipRequest &_relayed_invite)
+        : B2BEvent(ConnectLeg)
+        , body(_relayed_invite.body)
+        , hdrs(_relayed_invite.hdrs)
+        , r_cseq(_relayed_invite.cseq)
+        , relayed_invite(true)
+    {
+    }
 
-  // constructor from generated INVITE (for example blind call transfer)
-  ConnectLegEvent(const string &_hdrs, const AmMimeBody &_body):
-    B2BEvent(ConnectLeg),
-    body(_body),
-    hdrs(_hdrs),
-    r_cseq(0),
-    relayed_invite(false)
-  { }
+    // constructor from generated INVITE (for example blind call transfer)
+    ConnectLegEvent(const string &_hdrs, const AmMimeBody &_body)
+        : B2BEvent(ConnectLeg)
+        , body(_body)
+        , hdrs(_hdrs)
+        , r_cseq(0)
+        , relayed_invite(false)
+    {
+    }
 };
 
 /** B2B event which sends another event back if it was or was not processed.
  * (note that the back events need to be created in advance because we can not
  * use overriden virtual methods in destructor (which is the only place which
  * will be called for sure) */
-struct ReliableB2BEvent: public B2BEvent
-{
+struct ReliableB2BEvent : public B2BEvent {
   private:
     bool processed;
 
     B2BEvent *unprocessed_reply; //< reply to be sent back if the original event was not processed
-    B2BEvent *processed_reply; //< event sent back if the original event was processed
-    string sender; // sender will be filled when sending the event out
+    B2BEvent *processed_reply;   //< event sent back if the original event was processed
+    string    sender;            // sender will be filled when sending the event out
 
   public:
-
     ReliableB2BEvent(int ev_id, B2BEvent *_processed, B2BEvent *_unprocessed)
-      : B2BEvent(ev_id),
-        processed(false),
-        unprocessed_reply(_unprocessed),
-        processed_reply(_processed)
-    { }
+        : B2BEvent(ev_id)
+        , processed(false)
+        , unprocessed_reply(_unprocessed)
+        , processed_reply(_processed)
+    {
+    }
 
     ReliableB2BEvent(int ev_id, B2BEventType ev_type, B2BEvent *_processed, B2BEvent *_unprocessed)
-      : B2BEvent(ev_id, ev_type),
-        processed(false),
-        unprocessed_reply(_unprocessed),
-        processed_reply(_processed)
-    { }
+        : B2BEvent(ev_id, ev_type)
+        , processed(false)
+        , unprocessed_reply(_unprocessed)
+        , processed_reply(_processed)
+    {
+    }
 
     void markAsProcessed() { processed = true; }
     void setSender(const string &tag) { sender = tag; }
@@ -207,9 +205,11 @@ struct ChangeRtpModeEvent: public B2BEvent
 };
 #endif
 
-struct ResumeHeldEvent: public B2BEvent
-{
-  ResumeHeldEvent(): B2BEvent(ResumeHeld) { }
+struct ResumeHeldEvent : public B2BEvent {
+    ResumeHeldEvent()
+        : B2BEvent(ResumeHeld)
+    {
+    }
 };
 
 #endif

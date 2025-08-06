@@ -11,11 +11,10 @@
 #include <random>
 #include <optional>
 
-class GatewaysCache
-{
+class GatewaysCache {
   public:
     struct TelRedirectData {
-        string transfer_tel_uri_host;
+        string       transfer_tel_uri_host;
         list<string> transfer_append_headers_req;
     };
 
@@ -24,17 +23,17 @@ class GatewaysCache
     struct GatewayData {
         GatewayIdType id;
 
-        //throttling
-        bool throttling_enabled;
-        int throttling_minimum_calls;
-        int throttling_window;
-        double throttling_threshold_start;
-        double throttling_threshold_end;
-        double failure_rate_multiplier;
+        // throttling
+        bool          throttling_enabled;
+        int           throttling_minimum_calls;
+        int           throttling_window;
+        double        throttling_threshold_start;
+        double        throttling_threshold_end;
+        double        failure_rate_multiplier;
         std::set<int> throttling_local_codes;
         std::set<int> throttling_remote_codes;
 
-        //tel: refer
+        // tel: refer
         TelRedirectData tel_redirect_data;
 
         GatewayStats stats;
@@ -47,18 +46,18 @@ class GatewaysCache
     };
     using GatewaysContainer = std::unordered_map<GatewayIdType, GatewayData>;
 
-    AmMutex mutex;
+    AmMutex           mutex;
     GatewaysContainer gateways;
 
-    std::mt19937 random_generator;
-    std::uniform_int_distribution<> random_distribution{0, 99};
+    std::mt19937                    random_generator;
+    std::uniform_int_distribution<> random_distribution{ 0, 99 };
 
   public:
     GatewaysCache();
 
-    int configure();
+    int  configure();
     void update(const AmArg &data);
-    void info(const AmArg &arg, AmArg& ret);
+    void info(const AmArg &arg, AmArg &ret);
 
     void update_reply_stats(GatewayIdType gateway_id, const AmSipReply &reply);
     bool should_skip(GatewayIdType gateway_id, int now);

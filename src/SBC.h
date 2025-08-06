@@ -49,78 +49,69 @@ class SBCCallLeg;
 
 using std::string;
 
-#define SBC_TIMER_ID_CALL_TIMERS_START   10
-#define SBC_TIMER_ID_CALL_TIMERS_END     99
+#define SBC_TIMER_ID_CALL_TIMERS_START 10
+#define SBC_TIMER_ID_CALL_TIMERS_END   99
 
 struct CallLegCreator {
-  virtual SBCCallLeg* create(fake_logger *logger,
-                             OriginationPreAuth::Reply &ip_auth_data,
-                             Auth::auth_id_type auth_result_id);
-  virtual SBCCallLeg* create(SBCCallLeg* caller, AmSipDialog* dlg);
-  virtual ~CallLegCreator() {}
+    virtual SBCCallLeg *create(fake_logger *logger, OriginationPreAuth::Reply &ip_auth_data,
+                               Auth::auth_id_type auth_result_id);
+    virtual SBCCallLeg *create(SBCCallLeg *caller, AmSipDialog *dlg);
+    virtual ~CallLegCreator() {}
 };
 
-class SBCFactory: public AmSessionFactory,
-    public AmConfigFactory,
-    public AmDynInvoke,
-    public AmDynInvokeFactory
-{
-  unique_ptr<Yeti> yeti;
+class SBCFactory : public AmSessionFactory, public AmConfigFactory, public AmDynInvoke, public AmDynInvokeFactory {
+    unique_ptr<Yeti> yeti;
 
-  /*SqlRouter router;
-  CdrList cdr_list;
-  ResourceControl rctl;*/
+    /*SqlRouter router;
+    CdrList cdr_list;
+    ResourceControl rctl;*/
 
-  AmArg pre_auth_ret;
-  AmDynInvoke *yeti_invoke;
-  bool auth_feedback;
+    AmArg        pre_auth_ret;
+    AmDynInvoke *yeti_invoke;
+    bool         auth_feedback;
 
-  bool core_options_handling;
+    bool core_options_handling;
 
-  unique_ptr<CallLegCreator> callLegCreator;
+    unique_ptr<CallLegCreator> callLegCreator;
 
-  void postControlCmd(const AmArg& args, AmArg& ret);
+    void postControlCmd(const AmArg &args, AmArg &ret);
 
-  void send_auth_error_reply(const AmSipRequest& req, AmArg &ret, int auth_feedback_code);
-  void send_and_log_auth_challenge(const AmSipRequest& req,
-                                   const string &internal_reason,
-                                   bool post_auth_log,
-                                   int auth_feedback_code = 0);
+    void send_auth_error_reply(const AmSipRequest &req, AmArg &ret, int auth_feedback_code);
+    void send_and_log_auth_challenge(const AmSipRequest &req, const string &internal_reason, bool post_auth_log,
+                                     int auth_feedback_code = 0);
 
- public:
-  static SBCFactory* instance();
+  public:
+    static SBCFactory *instance();
 
-  SBCFactory(const string& _app_name);
-  ~SBCFactory();
+    SBCFactory(const string &_app_name);
+    ~SBCFactory();
 
-  int onLoad() override;
-  int configure(const std::string& config) override;
-  int reconfigure(const std::string& config) override;
+    int onLoad() override;
+    int configure(const std::string &config) override;
+    int reconfigure(const std::string &config) override;
 
-  void setCallLegCreator(CallLegCreator* clc) { callLegCreator.reset(clc); }
-  CallLegCreator* getCallLegCreator() { return callLegCreator.get(); }
+    void            setCallLegCreator(CallLegCreator *clc) { callLegCreator.reset(clc); }
+    CallLegCreator *getCallLegCreator() { return callLegCreator.get(); }
 
-  AmSession* onInvite(const AmSipRequest& req, const string& app_name,
-                      const map<string,string>& app_params) override;
+    AmSession *onInvite(const AmSipRequest &req, const string &app_name,
+                        const map<string, string> &app_params) override;
 
-  void onOoDRequest(const AmSipRequest& req) override;
+    void onOoDRequest(const AmSipRequest &req) override;
 
-  AmSessionEventHandlerFactory* session_timer_fact;
+    AmSessionEventHandlerFactory *session_timer_fact;
 
-  // hack for routing of OoD (e.g. REGISTER) messages
-  AmDynInvokeFactory* gui_fact;
+    // hack for routing of OoD (e.g. REGISTER) messages
+    AmDynInvokeFactory *gui_fact;
 
-  AmEventQueueProcessor subnot_processor;
+    AmEventQueueProcessor subnot_processor;
 
-  // DI
-  // DI factory
-  AmDynInvoke* getInstance() override { return yeti_invoke; }
-  // DI API
-  void invoke(const string& method,
-              const AmArg& args, AmArg& ret) override;
-
+    // DI
+    // DI factory
+    AmDynInvoke *getInstance() override { return yeti_invoke; }
+    // DI API
+    void invoke(const string &method, const AmArg &args, AmArg &ret) override;
 };
 
-extern void assertEndCRLF(string& s);
+extern void assertEndCRLF(string &s);
 
 #endif

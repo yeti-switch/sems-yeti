@@ -2,8 +2,7 @@
 #include "../src/CertCache.h"
 #include <botan/data_src.h>
 
-string cert_with_TNAuthList =
-"-----BEGIN CERTIFICATE-----\
+string cert_with_TNAuthList = "-----BEGIN CERTIFICATE-----\
 MIIDBDCCAqqgAwIBAgIUYTCTlxQtIe18LLsPvlgefvARxdswCgYIKoZIzj0EAwIw\
 gYUxCzAJBgNVBAYTAlVTMSkwJwYDVQQKDCBOZXVzdGFyIEluZm9ybWF0aW9uIFNl\
 cnZpY2VzIEluYzEZMBcGA1UECwwQd3d3LmNjaWQubmV1c3RhcjEwMC4GA1UEAwwn\
@@ -23,11 +22,12 @@ KChWuu7YJFa6QKJQMaZw5NO3GkJlIgIgSW5romYNlkhZhBs9U11Emk6jS+iPy20C\
 sOJ3a2u10F4=\
 -----END CERTIFICATE-----";
 
-TEST_F(YetiTest, parseTNAuthList) {
+TEST_F(YetiTest, parseTNAuthList)
+{
     AmArg a;
 
     Botan::DataSource_Memory in(cert_with_TNAuthList);
-    Botan::X509_Certificate cert(in);
+    Botan::X509_Certificate  cert(in);
 
     CertCache::serialize_cert_to_amarg(cert, a);
     ASSERT_EQ(a["tn_auth_list"][0]["spc"], "063E");

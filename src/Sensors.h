@@ -14,34 +14,36 @@ using namespace std;
 
 class sensor {
     msg_sensor *_sensor;
+
   public:
-    typedef enum {
-        SENS_TYPE_IPIP = 1,
-        SENS_TYPE_ETHERNET = 2,
-        SENS_TYPE_HEP = 3,
-        SENS_TYPE_MAX
-    } sensor_mode;
+    typedef enum { SENS_TYPE_IPIP = 1, SENS_TYPE_ETHERNET = 2, SENS_TYPE_HEP = 3, SENS_TYPE_MAX } sensor_mode;
 
-    sensor(sensor_mode mode, msg_sensor *sensor_ptr):
-        _sensor(sensor_ptr), _mode(mode)
+    sensor(sensor_mode mode, msg_sensor *sensor_ptr)
+        : _sensor(sensor_ptr)
+        , _mode(mode)
     {
-        //INFO("sensor(%p) _sensor = %p",this,_sensor);
-        if(_sensor) inc_ref(_sensor);
+        // INFO("sensor(%p) _sensor = %p",this,_sensor);
+        if (_sensor)
+            inc_ref(_sensor);
     }
 
-    sensor(const sensor &obj):
-        _sensor(obj._sensor), _mode(obj._mode)
+    sensor(const sensor &obj)
+        : _sensor(obj._sensor)
+        , _mode(obj._mode)
     {
-        //INFO("sensor(%p from %p)",this,&obj);
-        if(_sensor) inc_ref(_sensor);
+        // INFO("sensor(%p from %p)",this,&obj);
+        if (_sensor)
+            inc_ref(_sensor);
     }
 
-    ~sensor() {
-        //INFO("~sensor(%p) _sensor = %p",this,_sensor);
-        if(_sensor) dec_ref(_sensor);
+    ~sensor()
+    {
+        // INFO("~sensor(%p) _sensor = %p",this,_sensor);
+        if (_sensor)
+            dec_ref(_sensor);
     }
 
-    void getConfig(AmArg& ret) const;
+    void        getConfig(AmArg &ret) const;
     msg_sensor *getSensor() { return _sensor; }
 
   private:
@@ -49,21 +51,21 @@ class sensor {
 };
 
 class _Sensors {
-	typedef map<int,sensor> sensors_container;
-	sensors_container _sensors;
-	AmMutex lock;
+    typedef map<int, sensor> sensors_container;
+    sensors_container        _sensors;
+    AmMutex                  lock;
 
   public:
-	_Sensors();
-	~_Sensors();
-	void dispose() {}
+    _Sensors();
+    ~_Sensors();
+    void dispose() {}
 
-	msg_sensor *getSensor(int id);
+    msg_sensor *getSensor(int id);
 
-	int configure(AmConfigReader &cfg);
-	int load_sensors_config(const AmArg &data);
+    int configure(AmConfigReader &cfg);
+    int load_sensors_config(const AmArg &data);
 
-	void GetConfig(AmArg& ret);
+    void GetConfig(AmArg &ret);
 };
 
 typedef singleton<_Sensors> Sensors;
