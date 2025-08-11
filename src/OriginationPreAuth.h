@@ -54,5 +54,5 @@ class OriginationPreAuth final {
     void ShowTrustedBalancers(AmArg &ret);
     void ShowIPAuth(const AmArg &arg, AmArg &ret);
 
-    bool onRequest(const AmSipRequest &req, Reply &reply);
+    bool onRequest(const AmSipRequest &req, bool match_subnet, Reply &reply);
 };

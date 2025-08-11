@@ -215,7 +215,7 @@ AmSession *SBCFactory::onInvite(const AmSipRequest &req, const string &, const m
         answer_100_trying(req, early_trying_logger);
 
     PROF_START(pre_auth);
-    auto pre_auth_result = yeti->orig_pre_auth.onRequest(req, ip_auth_data);
+    auto pre_auth_result = yeti->orig_pre_auth.onRequest(req, true /*match_subnet */, ip_auth_data);
     PROF_END(pre_auth);
     PROF_PRINT("orig pre auth", pre_auth);
 
@@ -318,7 +318,7 @@ void SBCFactory::onOoDRequest(const AmSipRequest &req)
         }
 
         OriginationPreAuth::Reply ip_auth_data;
-        yeti->orig_pre_auth.onRequest(req, ip_auth_data);
+        yeti->orig_pre_auth.onRequest(req, false /*match_subnet */, ip_auth_data);
 
         AmArg              ret;
         Auth::auth_id_type auth_id = yeti->router.check_request_auth(req, ip_auth_data, ret);

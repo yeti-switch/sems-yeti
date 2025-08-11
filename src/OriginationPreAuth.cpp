@@ -116,7 +116,7 @@ void OriginationPreAuth::ShowIPAuth(const AmArg &arg, AmArg &ret)
     // ret["tree"] = subnets_tree;
 }
 
-bool OriginationPreAuth::onRequest(const AmSipRequest &req, Reply &reply)
+bool OriginationPreAuth::onRequest(const AmSipRequest &req, bool match_subnet, Reply &reply)
 {
     /* determine src IP to match:
      * use X-AUTH-IP header value if exists
@@ -184,6 +184,9 @@ bool OriginationPreAuth::onRequest(const AmSipRequest &req, Reply &reply)
         DBG("no %s hdr or request was from not trusted balancer", ycfg.ip_auth_hdr.data());
         reply.orig_ip = req.remote_ip;
     }
+
+    if (!match_subnet)
+        return false;
 
     DBG("use address %s for matching", reply.orig_ip.data());
 
