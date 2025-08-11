@@ -1,7 +1,5 @@
 #include "OriginationPreAuth.h"
-#include "AmLcConfig.h"
 #include "HeaderFilter.h"
-#include <exception>
 #include "db/DbHelpers.h"
 
 OriginationPreAuth::OriginationPreAuth(YetiCfg &ycfg)
@@ -26,12 +24,11 @@ OriginationPreAuth::LoadBalancerData::operator AmArg() const
 }
 
 OriginationPreAuth::IPAuthData::IPAuthData(const AmArg &r)
+    : ip(DbAmArg_hash_get_str(r, "ip"))
+    , x_yeti_auth(DbAmArg_hash_get_str(r, "x_yeti_auth"))
+    , require_incoming_auth(DbAmArg_hash_get_bool(r, "require_incoming_auth"))
+    , require_identity_parsing(DbAmArg_hash_get_bool(r, "require_identity_parsing"))
 {
-    ip                       = DbAmArg_hash_get_str(r, "ip");
-    x_yeti_auth              = DbAmArg_hash_get_str(r, "x_yeti_auth");
-    require_incoming_auth    = DbAmArg_hash_get_bool(r, "require_incoming_auth");
-    require_identity_parsing = DbAmArg_hash_get_bool(r, "require_identity_parsing");
-
     if (!subnet.parse(ip))
         throw string("failed to parse IP");
 }
@@ -102,7 +99,6 @@ void OriginationPreAuth::ShowIPAuth(const AmArg &arg, AmArg &ret)
             entries.push(ip_auth);
     } else {
         arg.assertArrayFmt("s");
-        string           ip = arg[0].asCStr();
         sockaddr_storage addr;
         memset(&addr, 0, sizeof(sockaddr_storage));
         if (!am_inet_pton(arg[0].asCStr(), &addr))
