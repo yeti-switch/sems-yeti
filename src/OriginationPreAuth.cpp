@@ -131,12 +131,12 @@ bool OriginationPreAuth::onRequest(const AmSipRequest &req, bool match_subnet, R
 
     {
         AmLock l(mutex);
-        for (const auto &lb : load_balancers) {
-            if (lb.signalling_ip == req.remote_ip) {
-                reply.request_is_from_trusted_lb = true;
-                DBG("remote IP %s matched with load balancer %lu/%s. ", req.remote_ip.data(), lb.id, lb.name.data());
-                break;
-            }
+        auto   lb_it = std::find_if(load_balancers.begin(), load_balancers.end(),
+                                    [&req](const auto &e) { return e.signalling_ip == req.remote_ip; });
+        if (lb_it != load_balancers.end()) {
+            DBG("remote IP %s matched with load balancer %lu/%s. ", req.remote_ip.data(), lb_it->id,
+                lb_it->name.data());
+            reply.request_is_from_trusted_lb = true;
         }
     }
 
