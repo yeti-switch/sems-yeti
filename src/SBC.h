@@ -77,8 +77,8 @@ class SBCFactory : public AmSessionFactory, public AmConfigFactory, public AmDyn
     void postControlCmd(const AmArg &args, AmArg &ret);
 
     void send_auth_error_reply(const AmSipRequest &req, AmArg &ret, int auth_feedback_code);
-    void send_and_log_auth_challenge(const AmSipRequest &req, const string &internal_reason, bool post_auth_log,
-                                     int auth_feedback_code = 0);
+    void send_and_log_auth_challenge(const AmSipRequest &req, const OriginationPreAuth::Reply &ip_auth_data,
+                                     const string &internal_reason, bool post_auth_log, int auth_feedback_code = 0);
 
   public:
     static SBCFactory *instance();

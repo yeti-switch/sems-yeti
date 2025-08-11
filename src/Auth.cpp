@@ -80,17 +80,22 @@ Auth::Auth()
 
 int Auth::auth_configure(cfg_t *cfg)
 {
-    char *realm_ = cfg_getstr(cfg, opt_name_auth_realm);
-    if (!realm_ || strlen(realm_) == 0) {
+    if (cfg_size(cfg, opt_name_auth_realm)) {
+        for (auto i = 0u; i < cfg_size(cfg, opt_name_auth_realm); i++) {
+            realms.push(cfg_getnstr(cfg, opt_name_auth_realm, i));
+        }
+    } else {
         // use hostname as realm if not configured
         char hostname[MAX_HOSTNAME_LEN];
         if (-1 == gethostname(hostname, MAX_HOSTNAME_LEN)) {
             if (ENAMETOOLONG == errno)
                 hostname[MAX_HOSTNAME_LEN - 1] = 0;
         }
-        realm = hostname;
-    } else {
-        realm = realm_;
+        realms.push(hostname);
+    }
+
+    if (cfg_size(cfg, opt_name_auth_default_realm_header)) {
+        default_realm_header = cfg_getstr(cfg, opt_name_auth_default_realm_header);
     }
 
     if (cfg_size(cfg, opt_name_auth_skip_logging_invite_success))
@@ -109,8 +114,8 @@ int Auth::auth_configure(cfg_t *cfg)
         }
     }
 
-    DBG("auth_init: configured to use realm: '%s', skip_logging_invite_success: %s, skip_logging_invite_challenge: %s",
-        realm.c_str(), skip_logging_invite_success ? "true" : "false",
+    DBG("auth_init: configured to use realms: %s, skip_logging_invite_success: %s, skip_logging_invite_challenge: %s",
+        realms.print().c_str(), skip_logging_invite_success ? "true" : "false",
         skip_logging_invite_challenge ? "true" : "false");
 
     return 0;
@@ -228,7 +233,8 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
     return id;
 }
 
-Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req, AmArg &ret)
+Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req, const OriginationPreAuth::Reply &ip_auth_data,
+                                            AmArg &ret)
 {
     string auth_hdr = getHeader(req.hdrs, SIP_HDR_AUTHORIZATION);
     if (auth_hdr.empty()) {
@@ -285,9 +291,15 @@ Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req, AmArg &ret)
 
     AmArg args;
     args.push((AmObject *)&req);
-    args.push(realm);
+    args.push(realms);
     args.push(username);
     args.push(AmArg());
+
+    if (!ip_auth_data.x_default_realm.empty()) {
+        args.push(ip_auth_data.x_default_realm);
+    } else {
+        args.push(realms[0]);
+    }
 
     for (const auto &c : creds) {
         ret.clear();
@@ -308,10 +320,16 @@ Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req, AmArg &ret)
     return -(UAC_AUTH_ERROR + ret[4].asInt()); // add uac_auth internal_code
 }
 
-void Auth::send_auth_challenge(const AmSipRequest &req, const string &hdrs)
+void Auth::send_auth_challenge(const AmSipRequest &req, const string &hdrs,
+                               const OriginationPreAuth::Reply &ip_auth_data)
 {
     AmArg args, ret;
-    args.push(realm);
+
+    if (!ip_auth_data.x_default_realm.empty()) {
+        args.push(ip_auth_data.x_default_realm);
+    } else {
+        args.push(realms[0]);
+    }
 
     ret.clear();
     uac_auth->invoke("getChallenge", args, ret);

@@ -41,8 +41,10 @@ class OriginationPreAuth final {
     struct Reply {
         string orig_ip;
         string x_yeti_auth;
+        string x_default_realm;
         bool   require_incoming_auth;
         bool   require_identity_parsing;
+        bool   request_is_from_trusted_lb;
     };
 
     OriginationPreAuth(YetiCfg &cfg);
@@ -52,5 +54,5 @@ class OriginationPreAuth final {
     void ShowTrustedBalancers(AmArg &ret);
     void ShowIPAuth(const AmArg &arg, AmArg &ret);
 
-    bool onInvite(const AmSipRequest &req, Reply &reply);
+    bool onRequest(const AmSipRequest &req, Reply &reply);
 };

@@ -256,6 +256,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
     cfg_t *auth_sec = cfg_getsec(confuse_cfg, section_name_auth);
     if (!auth_sec || 0 == auth_configure(auth_sec)) {
         DBG3("SqlRouter::auth_configure: config successfuly read");
+        ycfg.auth_default_realm_header = getDefaultRealmHeader();
     } else {
         ERROR("SqlRouter::auth_configure: config read error");
         return 1;
@@ -704,10 +705,10 @@ void SqlRouter::log_auth(const AmSipRequest &req, bool success, AmArg &ret, Auth
     write_auth_log(AuthCdr(req, success, ret[0].asInt(), ret[1].asCStr(), ret[3].asCStr(), auth_id));
 }
 
-void SqlRouter::send_and_log_auth_challenge(const AmSipRequest &req, const string &internal_reason, const string &hdrs,
-                                            bool post_auth_log)
+void SqlRouter::send_and_log_auth_challenge(const AmSipRequest &req, const OriginationPreAuth::Reply &ip_auth_data,
+                                            const string &internal_reason, const string &hdrs, bool post_auth_log)
 {
-    Auth::send_auth_challenge(req, hdrs);
+    Auth::send_auth_challenge(req, hdrs, ip_auth_data);
     if (post_auth_log) {
         write_auth_log(AuthCdr(req, false, 401, "Unauthorized", internal_reason, 0));
     }

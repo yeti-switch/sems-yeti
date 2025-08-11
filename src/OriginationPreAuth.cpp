@@ -116,53 +116,65 @@ void OriginationPreAuth::ShowIPAuth(const AmArg &arg, AmArg &ret)
     // ret["tree"] = subnets_tree;
 }
 
-bool OriginationPreAuth::onInvite(const AmSipRequest &req, Reply &reply)
+bool OriginationPreAuth::onRequest(const AmSipRequest &req, Reply &reply)
 {
     /* determine src IP to match:
      * use X-AUTH-IP header value if exists
      * and req.remote_ip within trusted load balancers list.
      * use req.remote_ip otherwise */
 
+    reply.request_is_from_trusted_lb = false;
+
     /* keep old behavior for no matched failover */
     reply.require_incoming_auth    = false;
     reply.require_identity_parsing = true;
+
+    {
+        AmLock l(mutex);
+        for (const auto &lb : load_balancers) {
+            if (lb.signalling_ip == req.remote_ip) {
+                reply.request_is_from_trusted_lb = true;
+                DBG("remote IP %s matched with load balancer %lu/%s. ", req.remote_ip.data(), lb.id, lb.name.data());
+                break;
+            }
+        }
+    }
 
     static string x_yeti_auth_hdr("X-YETI-AUTH");
 
     size_t start_pos = 0;
     while (start_pos < req.hdrs.length()) {
-        size_t name_end, val_begin, val_end, hdr_end;
+        size_t name_end, val_begin, val_end, hdr_end, hdr_length;
         int    res;
         if ((res = skip_header(req.hdrs, start_pos, name_end, val_begin, val_end, hdr_end)) != 0) {
             break;
         }
-        if (0 == strncasecmp(req.hdrs.c_str() + start_pos, ycfg.ip_auth_hdr.c_str(), name_end - start_pos)) {
+        const char *hdr = req.hdrs.c_str() + start_pos;
+        hdr_length      = name_end - start_pos;
+        if (0 == strncasecmp(hdr, ycfg.ip_auth_hdr.c_str(), hdr_length)) {
             // req.hdrs.substr(val_begin, val_end-val_begin);
             if (reply.orig_ip.empty()) {
-                DBG("found first %s hdr. checking for trusted balancer", ycfg.ip_auth_hdr.data());
-                AmLock l(mutex);
-                for (const auto &lb : load_balancers) {
-                    if (lb.signalling_ip == req.remote_ip) {
-                        reply.orig_ip = req.hdrs.substr(val_begin, val_end - val_begin);
-                        DBG("remote IP %s matched with load balancer %lu/%s. "
-                            "use %s value %s as source IP",
-                            req.remote_ip.data(), lb.id, lb.name.data(), ycfg.ip_auth_hdr.data(), reply.orig_ip.data());
-                        break;
-                    }
+                DBG3("found first %s hdr", ycfg.ip_auth_hdr.data());
+                if (reply.request_is_from_trusted_lb) {
+                    reply.orig_ip = req.hdrs.substr(val_begin, val_end - val_begin);
+                    DBG("use %s value %s as source IP", ycfg.ip_auth_hdr.data(), reply.orig_ip.data());
                 }
             }
-            /*} else if(0==strncasecmp(req.hdrs.c_str() + start_pos,
-                                     x_orig_port_hdr.c_str(), name_end-start_pos))
-            {
-                str2int(req.hdrs.substr(val_begin, val_end-val_begin), reply.orig_port);
-            } else if(0==strncasecmp(req.hdrs.c_str() + start_pos,
-                                     x_orig_proto_hdr.c_str(), name_end-start_pos))
-            {
-                str2int(req.hdrs.substr(val_begin, val_end-val_begin), reply.orig_proto);*/
-        } else if (0 == strncasecmp(req.hdrs.c_str() + start_pos, x_yeti_auth_hdr.c_str(), name_end - start_pos)) {
+        } else if (0 == strncasecmp(hdr, x_yeti_auth_hdr.c_str(), hdr_length)) {
             if (reply.x_yeti_auth.empty()) {
                 reply.x_yeti_auth = req.hdrs.substr(val_begin, val_end - val_begin);
                 DBG("found first X-YETI-AUTH hdr with value: %s", reply.x_yeti_auth.data());
+            }
+        } else if (!ycfg.auth_default_realm_header.empty() &&
+                   0 == strncasecmp(hdr, ycfg.auth_default_realm_header.c_str(), hdr_length))
+        {
+            if (reply.x_default_realm.empty()) {
+                DBG3("found first %s hdr", ycfg.auth_default_realm_header.c_str());
+                if (reply.request_is_from_trusted_lb) {
+                    reply.x_default_realm = req.hdrs.substr(val_begin, val_end - val_begin);
+                    DBG("use %s value %s as default realm", ycfg.auth_default_realm_header.c_str(),
+                        reply.x_default_realm.data());
+                }
             }
         }
         start_pos = hdr_end;

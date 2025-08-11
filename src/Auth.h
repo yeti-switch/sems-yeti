@@ -3,6 +3,7 @@
 #include "AmSipMsg.h"
 #include "AmConfigReader.h"
 #include "AmThread.h"
+#include "OriginationPreAuth.h"
 
 #include <unordered_map>
 #include <optional>
@@ -32,7 +33,8 @@ class Auth {
 
   private:
     AmDynInvoke                       *uac_auth;
-    std::string                        realm;
+    AmArg                              realms;
+    string                             default_realm_header;
     bool                               skip_logging_invite_challenge;
     bool                               skip_logging_invite_success;
     std::unique_ptr<Botan::Public_Key> jwt_public_key;
@@ -65,7 +67,8 @@ class Auth {
     int auth_configure(cfg_t *cfg);
     int auth_init();
 
-    void send_auth_challenge(const AmSipRequest &req, const string &hdrs);
+    void send_auth_challenge(const AmSipRequest &req, const string &hdrs,
+                             const OriginationPreAuth::Reply &ip_auth_data);
 
   public:
     Auth();
@@ -83,8 +86,10 @@ class Auth {
      *         =0 to continue (no Authorization header)
      *         <0 on error
      */
-    auth_id_type check_request_auth(const AmSipRequest &req, AmArg &ret);
+    auth_id_type check_request_auth(const AmSipRequest &req, const OriginationPreAuth::Reply &ip_auth_data, AmArg &ret);
 
     bool is_skip_logging_invite_challenge() { return skip_logging_invite_challenge; }
     bool is_skip_logging_invite_success() { return skip_logging_invite_success; }
+
+    const string &getDefaultRealmHeader() { return default_realm_header; }
 };

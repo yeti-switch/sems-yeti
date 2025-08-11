@@ -52,6 +52,7 @@ char opt_name_audio_recorder_http_destination[] = "audio_recorder_http_destinati
 char opt_name_max_forwards_decrement[]          = "max_forwards_decrement";
 
 char opt_name_auth_realm[]                         = "realm";
+char opt_name_auth_default_realm_header[]          = "default_realm_header";
 char opt_name_auth_skip_logging_invite_challenge[] = "skip_logging_invite_challenge";
 char opt_name_auth_skip_logging_invite_success[]   = "skip_logging_invite_success";
 char opt_name_auth_jwt_public_key[]                = "jwt_public_key";
@@ -140,7 +141,8 @@ cfg_opt_t sig_yeti_resources_opts[] = { CFG_BOOL(opt_resources_reject_on_error, 
 cfg_opt_t sig_yeti_rpc_opts[] = { DCFG_INT(calls_show_limit), CFG_END() };
 
 // auth
-cfg_opt_t sig_yeti_auth_opts[] = { CFG_STR(opt_name_auth_realm, NULL, CFGF_NODEFAULT),
+cfg_opt_t sig_yeti_auth_opts[] = { CFG_STR_LIST(opt_name_auth_realm, 0, CFGF_NODEFAULT),
+                                   CFG_STR(opt_name_auth_default_realm_header, NULL, CFGF_NODEFAULT),
                                    CFG_STR(opt_name_auth_jwt_public_key, NULL, CFGF_NODEFAULT),
                                    CFG_BOOL(opt_name_auth_skip_logging_invite_challenge, cfg_false, CFGF_NODEFAULT),
                                    CFG_BOOL(opt_name_auth_skip_logging_invite_success, cfg_false, CFGF_NODEFAULT),

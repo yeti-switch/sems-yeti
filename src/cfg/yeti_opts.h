@@ -51,6 +51,7 @@ extern char opt_name_audio_recorder_http_destination[];
 extern char opt_name_max_forwards_decrement[];
 
 extern char opt_name_auth_realm[];
+extern char opt_name_auth_default_realm_header[];
 extern char opt_name_auth_skip_logging_invite_challenge[];
 extern char opt_name_auth_skip_logging_invite_success[];
 extern char opt_name_auth_jwt_public_key[];

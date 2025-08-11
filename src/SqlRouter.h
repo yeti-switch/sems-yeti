@@ -12,6 +12,7 @@
 #include "UsedHeaderField.h"
 #include "Auth.h"
 #include "CallCtx.h"
+#include "OriginationPreAuth.h"
 
 #include <functional>
 
@@ -89,8 +90,8 @@ class SqlRouter : public Auth {
 
     void log_auth(const AmSipRequest &req, bool success, AmArg &ret, Auth::auth_id_type auth_id = 0);
 
-    void send_and_log_auth_challenge(const AmSipRequest &req, const string &internal_reason, const string &hdrs,
-                                     bool post_auth_log);
+    void send_and_log_auth_challenge(const AmSipRequest &req, const OriginationPreAuth::Reply &ip_auth_data,
+                                     const string &internal_reason, const string &hdrs, bool post_auth_log);
 
     void dump_config();
     void getStats(AmArg &arg);
