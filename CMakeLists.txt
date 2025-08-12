@@ -17,6 +17,7 @@ find_package(Git REQUIRED)
 list(APPEND CMAKE_MODULE_PATH "/usr/share/cmake/sems")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
+option(ENABLE_LLVM_COVERAGE "Enable coverage with LLVM" OFF)
 find_package(SEMS REQUIRED)
 
 list(APPEND CMAKE_CXX_FLAGS_DEBUG -D_DEBUG)
@@ -26,6 +27,10 @@ add_compile_options(${SEMS_CFLAGS})
 add_compile_options(-Wall -Werror -g)
 add_compile_options(-Wno-unknown-warning-option)
 add_compile_options(-Wno-vla-cxx-extension)
+
+if(ENABLE_LLVM_COVERAGE)
+    add_definitions("-fprofile-instr-generate -fcoverage-mapping")
+endif()
 
 if(EXISTS ${CMAKE_SOURCE_DIR}/debian/changelog)
     file(STRINGS ${CMAKE_SOURCE_DIR}/debian/changelog CHANGELOG_LINE LIMIT_COUNT 1)
@@ -67,3 +72,39 @@ add_subdirectory(src)
 add_subdirectory(etc)
 
 add_subdirectory(unit_tests)
+
+add_custom_target(print_paths ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "$<TARGET_FILE:sems_${PROJECT_NAME}_unit> $<TARGET_FILE:sems-tester>"
+)
+
+if(ENABLE_LLVM_COVERAGE)
+	add_custom_target(coverage
+    COMMAND LLVM_PROFILE_FILE=coverage_gtest.profraw
+			$<TARGET_FILE:sems-tester>
+			-c ./unit_tests/etc/sems_test.cfg
+			--gtest_filter=YetiTest.*
+    COMMAND llvm-profdata merge -sparse coverage_gtest.profraw -o coverage.profdata
+    COMMAND llvm-cov show $<TARGET_FILE:sems_${PROJECT_NAME}_unit>
+            -instr-profile=coverage.profdata
+            --ignore-filename-regex=\"\(/usr/include/*\)\"
+            --object=$<TARGET_FILE:sems_${PROJECT_NAME}_unit>
+            -format=html
+            -output-dir=html
+    COMMAND llvm-cov export $<TARGET_FILE:sems_${PROJECT_NAME}_unit>
+            -instr-profile=coverage.profdata
+            --object=$<TARGET_FILE:sems_${PROJECT_NAME}_unit>
+            --ignore-filename-regex=\"\(/usr/include/*\)\" |
+            jq \"{
+                data: [
+                    {
+                        files:[(
+                            .data[0].files[] | del(.segments, .expansions, .branches)
+                        )],
+                        totals: (.data[0].totals)
+                        }
+                ]
+            }\" > coverage.json
+
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+endif()
