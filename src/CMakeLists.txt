@@ -19,4 +19,5 @@ include(${SEMS_CMAKE_DIR}/module.rules.txt)
 
 if(ENABLE_LLVM_COVERAGE)
     target_link_options(sems_${sems_module_name}_unit PRIVATE -fprofile-instr-generate -fcoverage-mapping)
+    target_link_options(sems_${sems_module_name} PRIVATE -fprofile-instr-generate -fcoverage-mapping)
 endif()
