@@ -1,3 +1,8 @@
+sems-yeti (1.14.7) stable; urgency=medium
+  * add call profiles cache
+  * add option auth.default_realm_header. support multiple realms
+ -- dev <dev@yeti-switch.org>  Wed, 13 Aug 2025 14:30:56 +0300
+
 sems-yeti (1.14.6) stable; urgency=medium
   * filter out all unknown a-lines from audio streams
  -- dev <dev@yeti-switch.org>  Wed, 06 Aug 2025 13:09:59 +0300
