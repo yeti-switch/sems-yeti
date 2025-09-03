@@ -48,16 +48,14 @@ class ResourceRedisConnection : public AmThread,
     class OperationRequest : public Request {
       private:
         ResourcesOperationList operations;
-        bool                   reduce_operations;
 
         bool make_args_reduce(vector<AmArg> &args);
-        bool make_args_no_reduce(vector<AmArg> &args);
 
       protected:
         bool make_args(const string &script_hash, vector<AmArg> &args) override;
 
       public:
-        OperationRequest(ResourcesOperationList &rol, bool reduce_operations, cb_func callback = nullptr);
+        OperationRequest(ResourcesOperationList &rol, cb_func callback = nullptr);
         const ResourcesOperationList &get_resource_operations() const;
     };
 
@@ -102,7 +100,6 @@ class ResourceRedisConnection : public AmThread,
     bool check(CheckRequest *req);
 
   private:
-    bool              reduce_operations;
     int               epoll_fd;
     AmEventFd         stop_event;
     AmCondition<bool> stopped;

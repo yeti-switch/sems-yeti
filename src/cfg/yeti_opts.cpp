@@ -67,9 +67,8 @@ char opt_func_name_header[]                 = "header";
 char opt_name_cdr_headers_add_sip_reason[]  = "add_sip_reason";
 char opt_name_cdr_headers_add_q850_reason[] = "add_q850_reason";
 
-char opt_resources_reduce_operations[] = "reduce_operations";
-char opt_resources_scripts_dir[]       = "scripts_dir";
-char opt_resources_reject_on_error[]   = "reject_on_error";
+char opt_resources_scripts_dir[]     = "scripts_dir";
+char opt_resources_reject_on_error[] = "reject_on_error";
 
 char opt_redis_hosts[]    = "hosts";
 char opt_redis_timeout[]  = "timeout";
@@ -131,11 +130,9 @@ cfg_opt_t sig_yeti_redis_pool_opts[] = { CFG_STR_LIST(opt_redis_hosts, 0, CFGF_N
                                          CFG_STR(opt_redis_password, "", CFGF_NONE), CFG_END() };
 
 cfg_opt_t sig_yeti_resources_opts[] = { CFG_BOOL(opt_resources_reject_on_error, cfg_false, CFGF_NONE),
-                                        CFG_BOOL(opt_resources_reduce_operations, cfg_false, CFGF_NONE),
                                         CFG_STR(opt_resources_scripts_dir, YETI_CFG_DEFAULT_SCRIPTS_DIR, CFGF_NONE),
                                         DCFG_SEC(write, sig_yeti_redis_pool_opts, CFGF_NONE),
-                                        DCFG_SEC(read, sig_yeti_redis_pool_opts, CFGF_NONE),
-                                        CFG_END() };
+                                        DCFG_SEC(read, sig_yeti_redis_pool_opts, CFGF_NONE), CFG_END() };
 
 // rpc
 cfg_opt_t sig_yeti_rpc_opts[] = { DCFG_INT(calls_show_limit), CFG_END() };

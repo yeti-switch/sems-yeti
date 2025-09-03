@@ -68,7 +68,6 @@ extern char opt_name_cdr_headers_add_q850_reason[];
 
 extern char opt_registrar_keepalive_interval[];
 
-extern char opt_resources_reduce_operations[];
 extern char opt_resources_scripts_dir[];
 extern char opt_resources_reject_on_error[];
 

@@ -34,11 +34,9 @@ bool ResourceRedisConnection::InvalidateRequest::make_args(const string &script_
 
 /* OperationRequest */
 
-ResourceRedisConnection::OperationRequest::OperationRequest(ResourcesOperationList &rol, bool reduce_operations,
-                                                            cb_func callback)
+ResourceRedisConnection::OperationRequest::OperationRequest(ResourcesOperationList &rol, cb_func callback)
     : Request(callback)
     , operations(std::move(rol))
-    , reduce_operations(reduce_operations)
 {
 }
 
@@ -112,51 +110,10 @@ bool ResourceRedisConnection::OperationRequest::make_args_reduce(vector<AmArg> &
     return true;
 }
 
-bool ResourceRedisConnection::OperationRequest::make_args_no_reduce(vector<AmArg> &args)
-{
-    size_t                 operations_count = 0;
-    ResourceList::iterator r_it;
-
-    for (auto &operation : operations) {
-        switch (operation.op) {
-        case ResourcesOperation::RES_GET:
-            operation.resources.remove_if([](auto &r) { return !r.active; });
-            operations_count += operation.resources.size();
-            break;
-        case ResourcesOperation::RES_PUT:
-            r_it = operation.resources.begin();
-            while (r_it != operation.resources.end()) {
-                if (r_it->taken) {
-                    // we use HINCRBY with negative value for put
-                    r_it->takes = -(r_it->takes);
-                    ++r_it;
-                } else {
-                    r_it = operation.resources.erase(r_it);
-                }
-            }
-            operation.resources.remove_if([](auto &r) { return !r.taken; });
-            operations_count += operation.resources.size();
-            break;
-        } // switch(operation.op)
-    }
-
-    if (0 == operations_count) {
-        on_finish();
-        return false;
-    }
-
-    for (auto &operation : operations) {
-        for (const auto &r : operation.resources) {
-            args.emplace_back(AmArg().assign_array("HINCRBY", get_key(r), AmConfig.node_id, r.takes));
-        }
-    }
-
-    return true;
-}
 
 bool ResourceRedisConnection::OperationRequest::make_args(const string &, vector<AmArg> &args)
 {
-    return reduce_operations ? make_args_reduce(args) : make_args_no_reduce(args);
+    return make_args_reduce(args);
 }
 
 const ResourcesOperationList &ResourceRedisConnection::OperationRequest::get_resource_operations() const
@@ -399,8 +356,7 @@ void ResourceRedisConnection::process(AmEvent *event)
 
 int ResourceRedisConnection::configure(cfg_t *confuse_cfg)
 {
-    reduce_operations = cfg_getbool(confuse_cfg, opt_resources_reduce_operations);
-    scripts_dir       = cfg_getstr(confuse_cfg, opt_resources_scripts_dir);
+    scripts_dir = cfg_getstr(confuse_cfg, opt_resources_scripts_dir);
 
     auto redis_write = cfg_getsec(confuse_cfg, "write");
     if (!redis_write) {
@@ -463,7 +419,7 @@ void ResourceRedisConnection::process_operations_queue_unsafe()
         ResourcesOperationList operations;
         operations.swap(resource_operations_queue);
 
-        if (operation(new OperationRequest(operations, reduce_operations, operation_result_cb))) {
+        if (operation(new OperationRequest(operations, operation_result_cb))) {
             write_async_is_busy = true;
         }
 
