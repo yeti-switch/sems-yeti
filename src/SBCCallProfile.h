@@ -161,6 +161,9 @@ struct SBCCallProfile : public AmObject {
     bool         aleg_force_outbound_proxy;
     unsigned int aleg_outbound_proxy_transport_id;
 
+    string aleg_route_set;
+    string bleg_route_set;
+
     string next_hop;
     bool   next_hop_1st_req;
     bool   patch_ruri_next_hop;

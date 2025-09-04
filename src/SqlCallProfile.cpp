@@ -65,6 +65,7 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
 
     ruri           = DbAmArg_hash_get_str(t, "ruri");
     outbound_proxy = DbAmArg_hash_get_str(t, "outbound_proxy");
+    bleg_route_set = DbAmArg_hash_get_str(t, "bleg_route_set");
 
     if (t.hasMember("lega_res") || t.hasMember("legb_res")) {
         lega_res               = DbAmArg_hash_get_str(t, "lega_res");
@@ -115,6 +116,7 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
 
     aleg_force_outbound_proxy = DbAmArg_hash_get_bool(t, "aleg_force_outbound_proxy", false);
     aleg_outbound_proxy       = DbAmArg_hash_get_str(t, "aleg_outbound_proxy");
+    aleg_route_set            = DbAmArg_hash_get_str(t, "aleg_route_set");
 
     next_hop            = DbAmArg_hash_get_str(t, "next_hop");
     next_hop_1st_req    = DbAmArg_hash_get_bool(t, "next_hop_1st_req", false);
@@ -424,6 +426,7 @@ void SqlCallProfile::infoPrint([[maybe_unused]] const DynFieldsT &df)
         DBG("force outbound proxy: %s", force_outbound_proxy ? "yes" : "no");
         DBG("outbound proxy = '%s'", outbound_proxy.c_str());
         DBG("outbound proxy transport id = %d", outbound_proxy_transport_id);
+        DBG("route_set = '%s'", bleg_route_set.c_str());
 
         if (!outbound_interface.empty()) {
             DBG("outbound interface = '%s'", outbound_interface.c_str());
@@ -436,6 +439,7 @@ void SqlCallProfile::infoPrint([[maybe_unused]] const DynFieldsT &df)
         DBG("A leg force outbound proxy: %s", aleg_force_outbound_proxy ? "yes" : "no");
         DBG("A leg outbound proxy = '%s'", aleg_outbound_proxy.c_str());
         DBG("A leg outbound transport id = %d", aleg_outbound_proxy_transport_id);
+        DBG("A leg route_set = '%s'", aleg_route_set.c_str());
 
         if (!next_hop.empty()) {
             DBG("next hop = %s (%s)", next_hop.c_str(), next_hop_1st_req ? "1st req" : "all reqs");

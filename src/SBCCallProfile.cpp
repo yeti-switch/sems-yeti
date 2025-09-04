@@ -37,6 +37,7 @@
 #include "SDPFilter.h"
 
 #include "sip/pcap_logger.h"
+#include "sip/parse_route.h"
 
 typedef vector<SdpPayload>::iterator PayloadIterator;
 // static string payload2str(const SdpPayload &p);
@@ -171,6 +172,7 @@ bool SBCCallProfile::operator==(const SBCCallProfile &rhs) const
     bool res = ruri == rhs.ruri && ruri_host == rhs.ruri_host && from == rhs.from && to == rhs.to &&
                // contact == rhs.contact &&
                callid == rhs.callid && outbound_proxy == rhs.outbound_proxy &&
+               aleg_route_set == rhs.aleg_route_set && bleg_route_set == rhs.bleg_route_set &&
                force_outbound_proxy == rhs.force_outbound_proxy && aleg_outbound_proxy == rhs.aleg_outbound_proxy &&
                aleg_force_outbound_proxy == rhs.aleg_force_outbound_proxy && next_hop == rhs.next_hop &&
                next_hop_1st_req == rhs.next_hop_1st_req && next_hop_fixed == rhs.next_hop_fixed &&
@@ -211,8 +213,10 @@ string SBCCallProfile::print() const
     res += "to:                   " + to + "\n";
     // res += "contact:              " + contact + "\n";
     res += "callid:               " + callid + "\n";
+    res += "bleg_route_set:       " + bleg_route_set + "\n";
     res += "outbound_proxy:       " + outbound_proxy + "\n";
     res += "force_outbound_proxy: " + string(force_outbound_proxy ? "true" : "false") + "\n";
+    res += "aleg_route_set:            " + aleg_route_set + "\n";
     res += "aleg_outbound_proxy:       " + aleg_outbound_proxy + "\n";
     res += "aleg_force_outbound_proxy: " + string(aleg_force_outbound_proxy ? "true" : "false") + "\n";
     res += "next_hop:             " + next_hop + "\n";
@@ -311,6 +315,7 @@ bool SBCCallProfile::evaluate_routing(ParamReplacerCtx &ctx, const AmSipRequest 
     REPLACE_NONEMPTY_STR(ruri_host);
 
     REPLACE_NONEMPTY_STR(outbound_proxy);
+    REPLACE_NONEMPTY_STR(bleg_route_set);
     REPLACE_NONEMPTY_STR(next_hop);
 
     // apply routing-related values to dlg
@@ -471,7 +476,11 @@ int SBCCallProfile::apply_a_routing(ParamReplacerCtx &ctx, const AmSipRequest &r
         }
     }
 
-    if (!aleg_outbound_proxy.empty()) {
+    if (!aleg_route_set.empty()) {
+        string aleg_op = ctx.replaceParameters(aleg_route_set, "aleg_route_set", req);
+        if(parse_and_validate_route(aleg_op) == 0)
+            dlg.setRouteSet(aleg_op);
+    } else if (!aleg_outbound_proxy.empty()) {
         string aleg_op           = ctx.replaceParameters(aleg_outbound_proxy, "aleg_outbound_proxy", req);
         dlg.outbound_proxy       = aleg_op;
         dlg.force_outbound_proxy = aleg_force_outbound_proxy;
@@ -484,7 +493,10 @@ bool SBCCallProfile::apply_b_routing(const string &ruri, AmBasicSipDialog &dlg) 
 {
     dlg.setRemoteUri(ruri);
 
-    if (!outbound_proxy.empty()) {
+    if (!bleg_route_set.empty()) {
+        if(parse_and_validate_route(bleg_route_set) == 0)
+            dlg.setRouteSet(bleg_route_set);
+    } else if (!outbound_proxy.empty()) {
         dlg.outbound_proxy       = outbound_proxy;
         dlg.force_outbound_proxy = force_outbound_proxy;
     }
