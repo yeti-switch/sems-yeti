@@ -70,6 +70,7 @@ extern char opt_registrar_keepalive_interval[];
 
 extern char opt_resources_scripts_dir[];
 extern char opt_resources_reject_on_error[];
+extern char opt_resources_initialization_max_delay[];
 
 extern char opt_redis_hosts[];
 extern char opt_redis_timeout[];

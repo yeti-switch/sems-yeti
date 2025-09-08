@@ -5,6 +5,7 @@
 #include <AmEventDispatcher.h>
 #include <AmPlugIn.h>
 #include <format_helper.h>
+#include <random>
 
 #include "confuse.h"
 
@@ -236,6 +237,8 @@ ResourceRedisConnection::ResourceRedisConnection(const string &queue_name)
     , readcfg(RedisSlave)
     , write_async_is_busy(false)
     , resources_inited(false)
+    , initialization_max_delay(0)
+    , initialization_timer(nullptr)
     , write_queue_size(stat_group(Gauge, "yeti", "resources_write_queue_size").addAtomicCounter())
     , resources_initialized_cb(nullptr)
     , operation_result_cb(nullptr)
@@ -245,6 +248,7 @@ ResourceRedisConnection::ResourceRedisConnection(const string &queue_name)
 
 ResourceRedisConnection::~ResourceRedisConnection()
 {
+    stop_initialization_timer();
     event_dispatcher->delEventQueue(queue_name);
 }
 
@@ -294,6 +298,11 @@ void ResourceRedisConnection::run()
                 stop_event.read();
                 running = false;
                 break;
+            }
+
+            if (initialization_timer.get() && e.data.fd == *initialization_timer.get()) {
+                on_initialization_timer();
+                initialization_timer->read();
             }
         }
     } while (running);
@@ -357,6 +366,7 @@ void ResourceRedisConnection::process(AmEvent *event)
 int ResourceRedisConnection::configure(cfg_t *confuse_cfg)
 {
     scripts_dir = cfg_getstr(confuse_cfg, opt_resources_scripts_dir);
+    initialization_max_delay = cfg_getint(confuse_cfg, opt_resources_initialization_max_delay);
 
     auto redis_write = cfg_getsec(confuse_cfg, "write");
     if (!redis_write) {
@@ -454,10 +464,13 @@ void ResourceRedisConnection::on_connect(const string &conn_id, const RedisConne
     ResourceRedisClient::on_connect(conn_id, info);
 
     if (write_conn->id == conn_id) {
-        if (!resources_inited.get())
-            invalidate_initial(new InvalidateRequest(resources_initialized_cb));
-        else
+        if (!resources_inited.get()) {
+            const int delay = gen_initialization_delay();
+            INFO("run initial resources invalidation request with delay %d", delay);
+            start_initialization_timer(delay);
+        } else {
             process_operations_queue();
+        }
     }
 }
 
@@ -857,4 +870,46 @@ bool ResourceRedisConnection::get_all(GetAllRequest *req)
 bool ResourceRedisConnection::check(CheckRequest *req)
 {
     return post_request(req, read_conn, CHECK_RESOURCES_SCRIPT, UserTypeId::Check);
+}
+
+/**
+ * @brief Generates initialization delay value in seconds.
+ * @return Random value between 0 and initialization_max_delay.
+ */
+int ResourceRedisConnection::gen_initialization_delay()
+{
+    std::mt19937 rand_gen;
+    std::uniform_int_distribution<> random_distribution{ 0, initialization_max_delay };
+    std::random_device rd;
+    rand_gen.seed(rd());
+    return random_distribution(rand_gen);
+}
+
+void ResourceRedisConnection::start_initialization_timer(int seconds)
+{
+    // stop timer if it already exists
+    stop_initialization_timer();
+
+    if(seconds == 0) {
+        // run immediately
+        on_initialization_timer();
+        return;
+    }
+
+    initialization_timer.reset(new AmTimerFd());
+    initialization_timer->link(epoll_fd);
+    initialization_timer->set(1000000 * seconds, false);
+}
+
+void ResourceRedisConnection::on_initialization_timer()
+{
+    invalidate_initial(new InvalidateRequest(resources_initialized_cb));
+}
+
+void ResourceRedisConnection::stop_initialization_timer()
+{
+    if(initialization_timer.get()) {
+        initialization_timer->unlink(epoll_fd);
+        initialization_timer.reset(nullptr);
+    }
 }

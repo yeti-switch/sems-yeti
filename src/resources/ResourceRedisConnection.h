@@ -113,6 +113,12 @@ class ResourceRedisConnection : public AmThread,
     ResourcesOperationList resource_operations_queue; // guarded by queue_and_state_mutex
 
     AmCondition<bool> resources_inited;
+    int initialization_max_delay;
+    unique_ptr<AmTimerFd> initialization_timer;
+    int gen_initialization_delay();
+    void start_initialization_timer(int seconds);
+    void on_initialization_timer();
+    void stop_initialization_timer();
 
     AtomicCounter &write_queue_size;
 
