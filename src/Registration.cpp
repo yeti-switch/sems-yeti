@@ -111,6 +111,7 @@ bool Registration::read_registration(const AmArg &r, RegistrationsContainer &reg
         {      "auth_username",          "o_auth_user" },
         {      "auth_password",      "o_auth_password" },
         {              "proxy",              "o_proxy" },
+        {          "route_set",          "o_route_set" },
         {            "contact",            "o_contact" },
         { "sip_interface_name", "o_sip_interface_name" }
     });
