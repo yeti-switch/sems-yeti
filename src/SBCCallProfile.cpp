@@ -171,9 +171,9 @@ bool SBCCallProfile::operator==(const SBCCallProfile &rhs) const
 {
     bool res = ruri == rhs.ruri && ruri_host == rhs.ruri_host && from == rhs.from && to == rhs.to &&
                // contact == rhs.contact &&
-               callid == rhs.callid && outbound_proxy == rhs.outbound_proxy &&
-               aleg_route_set == rhs.aleg_route_set && bleg_route_set == rhs.bleg_route_set &&
-               force_outbound_proxy == rhs.force_outbound_proxy && aleg_outbound_proxy == rhs.aleg_outbound_proxy &&
+               callid == rhs.callid && outbound_proxy == rhs.outbound_proxy && aleg_route_set == rhs.aleg_route_set &&
+               bleg_route_set == rhs.bleg_route_set && force_outbound_proxy == rhs.force_outbound_proxy &&
+               aleg_outbound_proxy == rhs.aleg_outbound_proxy &&
                aleg_force_outbound_proxy == rhs.aleg_force_outbound_proxy && next_hop == rhs.next_hop &&
                next_hop_1st_req == rhs.next_hop_1st_req && next_hop_fixed == rhs.next_hop_fixed &&
                patch_ruri_next_hop == rhs.patch_ruri_next_hop && aleg_next_hop == rhs.aleg_next_hop &&
@@ -478,7 +478,7 @@ int SBCCallProfile::apply_a_routing(ParamReplacerCtx &ctx, const AmSipRequest &r
 
     if (!aleg_route_set.empty()) {
         string aleg_op = ctx.replaceParameters(aleg_route_set, "aleg_route_set", req);
-        if(parse_and_validate_route(aleg_op) == 0)
+        if (parse_and_validate_route(aleg_op) == 0)
             dlg.setRouteSet(aleg_op);
     } else if (!aleg_outbound_proxy.empty()) {
         string aleg_op           = ctx.replaceParameters(aleg_outbound_proxy, "aleg_outbound_proxy", req);
@@ -494,7 +494,7 @@ bool SBCCallProfile::apply_b_routing(const string &ruri, AmBasicSipDialog &dlg) 
     dlg.setRemoteUri(ruri);
 
     if (!bleg_route_set.empty()) {
-        if(parse_and_validate_route(bleg_route_set) == 0)
+        if (parse_and_validate_route(bleg_route_set) == 0)
             dlg.setRouteSet(bleg_route_set);
     } else if (!outbound_proxy.empty()) {
         dlg.outbound_proxy       = outbound_proxy;
