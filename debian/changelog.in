@@ -1,3 +1,12 @@
+sems-yeti (1.14.8) stable; urgency=medium
+  * fix headers matching on the IP auth offloading
+  * remove resources.reduce_operations option
+  * add aleg_route_set,bleg_route_set callprofile options support
+  * add o_route_set outbound registrations field support
+  * add resources.initialization_max_delay (default: 0) option
+    which enables randomized resources initialization delay
+ -- dev <dev@yeti-switch.org>  Wed, 10 Sep 2025 01:48:32 +0300
+
 sems-yeti (1.14.7) stable; urgency=medium
   * add call profiles cache
   * add option auth.default_realm_header. support multiple realms
