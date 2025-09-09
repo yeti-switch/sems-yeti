@@ -466,7 +466,7 @@ void ResourceRedisConnection::on_connect(const string &conn_id, const RedisConne
     if (write_conn->id == conn_id) {
         if (!resources_inited.get()) {
             const int delay = gen_initialization_delay();
-            INFO("run initial resources invalidation request with delay %d", delay);
+            INFO("run initial resources invalidation request with a %d seconds delay", delay);
             start_initialization_timer(delay);
         } else {
             process_operations_queue();
