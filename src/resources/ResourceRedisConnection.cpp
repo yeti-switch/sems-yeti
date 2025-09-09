@@ -365,7 +365,7 @@ void ResourceRedisConnection::process(AmEvent *event)
 
 int ResourceRedisConnection::configure(cfg_t *confuse_cfg)
 {
-    scripts_dir = cfg_getstr(confuse_cfg, opt_resources_scripts_dir);
+    scripts_dir              = cfg_getstr(confuse_cfg, opt_resources_scripts_dir);
     initialization_max_delay = cfg_getint(confuse_cfg, opt_resources_initialization_max_delay);
 
     auto redis_write = cfg_getsec(confuse_cfg, "write");
@@ -878,9 +878,9 @@ bool ResourceRedisConnection::check(CheckRequest *req)
  */
 int ResourceRedisConnection::gen_initialization_delay()
 {
-    std::mt19937 rand_gen;
+    std::mt19937                    rand_gen;
     std::uniform_int_distribution<> random_distribution{ 0, initialization_max_delay };
-    std::random_device rd;
+    std::random_device              rd;
     rand_gen.seed(rd());
     return random_distribution(rand_gen);
 }
@@ -890,7 +890,7 @@ void ResourceRedisConnection::start_initialization_timer(int seconds)
     // stop timer if it already exists
     stop_initialization_timer();
 
-    if(seconds == 0) {
+    if (seconds == 0) {
         // run immediately
         on_initialization_timer();
         return;
@@ -908,7 +908,7 @@ void ResourceRedisConnection::on_initialization_timer()
 
 void ResourceRedisConnection::stop_initialization_timer()
 {
-    if(initialization_timer.get()) {
+    if (initialization_timer.get()) {
         initialization_timer->unlink(epoll_fd);
         initialization_timer.reset(nullptr);
     }
