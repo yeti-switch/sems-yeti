@@ -272,8 +272,10 @@ void ReasonParser::parse_headers(const std::string &hdrs)
         if (skip_header(hdrs, start_pos, name_end, val_begin, val_end, hdr_end) != 0) {
             break;
         }
-
-        if (0 == strncasecmp(hdrs.c_str() + start_pos, reason_header_value.c_str(), name_end - start_pos)) {
+        auto hdr_length = name_end - start_pos;
+        if (hdr_length == reason_header_value.size() &&
+            0 == strncasecmp(hdrs.c_str() + start_pos, reason_header_value.c_str(), hdr_length))
+        {
             parse_reason(hdrs, val_begin, val_end);
         }
 

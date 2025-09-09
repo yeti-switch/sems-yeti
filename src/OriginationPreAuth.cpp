@@ -147,7 +147,7 @@ bool OriginationPreAuth::onRequest(const AmSipRequest &req, bool match_subnet, R
         }
         const char *hdr = req.hdrs.c_str() + start_pos;
         hdr_length      = name_end - start_pos;
-        if (0 == strncasecmp(hdr, ycfg.ip_auth_hdr.c_str(), hdr_length)) {
+        if (hdr_length == ycfg.ip_auth_hdr.size() && 0 == strncasecmp(hdr, ycfg.ip_auth_hdr.c_str(), hdr_length)) {
             // req.hdrs.substr(val_begin, val_end-val_begin);
             if (reply.orig_ip.empty()) {
                 DBG3("found first %s hdr", ycfg.ip_auth_hdr.data());
@@ -156,12 +156,12 @@ bool OriginationPreAuth::onRequest(const AmSipRequest &req, bool match_subnet, R
                     DBG("use %s value %s as source IP", ycfg.ip_auth_hdr.data(), reply.orig_ip.data());
                 }
             }
-        } else if (0 == strncasecmp(hdr, x_yeti_auth_hdr.c_str(), hdr_length)) {
+        } else if (hdr_length == x_yeti_auth_hdr.size() && 0 == strncasecmp(hdr, x_yeti_auth_hdr.c_str(), hdr_length)) {
             if (reply.x_yeti_auth.empty()) {
                 reply.x_yeti_auth = req.hdrs.substr(val_begin, val_end - val_begin);
                 DBG("found first X-YETI-AUTH hdr with value: %s", reply.x_yeti_auth.data());
             }
-        } else if (!ycfg.auth_default_realm_header.empty() &&
+        } else if (!ycfg.auth_default_realm_header.empty() && hdr_length == ycfg.auth_default_realm_header.size() &&
                    0 == strncasecmp(hdr, ycfg.auth_default_realm_header.c_str(), hdr_length))
         {
             if (reply.x_default_realm.empty()) {
