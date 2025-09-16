@@ -201,7 +201,9 @@ int filterSDPalines(AmSdp &sdp, const vector<FilterEntry> &filter_list)
         for (std::vector<SdpMedia>::iterator m_it = sdp.media.begin(); m_it != sdp.media.end(); m_it++) {
             SdpMedia &media = *m_it;
             // todo: what if no payload supported any more?
-            media.attributes = filterSDPAttributes(media.attributes, sdpalinesfilter, sdpalinesfilter_list);
+            if (media.type == MT_AUDIO) {
+                media.attributes = filterSDPAttributes(media.attributes, sdpalinesfilter, sdpalinesfilter_list);
+            }
         }
     }
 
