@@ -4009,15 +4009,16 @@ bool SBCCallLeg::getSdpOffer(AmSdp &offer)
     }
 
     const AmSdp &local_sdp = m->getLocalSdp(a_leg);
-    if (a_leg) {
-        DBG("use last offer from dialog as offer for legA");
+    if (a_leg || getCallStatus() == Connected) {
+        DBG("use last offer from dialog as offer for legA and connected legB");
         offer = local_sdp;
     } else {
-        DBG("provide saved initial offer for legB");
+        DBG("provide saved initial offer for connecting legB");
         offer          = call_ctx->bleg_initial_offer;
         auto addr_type = dlg->getOutboundAddrType();
         m->replaceConnectionAddress(offer, a_leg, addr_type);
     }
+
     offer.origin.sessV = local_sdp.origin.sessV + 1; // increase session version. rfc4566 5.2 <sess-version>
     return true;
 }
