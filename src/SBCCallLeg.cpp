@@ -2093,6 +2093,46 @@ UACAuthCred *SBCCallLeg::getCredentials()
         return &call_profile.auth_credentials;
 }
 
+static bool is_hold_state_change_requested(const AmSdp &local_sdp, const AmSdp &remote_sdp)
+{
+    auto remote_media_it = remote_sdp.media.cbegin();
+    while (remote_media_it != remote_sdp.media.cend() && remote_media_it->type != MT_AUDIO)
+        ++remote_media_it;
+
+    for (auto const &local_media : local_sdp.media) {
+        if (remote_media_it == remote_sdp.media.cend())
+            break;
+
+        if (local_media.type != MT_AUDIO)
+            continue;
+
+        const auto &remote_media = *remote_media_it;
+
+        std::optional<bool> local_send, local_recv, remote_send, remote_recv;
+
+        if (remote_media.has_mode_attribute) {
+            remote_send = remote_media.send;
+            remote_recv = remote_media.recv;
+        }
+        if (local_media.has_mode_attribute) {
+            local_send = local_media.send;
+            local_recv = local_media.recv;
+        }
+
+        if ((local_recv.value_or(local_sdp.recv) != remote_send.value_or(remote_sdp.send)) ||
+            (local_send.value_or(local_sdp.send) != remote_recv.value_or(remote_sdp.recv)))
+        {
+            return true;
+        }
+
+        ++remote_media_it;
+        while (remote_media_it != remote_sdp.media.cend() && remote_media_it->type != MT_AUDIO)
+            ++remote_media_it;
+    }
+
+    return false;
+}
+
 void SBCCallLeg::onSipRequest(const AmSipRequest &req)
 {
     // AmB2BSession does not call AmSession::onSipRequest for
@@ -2166,8 +2206,21 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
                 break;
             }
 
+            bool relay_hold = a_leg ? call_profile.aleg_relay_hold : call_profile.bleg_relay_hold;
+
             const AmMimeBody *sdp_body = req.body.hasContentType(SIP_APPLICATION_SDP);
             if (!sdp_body) {
+                /* consider reINVITEs without SDP as Unhold requests if has local hold
+                 *   https://www.rfc-editor.org/rfc/rfc6337.html#section-5.3
+                 *    If it had not previously
+                 *    initiated "hold", then it should offer "a=sendrecv" attribute, even
+                 *    if it had previously been forced to answer something else.  Without
+                 *    this behavior it is possible to get "stuck on hold" in some cases,
+                 *    especially when a 3pcc is involved.
+                 */
+                if (relay_hold) {
+                    //
+                }
                 DBG("got reINVITE without body. local processing enabled. generate 200OK with SDP offer");
                 DBG("replying 100 Trying to INVITE to be processed locally");
                 dlg->reply(req, 100, SIP_REPLY_TRYING);
@@ -2187,20 +2240,30 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
             }
 
             // check for hold/unhold request to pass them transparently
-            HoldMethod method;
-            if (isHoldRequest(sdp, method)) {
-                DBG("hold request matched. relay_hold = %d",
-                    a_leg ? call_profile.aleg_relay_hold : call_profile.bleg_relay_hold);
-
-                if ((a_leg && call_profile.aleg_relay_hold) || (!a_leg && call_profile.bleg_relay_hold)) {
-                    DBG("skip local processing for hold request");
-                    call_ctx->on_hold = true;
+            if (auto m = getMediaSession(); m && m->haveLocalSdp(a_leg)) {
+                const AmSdp &local_sdp = m->getLocalSdp(a_leg);
+                bool         changed   = is_hold_state_change_requested(local_sdp, sdp);
+                DBG("hold state change requested: %d, relay_hold: %d", changed, relay_hold);
+                if (relay_hold && is_hold_state_change_requested(local_sdp, sdp)) {
+                    // local/remote hold state is requested to be changed. relay request
                     break;
                 }
-            } else if (call_ctx->on_hold) {
-                DBG("we in hold state. skip local processing for unhold request");
-                call_ctx->on_hold = false;
-                break;
+            } else {
+                /* no media session (rtprelay_enabled:false)
+                 * failover to the old approach with hold state tracking in CallCtx */
+                HoldMethod method;
+                if (isHoldRequest(sdp, method)) {
+                    DBG("hold request matched. relay_hold = %d", relay_hold);
+                    if (relay_hold) {
+                        DBG("skip local processing for hold request");
+                        call_ctx->on_hold = true;
+                        break;
+                    }
+                } else if (call_ctx->on_hold) {
+                    DBG("we in hold state. skip local processing for unhold request");
+                    call_ctx->on_hold = false;
+                    break;
+                }
             }
 
             DBG("replying 100 Trying to INVITE to be processed locally");
