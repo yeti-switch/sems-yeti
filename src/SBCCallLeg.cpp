@@ -2210,7 +2210,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
 
             const AmMimeBody *sdp_body = req.body.hasContentType(SIP_APPLICATION_SDP);
             if (!sdp_body) {
-                /* consider reINVITEs without SDP as Unhold requests if has local hold
+                /* consider reINVITEs without SDP as Unhold requests if has remote hold
                  *   https://www.rfc-editor.org/rfc/rfc6337.html#section-5.3
                  *    If it had not previously
                  *    initiated "hold", then it should offer "a=sendrecv" attribute, even
@@ -2218,9 +2218,12 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
                  *    this behavior it is possible to get "stuck on hold" in some cases,
                  *    especially when a 3pcc is involved.
                  */
-                if (relay_hold) {
-                    //
+                if (relay_hold && getMediaSession() && isRemoteOnHold()) {
+                    // later offer and remote is on hold. relay request
+                    DBG("relay request without SDP while remote is on hold");
+                    break;
                 }
+
                 DBG("got reINVITE without body. local processing enabled. generate 200OK with SDP offer");
                 DBG("replying 100 Trying to INVITE to be processed locally");
                 dlg->reply(req, 100, SIP_REPLY_TRYING);
@@ -2255,12 +2258,12 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
                 if (isHoldRequest(sdp, method)) {
                     DBG("hold request matched. relay_hold = %d", relay_hold);
                     if (relay_hold) {
-                        DBG("skip local processing for hold request");
+                        ERROR("skip local processing for the hold request");
                         call_ctx->on_hold = true;
                         break;
                     }
                 } else if (call_ctx->on_hold) {
-                    DBG("we in hold state. skip local processing for unhold request");
+                    DBG("we are in the hold state. skip local processing for the unhold request");
                     call_ctx->on_hold = false;
                     break;
                 }
