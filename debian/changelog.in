@@ -1,3 +1,7 @@
+sems-yeti (1.14.12) stable; urgency=medium
+  * fix Max-Forwards decrement on rerouting
+ -- dev <dev@yeti-switch.org>  Wed, 15 Oct 2025 12:04:08 +0300
+
 sems-yeti (1.14.11) stable; urgency=medium
   * relay reINVITEs without SDP when remote is on hold for enabled relay_hold
  -- dev <dev@yeti-switch.org>  Wed, 01 Oct 2025 19:35:30 +0300
