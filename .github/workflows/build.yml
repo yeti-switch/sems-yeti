@@ -8,17 +8,20 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: debian:bookworm
+    container: debian:${{ matrix.distribution }}
+    strategy:
+      matrix:
+       distribution: [bookworm, trixie]
     steps:
       - name: install aux deps
         run: apt update && apt -y --no-install-recommends install git ca-certificates curl gpg wget
       - name: add pgdg pkg repo
         run: >
-          echo "deb [arch=amd64] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" >> /etc/apt/sources.list.d/pgdg.list &&
+          echo "deb [arch=amd64] http://apt.postgresql.org/pub/repos/apt ${{ matrix.distribution }}-pgdg main" >> /etc/apt/sources.list.d/pgdg.list &&
           curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg
       - name: add yeti pkg repo
         run: >
-          echo "deb [arch=amd64] https://deb.yeti-switch.org/debian/1.14 bookworm main" > /etc/apt/sources.list.d/yeti.list &&
+          echo "deb [arch=amd64] https://deb.yeti-switch.org/debian/1.14 ${{ matrix.distribution }} main" > /etc/apt/sources.list.d/yeti.list &&
           wget https://deb.yeti-switch.org/yeti.gpg -O /etc/apt/trusted.gpg.d/yeti-key.asc
       - run: apt update
 
@@ -38,5 +41,6 @@ jobs:
           s3_access_key_id: ${{ secrets.DEB_AWS_ACCESS_KEY_ID }}
           s3_secret_access_key: ${{ secrets.DEB_AWS_SECRET_ACCESS_KEY }}
           s3_endpoint_url: ${{ secrets.DEB_AWS_ENDPOINT }}
+          s3_codename: ${{ matrix.distribution }}
           s3_prefix: '1.14'
         if: startsWith(github.ref, 'refs/tags/v')
