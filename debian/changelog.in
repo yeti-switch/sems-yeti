@@ -1,3 +1,8 @@
+sems-yeti (1.14.13) stable; urgency=medium
+  * fix Max-Forwards decrement for the first route
+  * add build for trixie
+ -- dev <dev@yeti-switch.org>  Mon, 20 Oct 2025 20:58:07 +0300
+
 sems-yeti (1.14.12) stable; urgency=medium
   * fix Max-Forwards decrement on rerouting
  -- dev <dev@yeti-switch.org>  Wed, 15 Oct 2025 12:04:08 +0300
