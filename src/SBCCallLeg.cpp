@@ -972,6 +972,7 @@ void SBCCallLeg::onProfilesReady()
 
     if (aleg_modified_req.max_forwards > yeti.config.max_forwards_decrement) {
         aleg_modified_req.max_forwards -= yeti.config.max_forwards_decrement;
+        modified_req.max_forwards = aleg_modified_req.max_forwards;
     }
 
     if (!logger) {
