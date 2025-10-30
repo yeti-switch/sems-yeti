@@ -189,11 +189,8 @@ void YetiRpc::init_rpc_tree()
 
     method(show, "http_sequencer_data", "show http sequencer runtime data", showHttpSequencerData, "");
 
-    leaf(show, show_cert_cache, "cert_cache", "");
-    method(show_cert_cache, "cached_certificates", "show cached certificates", showCertCacheEntries, "");
-    method(show_cert_cache, "trusted_certificates", "show trusted certificates", showCertCacheTrustedCerts, "");
-    method(show_cert_cache, "trusted_repositories", "show trusted repositories", showCertCacheTrustedRepositories, "");
-    method(show_cert_cache, "signing_keys", "show signing keys", showCertCacheSigningKeys, "");
+    leaf(show, show_signing_key_cache, "signing_keys_cache", "");
+    method(show_signing_key_cache, "signing_keys", "show signing keys", showSigningKeys, "");
     method(show, "trusted_balancers", "show trusted balancers list", showTrustedBalancers, "");
     method(show, "ip_auth", "show ip auth list", showIPAuth, "");
     method(show, "db_states", "show db reloading status", showDBStates, "");
@@ -277,14 +274,6 @@ void YetiRpc::init_rpc_tree()
 
     leaf(request, request_options_prober, "options_prober", "options_prober");
     method(request_options_prober, "reload", "", requestOptionsProberReload, "");
-
-    leaf(request, request_cert_cache, "cert_cache", "cert_cache");
-    method_arg(request_cert_cache, "clear", "", clearCertCacheEntries, "", "<x5url>...", "clear certificates in cache");
-    method_arg(request_cert_cache, "renew", "", renewCertCacheEntries, "", "<x5url>...", "renew certificates in cache");
-    leaf(request_cert_cache, request_cert_cache_trusted_certs, "trusted_certificates", "Trusted Certificates");
-    method(request_cert_cache_trusted_certs, "reload", "", requestCertCacheTrustedCertsReload, "");
-    leaf(request_cert_cache, request_cert_cache_trusted_repositories, "trusted_repositories", "Trusted repositories");
-    method(request_cert_cache_trusted_repositories, "reload", "", requestIPAuthReload, "");
 
     leaf(request, request_ip_auth, "ip_auth", "IP auth");
     method(request_ip_auth, "reload", "", requestIPAuthReload, "");
@@ -1044,34 +1033,9 @@ void YetiRpc::requestOptionsProberReload(const AmArg &, AmArg &)
     deprecated_db_reload_cmd();
 }
 
-void YetiRpc::showCertCacheEntries(const AmArg &, AmArg &ret)
+void YetiRpc::showSigningKeys(const AmArg &, AmArg &ret)
 {
-    cert_cache.ShowCerts(ret, std::chrono::system_clock::now());
-}
-
-void YetiRpc::clearCertCacheEntries(const AmArg &arg, AmArg &ret)
-{
-    ret = cert_cache.ClearCerts(arg);
-}
-
-void YetiRpc::renewCertCacheEntries(const AmArg &arg, AmArg &ret)
-{
-    ret = cert_cache.RenewCerts(arg);
-}
-
-void YetiRpc::showCertCacheTrustedCerts(const AmArg &, AmArg &ret)
-{
-    cert_cache.ShowTrustedCerts(ret);
-}
-
-void YetiRpc::showCertCacheTrustedRepositories(const AmArg &, AmArg &ret)
-{
-    cert_cache.ShowTrustedRepositories(ret);
-}
-
-void YetiRpc::showCertCacheSigningKeys(const AmArg &, AmArg &ret)
-{
-    cert_cache.ShowSigningKeys(ret);
+    signing_keys_cache.ShowSigningKeys(ret);
 }
 
 void YetiRpc::showTrustedBalancers(const AmArg &, AmArg &ret)
@@ -1082,16 +1046,6 @@ void YetiRpc::showTrustedBalancers(const AmArg &, AmArg &ret)
 void YetiRpc::showIPAuth(const AmArg &arg, AmArg &ret)
 {
     orig_pre_auth.ShowIPAuth(arg, ret);
-}
-
-void YetiRpc::requestCertCacheTrustedCertsReload(const AmArg &, AmArg &)
-{
-    deprecated_db_reload_cmd();
-}
-
-void YetiRpc::requestCertCacheTrustedRepositoriesReload(const AmArg &, AmArg &)
-{
-    deprecated_db_reload_cmd();
 }
 
 void YetiRpc::requestTrustedBalancersReload(const AmArg &, AmArg &)

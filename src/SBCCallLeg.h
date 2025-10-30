@@ -6,6 +6,7 @@
 #include "sbc_events.h"
 #include "RateLimit.h"
 #include "ampi/RadiusClientAPI.h"
+#include "ampi/IdentityValidatorApi.h"
 #include "AmIdentity.h"
 
 #include "yeti.h"
@@ -74,8 +75,6 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
 
     OriginationPreAuth::Reply ip_auth_data;
     Auth::auth_id_type        auth_result_id;
-    set<string>               awaited_identity_certs;
-    vector<AmIdentity>        identity_list;
 
     // auth
     AmSessionEventHandler *auth;
@@ -97,20 +96,6 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
     bool        waiting_for_location;
 
     struct timeval profile_request_start_time;
-
-    struct identity_entry {
-        AmIdentity identity;
-        string     raw_header_value;
-        bool       parsed;
-        bool       valid;
-        identity_entry()
-            : parsed(false)
-            , valid(false)
-        {
-        }
-    };
-    std::list<identity_entry> identity_headers;
-    void                      addIdentityHdr(const string &header_value);
 
     void setLogger(msg_logger *_logger);
 
@@ -163,7 +148,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
     void onJsonRpcRequest(JsonRpcRequestEvent &ev);
     void onRadiusReply(const RadiusReplyEvent &ev);
     void onSipRegistrarResolveResponse(const SipRegistrarResolveResponseEvent &e);
-    void onCertCacheReply(const CertCacheResponseEvent &e);
+    void onIdentityDataResponce(const IdentityDataResponce &e);
     void onHttpPostResponse(const HttpPostResponseEvent &e);
     void onRtpTimeoutOverride(const AmRtpTimeoutEvent &rtp_event);
     bool onTimerEvent(int timer_id);
@@ -200,7 +185,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
 
     void process(AmEvent *ev) override;
     void onInvite(const AmSipRequest &req) override;
-    void onIdentityReady();
+    void onIdentityReady(const AmArg *identity_data_ptr = nullptr);
     void onRoutingReady();
     void onFailure() override;
     void onInviteException(int code, string reason, bool no_reply) override;

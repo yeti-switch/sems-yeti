@@ -5,7 +5,7 @@
 #include "OptionsProberManager.h"
 #include "hash/CdrList.h"
 #include "resources/ResourceControl.h"
-#include "CertCache.h"
+#include "SigningKeysCache.h"
 #include "OriginationPreAuth.h"
 #include "GatewaysCache.h"
 #include "cdr/CdrHeaders.h"
@@ -92,7 +92,7 @@ struct YetiBase {
 
     HttpSequencer        http_sequencer;
     OptionsProberManager options_prober_manager;
-    CertCache            cert_cache;
+    SigningKeysCache     signing_keys_cache;
     OriginationPreAuth   orig_pre_auth;
     GatewaysCache        gateways_cache;
     CallProfilesCache    callprofiles_cache;

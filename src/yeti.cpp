@@ -19,6 +19,7 @@
 #include "ampi/SctpBusAPI.h"
 #include "ampi/PostgreSqlAPI.h"
 #include "ampi/SipRegistrarApi.h"
+#include "ampi/IdentityValidatorApi.h"
 #include "sip/resolver.h"
 #include "ObjectsCounter.h"
 
@@ -74,28 +75,6 @@ void Yeti::cfg_timer_mapping_entry::init_exceptions_counter(const string &key)
     exceptions_counter = &stat_group(Counter, MOD_NAME, "config_exceptions").addAtomicCounter().addLabel("type", key);
 }
 
-Yeti::Counters::Counters()
-    : identity_success(stat_group(Counter, MOD_NAME, "identity_headers_success").addAtomicCounter())
-    , identity_failed_parse(stat_group(Counter, MOD_NAME, "identity_headers_failed")
-                                .addAtomicCounter()
-                                .addLabel("reason", "parse_failed"))
-    , identity_failed_verify_expired(
-          stat_group(Counter, MOD_NAME, "identity_headers_failed").addAtomicCounter().addLabel("reason", "iat_expired"))
-    , identity_failed_verify_signature(stat_group(Counter, MOD_NAME, "identity_headers_failed")
-                                           .addAtomicCounter()
-                                           .addLabel("reason", "wrong_signature"))
-    , identity_failed_x5u_not_trusted(stat_group(Counter, MOD_NAME, "identity_headers_failed")
-                                          .addAtomicCounter()
-                                          .addLabel("reason", "x5u_not_trusted"))
-    , identity_failed_cert_invalid(stat_group(Counter, MOD_NAME, "identity_headers_failed")
-                                       .addAtomicCounter()
-                                       .addLabel("reason", "cert_invalid"))
-    , identity_failed_cert_not_available(stat_group(Counter, MOD_NAME, "identity_headers_failed")
-                                             .addAtomicCounter()
-                                             .addLabel("reason", "cert_not_available"))
-{
-}
-
 Yeti::Yeti()
     : AmEventFdQueue(this)
 {
@@ -133,18 +112,6 @@ int Yeti::configure(const std::string &config_buf)
 
     if (config.configure(confuse_cfg, cfg))
         return -1;
-
-    cfg_t *identity_sec = cfg_getsec(confuse_cfg, section_name_identity);
-    if (identity_sec) {
-        if (cert_cache.configure(identity_sec)) {
-            ERROR("failed to configure certificates cache for identity verification");
-            return -1;
-        }
-        config.identity_enabled = true;
-    } else {
-        DBG("missed identity section. Identity validation support will be disabled");
-        config.identity_enabled = false;
-    }
 
     return 0;
 }
@@ -245,9 +212,6 @@ int Yeti::onLoad()
         return -1;
     }
 
-    each_second_timer.link(epoll_fd);
-    each_second_timer.set(1e6 /* 1 second */, true);
-
     db_cfg_reload_timer.link(epoll_fd);
     db_cfg_reload_timer.set(std::chrono::duration_cast<std::chrono::microseconds>(config.db_refresh_interval).count(),
                             true);
@@ -264,7 +228,8 @@ int Yeti::onLoad()
     checkStates();
 
     // check dependencies
-    is_registrar_availbale = (AmPlugIn::instance()->getFactory4Config("registrar") != nullptr);
+    is_registrar_availbale          = (AmPlugIn::instance()->getFactory4Config("registrar") != nullptr);
+    is_identity_validator_availbale = (AmPlugIn::instance()->getFactory4Config("identity_validator") != nullptr);
 
     return 0;
 }
@@ -303,11 +268,6 @@ void Yeti::run()
             if (f == db_cfg_reload_timer) {
                 checkStates();
                 db_cfg_reload_timer.read();
-            } else if (f == each_second_timer) {
-                const auto now(std::chrono::system_clock::now());
-                if (config.identity_enabled)
-                    cert_cache.onTimer(now);
-                each_second_timer.read();
             } else if (f == -queue_fd()) {
                 clear_pending();
                 processEvents();
@@ -343,9 +303,6 @@ void Yeti::process(AmEvent *ev)
     ON_EVENT_TYPE(HttpPostResponseEvent)
     {
         http_sequencer.processHttpReply(*e);
-    }
-    else ON_EVENT_TYPE(HttpGetResponseEvent) {
-        cert_cache.processHttpReply(*e);
     }
     else ON_EVENT_TYPE(JsonRpcRequestEvent) {
         if (e->method_id == MethodReloadDBStates) {
@@ -455,28 +412,30 @@ bool Yeti::isAllComponentsInited()
 void Yeti::initCfgTimerMappings()
 {
     db_config_timer_mappings = {
-        // cert_cache
+
+        // identity_validator
         {   "stir_shaken_trusted_certificates",
          { [&](const string &key) {
-         if (!config.identity_enabled)
+         if (!isIdentityValidatorAvailbale())
          return;
-         yeti_routing_db_query("SELECT * FROM load_stir_shaken_trusted_certificates()", key);
+         AmEventDispatcher::instance()->post(IDENTITY_VALIDATOR_APP_QUEUE, new LoadTrustedCertsRequest());
          },
-         [&](const PGResponse &e) { cert_cache.reloadTrustedCertificates(e.result); } }                       },
+         [&](const PGResponse &e) {} }                                                                        },
         {   "stir_shaken_trusted_repositories",
          { [&](const string &key) {
-         if (!config.identity_enabled)
+         if (!isIdentityValidatorAvailbale())
          return;
-         yeti_routing_db_query("SELECT * FROM load_stir_shaken_trusted_repositories()", key);
+         AmEventDispatcher::instance()->post(IDENTITY_VALIDATOR_APP_QUEUE, new LoadTrustedReposRequest());
          },
-         [&](const PGResponse &e) { cert_cache.reloadTrustedRepositories(e.result); } }                       },
+         [&](const PGResponse &e) {} }                                                                        },
+        // signing_key_cache
         {   "stir_shaken_signing_certificates",
          { [&](const string &key) {
-         if (!config.identity_enabled)
+         if (!isIdentityValidatorAvailbale())
          return;
          yeti_routing_db_query("SELECT * FROM load_stir_shaken_signing_certificates()", key);
          },
-         [&](const PGResponse &e) { cert_cache.reloadSigningKeys(e.result); } }                               },
+         [&](const PGResponse &e) { signing_keys_cache.reloadSigningKeys(e.result); } }                       },
 
         // orig_pre_auth
         {                            "ip_auth",
@@ -675,10 +634,6 @@ bool Yeti::verifyHttpDestinations()
 
     if (!config.audio_recorder_http_destination.empty())
         destinations.emplace(opt_name_audio_recorder_http_destination, config.audio_recorder_http_destination);
-
-    if (config.identity_enabled)
-        destinations.emplace(format("{}.{}", string(section_name_identity), string(opt_identity_http_destination)),
-                             cert_cache.getHttpDestination());
 
     for (auto &shapshot_dst : cdr_list.getSnapshotsDestinations())
         destinations.emplace(format("{}.{}.{}.{}", string(section_name_statistics), string(section_name_active_calls),

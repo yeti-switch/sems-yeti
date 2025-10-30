@@ -27,7 +27,6 @@ char section_name_auth[]                   = "auth";
 char section_name_lega_cdr_headers[]       = "lega_cdr_headers";
 char section_name_legb_cdr_headers[]       = "legb_cdr_headers";
 char section_name_legb_reply_cdr_headers[] = "legb_response_cdr_headers";
-char section_name_identity[]               = "identity";
 char section_name_statistics[]             = "statistics";
 char section_name_resources[]              = "resources";
 char section_name_rpc[]                    = "rpc";
@@ -58,12 +57,6 @@ char opt_name_auth_default_realm_header[]          = "default_realm_header";
 char opt_name_auth_skip_logging_invite_challenge[] = "skip_logging_invite_challenge";
 char opt_name_auth_skip_logging_invite_success[]   = "skip_logging_invite_success";
 char opt_name_auth_jwt_public_key[]                = "jwt_public_key";
-
-char opt_identity_expires[]                       = "expires";
-char opt_identity_http_destination[]              = "http_destination";
-char opt_identity_certs_cache_ttl[]               = "certs_cache_ttl";
-char opt_identity_certs_cache_failed_ttl[]        = "certs_cache_failed_ttl";
-char opt_identity_certs_cache_failed_verify_ttl[] = "certs_cache_failed_verify_ttl";
 
 char opt_func_name_header[]                 = "header";
 char opt_name_cdr_headers_add_sip_reason[]  = "add_sip_reason";
@@ -164,13 +157,6 @@ cfg_opt_t legb_reply_cdr_headers_opts[] = { CFG_FUNC(opt_func_name_header, add_b
                                             CFG_BOOL(opt_name_cdr_headers_add_q850_reason, cfg_false, CFGF_NONE),
                                             CFG_END() };
 
-cfg_opt_t identity_opts[]{ CFG_STR(opt_identity_http_destination, 0, CFGF_NODEFAULT),
-                           CFG_INT(opt_identity_expires, 60, CFGF_NONE),
-                           CFG_INT(opt_identity_certs_cache_ttl, 86400, CFGF_NONE),
-                           CFG_INT(opt_identity_certs_cache_failed_ttl, 86400, CFGF_NONE),
-                           CFG_INT(opt_identity_certs_cache_failed_verify_ttl, 86400, CFGF_NONE),
-                           CFG_END() };
-
 // yeti
 cfg_opt_t yeti_opts[] = { CFG_INT(opt_name_pop_id, 0, CFGF_NONE),
                           CFG_INT(opt_name_db_refresh_interval, 300 /* 5 min */, CFGF_NONE),
@@ -205,7 +191,6 @@ cfg_opt_t yeti_opts[] = { CFG_INT(opt_name_pop_id, 0, CFGF_NONE),
                           CFG_SEC(section_name_rpc, sig_yeti_rpc_opts, CFGF_NONE),
                           CFG_SEC(section_name_statistics, sig_yeti_statistics_opts, CFGF_NONE),
                           CFG_SEC(section_name_auth, sig_yeti_auth_opts, CFGF_NONE),
-                          CFG_SEC(section_name_identity, identity_opts, CFGF_NODEFAULT),
 
                           CFG_SEC(section_name_lega_cdr_headers, lega_cdr_headers_opts, CFGF_NONE),
                           CFG_SEC(section_name_legb_cdr_headers, legb_cdr_headers_opts, CFGF_NONE),

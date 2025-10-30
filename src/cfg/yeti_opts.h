@@ -23,7 +23,6 @@ extern char section_name_cdr[];
 extern char section_name_auth[];
 extern char section_name_lega_cdr_headers[];
 extern char section_name_legb_reply_cdr_headers[];
-extern char section_name_identity[];
 extern char section_name_statistics[];
 extern char section_name_registrar[];
 extern char section_name_resources[];
@@ -55,12 +54,6 @@ extern char opt_name_auth_default_realm_header[];
 extern char opt_name_auth_skip_logging_invite_challenge[];
 extern char opt_name_auth_skip_logging_invite_success[];
 extern char opt_name_auth_jwt_public_key[];
-
-extern char opt_identity_expires[];
-extern char opt_identity_http_destination[];
-extern char opt_identity_certs_cache_ttl[];
-extern char opt_identity_certs_cache_failed_ttl[];
-extern char opt_identity_certs_cache_failed_verify_ttl[];
 
 extern char opt_func_name_header[];
 extern char opt_name_cdr_headers_add_sip_reason[];

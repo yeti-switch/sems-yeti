@@ -9,6 +9,7 @@
 #include "AmMediaProcessor.h"
 #include "AmConfigReader.h"
 #include "AmSessionContainer.h"
+#include "AmEventDispatcher.h"
 #include "AmSipHeaders.h"
 #include "Am100rel.h"
 #include "jsonArg.h"
@@ -1417,17 +1418,10 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
     processResourcesAndSdp();
 }
 
-void SBCCallLeg::onCertCacheReply(const CertCacheResponseEvent &e)
+void SBCCallLeg::onIdentityDataResponce(const IdentityDataResponce &e)
 {
-    DBG("onCertCacheReply(): got %d for %s", e.result, e.cert_url.data());
-
-    awaited_identity_certs.erase(e.cert_url);
-    if (awaited_identity_certs.empty()) {
-        DBG("all awaited certs are ready. continue call processing");
-        onIdentityReady();
-    } else {
-        DBG("%zd awaited certs left", awaited_identity_certs.size());
-    }
+    identity_data = e.identity_data;
+    onIdentityReady(&identity_data);
 }
 
 void SBCCallLeg::onHttpPostResponse(const HttpPostResponseEvent &e)
@@ -1749,7 +1743,7 @@ void SBCCallLeg::applyBProfile()
 
 void SBCCallLeg::addIdentityHeader(AmSipRequest &req)
 {
-    if (!yeti.config.identity_enabled || !call_profile.ss_crt_id)
+    if (!yeti.isIdentityValidatorAvailbale() || !call_profile.ss_crt_id)
         return;
 
     AmIdentity identity;
@@ -1768,7 +1762,7 @@ void SBCCallLeg::addIdentityHeader(AmSipRequest &req)
     identity.add_orig_tn(call_profile.ss_otn);
     identity.add_dest_tn(call_profile.ss_dtn);
 
-    auto ret = yeti.cert_cache.getIdentityHeader(identity, call_profile.ss_crt_id);
+    auto ret = yeti.signing_keys_cache.getIdentityHeader(identity, call_profile.ss_crt_id);
     if (ret) {
         req.hdrs += "Identity: " + ret.value() + CRLF;
     }
@@ -2712,8 +2706,8 @@ void SBCCallLeg::process(AmEvent *ev)
 {
     DBG("%s(%p|%s,leg%s)", FUNC_NAME, to_void(this), getLocalTag().c_str(), a_leg ? "A" : "B");
 
-    if (auto cert_cache_event = dynamic_cast<CertCacheResponseEvent *>(ev)) {
-        onCertCacheReply(*cert_cache_event);
+    if (auto ident_data_resp = dynamic_cast<IdentityDataResponce *>(ev)) {
+        onIdentityDataResponce(*ident_data_resp);
         return;
     }
 
@@ -2958,9 +2952,10 @@ void SBCCallLeg::onInvite(const AmSipRequest &req)
     uac_req = req;
 
     // process Identity headers
-    if (yeti.config.identity_enabled && ip_auth_data.require_identity_parsing) {
-        static string identity_header_name("identity");
-        size_t        start_pos = 0;
+    if (yeti.isIdentityValidatorAvailbale() && ip_auth_data.require_identity_parsing) {
+        static string  identity_header_name("identity");
+        size_t         start_pos = 0;
+        vector<string> ident_hdrs{};
         while (start_pos < req.hdrs.length()) {
             size_t name_end, val_begin, val_end, hdr_end;
             if (skip_header(req.hdrs, start_pos, name_end, val_begin, val_end, hdr_end)) {
@@ -2978,120 +2973,30 @@ void SBCCallLeg::onInvite(const AmSipRequest &req)
                 if (hdr_value.find(',') != string::npos) {
                     auto values = explode(hdr_value, ",", false);
                     for (auto const &v : values) {
-                        addIdentityHdr(trim(v, " \n"));
+                        ident_hdrs.emplace_back(trim(v, " \n"));
                     }
                 } else {
-                    addIdentityHdr(trim(hdr_value, " \n"));
+                    ident_hdrs.emplace_back(trim(hdr_value, " \n"));
                 }
             }
             start_pos = hdr_end;
         }
 
-        if (awaited_identity_certs.empty())
+        if (ident_hdrs.empty())
             onIdentityReady();
+        else if (AmEventDispatcher::instance()->post(IDENTITY_VALIDATOR_APP_QUEUE,
+                                                     new AddIdentityRequest(ident_hdrs, getLocalTag())))
+            DBG("wait identity data for '%s'", getLocalTag().c_str());
+        else
+            DBG("failed to post AddIdentityRequest fro '%s'", getLocalTag().c_str());
+
     } else {
         onIdentityReady();
     }
 }
 
-void SBCCallLeg::addIdentityHdr(const string &header_value)
+void SBCCallLeg::onIdentityReady(const AmArg *identity_data_ptr)
 {
-    auto &e = identity_headers.emplace_back();
-
-    e.raw_header_value = header_value;
-    e.parsed           = e.identity.parse(header_value);
-
-    if (!e.parsed) {
-        yeti.counters.identity_failed_parse.inc();
-        string last_error;
-        auto   last_errcode = e.identity.get_last_error(last_error);
-        ERROR("[%s] failed to parse identity header: '%s', error:%d(%s)", getLocalTag().data(),
-              e.raw_header_value.data(), last_errcode, last_error.data());
-        return;
-    }
-
-    auto &cert_url = e.identity.get_x5u_url();
-    if (cert_url.empty()) {
-        yeti.counters.identity_failed_parse.inc();
-        ERROR("[%s] empty x5u in identity header: '%s'", getLocalTag().data(), e.raw_header_value.data());
-        return;
-    }
-
-    if (!yeti.cert_cache.checkAndFetch(cert_url, getLocalTag())) {
-        DBG("awaited_identity_certs add '%s'", cert_url.data());
-        awaited_identity_certs.emplace(cert_url);
-    } else {
-        DBG("cert for '%s' has already in cache or not available", cert_url.data());
-    }
-}
-
-void SBCCallLeg::onIdentityReady()
-{
-    AmArg *identity_data_ptr = nullptr;
-    if (yeti.config.identity_enabled) {
-        string error_reason;
-        identity_data.assertArray();
-        // verify parsed identity headers
-        for (auto &e : identity_headers) {
-            identity_data.push(AmArg());
-            AmArg &a = identity_data.back();
-
-            a["parsed"] = e.parsed;
-
-            if (!e.parsed) {
-                a["parsed"]       = false;
-                a["error_code"]   = e.identity.get_last_error(error_reason);
-                a["error_reason"] = error_reason;
-                a["verified"]     = false;
-                a["raw"]          = e.raw_header_value;
-                continue;
-            }
-
-            a["header"]  = e.identity.get_header();
-            a["payload"] = e.identity.get_payload();
-
-            bool cert_is_valid;
-            auto key(yeti.cert_cache.getPubKey(e.identity.get_x5u_url(), a, cert_is_valid));
-            if (key.get()) {
-                if (cert_is_valid) {
-                    bool verified = e.identity.verify(key.get(), yeti.cert_cache.getExpires());
-                    if (!verified) {
-                        auto error_code = e.identity.get_last_error(error_reason);
-                        switch (error_code) {
-                        case ERR_EXPIRE_TIMEOUT: yeti.counters.identity_failed_verify_expired.inc(); break;
-                        case ERR_VERIFICATION:   yeti.counters.identity_failed_verify_signature.inc(); break;
-                        }
-                        a["error_code"]   = error_code;
-                        a["error_reason"] = error_reason;
-                        ERROR("[%s] identity '%s' verification failed: %d/%s", getLocalTag().data(),
-                              e.raw_header_value.data(), error_code, error_reason.data());
-                    } else {
-                        yeti.counters.identity_success.inc();
-                    }
-                    a["verified"] = verified;
-                } else {
-                    yeti.counters.identity_failed_cert_invalid.inc();
-                    a["error_code"]   = -1;
-                    a["error_reason"] = "certificate is not valid";
-                    a["verified"]     = false;
-                }
-            } else if (!yeti.cert_cache.isTrustedRepository(e.identity.get_x5u_url())) {
-                yeti.counters.identity_failed_x5u_not_trusted.inc();
-                a["error_code"]   = -1;
-                a["error_reason"] = "x5u is not in trusted repositories";
-                a["verified"]     = false;
-            } else {
-                yeti.counters.identity_failed_cert_not_available.inc();
-                a["error_code"]   = -1;
-                a["error_reason"] = "certificate is not available";
-                a["verified"]     = false;
-            }
-        } // for(auto &e : identity_headers)
-
-        // DBG("identity_json: %s", arg2json(identity_data).data());
-        identity_data_ptr = &identity_data;
-    }
-
     call_ctx = new CallCtx(router);
     call_ctx->references++;
 

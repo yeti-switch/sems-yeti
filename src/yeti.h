@@ -4,7 +4,7 @@
 #include "yeti_base.h"
 #include "yeti_radius.h"
 #include "HttpSequencer.h"
-#include "CertCache.h"
+#include "SigningKeysCache.h"
 #include "DbConfigStates.h"
 
 #include <AmEventFdQueue.h>
@@ -22,9 +22,9 @@ class Yeti : public YetiRpc,
     static Yeti *_instance;
     bool         stopped;
     int          epoll_fd;
-    AmTimerFd    each_second_timer;
     AmTimerFd    db_cfg_reload_timer;
     bool         is_registrar_availbale;
+    bool         is_identity_validator_availbale;
 
     struct cfg_timer_mapping_entry {
         std::function<void(const string &key)>   on_reload;
@@ -63,17 +63,6 @@ class Yeti : public YetiRpc,
     bool verifyHttpDestinations();
 
   public:
-    struct Counters {
-        AtomicCounter &identity_success;
-        AtomicCounter &identity_failed_parse;
-        AtomicCounter &identity_failed_verify_expired;
-        AtomicCounter &identity_failed_verify_signature;
-        AtomicCounter &identity_failed_x5u_not_trusted;
-        AtomicCounter &identity_failed_cert_invalid;
-        AtomicCounter &identity_failed_cert_not_available;
-        Counters();
-    } counters;
-
     Yeti();
     ~Yeti();
 
@@ -88,5 +77,6 @@ class Yeti : public YetiRpc,
     void process(AmEvent *ev);
     bool getCoreOptionsHandling() { return config.core_options_handling; }
     bool isAllComponentsInited();
-    bool isRegistrarAvailable() { return is_registrar_availbale; };
+    bool isRegistrarAvailable() { return is_registrar_availbale; }
+    bool isIdentityValidatorAvailbale() { return is_identity_validator_availbale; }
 };

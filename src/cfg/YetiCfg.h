@@ -40,8 +40,6 @@ struct YetiCfg {
     bool postgresql_debug;
     bool write_internal_disconnect_code;
 
-    int identity_enabled;
-
     struct headers_processing_config {
         struct leg_reasons {
             bool add_sip_reason;

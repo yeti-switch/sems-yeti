@@ -83,7 +83,7 @@ class SqlRouter : public Auth {
     int configure(cfg_t *confuse_cfg, AmConfigReader &cfg);
 
     AmArg db_async_get_profiles(const std::string &local_tag, const AmSipRequest &, Auth::auth_id_type auth_id,
-                                AmArg *identity_data);
+                                const AmArg *identity_data);
 
     void align_cdr(Cdr &cdr);
     void write_cdr(std::unique_ptr<Cdr> &cdr, bool last);

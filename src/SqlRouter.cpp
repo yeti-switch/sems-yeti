@@ -514,7 +514,7 @@ void SqlRouter::update_counters(struct timeval &start_time)
 }
 
 AmArg SqlRouter::db_async_get_profiles(const std::string &local_tag, const AmSipRequest &req,
-                                       Auth::auth_id_type auth_id, AmArg *identity_data)
+                                       Auth::auth_id_type auth_id, const AmArg *identity_data)
 {
     AmArg ret;
 

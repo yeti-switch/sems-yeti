@@ -118,14 +118,7 @@ class YetiRpc : public RpcTreeHandler, virtual YetiBase, virtual YetiRadius {
 
     rpc_handler requestOptionsProberReload;
 
-    rpc_handler showCertCacheEntries;
-    rpc_handler clearCertCacheEntries;
-    rpc_handler renewCertCacheEntries;
-    rpc_handler showCertCacheTrustedCerts;
-    rpc_handler requestCertCacheTrustedCertsReload;
-    rpc_handler showCertCacheTrustedRepositories;
-    rpc_handler requestCertCacheTrustedRepositoriesReload;
-    rpc_handler showCertCacheSigningKeys;
+    rpc_handler showSigningKeys;
 
     rpc_handler showTrustedBalancers;
     rpc_handler requestTrustedBalancersReload;
