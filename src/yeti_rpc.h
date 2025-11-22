@@ -18,10 +18,10 @@ enum RpcMethodId {
     MethodReloadDBStates
 };
 
-class YetiRpc : public RpcTreeHandler<YetiRpc>, virtual YetiBase, virtual YetiRadius {
+class YetiRpc : public RpcTreeHandler, virtual YetiBase, virtual YetiRadius {
   public:
     YetiRpc()
-        : RpcTreeHandler<YetiRpc>(true)
+        : RpcTreeHandler(true)
     {
     }
 

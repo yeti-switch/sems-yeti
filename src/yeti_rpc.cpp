@@ -94,18 +94,18 @@ struct rpc_entry : public AmObject {
 
 void YetiRpc::init_rpc_tree()
 {
-#define leaf(parent, leaf, name, descr) AmArg &leaf = reg_leaf(parent, name, descr);
+#define leaf(parent, leaf, name, descr) auto &leaf = reg_leaf(parent, name, descr);
 
-#define method(parent, name, descr, func, func_descr) reg_method(parent, name, descr, &YetiRpc::func, func_descr);
+#define method(parent, name, descr, func, func_descr) reg_method(parent, name, descr, func_descr, &YetiRpc::func, this);
 
 #define leaf_method(parent, leaf, name, descr, func, func_descr)                                                       \
-    AmArg &leaf = reg_method(parent, name, descr, &YetiRpc::func, func_descr);
+    auto &leaf = reg_method(parent, name, descr, func_descr, &YetiRpc::func, this);
 
 #define method_arg(parent, name, descr, func, func_descr, arg, arg_descr)                                              \
-    reg_method_arg(parent, name, descr, &YetiRpc::func, func_descr, arg, arg_descr);
+    reg_method_arg(parent, name, descr, func_descr, arg, arg_descr, &YetiRpc::func, this);
 
 #define leaf_method_arg(parent, leaf, name, descr, func, func_descr, arg, arg_descr)                                   \
-    AmArg &leaf = reg_method_arg(parent, name, descr, &YetiRpc::func, func_descr, arg, arg_descr);
+    auto &leaf = reg_method_arg(parent, name, descr, func_descr, arg, arg_descr, &YetiRpc::func, this);
 
     /* show */
     leaf(root, show, "show", "read only queries");
