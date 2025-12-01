@@ -470,7 +470,9 @@ int SBCCallProfile::apply_a_routing(ParamReplacerCtx &ctx, const AmSipRequest &r
     } else {
         dlg.nat_handling = dlg_nat_handling;
         if (dlg_nat_handling && req.first_hop) {
-            string nh = req.remote_ip + ":" + int2str(req.remote_port) + "/" + req.trsp;
+            string remote_ip = req.remote_ip;
+            ensure_ipv6_reference(remote_ip);
+            string nh = remote_ip + ":" + int2str(req.remote_port) + "/" + req.trsp;
             dlg.setNextHop(nh);
             dlg.setNextHop1stReq(false);
         }
