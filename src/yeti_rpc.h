@@ -20,10 +20,7 @@ enum RpcMethodId {
 
 class YetiRpc : public RpcTreeHandler, virtual YetiBase, virtual YetiRadius {
   public:
-    YetiRpc()
-        : RpcTreeHandler(true)
-    {
-    }
+    YetiRpc() {}
 
     void invoke(const string &method, const AmArg &args, AmArg &ret);
 
