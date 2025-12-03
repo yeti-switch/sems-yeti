@@ -306,7 +306,7 @@ void SBCFactory::onOoDRequest(const AmSipRequest &req)
     DBG("processing message %s %s", req.method.c_str(), req.r_uri.c_str());
 
     if (core_options_handling && req.method == SIP_METH_OPTIONS) {
-        DBG("processing OPTIONS in core");
+        DBG3("processing OPTIONS in core");
         AmSessionFactory::onOoDRequest(req);
         return;
     }
