@@ -689,6 +689,9 @@ void SqlRouter::write_auth_log(const AuthCdr &auth_log)
 
     auto &query_info = pg_param_execute_event->qdata.info.front();
 
+    sanitize_query_params(query_info, auth_log.getOrigCallId(), "AUTH_LOG",
+                          [](auto i) { return auth_log_static_fields[i].name; });
+
     if (Yeti::instance().config.postgresql_debug) {
         for (unsigned int i = 0; i < query_info.params.size(); i++) {
             DBG("%p/auth_log %d(%s/%s): %s %s", &auth_log, i + 1, auth_log_static_fields[i].name,
