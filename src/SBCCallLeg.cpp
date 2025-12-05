@@ -548,7 +548,7 @@ bool SBCCallLeg::chooseNextProfile()
 
         DBG("no refuse field. check it for throttling");
         if (profile->legb_gw_cache_id && yeti.gateways_cache.should_skip(profile->legb_gw_cache_id, now)) {
-            DBG("skipped by throttling for term_gw_id:%d", profile->legb_gw_cache_id);
+            DBG("skipped by throttling for legb_gw_cache_id:%d", profile->legb_gw_cache_id);
 
             profile = call_ctx->getNextProfile(false, true);
             if (nullptr == profile) {
@@ -2333,7 +2333,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
                 auto legb_gw_cache_id      = profile.legb_gw_cache_id;
                 auto tel_redirect_data_ret = yeti.gateways_cache.get_redirect_data(legb_gw_cache_id);
                 if (!tel_redirect_data_ret) {
-                    DBG("no gateway cache data for term_gw_id:%s. reject tel URI xfer: %s", legb_gw_cache_id,
+                    DBG("no gateway cache data for legb_gw_cache_id:%s. reject tel URI xfer: %s", legb_gw_cache_id,
                         refer_to.c_str());
                     dlg->reply(req, 603, "Unconfigured xfer for tel URIs");
                     return;
