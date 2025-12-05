@@ -600,7 +600,7 @@ void Yeti::initCfgTimerMappings()
          [&](const PGResponse &e) { options_prober_manager.load_probers(e.result); } }                        },
         {                     "gateways_cache",
          { [&](const string &key) {
-         if (!router.get_legb_gw_cache_key().empty())
+         if (!(router.get_lega_gw_cache_key().empty() and router.get_legb_gw_cache_key().empty()))
          yeti_routing_db_query("SELECT * FROM load_gateway_attributes_cache()", key);
          },
          [&](const PGResponse &e) { gateways_cache.update(e.result); } }                                      },

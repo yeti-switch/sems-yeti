@@ -81,6 +81,7 @@ char opt_redis_password[] = "password";
 char opt_name_supported_tags[]  = "supported_tags";
 char opt_name_allowed_methods[] = "allowed_methods";
 
+char opt_name_lega_gw_cache_key[] = "lega_gw_cache_key";
 char opt_name_legb_gw_cache_key[] = "legb_gw_cache_key";
 
 int add_routing_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
@@ -101,6 +102,7 @@ cfg_opt_t sig_yeti_routing_opts[] = { VCFG_STR(schema, switch22),
                                       CFG_BOOL(opt_name_pass_input_interface_name, cfg_true, CFGF_NONE),
                                       CFG_BOOL(opt_name_new_codec_groups, cfg_true, CFGF_NONE),
                                       CFG_INT(opt_name_connection_lifetime, 0, CFGF_NONE),
+                                      CFG_STR(opt_name_lega_gw_cache_key, "", CFGF_NONE),
                                       CFG_STR(opt_name_legb_gw_cache_key, "", CFGF_NONE),
                                       DCFG_SEC(master_pool, sig_yeti_routing_pool_opts, CFGF_NONE),
                                       DCFG_SEC(slave_pool, sig_yeti_routing_pool_opts, CFGF_NONE),

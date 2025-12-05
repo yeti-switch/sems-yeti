@@ -251,6 +251,7 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
     }
 
     new_codec_groups  = cfg_getbool(routing_sec, opt_name_new_codec_groups);
+    lega_gw_cache_key = cfg_getstr(routing_sec, opt_name_lega_gw_cache_key);
     legb_gw_cache_key = cfg_getstr(routing_sec, opt_name_legb_gw_cache_key);
 
     cfg_t *auth_sec = cfg_getsec(confuse_cfg, section_name_auth);

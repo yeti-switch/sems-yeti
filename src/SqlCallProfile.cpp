@@ -57,7 +57,7 @@ bool SqlCallProfile::is_empty_profile(const AmArg &a)
 }
 
 bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, const DynFieldsT &df,
-                                   const string &legb_gw_cache_key)
+                                   const string &lega_gw_cache_key, const string &legb_gw_cache_key)
 {
     aleg_local_tag = local_tag;
 
@@ -382,6 +382,7 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
 
     push_token = DbAmArg_hash_get_str(t, "push_token");
 
+    lega_gw_cache_id = !lega_gw_cache_key.empty() ? DbAmArg_hash_get_int(t, lega_gw_cache_key, 0) : 0;
     legb_gw_cache_id = !legb_gw_cache_key.empty() ? DbAmArg_hash_get_int(t, legb_gw_cache_key, 0) : 0;
 
     DBG("Yeti: loaded SQL profile");

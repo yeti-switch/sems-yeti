@@ -780,7 +780,8 @@ void SBCCallLeg::onPostgresResponse(PGResponse &e)
                                 arg2json(it.second).data());
                         }
                     }
-                    ret = p.readFromTuple(a, getLocalTag(), router.getDynFields(), router.get_legb_gw_cache_key());
+                    ret = p.readFromTuple(a, getLocalTag(), router.getDynFields(), router.get_lega_gw_cache_key(),
+                                          router.get_legb_gw_cache_key());
                 }
             } catch (AmArg::OutOfBoundsException &e) {
                 ERROR("OutOfBoundsException while reading from profile tuple: %s", AmArg::print(a).data());

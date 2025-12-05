@@ -29,6 +29,7 @@ struct SqlCallProfile : public SBCCallProfile
     int aleg_session_refresh_method_id;
     int aleg_override_id, bleg_override_id;
     int dump_level_id;
+    int lega_gw_cache_id;
     int legb_gw_cache_id;
 
     /** whether or not we should parse trusted headers from this gateway */
@@ -47,7 +48,8 @@ struct SqlCallProfile : public SBCCallProfile
     ~SqlCallProfile();
 
     static bool is_empty_profile(const AmArg &a);
-    bool readFromTuple(const AmArg &t, const string &local_tag, const DynFieldsT &df, const string &legb_gw_cache_key);
+    bool readFromTuple(const AmArg &t, const string &local_tag, const DynFieldsT &df, const string &lega_gw_cache_key,
+                       const string &legb_gw_cache_key);
     ResourceList &getResourceList(bool a_leg = false);
 
     bool readFilter(const AmArg &t, const char *cfg_key_filter, vector<FilterEntry> &filter_list,
