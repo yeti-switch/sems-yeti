@@ -1106,9 +1106,9 @@ void YetiRpc::requestIPAuthReload(const AmArg &, AmArg &)
 
 void YetiRpc::showGatewaysCache(const AmArg &arg, AmArg &ret)
 {
-    if (router.get_throttling_gateway_key().empty()) {
+    if (router.get_legb_gw_cache_key().empty()) {
         throw AmSession::Exception(500, "gateways cache is disabled. "
-                                        "set routing.throttling_gateway_key");
+                                        "set routing.legb_gw_cache_key");
     }
     gateways_cache.info(arg, ret);
 }

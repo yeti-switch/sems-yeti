@@ -338,13 +338,13 @@ void SBCCallLeg::processResourcesAndSdp()
         do {
             DBG("check throttling for profile. attempt %d", attempt);
 
-            if (profile->term_gw_id &&
+            if (profile->legb_gw_cache_id &&
                 // check throttling before first resource checking only
                 (!profile->legab_res_mode_enabled || lega_res_chk_step))
             {
                 DBG("check throttling for profile. attempt %d", attempt);
-                if (yeti.gateways_cache.should_skip(profile->term_gw_id, now)) {
-                    DBG("skipped by throttling for term_gw_id:%d", profile->term_gw_id);
+                if (yeti.gateways_cache.should_skip(profile->legb_gw_cache_id, now)) {
+                    DBG("skipped by throttling for legb_gw_cache_id:%d", profile->legb_gw_cache_id);
 
                     // get next profile
                     profile = call_ctx->getNextProfile(false, true);
@@ -547,8 +547,8 @@ bool SBCCallLeg::chooseNextProfile()
         }
 
         DBG("no refuse field. check it for throttling");
-        if (profile->term_gw_id && yeti.gateways_cache.should_skip(profile->term_gw_id, now)) {
-            DBG("skipped by throttling for term_gw_id:%d", profile->term_gw_id);
+        if (profile->legb_gw_cache_id && yeti.gateways_cache.should_skip(profile->legb_gw_cache_id, now)) {
+            DBG("skipped by throttling for term_gw_id:%d", profile->legb_gw_cache_id);
 
             profile = call_ctx->getNextProfile(false, true);
             if (nullptr == profile) {
@@ -780,7 +780,7 @@ void SBCCallLeg::onPostgresResponse(PGResponse &e)
                                 arg2json(it.second).data());
                         }
                     }
-                    ret = p.readFromTuple(a, getLocalTag(), router.getDynFields(), router.get_throttling_gateway_key());
+                    ret = p.readFromTuple(a, getLocalTag(), router.getDynFields(), router.get_legb_gw_cache_key());
                 }
             } catch (AmArg::OutOfBoundsException &e) {
                 ERROR("OutOfBoundsException while reading from profile tuple: %s", AmArg::print(a).data());
@@ -2330,17 +2330,17 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
                     return;
                 }
                 auto profile               = *call_ctx->getCurrentProfile();
-                auto term_gw_id            = profile.term_gw_id;
-                auto tel_redirect_data_ret = yeti.gateways_cache.get_redirect_data(term_gw_id);
+                auto legb_gw_cache_id      = profile.legb_gw_cache_id;
+                auto tel_redirect_data_ret = yeti.gateways_cache.get_redirect_data(legb_gw_cache_id);
                 if (!tel_redirect_data_ret) {
-                    DBG("no gateway cache data for term_gw_id:%s. reject tel URI xfer: %s", term_gw_id,
+                    DBG("no gateway cache data for term_gw_id:%s. reject tel URI xfer: %s", legb_gw_cache_id,
                         refer_to.c_str());
                     dlg->reply(req, 603, "Unconfigured xfer for tel URIs");
                     return;
                 }
                 auto &tel_redirect_data = tel_redirect_data_ret.value();
                 if (tel_redirect_data.transfer_tel_uri_host.empty()) {
-                    DBG("empty transfer_tel_uri_host for gateway %d. reject tel URI xfer: %s", term_gw_id,
+                    DBG("empty transfer_tel_uri_host for gateway %d. reject tel URI xfer: %s", legb_gw_cache_id,
                         refer_to.c_str());
                     dlg->reply(req, 603, "Unconfigured xfer for tel URIs");
                     return;
@@ -2438,7 +2438,7 @@ void SBCCallLeg::onSipReply(const AmSipRequest &req, const AmSipReply &reply, Am
 
     if (!a_leg && call_ctx) {
         if (reply.code >= 200 && reply.cseq_method == SIP_METH_INVITE) {
-            auto &gw_id = call_ctx->getCurrentProfile()->term_gw_id;
+            auto &gw_id = call_ctx->getCurrentProfile()->legb_gw_cache_id;
             if (gw_id)
                 yeti.gateways_cache.update_reply_stats(gw_id, reply);
         }

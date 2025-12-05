@@ -60,7 +60,7 @@ class SqlRouter : public Auth {
     int                     connection_lifetime;
     bool                    pass_input_interface_name;
     bool                    new_codec_groups;
-    string                  throttling_gateway_key;
+    string                  legb_gw_cache_key;
     string                  writecdr_schema;
     string                  writecdr_function;
     string                  authlog_function;
@@ -105,5 +105,5 @@ class SqlRouter : public Auth {
 
     void          update_counters(struct timeval &start_time);
     bool          is_new_codec_groups() { return new_codec_groups; }
-    const string &get_throttling_gateway_key() const { return throttling_gateway_key; }
+    const string &get_legb_gw_cache_key() const { return legb_gw_cache_key; }
 };
