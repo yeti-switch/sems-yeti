@@ -1418,7 +1418,7 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
     processResourcesAndSdp();
 }
 
-void SBCCallLeg::onIdentityDataResponce(const IdentityDataResponce &e)
+void SBCCallLeg::onValidateIdentitiesResponse(const ValidateIdentitiesResponse &e)
 {
     identity_data = e.identity_data;
     onIdentityReady(&identity_data);
@@ -2706,8 +2706,8 @@ void SBCCallLeg::process(AmEvent *ev)
 {
     DBG("%s(%p|%s,leg%s)", FUNC_NAME, to_void(this), getLocalTag().c_str(), a_leg ? "A" : "B");
 
-    if (auto ident_data_resp = dynamic_cast<IdentityDataResponce *>(ev)) {
-        onIdentityDataResponce(*ident_data_resp);
+    if (auto ident_data_resp = dynamic_cast<ValidateIdentitiesResponse *>(ev)) {
+        onValidateIdentitiesResponse(*ident_data_resp);
         return;
     }
 
@@ -2985,8 +2985,8 @@ void SBCCallLeg::onInvite(const AmSipRequest &req)
         if (ident_hdrs.empty())
             onIdentityReady();
         else if (AmEventDispatcher::instance()->post(IDENTITY_VALIDATOR_APP_QUEUE,
-                                                     new AddIdentityRequest(ident_hdrs, getLocalTag())))
-            DBG("wait identity data for '%s'", getLocalTag().c_str());
+                                                     new ValidateIdentitiesRequest(ident_hdrs, getLocalTag())))
+            DBG("waiting for identity data for '%s'", getLocalTag().c_str());
         else
             DBG("failed to post AddIdentityRequest fro '%s'", getLocalTag().c_str());
 
