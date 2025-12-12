@@ -3,7 +3,7 @@ Maintainer: yeti team <dev@yeti-switch.org>
 Section: net
 Priority: optional
 Standards-Version: 3.9.2
-Build-Depends: debhelper (>= 9), build-essential, devscripts, libsems1-dev (>= 1.165.0), sems-modules-base, sems-dev-utils, libgtest-dev, ninja-build, clang, libfmt-dev
+Build-Depends: debhelper (>= 9), build-essential, devscripts, libsems1-dev (>= 1.178.0), sems-modules-base, sems-dev-utils, libgtest-dev, ninja-build, clang, libfmt-dev
 
 Package: sems-modules-yeti
 Section: net

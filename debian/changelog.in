@@ -1,3 +1,11 @@
+sems-yeti (1.14.16) stable; urgency=medium
+  * libsems1.178
+  * auth_log: fixed invalid byte sequences for UTF8
+  * rename routing.throttling_gateway_key -> routing.legb_gw_cache_key
+  * add routing.lega_gw_cache_key
+  * use identity_validator module
+ -- dev <dev@yeti-switch.org>  Fri, 12 Dec 2025 16:47:26 +0200
+
 sems-yeti (1.14.15) stable; urgency=medium
   * libsems1.177
  -- dev <dev@yeti-switch.org>  Tue, 02 Dec 2025 18:49:03 +0200
