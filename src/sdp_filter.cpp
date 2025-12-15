@@ -470,6 +470,19 @@ void apply_sdp_to_body(AmMimeBody &body, AmMimeBody *sdp_body, AmSdp &sdp, bool 
     }
 }
 
+bool is_media_transport_equal_ignoring_avpf(TransProt lhs_noavpf, TransProt rhs)
+{
+    switch (rhs) {
+    case TP_RTPAVP:
+    case TP_RTPAVPF:        return lhs_noavpf == TP_RTPAVP;
+    case TP_RTPSAVP:
+    case TP_RTPSAVPF:       return lhs_noavpf == TP_RTPSAVP;
+    case TP_UDPTLSRTPSAVP:
+    case TP_UDPTLSRTPSAVPF: return lhs_noavpf == TP_UDPTLSRTPSAVP;
+    default:                return lhs_noavpf == rhs;
+    }
+}
+
 int processSdpOffer(SBCCallLeg *call, SBCCallProfile &call_profile, AmMimeBody &body, string &method,
                     vector<SdpMedia> &negotiated_media, int static_codecs_id, bool local, bool single_codec)
 {
@@ -539,16 +552,16 @@ int processSdpOffer(SBCCallLeg *call, SBCCallProfile &call_profile, AmMimeBody &
     if (call_profile.rtprelay_enabled) {
         auto &first_media = *sdp.media.begin();
         if (first_media.type == MT_AUDIO) {
-            auto &media_transport =
+            const auto &media_transport =
                 call->isALeg() ? call_profile.aleg_media_transport : call_profile.bleg_media_transport;
-            if (first_media.transport != media_transport) {
+            if (!is_media_transport_equal_ignoring_avpf(media_transport, first_media.transport)) {
                 DBG("got offer transport type %s while expected %s", transport_p_2_str(first_media.transport).data(),
                     transport_p_2_str(media_transport).data());
                 return FC_INVALID_MEDIA_TRANSPORT;
             }
 #ifdef WITH_ZRTP
             if (TP_RTPAVP == media_transport || TP_RTPAVPF == media_transport) {
-                auto &zrtp_enabled =
+                const auto &zrtp_enabled =
                     call->isALeg() ? call_profile.aleg_media_allow_zrtp : call_profile.bleg_media_allow_zrtp;
                 if (zrtp_enabled && !first_media.zrtp_hash.is_use) {
                     DBG("got SDP offer without zrtp_hash while ZRTP is enabled for leg");

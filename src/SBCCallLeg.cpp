@@ -1615,8 +1615,15 @@ void SBCCallLeg::applyAProfile()
         setRtpTimeout(call_profile.dead_rtp_time);
         setIgnoreRelayStreams(call_profile.filter_noaudio_streams);
         setEnableInboundDtmfFiltering(call_profile.bleg_rtp_filter_inband_dtmf);
-        setMediaTransport(call_profile.aleg_media_transport);
-        setZrtpEnabled(call_profile.aleg_media_allow_zrtp);
+
+        const auto &m = call_ctx->aleg_negotiated_media;
+        if (!m.empty()) {
+            auto &first_media = *m.begin();
+            setMediaTransport(first_media.transport);
+#ifdef WITH_ZRTP
+            setZrtpEnabled(call_profile.aleg_media_allow_zrtp && first_media.zrtp_hash.is_use);
+#endif
+        }
 
         if (call_profile.transcoder.isActive()) {
             setRtpRelayMode(RTP_Transcoding);
