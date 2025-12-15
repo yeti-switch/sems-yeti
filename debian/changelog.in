@@ -1,3 +1,8 @@
+sems-yeti (1.14.17) stable; urgency=medium
+  * fix AVPF RTP profiles matching
+  * allow ICE for aleg
+ -- dev <dev@yeti-switch.org>  Mon, 15 Dec 2025 16:19:11 +0200
+
 sems-yeti (1.14.16) stable; urgency=medium
   * libsems1.178
   * auth_log: fixed invalid byte sequences for UTF8
