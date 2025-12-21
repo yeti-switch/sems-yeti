@@ -202,7 +202,6 @@ struct SBCCallProfile : public AmObject {
     vector<FilterEntry> headerfilter_a2b;
     vector<FilterEntry> headerfilter_b2a;
 
-    vector<FilterEntry> sdpfilter;
     vector<FilterEntry> sdpalinesfilter;
     vector<FilterEntry> bleg_sdpalinesfilter;
     vector<FilterEntry> mediafilter;

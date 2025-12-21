@@ -133,11 +133,6 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
         return false;
     }
 
-    if (!readFilter(t, "sdp_filter", sdpfilter, true)) {
-        ERROR("failed to read sdp_filter");
-        return false;
-    }
-
     // SDP alines filter
     // filter out all unknown a-lines
     FilterEntry whitelist;
@@ -455,11 +450,6 @@ void SqlCallProfile::infoPrint([[maybe_unused]] const DynFieldsT &df)
 
         string filter_type;
         size_t filter_elems;
-
-        filter_type  = sdpfilter.size() ? FilterType2String(sdpfilter.back().filter_type) : "disabled";
-        filter_elems = sdpfilter.size() ? sdpfilter.back().filter_list.size() : 0;
-        DBG("SDP filter is %sabled, %s, %zd items in list", sdpfilter.size() ? "en" : "dis", filter_type.c_str(),
-            filter_elems);
 
         filter_type  = sdpalinesfilter.size() ? FilterType2String(sdpalinesfilter.back().filter_type) : "disabled";
         filter_elems = sdpalinesfilter.size() ? sdpalinesfilter.back().filter_list.size() : 0;

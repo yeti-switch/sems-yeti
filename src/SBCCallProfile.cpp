@@ -178,7 +178,7 @@ bool SBCCallProfile::operator==(const SBCCallProfile &rhs) const
                next_hop_1st_req == rhs.next_hop_1st_req && next_hop_fixed == rhs.next_hop_fixed &&
                patch_ruri_next_hop == rhs.patch_ruri_next_hop && aleg_next_hop == rhs.aleg_next_hop &&
                headerfilter_a2b == rhs.headerfilter_a2b && headerfilter_b2a == rhs.headerfilter_b2a &&
-               sdpfilter == rhs.sdpfilter && mediafilter == rhs.mediafilter && sst_enabled == rhs.sst_enabled &&
+               mediafilter == rhs.mediafilter && sst_enabled == rhs.sst_enabled &&
                sst_aleg_enabled == rhs.sst_aleg_enabled && auth_enabled == rhs.auth_enabled &&
                auth_aleg_enabled == rhs.auth_aleg_enabled && reply_translations == rhs.reply_translations &&
                append_headers == rhs.append_headers && refuse_with == rhs.refuse_with &&
