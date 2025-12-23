@@ -277,7 +277,7 @@ void normalize_conn_location(AmSdp &sdp, int location_id)
     }
 }
 
-void clear_ice_params(AmSdp &sdp)
+inline void clear_media_params(AmSdp &sdp)
 {
     sdp.ice_pwd.clear();
     sdp.ice_ufrag.clear();
@@ -287,19 +287,11 @@ void clear_ice_params(AmSdp &sdp)
         m.ice_ufrag.clear();
         m.ice_candidate.clear();
         m.is_ice = false;
-    }
-}
-
-inline void clear_zrtp_params(AmSdp &sdp)
-{
-    if (sdp.media.empty())
-        return;
 #ifdef WITH_ZRTP
-    for (auto &m : sdp.media) {
         m.zrtp_hash.is_use = false;
         m.zrtp_hash.hash.clear();
-    }
 #endif
+    }
 }
 
 inline bool is_telephone_event(const SdpPayload &p)
@@ -743,8 +735,7 @@ int filterSdpOffer(SBCCallLeg *call, _AmSipMsgInDlg &sip_msg, SBCCallProfile &ca
         fixDynamicPayloads(sdp, negotiated_media);
 
         filterSDPalines(sdp, a_leg ? call_profile.sdpalinesfilter : call_profile.bleg_sdpalinesfilter);
-        clear_ice_params(sdp);
-        clear_zrtp_params(sdp);
+        clear_media_params(sdp);
 
         res = cutNoAudioStreams(sdp, call_profile.filter_noaudio_streams);
         if (0 != res) {
@@ -995,8 +986,7 @@ int processSdpAnswer(SBCCallLeg *call, _AmSipMsgInDlg &sip_msg, AmMimeBody &body
 
         normalize_conn_location(sdp, a_leg ? call_profile.bleg_conn_location_id : call_profile.aleg_conn_location_id);
 
-        clear_ice_params(sdp);
-        clear_zrtp_params(sdp);
+        clear_media_params(sdp);
     }
 
     DBG_SDP_MEDIA(sdp.media, "processSdpAnswer_out");
