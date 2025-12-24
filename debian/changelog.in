@@ -1,3 +1,8 @@
+sems-yeti (1.14.18) stable; urgency=medium
+  * fix rtcp-mux relaying/processing
+  * add new values for {aleg,bleg}_media_encryption_mode_id to cover /AVPF media profiles
+ -- dev <dev@yeti-switch.org>  Wed, 24 Dec 2025 23:31:07 +0200
+
 sems-yeti (1.14.17) stable; urgency=medium
   * fix AVPF RTP profiles matching
   * allow ICE for aleg
