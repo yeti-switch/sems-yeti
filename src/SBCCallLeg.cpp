@@ -1623,6 +1623,7 @@ void SBCCallLeg::applyAProfile()
             if (first_media.is_ice) {
                 useIceMediaStream();
             }
+            setRtcpMultiplexing(first_media.is_multiplex);
 #ifdef WITH_ZRTP
             setZrtpEnabled(call_profile.aleg_media_allow_zrtp && first_media.zrtp_hash.is_use);
 #endif

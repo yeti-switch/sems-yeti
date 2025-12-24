@@ -291,6 +291,7 @@ inline void clear_media_params(AmSdp &sdp)
         m.zrtp_hash.is_use = false;
         m.zrtp_hash.hash.clear();
 #endif
+        m.is_multiplex = false;
     }
 }
 
