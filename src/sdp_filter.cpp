@@ -463,16 +463,16 @@ void apply_sdp_to_body(AmMimeBody &body, AmMimeBody *sdp_body, AmSdp &sdp, bool 
     }
 }
 
-bool is_media_transport_equal_ignoring_avpf(TransProt lhs_noavpf, TransProt rhs)
+bool is_media_transport_equal_ignoring_avpf(TransProt lhs, TransProt rhs)
 {
     switch (rhs) {
     case TP_RTPAVP:
-    case TP_RTPAVPF:        return lhs_noavpf == TP_RTPAVP;
+    case TP_RTPAVPF:        return lhs == TP_RTPAVP || lhs == TP_RTPAVPF;
     case TP_RTPSAVP:
-    case TP_RTPSAVPF:       return lhs_noavpf == TP_RTPSAVP;
+    case TP_RTPSAVPF:       return lhs == TP_RTPSAVP || lhs == TP_RTPSAVPF;
     case TP_UDPTLSRTPSAVP:
-    case TP_UDPTLSRTPSAVPF: return lhs_noavpf == TP_UDPTLSRTPSAVP;
-    default:                return lhs_noavpf == rhs;
+    case TP_UDPTLSRTPSAVPF: return lhs == TP_UDPTLSRTPSAVP || lhs == TP_UDPTLSRTPSAVPF;
+    default:                return lhs == rhs;
     }
 }
 
