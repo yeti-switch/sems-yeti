@@ -77,33 +77,40 @@ GatewaysCache::GatewayData::operator AmArg() const
 
     // tel: refer/redirect
 
-    a["transfer_tel_uri_host"]            = tel_redirect_data.transfer_tel_uri_host;
-    auto &transfer_append_headers_req_arg = a["transfer_append_headers_req"];
+    auto &transfer                        = a["transfer"];
+    transfer["tel_uri_host"]              = tel_redirect_data.transfer_tel_uri_host;
+    auto &transfer_append_headers_req_arg = transfer["append_headers_req"];
     transfer_append_headers_req_arg.assertArray();
     for (const auto &hdr : tel_redirect_data.transfer_append_headers_req)
         transfer_append_headers_req_arg.push(hdr);
 
-    // throttling
+    auto &media                    = a["media"];
+    media["ice_mode_id"]           = MediaSettings::mode2str(media_settings.ice_mode_id);
+    media["rtcp_mux_mode_id"]      = MediaSettings::mode2str(media_settings.rtcp_mux_mode_id);
+    media["rtcp_feedback_mode_id"] = MediaSettings::mode2str(media_settings.rtcp_feedback_mode_id);
 
-    a["throttling_enabled"] = throttling_enabled;
+    // throttling
+    auto &throttling = a["throttling"];
+
+    throttling["enabled"] = throttling_enabled;
 
     if (!throttling_enabled)
         return a;
 
     for (auto code : throttling_local_codes)
-        a["throttling_local_codes"].push(code);
+        throttling["local_codes"].push(code);
 
     for (auto code : throttling_remote_codes)
-        a["throttling_remote_codes"].push(code);
+        throttling["remote_codes"].push(code);
 
-    a["throttling_minimum_calls"]   = throttling_minimum_calls;
-    a["throttling_window"]          = throttling_window;
-    a["throttling_threshold_start"] = throttling_threshold_start;
-    a["throttling_threshold_end"]   = throttling_threshold_end;
-    a["failure_rate_multiplier"]    = failure_rate_multiplier;
+    throttling["minimum_calls"]   = throttling_minimum_calls;
+    throttling["window"]          = throttling_window;
+    throttling["threshold_start"] = throttling_threshold_start;
+    throttling["threshold_end"]   = throttling_threshold_end;
+    throttling["rate_multiplier"] = failure_rate_multiplier;
 
     // stats
-    AmArg &s = a["stats"];
+    AmArg &s = throttling["stats"];
 
     auto &slots           = stats.getTimeSlots();
     auto  it              = slots.begin();
@@ -271,4 +278,15 @@ std::optional<GatewaysCache::TelRedirectData> GatewaysCache::get_redirect_data(G
         return std::nullopt;
 
     return gw_it->second.tel_redirect_data;
+}
+
+std::optional<GatewaysCache::MediaSettings> GatewaysCache::get_media_settings(GatewayIdType gateway_id)
+{
+    AmLock lock(mutex);
+
+    auto gw_it = gateways.find(gateway_id);
+    if (gw_it == gateways.end())
+        return std::nullopt;
+
+    return gw_it->second.media_settings;
 }

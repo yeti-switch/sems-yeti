@@ -18,6 +18,34 @@ class GatewaysCache {
         list<string> transfer_append_headers_req;
     };
 
+    struct MediaSettings {
+        enum MediaModeId {
+            MEDIA_MODE_DISABLED = 0,        // ignore in incoming Offer, do not announce in outgoing Offer
+            MEDIA_MODE_ENABLE_WHEN_OFFERED, // accept in incoming Offer, do not announce in outgoing Offer
+            MEDIA_MODE_ENABLED              // accept in incoming Offer, announce in outgoing Offer
+        };
+
+        MediaModeId ice_mode_id;
+        MediaModeId rtcp_mux_mode_id;
+        MediaModeId rtcp_feedback_mode_id;
+
+        MediaSettings()
+            : ice_mode_id(MEDIA_MODE_ENABLE_WHEN_OFFERED)
+            , rtcp_mux_mode_id(MEDIA_MODE_ENABLE_WHEN_OFFERED)
+            , rtcp_feedback_mode_id(MEDIA_MODE_ENABLE_WHEN_OFFERED)
+        {
+        }
+
+        static const char *mode2str(MediaModeId mode_id)
+        {
+            switch (mode_id) {
+            case MEDIA_MODE_DISABLED:            return "disabled";
+            case MEDIA_MODE_ENABLE_WHEN_OFFERED: return "enable_when_offered";
+            case MEDIA_MODE_ENABLED:             return "enabled";
+            }
+        }
+    };
+
   private:
     using GatewayIdType = int;
     struct GatewayData {
@@ -36,7 +64,8 @@ class GatewaysCache {
         // tel: refer
         TelRedirectData tel_redirect_data;
 
-        GatewayStats stats;
+        GatewayStats  stats;
+        MediaSettings media_settings;
 
         GatewayData(GatewayIdType gateway_id, const AmArg &r);
         operator AmArg() const;
@@ -63,4 +92,5 @@ class GatewaysCache {
     bool should_skip(GatewayIdType gateway_id, int now);
 
     std::optional<TelRedirectData> get_redirect_data(GatewayIdType gateway_id);
+    std::optional<MediaSettings>   get_media_settings(GatewayIdType gateway_id);
 };
