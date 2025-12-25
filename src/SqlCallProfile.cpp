@@ -765,10 +765,6 @@ static TransProt encryption_mode2transport(int mode, bool &allow_zrtp)
      * 1  - RTP/SAVP
      * 2  - UDP/TLS/RTP/SAVP
      * 3  - ZRTP (RTP/AVP + zrtp_hash)
-     * 8  - RTP/AVPF
-     * 9  - RTP/SAVPF
-     * 10 - UDP/TLS/RTP/SAVPF
-     * 11 - ZRTP (RTP_AVPF + zrtp_hash)
      */
 
     allow_zrtp = false;
@@ -779,11 +775,6 @@ static TransProt encryption_mode2transport(int mode, bool &allow_zrtp)
     case 1:  return TP_RTPSAVP;
     case 2:  return TP_UDPTLSRTPSAVP;
 
-    case 11: allow_zrtp = true;
-    case 8:  return TP_RTPAVPF;
-
-    case 9:  return TP_RTPSAVPF;
-    case 10: return TP_UDPTLSRTPSAVPF;
     default: return TP_NONE;
     }
 }

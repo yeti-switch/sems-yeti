@@ -463,17 +463,24 @@ void apply_sdp_to_body(AmMimeBody &body, AmMimeBody *sdp_body, AmSdp &sdp, bool 
     }
 }
 
-bool is_media_transport_equal_ignoring_avpf(TransProt lhs, TransProt rhs)
+std::tuple<TransProt, int> normalize_media_transport(TransProt tp)
 {
-    switch (rhs) {
-    case TP_RTPAVP:
-    case TP_RTPAVPF:        return lhs == TP_RTPAVP || lhs == TP_RTPAVPF;
-    case TP_RTPSAVP:
-    case TP_RTPSAVPF:       return lhs == TP_RTPSAVP || lhs == TP_RTPSAVPF;
-    case TP_UDPTLSRTPSAVP:
-    case TP_UDPTLSRTPSAVPF: return lhs == TP_UDPTLSRTPSAVP || lhs == TP_UDPTLSRTPSAVPF;
-    default:                return lhs == rhs;
+    TransProt ret;
+    bool      is_rtcp_feedback = false;
+
+    switch (tp) {
+    case TP_RTPAVPF:        is_rtcp_feedback = true;
+    case TP_RTPAVP:         ret = TP_RTPAVP; break;
+
+    case TP_RTPSAVPF:       is_rtcp_feedback = true;
+    case TP_RTPSAVP:        ret = TP_RTPSAVP; break;
+
+    case TP_UDPTLSRTPSAVPF: is_rtcp_feedback = true;
+    case TP_UDPTLSRTPSAVP:  ret = TP_UDPTLSRTPSAVP; break;
+
+    default:                ret = tp;
     }
+    return { ret, is_rtcp_feedback };
 }
 
 int processSdpOffer(SBCCallLeg *call, SBCCallProfile &call_profile, AmMimeBody &body, string &method,
@@ -543,17 +550,38 @@ int processSdpOffer(SBCCallLeg *call, SBCCallProfile &call_profile, AmMimeBody &
         reduce_codecs_to_single(sdp.media);
 
     if (call_profile.rtprelay_enabled) {
+
         auto &first_media = *sdp.media.begin();
+
         if (first_media.type == MT_AUDIO) {
+            auto [offer_media_transport_no_avpf, is_rtcp_feedback] = normalize_media_transport(first_media.transport);
+
+            bool allow_rtcp_feedback = true;
+            if (is_rtcp_feedback) {
+                auto media_settings_opt =
+                    Yeti::instance().gateways_cache.get_media_settings(call_profile.lega_gw_cache_id);
+                if (media_settings_opt) {
+                    const auto &media_settings = media_settings_opt.value();
+                    allow_rtcp_feedback =
+                        media_settings.rtcp_feedback_mode_id != GatewaysCache::MediaSettings::MEDIA_MODE_DISABLED;
+                }
+                if (is_rtcp_feedback != allow_rtcp_feedback) {
+                    DBG("got offer media transport %s while rtcp_feedback is disabled",
+                        transport_p_2_str(first_media.transport).data());
+                    return FC_INVALID_MEDIA_TRANSPORT;
+                }
+            }
+
             const auto &media_transport =
                 call->isALeg() ? call_profile.aleg_media_transport : call_profile.bleg_media_transport;
-            if (!is_media_transport_equal_ignoring_avpf(media_transport, first_media.transport)) {
-                DBG("got offer transport type %s while expected %s", transport_p_2_str(first_media.transport).data(),
-                    transport_p_2_str(media_transport).data());
+
+            if (offer_media_transport_no_avpf != media_transport) {
+                DBG("got offer media transport %s while expected %s%s", transport_p_2_str(first_media.transport).data(),
+                    transport_p_2_str(media_transport).data(), allow_rtcp_feedback ? "[F]" : "");
                 return FC_INVALID_MEDIA_TRANSPORT;
             }
 #ifdef WITH_ZRTP
-            if (TP_RTPAVP == media_transport || TP_RTPAVPF == media_transport) {
+            if (TP_RTPAVP == offer_media_transport_no_avpf) {
                 const auto &zrtp_enabled =
                     call->isALeg() ? call_profile.aleg_media_allow_zrtp : call_profile.bleg_media_allow_zrtp;
                 if (zrtp_enabled && !first_media.zrtp_hash.is_use) {

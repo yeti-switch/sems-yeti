@@ -324,6 +324,9 @@ struct SBCCallProfile : public AmObject {
 
     string push_token;
 
+    int lega_gw_cache_id;
+    int legb_gw_cache_id;
+
     struct TranscoderSettings {
         enum { DTMFAlways, DTMFNever } dtmf_mode;
 

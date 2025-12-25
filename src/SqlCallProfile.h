@@ -29,8 +29,6 @@ struct SqlCallProfile : public SBCCallProfile
     int aleg_session_refresh_method_id;
     int aleg_override_id, bleg_override_id;
     int dump_level_id;
-    int lega_gw_cache_id;
-    int legb_gw_cache_id;
 
     /** whether or not we should parse trusted headers from this gateway */
     bool trusted_hdrs_gw;

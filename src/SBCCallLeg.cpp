@@ -1620,10 +1620,21 @@ void SBCCallLeg::applyAProfile()
         if (!m.empty()) {
             auto &first_media = *m.begin();
             setMediaTransport(first_media.transport);
-            if (first_media.is_ice) {
+
+            bool allow_ice          = true;
+            bool allow_rtcp_mux     = true;
+            auto media_settings_opt = yeti.gateways_cache.get_media_settings(call_profile.lega_gw_cache_id);
+            if (media_settings_opt) {
+                const auto &media_settings = media_settings_opt.value();
+                allow_ice      = media_settings.ice_mode_id != GatewaysCache::MediaSettings::MEDIA_MODE_DISABLED;
+                allow_rtcp_mux = media_settings.rtcp_mux_mode_id != GatewaysCache::MediaSettings::MEDIA_MODE_DISABLED;
+            }
+
+            if (first_media.is_ice && allow_ice) {
                 useIceMediaStream();
             }
-            setRtcpMultiplexing(first_media.is_multiplex);
+
+            setRtcpMultiplexing(first_media.is_multiplex && allow_rtcp_mux);
 #ifdef WITH_ZRTP
             setZrtpEnabled(call_profile.aleg_media_allow_zrtp && first_media.zrtp_hash.is_use);
 #endif
