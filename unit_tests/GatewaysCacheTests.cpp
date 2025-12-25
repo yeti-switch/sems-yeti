@@ -80,3 +80,36 @@ TEST_F(YetiTest, GatewaysCacheThrottling)
     cache.update_reply_stats(1, reply);
     ASSERT_FALSE(cache.should_skip(1, now));
 }
+
+TEST_F(YetiTest, GatewaysCacheMediaSettings)
+{
+    AmArg arg, ret;
+    arg.assertArray();
+
+    GatewaysCache cache;
+
+    // check defaults
+    cache.update({ { AmArg{ { "id", 1LL } } } });
+
+    {
+        cache.info(arg, ret);
+        const auto &media = ret["gateways"]["1"]["media"];
+        ASSERT_EQ(media["ice_mode_id"], "enable_when_offered");
+        ASSERT_EQ(media["rtcp_mux_mode_id"], "enable_when_offered");
+        ASSERT_EQ(media["rtcp_feedback_mode_id"], "enable_when_offered");
+    }
+
+    // check parsing
+    cache.update({ { AmArg{ { "id", 1LL },
+                            { "ice_mode_id", GatewaysCache::MediaSettings::MEDIA_MODE_DISABLED },
+                            { "rtcp_mux_mode_id", GatewaysCache::MediaSettings::MEDIA_MODE_DISABLED },
+                            { "rtcp_feedback_mode_id", GatewaysCache::MediaSettings::MEDIA_MODE_DISABLED } } } });
+
+    {
+        cache.info(arg, ret);
+        const auto &media = ret["gateways"]["1"]["media"];
+        ASSERT_EQ(media["ice_mode_id"], "disabled");
+        ASSERT_EQ(media["rtcp_mux_mode_id"], "disabled");
+        ASSERT_EQ(media["rtcp_feedback_mode_id"], "disabled");
+    }
+}
