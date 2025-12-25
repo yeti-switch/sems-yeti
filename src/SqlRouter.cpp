@@ -704,17 +704,20 @@ void SqlRouter::write_auth_log(const AuthCdr &auth_log)
     AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_param_execute_event.release());
 }
 
-void SqlRouter::log_auth(const AmSipRequest &req, bool success, AmArg &ret, Auth::auth_id_type auth_id)
+void SqlRouter::log_auth(const AmSipRequest &req, bool success, AmArg &ret, int auth_feedback_code,
+                         Auth::auth_id_type auth_id)
 {
-    write_auth_log(AuthCdr(req, success, ret[0].asInt(), ret[1].asCStr(), ret[3].asCStr(), auth_id));
+    write_auth_log(
+        AuthCdr(req, success, ret[0].asInt(), ret[1].asCStr(), ret[3].asCStr(), auth_feedback_code, auth_id));
 }
 
 void SqlRouter::send_and_log_auth_challenge(const AmSipRequest &req, const OriginationPreAuth::Reply &ip_auth_data,
-                                            const string &internal_reason, const string &hdrs, bool post_auth_log)
+                                            const string &internal_reason, int auth_feedback_code, const string &hdrs,
+                                            bool post_auth_log)
 {
     Auth::send_auth_challenge(req, hdrs, ip_auth_data);
     if (post_auth_log) {
-        write_auth_log(AuthCdr(req, false, 401, "Unauthorized", internal_reason, 0));
+        write_auth_log(AuthCdr(req, false, 401, "Unauthorized", internal_reason, auth_feedback_code, 0));
     }
 }
 

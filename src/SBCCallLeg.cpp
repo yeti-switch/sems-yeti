@@ -4184,7 +4184,7 @@ void SBCCallLeg::send_and_log_auth_challenge(const AmSipRequest &req, const stri
     if (yeti.config.auth_feedback && auth_feedback_code) {
         hdrs = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
     }
-    router.send_and_log_auth_challenge(req, ip_auth_data, internal_reason, hdrs, post_auth_log);
+    router.send_and_log_auth_challenge(req, ip_auth_data, internal_reason, auth_feedback_code, hdrs, post_auth_log);
 }
 
 void SBCCallLeg::setRejectCdr(int disconnect_code_id)

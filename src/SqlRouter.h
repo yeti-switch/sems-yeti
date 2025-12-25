@@ -89,10 +89,12 @@ class SqlRouter : public Auth {
     void write_cdr(std::unique_ptr<Cdr> &cdr, bool last);
     void write_auth_log(const AuthCdr &auth_log);
 
-    void log_auth(const AmSipRequest &req, bool success, AmArg &ret, Auth::auth_id_type auth_id = 0);
+    void log_auth(const AmSipRequest &req, bool success, AmArg &ret, int auth_feedback_code,
+                  Auth::auth_id_type auth_id);
 
     void send_and_log_auth_challenge(const AmSipRequest &req, const OriginationPreAuth::Reply &ip_auth_data,
-                                     const string &internal_reason, const string &hdrs, bool post_auth_log);
+                                     const string &internal_reason, int auth_feedback_code, const string &hdrs,
+                                     bool post_auth_log);
 
     void dump_config();
     void getStats(AmArg &arg);

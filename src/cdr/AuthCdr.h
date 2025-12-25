@@ -32,6 +32,7 @@ class AuthCdr : public CdrBase
     int                code;
     string             reason;
     string             internal_reason;
+    int                auth_error_id;
     string             nonce;
     string             response;
     string             username;
@@ -41,7 +42,7 @@ class AuthCdr : public CdrBase
 
   public:
     AuthCdr(const AmSipRequest &req, bool success, int code, const string &reason, const string &internal_reason,
-            Auth::auth_id_type auth_id);
+            int _auth_error_id, Auth::auth_id_type auth_id);
 
     void apply_params(QueryInfo & query_info) const;
     void info(AmArg & s) override;

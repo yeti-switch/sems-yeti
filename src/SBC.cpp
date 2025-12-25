@@ -185,7 +185,7 @@ void SBCFactory::send_auth_error_reply(const AmSipRequest &req, AmArg &ret, int 
         hdr = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
     }
     AmSipDialog::reply_error(req, static_cast<unsigned int>(ret[0].asInt()), ret[1].asCStr(), hdr + ret[2].asCStr());
-    yeti->router.log_auth(req, false, ret);
+    yeti->router.log_auth(req, false, ret, auth_feedback_code, 0);
 }
 
 void SBCFactory::send_and_log_auth_challenge(const AmSipRequest &req, const OriginationPreAuth::Reply &ip_auth_data,
@@ -195,7 +195,8 @@ void SBCFactory::send_and_log_auth_challenge(const AmSipRequest &req, const Orig
     if (auth_feedback) {
         hdrs = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
     }
-    yeti->router.send_and_log_auth_challenge(req, ip_auth_data, internal_reason, hdrs, post_auth_log);
+    yeti->router.send_and_log_auth_challenge(req, ip_auth_data, internal_reason, auth_feedback_code, hdrs,
+                                             post_auth_log);
 }
 
 AmSession *SBCFactory::onInvite(const AmSipRequest &req, const string &, const map<string, string> &)
@@ -242,7 +243,7 @@ AmSession *SBCFactory::onInvite(const AmSipRequest &req, const string &, const m
     if (auth_result_id > 0) {
         DBG("successfully authorized with id %d", auth_result_id);
         if (!yeti->router.is_skip_logging_invite_success())
-            yeti->router.log_auth(req, true, ret, auth_result_id);
+            yeti->router.log_auth(req, true, ret, -1, auth_result_id);
     } else if (auth_result_id < 0) {
         auto auth_result_id_negated = -auth_result_id;
         if (auth_result_id_negated > Auth::NO_IP_AUTH) {
@@ -346,7 +347,7 @@ void SBCFactory::onOoDRequest(const AmSipRequest &req)
         }
 
         DBG("REGISTER successfully authorized with id %d", auth_id);
-        yeti->router.log_auth(req, true, ret, auth_id);
+        yeti->router.log_auth(req, true, ret, -1, auth_id);
 
         if (false ==
             AmSessionContainer::instance()->postEvent(

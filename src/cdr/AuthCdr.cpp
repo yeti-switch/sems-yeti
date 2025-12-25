@@ -30,6 +30,7 @@ const std::vector<static_field> auth_log_static_fields = {
     {               "code", "smallint" },
     {             "reason",  "varchar" },
     {    "internal_reason",  "varchar" },
+    {      "auth_error_id", "smallint" },
     {              "nonce",  "varchar" },
     {           "response",  "varchar" },
     {            "auth_id",  "integer" },
@@ -65,7 +66,7 @@ inline string find_attribute(const string &name, const string &header)
 }
 
 AuthCdr::AuthCdr(const AmSipRequest &req, bool _success, int _code, const string &_reason,
-                 const string &_internal_reason, Auth::auth_id_type _auth_id)
+                 const string &_internal_reason, int _auth_error_id, Auth::auth_id_type _auth_id)
     : CdrBase(CdrBase::Auth)
     ,
     // fields from SIP request
@@ -86,6 +87,7 @@ AuthCdr::AuthCdr(const AmSipRequest &req, bool _success, int _code, const string
     , code(_code)
     , reason(_reason)
     , internal_reason(_internal_reason)
+    , auth_error_id(_auth_error_id)
     , auth_id(_auth_id)
     , aleg_headers_amarg(Yeti::instance().config.aleg_cdr_headers.serialize_headers(req.hdrs))
 {
@@ -150,6 +152,7 @@ void AuthCdr::apply_params(QueryInfo &query_info) const
     invoc_typed("smallint", code);
     invoc(reason);
     invoc(internal_reason);
+    invoc_cond_typed("smallint", auth_error_id, auth_error_id >= 0);
     invoc_cond(nonce, !nonce.empty());
     invoc_cond(response, !response.empty());
     invoc_cond(auth_id, auth_id > 0);
