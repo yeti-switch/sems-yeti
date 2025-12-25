@@ -18,7 +18,7 @@ TEST_F(YetiTest, GatewaysCacheThrottling)
     arg.assertArray();
     cache.info(arg, ret);
     // DBG("ret: %s", ret.print().data());
-    ASSERT_EQ(ret["gateways"]["1"]["throttling_enabled"].asBool(), true);
+    ASSERT_EQ(ret["gateways"]["1"]["throttling"]["enabled"].asBool(), true);
 
     AmSipReply reply;
     reply.code           = 408;
@@ -28,15 +28,15 @@ TEST_F(YetiTest, GatewaysCacheThrottling)
     cache.update_reply_stats(1, reply);
     cache.info(arg, ret);
     // we have not reached throttling_minimum_calls yet
-    ASSERT_EQ(ret["gateways"]["1"]["stats"]["failure_rate"].asDouble(), 0.0);
-    ASSERT_EQ(ret["gateways"]["1"]["stats"]["skip_rate"].asDouble(), 0.0);
+    ASSERT_EQ(ret["gateways"]["1"]["throttling"]["stats"]["failure_rate"].asDouble(), 0.0);
+    ASSERT_EQ(ret["gateways"]["1"]["throttling"]["stats"]["skip_rate"].asDouble(), 0.0);
     ASSERT_FALSE(cache.should_skip(1, now));
 
     cache.update_reply_stats(1, reply);
     cache.info(arg, ret);
     // throttling_minimum_calls reached. expect 100 failure rate
-    ASSERT_EQ(ret["gateways"]["1"]["stats"]["failure_rate"].asDouble(), 100.0);
-    ASSERT_EQ(ret["gateways"]["1"]["stats"]["skip_rate"].asDouble(), 100.0);
+    ASSERT_EQ(ret["gateways"]["1"]["throttling"]["stats"]["failure_rate"].asDouble(), 100.0);
+    ASSERT_EQ(ret["gateways"]["1"]["throttling"]["stats"]["skip_rate"].asDouble(), 100.0);
     ASSERT_TRUE(cache.should_skip(1, now));
 
     reply.code = 200;
@@ -44,8 +44,8 @@ TEST_F(YetiTest, GatewaysCacheThrottling)
     cache.update_reply_stats(1, reply);
     cache.info(arg, ret);
     // have 2 more successful calls. failure rate is 50
-    ASSERT_EQ(ret["gateways"]["1"]["stats"]["failure_rate"].asDouble(), 50.0);
-    ASSERT_EQ(ret["gateways"]["1"]["stats"]["skip_rate"].asDouble(), 60.0);
+    ASSERT_EQ(ret["gateways"]["1"]["throttling"]["stats"]["failure_rate"].asDouble(), 50.0);
+    ASSERT_EQ(ret["gateways"]["1"]["throttling"]["stats"]["skip_rate"].asDouble(), 60.0);
 
     // check skip probability
     int skipped = 0, allowed = 0;
