@@ -1,3 +1,7 @@
+sems-yeti (1.14.20) stable; urgency=medium
+  * AuthLog: write auth_error_id
+ -- dev <dev@yeti-switch.org>  Thu, 25 Dec 2025 22:08:56 +0200
+
 sems-yeti (1.14.19) stable; urgency=medium
   * add ice_mode_id,rtcp_mux_mode_id,rtcp_feedback_mode_id for gateways cache.
     allows to configure ICE,rtcp-mux,AVPF for A/B legs
