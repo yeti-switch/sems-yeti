@@ -20,7 +20,7 @@ class GatewaysCache {
 
     struct MediaSettings {
         enum MediaModeId {
-            MEDIA_MODE_DISABLED = 0,        // ignore in incoming Offer, do not announce in outgoing Offer
+            MEDIA_MODE_DISABLED = 0,        // ignore/reject in incoming Offer, do not announce in outgoing Offer
             MEDIA_MODE_ENABLE_WHEN_OFFERED, // accept in incoming Offer, do not announce in outgoing Offer
             MEDIA_MODE_ENABLED              // accept in incoming Offer, announce in outgoing Offer
         };
@@ -92,5 +92,9 @@ class GatewaysCache {
     bool should_skip(GatewayIdType gateway_id, int now);
 
     std::optional<TelRedirectData> get_redirect_data(GatewayIdType gateway_id);
-    std::optional<MediaSettings>   get_media_settings(GatewayIdType gateway_id);
+
+    // rerurn [ice_enabled, rtcp_mux_enabled, rtcp_feedback_enabled]
+    std::tuple<bool, bool, bool> get_media_settings_enabled(GatewayIdType gateway_id);
+    // rerurn [ice_allowed, rtcp_mux_allowed, rtcp_feedback_allowed]
+    std::tuple<bool, bool, bool> get_media_settings_allowed(GatewayIdType gateway_id);
 };

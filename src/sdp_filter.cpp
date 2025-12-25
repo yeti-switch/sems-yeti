@@ -556,20 +556,14 @@ int processSdpOffer(SBCCallLeg *call, SBCCallProfile &call_profile, AmMimeBody &
         if (first_media.type == MT_AUDIO) {
             auto [offer_media_transport_no_avpf, is_rtcp_feedback] = normalize_media_transport(first_media.transport);
 
-            bool allow_rtcp_feedback = true;
-            if (is_rtcp_feedback) {
-                auto media_settings_opt =
-                    Yeti::instance().gateways_cache.get_media_settings(call_profile.lega_gw_cache_id);
-                if (media_settings_opt) {
-                    const auto &media_settings = media_settings_opt.value();
-                    allow_rtcp_feedback =
-                        media_settings.rtcp_feedback_mode_id != GatewaysCache::MediaSettings::MEDIA_MODE_DISABLED;
-                }
-                if (is_rtcp_feedback != allow_rtcp_feedback) {
-                    DBG("got offer media transport %s while rtcp_feedback is disabled",
-                        transport_p_2_str(first_media.transport).data());
-                    return FC_INVALID_MEDIA_TRANSPORT;
-                }
+            bool allow_rtcp_feedback;
+            std::tie(std::ignore, std::ignore, allow_rtcp_feedback) =
+                Yeti::instance().gateways_cache.get_media_settings_allowed(call_profile.lega_gw_cache_id);
+
+            if (is_rtcp_feedback && !allow_rtcp_feedback) {
+                DBG("got offer media transport %s while rtcp_feedback is disabled",
+                    transport_p_2_str(first_media.transport).data());
+                return FC_INVALID_MEDIA_TRANSPORT;
             }
 
             const auto &media_transport =

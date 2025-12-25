@@ -280,13 +280,30 @@ std::optional<GatewaysCache::TelRedirectData> GatewaysCache::get_redirect_data(G
     return gw_it->second.tel_redirect_data;
 }
 
-std::optional<GatewaysCache::MediaSettings> GatewaysCache::get_media_settings(GatewayIdType gateway_id)
+std::tuple<bool, bool, bool> GatewaysCache::get_media_settings_enabled(GatewayIdType gateway_id)
 {
     AmLock lock(mutex);
 
     auto gw_it = gateways.find(gateway_id);
     if (gw_it == gateways.end())
-        return std::nullopt;
+        return { false, false, false };
 
-    return gw_it->second.media_settings;
+    const auto &m = gw_it->second.media_settings;
+    return { m.ice_mode_id == MediaSettings::MEDIA_MODE_ENABLED,
+             m.rtcp_mux_mode_id == MediaSettings::MEDIA_MODE_ENABLED,
+             m.rtcp_feedback_mode_id == MediaSettings::MEDIA_MODE_ENABLED };
+}
+
+std::tuple<bool, bool, bool> GatewaysCache::get_media_settings_allowed(GatewayIdType gateway_id)
+{
+    AmLock lock(mutex);
+
+    auto gw_it = gateways.find(gateway_id);
+    if (gw_it == gateways.end())
+        return { true, true, true };
+
+    const auto &m = gw_it->second.media_settings;
+    return { m.ice_mode_id != MediaSettings::MEDIA_MODE_DISABLED,
+             m.rtcp_mux_mode_id != MediaSettings::MEDIA_MODE_DISABLED,
+             m.rtcp_feedback_mode_id != MediaSettings::MEDIA_MODE_DISABLED };
 }

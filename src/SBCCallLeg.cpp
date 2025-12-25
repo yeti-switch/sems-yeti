@@ -1621,14 +1621,8 @@ void SBCCallLeg::applyAProfile()
             auto &first_media = *m.begin();
             setMediaTransport(first_media.transport);
 
-            bool allow_ice          = true;
-            bool allow_rtcp_mux     = true;
-            auto media_settings_opt = yeti.gateways_cache.get_media_settings(call_profile.lega_gw_cache_id);
-            if (media_settings_opt) {
-                const auto &media_settings = media_settings_opt.value();
-                allow_ice      = media_settings.ice_mode_id != GatewaysCache::MediaSettings::MEDIA_MODE_DISABLED;
-                allow_rtcp_mux = media_settings.rtcp_mux_mode_id != GatewaysCache::MediaSettings::MEDIA_MODE_DISABLED;
-            }
+            auto [allow_ice, allow_rtcp_mux, allow_rtcp_feedback] =
+                yeti.gateways_cache.get_media_settings_allowed(call_profile.lega_gw_cache_id);
 
             if (first_media.is_ice && allow_ice) {
                 useIceMediaStream();
@@ -1693,6 +1687,19 @@ int SBCCallLeg::applySSTCfg(AmConfigReader &sst_cfg, const AmSipRequest *p_req)
     return 0;
 }
 
+static TransProt apply_avpf(TransProt tp, bool need_avpf)
+{
+    if (!need_avpf)
+        return tp;
+
+    switch (tp) {
+    case TP_RTPAVP:        return TP_RTPAVPF;
+    case TP_RTPSAVP:       return TP_RTPSAVPF;
+    case TP_UDPTLSRTPSAVP: return TP_UDPTLSRTPSAVPF;
+    default:               return tp;
+    }
+}
+
 void SBCCallLeg::applyBProfile()
 {
     setAllow1xxWithoutToTag(call_profile.allow_1xx_without_to_tag);
@@ -1723,6 +1730,8 @@ void SBCCallLeg::applyBProfile()
 
     // was read from caller but reading directly from profile now
     if (call_profile.rtprelay_enabled) {
+        auto [use_ice, use_rtcp_mux, use_rtcp_feedback] =
+            yeti.gateways_cache.get_media_settings_enabled(call_profile.legb_gw_cache_id);
 
         if (call_profile.rtprelay_interface_value >= 0)
             setRtpInterface(call_profile.rtprelay_interface_value);
@@ -1743,8 +1752,12 @@ void SBCCallLeg::applyBProfile()
         setRtpTimeout(call_profile.dead_rtp_time);
         setIgnoreRelayStreams(call_profile.filter_noaudio_streams);
         setEnableInboundDtmfFiltering(call_profile.aleg_rtp_filter_inband_dtmf);
-        setMediaTransport(call_profile.bleg_media_transport);
+
+        setMediaTransport(apply_avpf(call_profile.bleg_media_transport, use_rtcp_feedback));
         setZrtpEnabled(call_profile.bleg_media_allow_zrtp);
+        if (use_ice)
+            useIceMediaStream();
+        setRtcpMultiplexing(use_rtcp_mux);
 
         // copy stats counters
         rtp_pegs = call_profile.bleg_rtp_counters;
