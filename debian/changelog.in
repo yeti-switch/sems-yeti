@@ -1,3 +1,8 @@
+sems-yeti (1.14.19) stable; urgency=medium
+  * add ice_mode_id,rtcp_mux_mode_id,rtcp_feedback_mode_id for gateways cache.
+    allows to configure ICE,rtcp-mux,AVPF for A/B legs
+ -- dev <dev@yeti-switch.org>  Thu, 25 Dec 2025 15:47:49 +0200
+
 sems-yeti (1.14.18) stable; urgency=medium
   * fix rtcp-mux relaying/processing
   * add new values for {aleg,bleg}_media_encryption_mode_id to cover /AVPF media profiles
