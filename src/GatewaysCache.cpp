@@ -21,6 +21,19 @@ GatewaysCache::GatewayData::GatewayData(GatewayIdType gateway_id, const AmArg &r
         }
     }
 
+    // media settings
+    auto ice_mode_id_arg = r["ice_mode_id"];
+    if (ice_mode_id_arg.isNumber())
+        media_settings.ice_mode_id = ice_mode_id_arg.asNumber<MediaSettings::MediaModeId>();
+
+    auto rtcp_mux_mode_id_arg = r["rtcp_mux_mode_id"];
+    if (rtcp_mux_mode_id_arg.isNumber())
+        media_settings.rtcp_mux_mode_id = rtcp_mux_mode_id_arg.asNumber<MediaSettings::MediaModeId>();
+
+    auto rtcp_feedback_mode_id_arg = r["rtcp_feedback_mode_id"];
+    if (rtcp_feedback_mode_id_arg.isNumber())
+        media_settings.rtcp_feedback_mode_id = rtcp_feedback_mode_id_arg.asNumber<MediaSettings::MediaModeId>();
+
     // throttling
     auto &throttling_codes = r["throttling_codes"];
     if (!isArgArray(throttling_codes))
