@@ -7,54 +7,24 @@
 
 #define redis_conn Yeti::instance().rctl.getRedisConn()
 
-class PolicyFactory;
-extern PolicyFactory *makePolicyFactory(bool test, TestServer *server = 0);
-extern void           freePolicyFactory();
-
 class YetiTestInitialiser {
   protected:
-    RedisSettings    settings;
-    RedisTestServer *test_server;
-
-    void initTestServer()
-    {
-        test_server->response_enabled.set(false);
-        test_server->addLoadScriptCommandResponse(invalidate_resources_default_path, invalidate_resources_hash);
-        test_server->addLoadScriptCommandResponse(get_all_resources_default_path, get_all_resources_hash);
-        test_server->addLoadScriptCommandResponse(check_resources_default_path, check_resources_hash);
-        test_server->response_enabled.set(true);
-    }
+    RedisSettings settings;
 
   public:
     YetiTestInitialiser()
     {
         DBG("YetiTestInitialiser");
-        test_server = &redis_test::instance()->test_server;
-        settings    = redis_test::instance()->settings;
-        initTestServer();
+        settings = redis_test::instance()->settings;
     }
 };
 
 typedef singleton<YetiTestInitialiser> yeti_init;
 static yeti_init                      *yeti_init_global = yeti_init::instance();
-static yeti_test                      *yeti_test_global = yeti_test::instance();
 
 YetiTest::YetiTest()
 {
-    test_server = &redis_test::instance()->test_server;
-    settings    = redis_test::instance()->settings;
-}
-
-void YetiTest::SetUp()
-{
-    test_server->response_enabled.set(false);
-    test_server->clear();
-    test_server->addLoadScriptCommandResponse(redis_conn.get_script_path(INVALIDATE_RESOURCES_SCRIPT),
-                                              invalidate_resources_hash);
-    test_server->addLoadScriptCommandResponse(redis_conn.get_script_path(GET_ALL_RESOURCES_SCRIPT),
-                                              get_all_resources_hash);
-    test_server->addLoadScriptCommandResponse(redis_conn.get_script_path(CHECK_RESOURCES_SCRIPT), check_resources_hash);
-    test_server->response_enabled.set(true);
+    settings = redis_test::instance()->settings;
 }
 
 void YetiTest::initResources(ResourceRedisConnection &conn)
@@ -127,27 +97,4 @@ class YetiTestListener : public testing::EmptyTestEventListener {
             sleep(1);
         }
     }
-
-    void OnTestProgramEnd(const testing::UnitTest &) override { yeti_test::dispose(); }
 };
-
-YetiTestFactory::YetiTestFactory()
-{
-    AmArg routes;
-    routes["vartype"] = "int2";
-    routes["varname"] = "two";
-    routes["forcdr"]  = false;
-    pqtest_server.addResponse(string("SELECT * FROM load_interface_out()"), routes);
-    pqtest_server.addResponse(string("SELECT * FROM load_interface_in()"), routes);
-
-    AmArg restype;
-    restype["id"]               = 279;
-    restype["name"]             = "alexey";
-    restype["internal_code_id"] = 500;
-    restype["action_id"]        = 5;
-    pqtest_server.addResponse(string("SELECT * FROM load_resource_types()"), restype);
-    freePolicyFactory();
-    makePolicyFactory(true, &pqtest_server);
-
-    testing::UnitTest::GetInstance()->listeners().Append(new YetiTestListener);
-}
