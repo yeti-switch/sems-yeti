@@ -7,25 +7,7 @@
 
 #define redis_conn Yeti::instance().rctl.getRedisConn()
 
-class YetiTestInitialiser {
-  protected:
-    RedisSettings settings;
-
-  public:
-    YetiTestInitialiser()
-    {
-        DBG("YetiTestInitialiser");
-        settings = redis_test::instance()->settings;
-    }
-};
-
-typedef singleton<YetiTestInitialiser> yeti_init;
-static yeti_init                      *yeti_init_global = yeti_init::instance();
-
-YetiTest::YetiTest()
-{
-    settings = redis_test::instance()->settings;
-}
+YetiTest::YetiTest() {}
 
 void YetiTest::initResources(ResourceRedisConnection &conn)
 {
