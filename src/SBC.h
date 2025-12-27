@@ -62,9 +62,20 @@ struct CallLegCreator {
 class SBCFactory : public AmSessionFactory, public AmConfigFactory, public AmDynInvoke, public AmDynInvokeFactory {
     unique_ptr<Yeti> yeti;
 
-    /*SqlRouter router;
-    CdrList cdr_list;
-    ResourceControl rctl;*/
+    AtomicCounter &initial_invite_requests_counter;
+    AtomicCounter &register_requests_counter;
+    AtomicCounter &options_requests_counter;
+
+    AtomicCounter &invite_pre_auth_rejects;
+    AtomicCounter &invite_auth_rejects;
+    AtomicCounter &invite_digest_auth_rejects;
+    AtomicCounter &invite_jwt_auth_rejects;
+
+    AtomicCounter &register_auth_rejects;
+    AtomicCounter &register_digest_auth_rejects;
+    AtomicCounter &register_jwt_auth_rejects;
+
+    AtomicCounter &lega_created_counter;
 
     AmArg        pre_auth_ret;
     AmDynInvoke *yeti_invoke;

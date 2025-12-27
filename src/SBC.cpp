@@ -102,6 +102,18 @@ SBCFactory::SBCFactory(const string &_app_name)
     : AmSessionFactory(_app_name)
     , AmConfigFactory(_app_name)
     , AmDynInvokeFactory(_app_name)
+    , initial_invite_requests_counter(
+          stat_group(Counter, MOD_NAME, "rx_invite_requests").setHelp("RX initial INVITEs count").addAtomicCounter())
+    , register_requests_counter(stat_group(Counter, MOD_NAME, "rx_register_requests").addAtomicCounter())
+    , options_requests_counter(stat_group(Counter, MOD_NAME, "rx_options_requests").addAtomicCounter())
+    , invite_pre_auth_rejects(stat_group(Counter, MOD_NAME, "invite_pre_auth_rejects").addAtomicCounter())
+    , invite_auth_rejects(stat_group(Counter, MOD_NAME, "invite_auth_rejects").addAtomicCounter())
+    , invite_digest_auth_rejects(stat_group(Counter, MOD_NAME, "invite_digest_auth_rejects").addAtomicCounter())
+    , invite_jwt_auth_rejects(stat_group(Counter, MOD_NAME, "invite_jwt_auth_rejects").addAtomicCounter())
+    , register_auth_rejects(stat_group(Counter, MOD_NAME, "register_auth_rejects").addAtomicCounter())
+    , register_digest_auth_rejects(stat_group(Counter, MOD_NAME, "register_digest_auth_rejects").addAtomicCounter())
+    , register_jwt_auth_rejects(stat_group(Counter, MOD_NAME, "register_jwt_auth_rejects").addAtomicCounter())
+    , lega_created_counter(stat_group(Counter, MOD_NAME, "lega_created").addAtomicCounter())
     , yeti_invoke(nullptr)
     , core_options_handling(false)
     , callLegCreator(new CallLegCreator())
@@ -201,6 +213,8 @@ void SBCFactory::send_and_log_auth_challenge(const AmSipRequest &req, const Orig
 
 AmSession *SBCFactory::onInvite(const AmSipRequest &req, const string &, const map<string, string> &)
 {
+    initial_invite_requests_counter.inc();
+
     if ((req.max_forwards - yeti->config.max_forwards_decrement) < 1) {
         AmSipDialog::reply_error(req, 483, SIP_REPLY_TOO_MANY_HOPS);
         ERROR("Max-Forwards:%d is too low. ci:%s remote:%s:%hu", req.max_forwards, req.callid.c_str(),
@@ -226,6 +240,7 @@ AmSession *SBCFactory::onInvite(const AmSipRequest &req, const string &, const m
         DBG("INVITE %s from %s:%hu not matched by origination pre auth", req.r_uri.data(), req.remote_ip.data(),
             req.remote_port);
         if (yeti->config.ip_auth_reject_if_no_matched) {
+            invite_pre_auth_rejects.inc();
             send_auth_error_reply(req, pre_auth_ret, Auth::NO_IP_AUTH);
             dec_ref(early_trying_logger);
             return nullptr;
@@ -245,12 +260,16 @@ AmSession *SBCFactory::onInvite(const AmSipRequest &req, const string &, const m
         if (!yeti->router.is_skip_logging_invite_success())
             yeti->router.log_auth(req, true, ret, -1, auth_result_id);
     } else if (auth_result_id < 0) {
+        invite_auth_rejects.inc();
+
         auto auth_result_id_negated = -auth_result_id;
         if (auth_result_id_negated > Auth::NO_IP_AUTH) {
             if (auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
+                invite_digest_auth_rejects.inc();
                 DBG("auth error %d. reply with 401", auth_result_id);
                 send_auth_error_reply(req, ret, auth_result_id_negated);
             } else {
+                invite_jwt_auth_rejects.inc();
                 DBG("JWT auth error %d. reply with 403", auth_result_id);
                 send_auth_error_reply(req, jwt_auth_ret, auth_result_id_negated);
             }
@@ -277,6 +296,8 @@ AmSession *SBCFactory::onInvite(const AmSipRequest &req, const string &, const m
         dec_ref(early_trying_logger);
         return nullptr;
     }
+
+    lega_created_counter.inc();
 
     leg->dlg->setAllowedMethods(yeti->config.allowed_methods);
 
@@ -306,13 +327,18 @@ void SBCFactory::onOoDRequest(const AmSipRequest &req)
 {
     DBG("processing message %s %s", req.method.c_str(), req.r_uri.c_str());
 
-    if (core_options_handling && req.method == SIP_METH_OPTIONS) {
-        DBG3("processing OPTIONS in core");
-        AmSessionFactory::onOoDRequest(req);
-        return;
+    if (req.method == SIP_METH_OPTIONS) {
+        options_requests_counter.inc();
+        if (core_options_handling) {
+            DBG3("processing OPTIONS in core");
+            AmSessionFactory::onOoDRequest(req);
+            return;
+        }
     }
 
     if (req.method == SIP_METH_REGISTER) {
+        register_requests_counter.inc();
+
         if (!yeti->isRegistrarAvailable()) {
             AmSipDialog::reply_error(req, 405, "Method Not Allowed");
             return;
@@ -330,12 +356,15 @@ void SBCFactory::onOoDRequest(const AmSipRequest &req)
         }
 
         if (auth_id < 0) {
+            register_auth_rejects.inc();
             auto auth_result_id_negated = -auth_id;
             if (auth_result_id_negated > Auth::NO_IP_AUTH) {
                 if (auth_result_id_negated >= Auth::UAC_AUTH_ERROR) {
+                    register_digest_auth_rejects.inc();
                     DBG("REGISTER auth error. reply with 401");
                     send_auth_error_reply(req, ret, auth_result_id_negated);
                 } else {
+                    register_jwt_auth_rejects.inc();
                     DBG("REGISTER JWT auth error. reply with 403");
                     send_auth_error_reply(req, jwt_auth_ret, auth_result_id_negated);
                 }
