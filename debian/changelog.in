@@ -1,3 +1,7 @@
+sems-yeti (1.14.22) stable; urgency=medium
+  * merge rx requests and auth result counters using labels
+ -- dev <dev@yeti-switch.org>  Mon, 29 Dec 2025 21:59:37 +0200
+
 sems-yeti (1.14.21) stable; urgency=medium
   * add rx requests and auth result counters
   * libsems1.179
