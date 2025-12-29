@@ -20,4 +20,4 @@ deb: debian/changelog
 	@echo build package with sems minor version: $(SEMS_MINOR_VERSION)
 	debuild -us -uc -b -j$(shell nproc)
 
-.INTERMEDIATE: debian/changelog
+#.INTERMEDIATE: debian/changelog
