@@ -1,3 +1,8 @@
+sems-yeti (1.14.21) stable; urgency=medium
+  * add rx requests and auth result counters
+  * libsems1.179
+ -- dev <dev@yeti-switch.org>  Mon, 29 Dec 2025 11:10:16 +0200
+
 sems-yeti (1.14.20) stable; urgency=medium
   * AuthLog: write auth_error_id
  -- dev <dev@yeti-switch.org>  Thu, 25 Dec 2025 22:08:56 +0200
