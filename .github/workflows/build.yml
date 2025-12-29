@@ -23,13 +23,23 @@ jobs:
         run: >
           echo "deb [arch=amd64] https://deb.yeti-switch.org/debian/1.14 ${{ matrix.distribution }} main" > /etc/apt/sources.list.d/yeti.list &&
           wget https://deb.yeti-switch.org/yeti.gpg -O /etc/apt/trusted.gpg.d/yeti-key.asc
-      - run: apt update
+      - run: apt update && apt install -y --no-install-recommends postgresql-18 postgresql-client-18 redis-server
 
       - name: clone repo
         uses: actions/checkout@v3
 
       - name: install build deps
         run: apt -y --no-install-recommends build-dep .
+
+      - name: run postgresql
+        run: >
+          pg_createcluster -p 5434 18 test --start -- --auth=trust &&
+          psql -p5434 -U postgres  -c 'create user yeti superuser;' -c 'create database yeti owner yeti;'
+      - name: run redis-server
+        run: >
+          sed -i /^notify-keyspace-events/s/\".*\"/\"AKE\"/ /etc/redis/redis.conf &&
+          /etc/init.d/redis-server restart
+
       - name: build
         run: make deb
 
