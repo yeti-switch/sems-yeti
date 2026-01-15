@@ -406,7 +406,7 @@ int cutNoAudioStreams(AmSdp &sdp, bool cut)
 
     for (vector<SdpMedia>::iterator m_it = sdp.media.begin(); m_it != sdp.media.end(); m_it++) {
         SdpMedia &m = *m_it;
-        if (m.type == MT_AUDIO) {
+        if (m.type == MT_AUDIO && m.port) {
             new_media.push_back(m);
         }
     }
