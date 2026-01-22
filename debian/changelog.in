@@ -1,3 +1,8 @@
+sems-yeti (1.14.24) stable; urgency=medium
+  * sdp_filter: fix SDP offer rejects on no active streams after no-audio streams filterting
+  * add write_auth_error_id option
+ -- dev <dev@yeti-switch.org>  Thu, 22 Jan 2026 16:59:03 +0200
+
 sems-yeti (1.14.23) stable; urgency=medium
   * use metric auth_rejects_total insteaf of the auth_rejects with mechanism all
  -- dev <dev@yeti-switch.org>  Mon, 29 Dec 2025 21:59:37 +0200
