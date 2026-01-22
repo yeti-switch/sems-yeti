@@ -39,6 +39,7 @@ extern char opt_name_ip_auth_reject_if_no_matched[];
 extern char opt_name_ip_auth_header[];
 extern char opt_name_postgresql_debug[];
 extern char opt_name_write_internal_disconnect_code[];
+extern char opt_name_write_auth_error_id[];
 extern char opt_name_connection_lifetime[];
 extern char opt_name_pass_input_interface_name[];
 extern char opt_name_new_codec_groups[];

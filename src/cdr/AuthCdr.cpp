@@ -9,7 +9,7 @@
 
 const string auth_log_statement_name("writeauth");
 
-const std::vector<static_field> auth_log_static_fields = {
+std::vector<static_field> auth_log_static_fields = {
     {          "is_master",  "boolean" },
     {            "node_id",  "integer" },
     {             "pop_id",  "integer" },
@@ -30,11 +30,11 @@ const std::vector<static_field> auth_log_static_fields = {
     {               "code", "smallint" },
     {             "reason",  "varchar" },
     {    "internal_reason",  "varchar" },
-    {      "auth_error_id", "smallint" },
+    //{      "auth_error_id", "smallint" }, see: SqlRouter::configure
     {              "nonce",  "varchar" },
     {           "response",  "varchar" },
     {            "auth_id",  "integer" },
-    { "i_aleg_cdr_headers",     "json" }
+    { "i_aleg_cdr_headers",     "json" },
 };
 
 inline string find_attribute(const string &name, const string &header)
@@ -131,6 +131,8 @@ void AuthCdr::apply_params(QueryInfo &query_info) const
         invoc_null();                                                                                                  \
     }
 
+    const auto &cfg = Yeti::instance().config;
+
     invoc(true); // is_master
     invoc(AmConfig.node_id);
     invoc(Yeti::instance().config.pop_id);
@@ -152,7 +154,9 @@ void AuthCdr::apply_params(QueryInfo &query_info) const
     invoc_typed("smallint", code);
     invoc(reason);
     invoc(internal_reason);
-    invoc_cond_typed("smallint", auth_error_id, auth_error_id >= 0);
+    if (cfg.write_auth_error_id) {
+        invoc_cond_typed("smallint", auth_error_id, auth_error_id >= 0);
+    }
     invoc_cond(nonce, !nonce.empty());
     invoc_cond(response, !response.empty());
     invoc_cond(auth_id, auth_id > 0);

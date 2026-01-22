@@ -42,6 +42,7 @@ char opt_name_ip_auth_reject_if_no_matched[]    = "ip_auth_reject_if_no_matched"
 char opt_name_ip_auth_header[]                  = "ip_auth_header";
 char opt_name_postgresql_debug[]                = "postgresql_debug";
 char opt_name_write_internal_disconnect_code[]  = "write_internal_disconnect_code";
+char opt_name_write_auth_error_id[]             = "write_auth_error_id";
 char opt_name_connection_lifetime[]             = "connection_lifetime";
 char opt_name_pass_input_interface_name[]       = "pass_input_interface_name";
 char opt_name_new_codec_groups[]                = "new_codec_groups";
@@ -179,6 +180,7 @@ cfg_opt_t yeti_opts[] = { CFG_INT(opt_name_pop_id, 0, CFGF_NONE),
                           CFG_INT(opt_name_max_forwards_decrement, 1, CFGF_NONE),
 
                           CFG_BOOL(opt_name_write_internal_disconnect_code, cfg_false, CFGF_NONE),
+                          CFG_BOOL(opt_name_write_auth_error_id, cfg_true, CFGF_NONE),
 
                           CFG_BOOL(opt_name_postgresql_debug, cfg_false, CFGF_NONE),
 

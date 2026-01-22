@@ -39,6 +39,7 @@ struct YetiCfg {
     bool core_options_handling;
     bool postgresql_debug;
     bool write_internal_disconnect_code;
+    bool write_auth_error_id;
 
     struct headers_processing_config {
         struct leg_reasons {

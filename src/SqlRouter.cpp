@@ -181,9 +181,6 @@ int SqlRouter::load_db_interface_in_out()
     for (unsigned int k = 0; k < profile_static_fields_count; k++)
         getprofile_types.push_back(profile_static_fields[k].type);
 
-    for (const auto &f : auth_log_static_fields)
-        auth_log_types.push_back(f.type);
-
     auto &sync_db = Yeti::instance().sync_db;
 
     if (sync_db.exec_query(format("SELECT * FROM {}.load_interface_out()", routing_schema), "load_interface_out")) {
@@ -466,6 +463,16 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
                            cdr_cfg.connection_lifetime /* connection lifetime */);
     pg_config_auth_log->addSearchPath(writecdr_schema);
     pg_config_auth_log->addSearchPath("public");
+
+    if (ycfg.write_auth_error_id) {
+        string internal_reason_name{ "internal_reason" };
+        auto   it =
+            std::find_if(auth_log_static_fields.begin(), auth_log_static_fields.end(),
+                         [&internal_reason_name](const static_field &f) { return internal_reason_name == f.name; });
+        auth_log_static_fields.insert(++it, { "auth_error_id", "smallint" });
+    }
+    std::transform(auth_log_static_fields.cbegin(), auth_log_static_fields.cend(), std::back_inserter(auth_log_types),
+                   [](const static_field &f) -> string { return f.type; });
 
     sql.str("");
     sql << "SELECT " << authlog_function << SqlPlaceHolderArgs(auth_log_types.size());

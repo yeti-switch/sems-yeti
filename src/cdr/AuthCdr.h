@@ -7,8 +7,8 @@
 
 #include <vector>
 
-extern const string                    auth_log_statement_name;
-extern const std::vector<static_field> auth_log_static_fields;
+extern const string              auth_log_statement_name;
+extern std::vector<static_field> auth_log_static_fields;
 
 class AuthCdr : public CdrBase
 #ifdef OBJECTS_COUNTER
