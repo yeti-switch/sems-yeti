@@ -74,9 +74,10 @@ SqlCallProfile *CallCtx::getFirstProfile()
 /*
  *we should not change the cdr or increase the number of attempts in early_state
  */
-SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover)
+SqlCallProfile *CallCtx::getNextProfile(get_profile_cdr_behavior       cdr_behavior,
+                                        get_profile_filtering_behavior profiles_filtering_behavior)
 {
-    DBG("early_state:%d, resource_failover:%d", early_state, resource_failover);
+    DBG("cdr_behavior:%d, profiles_filtering_behavior:%d", cdr_behavior, profiles_filtering_behavior);
 
     auto next_profile     = current_profile;
     int  attempts_counter = cdr->attempt_num;
@@ -114,21 +115,23 @@ SqlCallProfile *CallCtx::getNextProfile(bool early_state, bool resource_failover
         }
     }
 
-    if (!early_state) {
-        if ((*next_profile).disconnect_code_id != 0) {
-            // ignore refuse profiles for non early state
+    switch (profiles_filtering_behavior) {
+    case GET_PROFILE_PROFILES_NO_REFUSING:
+        if ((*next_profile).disconnect_code_id != 0)
             return nullptr;
-        }
-        if (!resource_failover) {
-            std::unique_ptr<Cdr> new_cdr(new Cdr(*cdr, *next_profile));
-            router.write_cdr(cdr, false);
-            cdr.reset(new_cdr.release());
-            attempts_counter++;
-        } else {
-            cdr->update_sql(*next_profile);
-        }
-    } else {
-        cdr->update_sql(*next_profile);
+        break;
+    case GET_PROFILE_PROFILES_ALL: break;
+    }
+
+    switch (cdr_behavior) {
+    case GET_PROFILE_CDR_NEW:
+    {
+        std::unique_ptr<Cdr> new_cdr(new Cdr(*cdr, *next_profile));
+        router.write_cdr(cdr, false);
+        cdr.reset(new_cdr.release());
+        attempts_counter++;
+    } break;
+    case GET_PROFILE_CDR_UPDATE: cdr->update_sql(*next_profile); break;
     }
 
     cdr->attempt_num = attempts_counter;

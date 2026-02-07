@@ -21,6 +21,10 @@ class fake_logger : public msg_logger {
     int relog(msg_logger *logger);
 };
 
+enum get_profile_cdr_behavior { GET_PROFILE_CDR_NEW, GET_PROFILE_CDR_UPDATE };
+
+enum get_profile_filtering_behavior { GET_PROFILE_PROFILES_ALL, GET_PROFILE_PROFILES_NO_REFUSING };
+
 struct CallCtx {
     unsigned int references;
 
@@ -52,7 +56,9 @@ struct CallCtx {
     bool setRejectCdr(int disconnect_code_id);
 
     SqlCallProfile *getFirstProfile();
-    SqlCallProfile *getNextProfile(bool early_state, bool resource_failover = false);
+    SqlCallProfile *getNextProfile(get_profile_cdr_behavior       cdr_behavior,
+                                   get_profile_filtering_behavior profiles_filtering_behavior);
+
     SqlCallProfile *getCurrentProfile();
 
     void setRingingTimeout() { ringing_timeout = true; }

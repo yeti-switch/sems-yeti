@@ -348,7 +348,7 @@ void SBCCallLeg::processResourcesAndSdp()
                     DBG("skipped by throttling for legb_gw_cache_id:%d", profile->legb_gw_cache_id);
 
                     // get next profile
-                    profile = call_ctx->getNextProfile(false, true);
+                    profile = call_ctx->getNextProfile(GET_PROFILE_CDR_UPDATE, GET_PROFILE_PROFILES_NO_REFUSING);
                     /* save throttling disconnect reason if refuse_profile
                      * follows throttled profile */
                     if (nullptr == profile) {
@@ -398,7 +398,7 @@ void SBCCallLeg::processResourcesAndSdp()
             } else if (rctl_ret == RES_CTL_NEXT) {
                 DBG("check resources failed with code %d. internal code: %d", rctl_ret,
                     resource_config.internal_code_id);
-                profile = call_ctx->getNextProfile(true);
+                profile = call_ctx->getNextProfile(GET_PROFILE_CDR_UPDATE, GET_PROFILE_PROFILES_ALL);
 
                 if (nullptr == profile) {
                     cdr->update_failed_resource(*ri);
@@ -525,7 +525,7 @@ bool SBCCallLeg::chooseNextProfile()
     bool                   has_profile = false;
 
     {
-        profile = call_ctx->getNextProfile(false);
+        profile = call_ctx->getNextProfile(GET_PROFILE_CDR_NEW, GET_PROFILE_PROFILES_NO_REFUSING);
         if (nullptr == profile) {
             // pretend that nothing happen. we were never called
             DBG("no more profiles or refuse profile on serial fork. ignore it");
@@ -551,7 +551,7 @@ bool SBCCallLeg::chooseNextProfile()
         if (profile->legb_gw_cache_id && yeti.gateways_cache.should_skip(profile->legb_gw_cache_id, now)) {
             DBG("skipped by throttling for legb_gw_cache_id:%d", profile->legb_gw_cache_id);
 
-            profile = call_ctx->getNextProfile(false, true);
+            profile = call_ctx->getNextProfile(GET_PROFILE_CDR_UPDATE, GET_PROFILE_PROFILES_NO_REFUSING);
             if (nullptr == profile) {
                 unsigned int internal_code, response_code;
                 string       internal_reason, response_reason;
@@ -591,7 +591,7 @@ bool SBCCallLeg::chooseNextProfile()
                 cdr->update_failed_resource(*ri);
                 break;
             } else if (rctl_ret == RES_CTL_NEXT) {
-                profile = call_ctx->getNextProfile(false, true);
+                profile = call_ctx->getNextProfile(GET_PROFILE_CDR_UPDATE, GET_PROFILE_PROFILES_NO_REFUSING);
                 if (nullptr == profile) {
                     cdr->update_failed_resource(*ri);
                     DBG("there are no profiles more");
