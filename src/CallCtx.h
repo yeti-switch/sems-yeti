@@ -21,9 +21,15 @@ class fake_logger : public msg_logger {
     int relog(msg_logger *logger);
 };
 
-enum get_profile_cdr_behavior { GET_PROFILE_CDR_NEW, GET_PROFILE_CDR_UPDATE };
+enum get_profile_cdr_behavior {
+    GET_PROFILE_CDR_NEW,   // write old CDR and replace 'CallCtx::cdr' ptr with new one
+    GET_PROFILE_CDR_UPDATE // update CallCtx::cdr ptr with new call_profile
+};
 
-enum get_profile_filtering_behavior { GET_PROFILE_PROFILES_ALL, GET_PROFILE_PROFILES_NO_REFUSING };
+enum get_profile_filtering_behavior {
+    GET_PROFILE_PROFILES_ALL,        // return next non-skipping profile
+    GET_PROFILE_PROFILES_NO_REFUSING // return nullptr instead of tail refusing profile
+};
 
 struct CallCtx {
     unsigned int references;

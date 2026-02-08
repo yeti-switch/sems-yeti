@@ -77,48 +77,74 @@ SqlCallProfile *CallCtx::getFirstProfile()
 SqlCallProfile *CallCtx::getNextProfile(get_profile_cdr_behavior       cdr_behavior,
                                         get_profile_filtering_behavior profiles_filtering_behavior)
 {
-    DBG("cdr_behavior:%d, profiles_filtering_behavior:%d", cdr_behavior, profiles_filtering_behavior);
-
     auto next_profile     = current_profile;
     int  attempts_counter = cdr->attempt_num;
 
-    if ((*next_profile).skip_code_id != 0) {
-        // skip profiles with skip_code_id writing CDRs
-        do {
-            unsigned int    internal_code, response_code;
-            string          internal_reason, response_reason;
-            SqlCallProfile &p = *next_profile;
+    /*DBG("cdr_behavior:%d, profiles_filtering_behavior:%d, attempts_counter: %d",
+        cdr_behavior, profiles_filtering_behavior, attempts_counter);*/
 
-            DBG("process profile with skip_code_id: %d", p.skip_code_id);
+    ++next_profile;
+    if (next_profile == profiles.end())
+        return nullptr;
 
-            bool write_cdr = CodesTranslator::instance()->translate_db_code(
-                p.skip_code_id, internal_code, internal_reason, response_code, response_reason, p.aleg_override_id);
+    std::list<std::unique_ptr<Cdr>> skipped_cdrs;
+    while ((*next_profile).skip_code_id != 0) {
+        unsigned int          internal_code, response_code;
+        string                internal_reason, response_reason;
+        const SqlCallProfile &p = *next_profile;
 
-            if (write_cdr) {
-                std::unique_ptr<Cdr> skip_cdr(new Cdr(*cdr, p));
-                skip_cdr->attempt_num = attempts_counter;
-                skip_cdr->update_internal_reason(DisconnectByTS, internal_reason, internal_code, p.skip_code_id);
-                router.write_cdr(skip_cdr, false);
-                attempts_counter++;
-            }
+        bool write_cdr = CodesTranslator::instance()->translate_db_code(
+            p.skip_code_id, internal_code, internal_reason, response_code, response_reason, p.aleg_override_id);
 
-            ++next_profile;
-
-            if (next_profile == profiles.end())
-                return nullptr;
-
-        } while ((*next_profile).skip_code_id != 0);
-    } else {
         ++next_profile;
-        if (next_profile == profiles.end()) {
-            return nullptr;
+
+        if (write_cdr) {
+            auto skip_cdr = new Cdr(*cdr, p);
+            skip_cdr->update_internal_reason(DisconnectByTS, internal_reason, internal_code, p.skip_code_id);
+            skipped_cdrs.emplace_back(skip_cdr);
         }
+
+        if (next_profile == profiles.end())
+            break;
+    }
+
+    auto write_skipped_cdrs = [this, &skipped_cdrs, &cdr_behavior, &attempts_counter](bool no_more_profiles) {
+        auto new_cdr = cdr_behavior == GET_PROFILE_CDR_NEW;
+        if (new_cdr) {
+            bool last_cdr = skipped_cdrs.empty() && no_more_profiles;
+            router.write_cdr(cdr, last_cdr);
+            attempts_counter++;
+        }
+
+        while (!skipped_cdrs.empty()) {
+            auto &skip_cdr = skipped_cdrs.front();
+            auto  last_cdr = new_cdr && no_more_profiles && skipped_cdrs.size() == 1;
+
+            if (!last_cdr)
+                skip_cdr->update_aleg_reason(string(), 0);
+            skip_cdr->attempt_num = attempts_counter++;
+
+            router.write_cdr(skip_cdr, last_cdr);
+
+            skipped_cdrs.pop_front();
+        }
+
+        if (no_more_profiles && !new_cdr) {
+            cdr->attempt_num = attempts_counter;
+        }
+    };
+
+    if (next_profile == profiles.end()) {
+        write_skipped_cdrs(true);
+        return nullptr;
     }
 
     switch (profiles_filtering_behavior) {
     case GET_PROFILE_PROFILES_NO_REFUSING:
-        if ((*next_profile).disconnect_code_id != 0)
+        if ((*next_profile).disconnect_code_id != 0) {
+            write_skipped_cdrs(true);
             return nullptr;
+        }
         break;
     case GET_PROFILE_PROFILES_ALL: break;
     }
@@ -127,15 +153,18 @@ SqlCallProfile *CallCtx::getNextProfile(get_profile_cdr_behavior       cdr_behav
     case GET_PROFILE_CDR_NEW:
     {
         std::unique_ptr<Cdr> new_cdr(new Cdr(*cdr, *next_profile));
-        router.write_cdr(cdr, false);
+        write_skipped_cdrs(false);
         cdr.reset(new_cdr.release());
-        attempts_counter++;
     } break;
-    case GET_PROFILE_CDR_UPDATE: cdr->update_sql(*next_profile); break;
+    case GET_PROFILE_CDR_UPDATE:
+        write_skipped_cdrs(false);
+        cdr->update_sql(*next_profile);
+        break;
     }
 
     cdr->attempt_num = attempts_counter;
     current_profile  = next_profile;
+
     return &(*current_profile);
 }
 
