@@ -1,3 +1,8 @@
+sems-yeti (1.14.25) stable; urgency=medium
+  * libsems 1.181
+  * fix CDRs writing on unregistered gateways skipping
+ -- dev <dev@yeti-switch.org>  Wed, 11 Feb 2026 12:19:55 +0200
+
 sems-yeti (1.14.24) stable; urgency=medium
   * sdp_filter: fix SDP offer rejects on no active streams after no-audio streams filterting
   * add write_auth_error_id option
