@@ -146,6 +146,8 @@ struct SBCCallProfile : public AmObject {
 
     string dlg_contact_params;
     string bleg_dlg_contact_params;
+    string aleg_contact_user;
+    string bleg_contact_user;
 
     bool dlg_nat_handling;
     bool keep_vias;

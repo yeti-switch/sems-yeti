@@ -357,6 +357,8 @@ bool SBCCallProfile::evaluate(ParamReplacerCtx &ctx, const AmSipRequest &req)
 
     REPLACE_NONEMPTY_STR(dlg_contact_params);
     REPLACE_NONEMPTY_STR(bleg_dlg_contact_params);
+    REPLACE_NONEMPTY_STR(aleg_contact_user);
+    REPLACE_NONEMPTY_STR(bleg_contact_user);
 
     fix_append_hdrs(ctx, req);
 

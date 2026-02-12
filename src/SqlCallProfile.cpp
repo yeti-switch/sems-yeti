@@ -301,6 +301,9 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
     aleg_relay_hold = DbAmArg_hash_get_bool(t, "aleg_relay_hold", true);
     bleg_relay_hold = DbAmArg_hash_get_bool(t, "bleg_relay_hold", true);
 
+    aleg_contact_user = DbAmArg_hash_get_str(t, "aleg_contact_user", "");
+    bleg_contact_user = DbAmArg_hash_get_str(t, "bleg_contact_user", "");
+
     relay_timestamp_aligning = DbAmArg_hash_get_bool(t, "rtp_relay_timestamp_aligning", false);
 
     allow_1xx_without_to_tag = DbAmArg_hash_get_bool(t, "allow_1xx_wo2tag", false);

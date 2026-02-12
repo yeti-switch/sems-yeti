@@ -1651,6 +1651,8 @@ void SBCCallLeg::applyAProfile()
 
     if (!call_profile.dlg_contact_params.empty())
         dlg->setContactParams(call_profile.dlg_contact_params);
+    if (!call_profile.aleg_contact_user.empty())
+        setContactUser(call_profile.aleg_contact_user);
 }
 
 int SBCCallLeg::applySSTCfg(AmConfigReader &sst_cfg, const AmSipRequest *p_req)
@@ -1771,6 +1773,8 @@ void SBCCallLeg::applyBProfile()
 
     if (!call_profile.bleg_dlg_contact_params.empty())
         dlg->setContactParams(call_profile.bleg_dlg_contact_params);
+    if (!call_profile.bleg_contact_user.empty())
+        setContactUser(call_profile.bleg_contact_user);
 
     setInviteTransactionTimeout(call_profile.inv_transaction_timeout);
     setInviteRetransmitTimeout(call_profile.inv_srv_failover_timeout);
