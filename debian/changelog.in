@@ -1,3 +1,8 @@
+sems-yeti (1.13.109) stable; urgency=medium
+  * auth_log:fixed invalid byte sequence for encoding
+  * build for trixie
+ -- dev <dev@yeti-switch.org>  Thu, 12 Feb 2026 21:08:14 +0200
+
 sems-yeti (1.13.108) stable; urgency=medium
   * fix out-of-bounds memory corruption with cdr_static_fields idx.
     fixes disabled clickhouse statistics on non-empty legb_cdr_headers section
