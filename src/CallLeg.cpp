@@ -779,6 +779,13 @@ void CallLeg::onRtpTimeout()
     AmB2BSession::onRtpTimeout();
 }
 
+void CallLeg::onRtpSendingError()
+{
+    updateCallStatus(Disconnected, StatusChangeCause::RtpSendingError);
+    DBG("RTP sending error, ending other leg");
+    terminateOtherLeg();
+}
+
 void CallLeg::onSessionTimeout()
 {
     updateCallStatus(Disconnected, StatusChangeCause::SessionTimeout);
