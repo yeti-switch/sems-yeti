@@ -279,7 +279,7 @@ void CallLeg::b2bInitial1xx(AmSipReply &reply, bool forward)
         if (!allow_1xx_without_to_tag)
             return;
         // fix to_tag
-        reply.to_tag = dlg->getExtLocalTag().empty() ? dlg->getLocalTag() : dlg->getExtLocalTag();
+        reply.to_tag = dlg->getLocalTag();
     }
 
     if (call_status == NoReply) {
