@@ -3217,9 +3217,6 @@ void SBCCallLeg::onRtpSendingError()
     }
 
     CallLeg::onRtpSendingError();
-
-    dlg->bye();
-    setStopped();
 }
 
 void SBCCallLeg::onFailure()
