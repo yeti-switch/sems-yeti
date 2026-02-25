@@ -1,3 +1,9 @@
+sems-yeti (1.14.26) stable; urgency=medium
+  * libsems 1.182
+  * call_profile: add aleg_contact_user, bleg_contact_user
+  * disconnect calls on RTP sending errors. new disconnect code 144
+ -- dev <dev@yeti-switch.org>  Wed, 25 Feb 2026 14:34:39 +0200
+
 sems-yeti (1.14.25) stable; urgency=medium
   * libsems 1.181
   * fix CDRs writing on unregistered gateways skipping
