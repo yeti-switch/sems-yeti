@@ -3194,24 +3194,18 @@ void SBCCallLeg::onRoutingReady()
 void SBCCallLeg::onRtpSendingError()
 {
     DBG("%s(%p,leg%s)", FUNC_NAME, to_void(this), a_leg ? "A" : "B");
-    unsigned int internal_code, response_code;
-    string       internal_reason, response_reason;
 
     getCtx_void;
 
     if (getCallStatus() != CallLeg::Connected) {
-        WARN("%s: module catched RtpSendingError in no Connected state. ignore it", getLocalTag().c_str());
+        WARN("%s: got RtpSendingError in no Connected state. ignore it", getLocalTag().c_str());
         return;
     }
 
-    auto dc_code = DC_MEDIA_PROCESSING_ERROR;
-
-    CodesTranslator::instance()->translate_db_code(dc_code, internal_code, internal_reason, response_code,
-                                                   response_reason, call_ctx->getOverrideId(a_leg));
-
     with_cdr_for_read
     {
-        cdr->update_internal_reason(DisconnectByTS, internal_reason, internal_code, dc_code);
+        InternalException e(DC_RTP_SEND_ERROR, call_ctx->getOverrideId(a_leg));
+        cdr->update_internal_reason(DisconnectByTS, e.internal_reason, e.internal_code, e.icode);
         cdr->update_aleg_reason("Bye", 200);
         cdr->update_bleg_reason("Bye", 200);
     }
