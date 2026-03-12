@@ -3612,25 +3612,30 @@ void SBCCallLeg::onBLegRefused(AmSipReply &reply)
     if (!call_ctx)
         return;
 
-    Cdr &cdr = *call_ctx->cdr.get();
-
-    cdr.update_with_bleg_sip_reply(reply);
-    cdr.update_bleg_reason(reply.reason, static_cast<int>(reply.code));
-
     // save original destination reply code for stop_hunting lookup
     auto destination_reply_code = reply.code;
 
     CodesTranslator *ct = CodesTranslator::instance();
-    unsigned int     intermediate_code;
-    string           intermediate_reason;
 
-    ct->rewrite_response(reply.code, reply.reason, intermediate_code, intermediate_reason,
-                         call_ctx->getOverrideId(false)); // bleg_override_id
-    ct->rewrite_response(intermediate_code, intermediate_reason, reply.code, reply.reason,
-                         call_ctx->getOverrideId(true)); // aleg_override_id
-    cdr.update_internal_reason(reply.local_reply ? DisconnectByTS : DisconnectByDST, intermediate_reason,
-                               intermediate_code, 0);
-    cdr.update_aleg_reason(reply.reason, static_cast<int>(reply.code));
+    if (call_ctx->cdr) {
+        Cdr &cdr = *call_ctx->cdr.get();
+
+        cdr.update_with_bleg_sip_reply(reply);
+        cdr.update_bleg_reason(reply.reason, static_cast<int>(reply.code));
+
+        unsigned int intermediate_code;
+        string       intermediate_reason;
+
+        ct->rewrite_response(reply.code, reply.reason, intermediate_code, intermediate_reason,
+                             call_ctx->getOverrideId(false)); // bleg_override_id
+        ct->rewrite_response(intermediate_code, intermediate_reason, reply.code, reply.reason,
+                             call_ctx->getOverrideId(true)); // aleg_override_id
+        cdr.update_internal_reason(reply.local_reply ? DisconnectByTS : DisconnectByDST, intermediate_reason,
+                                   intermediate_code, 0);
+        cdr.update_aleg_reason(reply.reason, static_cast<int>(reply.code));
+    } else {
+        ERROR("%s() cdr == NULL, local_tag = %s", FUNC_NAME, getLocalTag().c_str());
+    }
 
     if (ct->stop_hunting(destination_reply_code, call_ctx->getOverrideId(false))) {
         DBG("stop hunting");
