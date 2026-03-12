@@ -1,3 +1,7 @@
+sems-yeti (1.14.27) stable; urgency=medium
+  * skip rerouting on unexpected cdr ptr behavior. crash workaround
+ -- dev <dev@yeti-switch.org>  Fri, 13 Mar 2026 01:36:33 +0200
+
 sems-yeti (1.14.26) stable; urgency=medium
   * libsems 1.182
   * call_profile: add aleg_contact_user, bleg_contact_user
