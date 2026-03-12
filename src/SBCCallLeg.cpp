@@ -3612,30 +3612,32 @@ void SBCCallLeg::onBLegRefused(AmSipReply &reply)
     if (!call_ctx)
         return;
 
+    if (!call_ctx->cdr) {
+        ERROR("[%s] logic error: cdr is NULL. skip rerouting. check CDRs for local_tag and report the issue",
+              getLocalTag().c_str());
+        return;
+    }
+
     // save original destination reply code for stop_hunting lookup
     auto destination_reply_code = reply.code;
 
     CodesTranslator *ct = CodesTranslator::instance();
 
-    if (call_ctx->cdr) {
-        Cdr &cdr = *call_ctx->cdr.get();
+    Cdr &cdr = *call_ctx->cdr.get();
 
-        cdr.update_with_bleg_sip_reply(reply);
-        cdr.update_bleg_reason(reply.reason, static_cast<int>(reply.code));
+    cdr.update_with_bleg_sip_reply(reply);
+    cdr.update_bleg_reason(reply.reason, static_cast<int>(reply.code));
 
-        unsigned int intermediate_code;
-        string       intermediate_reason;
+    unsigned int intermediate_code;
+    string       intermediate_reason;
 
-        ct->rewrite_response(reply.code, reply.reason, intermediate_code, intermediate_reason,
-                             call_ctx->getOverrideId(false)); // bleg_override_id
-        ct->rewrite_response(intermediate_code, intermediate_reason, reply.code, reply.reason,
-                             call_ctx->getOverrideId(true)); // aleg_override_id
-        cdr.update_internal_reason(reply.local_reply ? DisconnectByTS : DisconnectByDST, intermediate_reason,
-                                   intermediate_code, 0);
-        cdr.update_aleg_reason(reply.reason, static_cast<int>(reply.code));
-    } else {
-        ERROR("%s() cdr == NULL, local_tag = %s", FUNC_NAME, getLocalTag().c_str());
-    }
+    ct->rewrite_response(reply.code, reply.reason, intermediate_code, intermediate_reason,
+                         call_ctx->getOverrideId(false)); // bleg_override_id
+    ct->rewrite_response(intermediate_code, intermediate_reason, reply.code, reply.reason,
+                         call_ctx->getOverrideId(true)); // aleg_override_id
+    cdr.update_internal_reason(reply.local_reply ? DisconnectByTS : DisconnectByDST, intermediate_reason,
+                               intermediate_code, 0);
+    cdr.update_aleg_reason(reply.reason, static_cast<int>(reply.code));
 
     if (ct->stop_hunting(destination_reply_code, call_ctx->getOverrideId(false))) {
         DBG("stop hunting");
@@ -3657,6 +3659,16 @@ void SBCCallLeg::onBLegRefused(AmSipReply &reply)
     }
 
     auto profile = call_ctx->getCurrentProfile();
+
+    if (!call_ctx->cdr) {
+        ERROR("[%s] logic error: no CDR after success chooseNextProfile(). "
+              "skip rerouting. check CDRs for local_tag and report the issue. "
+              "profiles size:%zd, current profile idx: %zd",
+              getLocalTag().c_str(), call_ctx->profiles.size(),
+              std::distance(call_ctx->profiles.begin(), call_ctx->current_profile));
+        return;
+    }
+
     if (profile->time_limit) {
         DBG("%s() save timer %d with timeout %d", FUNC_NAME, YETI_CALL_DURATION_TIMER, profile->time_limit);
         saveCallTimer(YETI_CALL_DURATION_TIMER, profile->time_limit);
