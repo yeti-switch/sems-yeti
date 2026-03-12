@@ -186,7 +186,7 @@ ResourceCtlResponse ResourceControl::get(ResourceList &rl, string &handler, cons
     if (container_ready.get()) {
         ret = redis_conn.get(owner_tag, rl, rli);
     } else {
-        WARN("%s: attempt to get resource from the unready container", owner_tag.data());
+        // DBG("%s: attempt to get resource from the unready container", owner_tag.data());
         ret = RES_ERR;
     }
 

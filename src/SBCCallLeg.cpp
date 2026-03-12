@@ -2293,7 +2293,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
                 if (isHoldRequest(sdp, method)) {
                     DBG("hold request matched. relay_hold = %d", relay_hold);
                     if (relay_hold) {
-                        ERROR("skip local processing for the hold request");
+                        DBG("skip local processing for the hold request");
                         call_ctx->on_hold = true;
                         break;
                     }

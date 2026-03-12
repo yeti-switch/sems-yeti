@@ -238,8 +238,8 @@ AmSession *SBCFactory::onInvite(const AmSipRequest &req, const string &, const m
 
     if ((req.max_forwards - yeti->config.max_forwards_decrement) < 1) {
         AmSipDialog::reply_error(req, 483, SIP_REPLY_TOO_MANY_HOPS);
-        ERROR("Max-Forwards:%d is too low. ci:%s remote:%s:%hu", req.max_forwards, req.callid.c_str(),
-              req.remote_ip.c_str(), req.remote_port);
+        DBG("Max-Forwards:%d is too low. ci:%s remote:%s:%hu", req.max_forwards, req.callid.c_str(),
+            req.remote_ip.c_str(), req.remote_port);
         return nullptr;
     }
 

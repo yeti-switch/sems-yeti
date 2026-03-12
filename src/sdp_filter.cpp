@@ -806,7 +806,7 @@ static void filterSdpAnswerMedia(SBCCallLeg *call, vector<SdpMedia> &negotiated_
         vector<SdpMedia> filtered_sdp_media;
 
         if (!media.size()) {
-            ERROR("processSdpAnswer() [%s] empty answer sdp", call->getLocalTag().c_str());
+            DBG("processSdpAnswer() [%s] empty answer sdp", call->getLocalTag().c_str());
             throw InternalException(DC_REPLY_SDP_EMPTY_ANSWER, override_id);
         }
 
@@ -830,13 +830,13 @@ static void filterSdpAnswerMedia(SBCCallLeg *call, vector<SdpMedia> &negotiated_
                 }
 
                 if (m_audio_streams != nm_audio_streams) {
-                    ERROR("processSdpAnswer()[%s] audio streams count not equal reply: %lu, saved: %u)",
-                          call->getLocalTag().c_str(), m_audio_streams, nm_audio_streams);
+                    DBG("processSdpAnswer()[%s] audio streams count not equal reply: %lu, saved: %u)",
+                        call->getLocalTag().c_str(), m_audio_streams, nm_audio_streams);
                     throw InternalException(DC_REPLY_SDP_STREAMS_COUNT, override_id);
                 }
             } else {
-                ERROR("processSdpAnswer()[%s] streams count not equal reply: %lu, saved: %lu)",
-                      call->getLocalTag().c_str(), media.size(), negotiated_media.size());
+                DBG("processSdpAnswer()[%s] streams count not equal reply: %lu, saved: %lu)",
+                    call->getLocalTag().c_str(), media.size(), negotiated_media.size());
                 throw InternalException(DC_REPLY_SDP_STREAMS_COUNT, override_id);
             }
         }
@@ -857,7 +857,7 @@ static void filterSdpAnswerMedia(SBCCallLeg *call, vector<SdpMedia> &negotiated_
             }
 
             if (m_it == media.end()) {
-                ERROR("unexpected reply sdp");
+                DBG("unexpected reply sdp");
                 break;
             }
 
@@ -866,8 +866,8 @@ static void filterSdpAnswerMedia(SBCCallLeg *call, vector<SdpMedia> &negotiated_
 
             /* check for streams types */
             if (m.type != other_m.type) {
-                ERROR("processSdpAnswer() [%s] streams types not matched idx = %d", call->getLocalTag().c_str(),
-                      stream_idx);
+                DBG("processSdpAnswer() [%s] streams types not matched idx = %d", call->getLocalTag().c_str(),
+                    stream_idx);
                 DBG_SDP_PAYLOAD(other_m.payloads, "other_m payload " + int2str(stream_idx));
                 throw InternalException(DC_REPLY_SDP_STREAMS_TYPES, override_id);
             }
