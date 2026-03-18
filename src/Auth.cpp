@@ -3,7 +3,6 @@
 #include "AmPlugIn.h"
 #include "AmSipDialog.h"
 #include "sip/defs.h"
-#include "AmUriParser.h"
 #include "AmUtils.h"
 #include "AmIdentity.h"
 #include "cfg/yeti_opts.h"

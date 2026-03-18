@@ -12,6 +12,7 @@
 #include "AmEventDispatcher.h"
 #include "AmSipHeaders.h"
 #include "Am100rel.h"
+#include "AmShallowUriParser.h"
 #include "jsonArg.h"
 #include "format_helper.h"
 
@@ -632,12 +633,10 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
     ParamReplacerCtx ctx(&call_profile);
     ctx.app_param = getHeader(orig_req.hdrs, PARAM_HDR, true);
 
-    AmSipRequest uac_req(orig_req);
-    AmUriParser  uac_ruri;
+    AmShallowUriParser uri_parser;
 
-    uac_ruri.uri = uac_req.r_uri;
-    if (!uac_ruri.parse_uri()) {
-        DBG("Error parsing request R-URI '%s'", uac_ruri.uri.c_str());
+    if (!uri_parser.parse_uri(orig_req.r_uri)) {
+        DBG("Error parsing request R-URI '%s'", orig_req.r_uri.c_str());
         throw AmSession::Exception(400, "Failed to parse R-URI");
     }
 
@@ -657,43 +656,27 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
         replace(call_profile.append_headers, "%global_tag", getGlobalTag());
     }
 
-    /* moved to SBCCallProfile::evaluate_routing()
-        string ruri = call_profile.ruri.empty() ? uac_req.r_uri : call_profile.ruri;
-
-        ctx.ruri_parser.uri = ruri;
-        if(!ctx.ruri_parser.parse_uri()) {
-            ERROR("Error parsing  R-URI '%s'", ruri.data());
-            throw AmSession::Exception(400,"Failed to parse R-URI");
-        }
-
-        if(!call_profile.ruri_host.empty()) {
-            ctx.ruri_parser.uri_port.clear();
-            ctx.ruri_parser.uri_host = call_profile.ruri_host;
-            ruri = ctx.ruri_parser.uri_str();
-        }
-    */
-    ruri = ctx.ruri_parser.uri; // set by SBCCallProfile::evaluate_routing()
+    ruri = ctx.ruri_parser.uri_str(); // set by SBCCallProfile::evaluate_routing()
     from = call_profile.from.empty() ? orig_req.from : call_profile.from;
     to   = call_profile.to.empty() ? orig_req.to : call_profile.to;
 
-    AmUriParser from_uri, to_uri;
-    if (!from_uri.parse_nameaddr(from)) {
+    if (!uri_parser.parse_nameaddr(from)) {
         DBG("Error parsing From-URI '%s'", from.c_str());
         throw AmSession::Exception(400, "Failed to parse From-URI");
     }
+    from = uri_parser.nameaddr_str();
 
-    if (!to_uri.parse_nameaddr(to)) {
+    if (!uri_parser.parse_nameaddr(to)) {
         DBG("Error parsing To-URI '%s'", to.c_str());
         throw AmSession::Exception(400, "Failed to parse To-URI");
     }
 
-    if (to_uri.uri_host.empty()) {
-        to_uri.uri_host = ctx.ruri_parser.uri_host;
-        WARN("connectCallee: empty To domain. set to RURI domain: '%s'", ctx.ruri_parser.uri_host.data());
+    if (uri_parser.get_uri_host().empty()) {
+        uri_parser.set_uri_host_shallow(ctx.ruri_parser.get_uri_host());
+        auto &ruri_host = ctx.ruri_parser.get_uri_host();
+        WARN("connectCallee: empty To domain. set to RURI domain: '%.*s'", ruri_host.length(), ruri_host.data());
     }
-
-    from = from_uri.nameaddr_str();
-    to   = to_uri.nameaddr_str();
+    to = uri_parser.nameaddr_str();
 
     applyAProfile();
     call_profile.apply_a_routing(ctx, orig_req, *dlg);
@@ -1079,60 +1062,6 @@ void SBCCallLeg::onRadiusReply(const RadiusReplyEvent &ev)
     }
 }
 
-static string print_uri_params(list<sip_avp *> params)
-{
-    string s;
-    for (const auto &p : params) {
-        if (!p->name.isEmpty()) {
-            if (!s.empty())
-                s += ';';
-            s += p->name.toString();
-            if (!p->value.isEmpty()) {
-                s += '=';
-                s += p->value.toString();
-            }
-        }
-    }
-    return s;
-}
-
-static void merge_uri_params(string &dst, const string &src)
-{
-    list<sip_avp *> dst_params;
-    const char     *dst_params_str = dst.data();
-    if (0 != parse_gen_params(&dst_params, &dst_params_str, dst.size(), 0)) {
-        ERROR("failed to parse dst URI params: '%s'", dst.data());
-        return;
-    }
-
-    list<sip_avp *> src_params;
-    const char     *src_params_str = src.data();
-    if (0 != parse_gen_params(&src_params, &src_params_str, src.size(), 0)) {
-        ERROR("failed to parse src URI params: '%s'", src.data());
-        return;
-    }
-
-    for (; !src_params.empty(); src_params.pop_front()) {
-        auto src_param  = src_params.front();
-        bool overridden = false;
-        for (auto &dst_param : dst_params) {
-            if ((!dst_param->name.isEmpty()) && dst_param->name == src_param->name) {
-                overridden = true;
-                delete dst_param;
-                dst_param = src_param;
-
-                break;
-            }
-        }
-
-        if (!overridden)
-            dst_params.emplace_back(src_param);
-    }
-
-    dst = print_uri_params(dst_params);
-    free_gen_params(&dst_params);
-}
-
 static void replace_profile_fields(const SipRegistrarResolveResponseEvent::aor_data &data, SqlCallProfile &p)
 {
     if (p.registered_aor_mode_id) {
@@ -1140,9 +1069,8 @@ static void replace_profile_fields(const SipRegistrarResolveResponseEvent::aor_d
             data.contact.data(), p.registered_aor_mode_id);
 
         // parse AoR
-        AmUriParser contact_parser;
-        contact_parser.uri  = data.contact;
-        bool contact_parsed = contact_parser.parse_uri();
+        AmShallowUriParser contact_parser;
+        bool               contact_parsed = contact_parser.parse_uri(data.contact);
         if (!contact_parsed) {
             ERROR("failed to parse AoR Contact: %s", data.contact.data());
         }
@@ -1152,12 +1080,14 @@ static void replace_profile_fields(const SipRegistrarResolveResponseEvent::aor_d
         case SqlCallProfile::REGISTERED_AOR_MODE_AS_IS: p.ruri = data.contact; break;
         case SqlCallProfile::REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO:
         {
-            AmUriParser ruri_parser;
-            ruri_parser.uri = p.ruri;
-            if (ruri_parser.parse_uri()) {
+            AmShallowUriParser ruri_parser;
+            if (ruri_parser.parse_uri(p.ruri)) {
                 if (contact_parsed) {
-                    contact_parser.uri_user = ruri_parser.uri_user;
-                    merge_uri_params(contact_parser.uri_param, ruri_parser.uri_param);
+                    contact_parser.set_uri_user_shallow(ruri_parser.get_uri_user());
+                    // merge URI params
+                    for (const auto &[src_param_name, src_param_value] : ruri_parser.get_uri_params()) {
+                        contact_parser.set_uri_param_shallow(src_param_name, src_param_value);
+                    }
                     p.ruri = contact_parser.uri_str();
                 } else {
                     // fallback to the full replace
@@ -1173,12 +1103,12 @@ static void replace_profile_fields(const SipRegistrarResolveResponseEvent::aor_d
 
         // replace To
         if (contact_parsed && !p.to.empty()) {
-            AmUriParser to_parser;
+            AmShallowUriParser to_parser;
             if (to_parser.parse_nameaddr(p.to)) {
-                const static string invalid_domain("unknown.invalid");
-                if (to_parser.uri_host.empty() || to_parser.uri_host == invalid_domain) {
-                    to_parser.uri_host = contact_parser.uri_host;
-                    p.to               = to_parser.nameaddr_str();
+                const static string_view invalid_domain("unknown.invalid");
+                if (to_parser.get_uri_host().empty() || to_parser.get_uri_host() == invalid_domain) {
+                    to_parser.set_uri_host_shallow(contact_parser.get_uri_host());
+                    p.to = to_parser.nameaddr_str();
                 }
             } else {
                 ERROR("failed to parse To: '%s'", p.to.data());
@@ -1232,8 +1162,8 @@ void SBCCallLeg::process_push_token_profile(SqlCallProfile &p)
     switch (token_type) {
     case FCM:
     {
-        AmUriParser from_uri;
-        auto        from = p.from.empty() ? call_ctx->initial_invite->from : call_profile.from;
+        AmShallowUriParser from_uri;
+        auto              &from = p.from.empty() ? call_ctx->initial_invite->from : call_profile.from;
         if (!from_uri.parse_nameaddr(from)) {
             ERROR("Error parsing From-URI '%s'", from.c_str());
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
@@ -1243,8 +1173,8 @@ void SBCCallLeg::process_push_token_profile(SqlCallProfile &p)
             { "message", AmArg{ { "data",
                                   AmArg{ // TODO: clarify payload format
                                          { "born_at", std::to_string(sc::to_time_t(sc::now())) },
-                                         { "from_user", from_uri.uri_user },
-                                         { "from_display_name", from_uri.display_name },
+                                         { "from_user", string{ from_uri.get_uri_user() } },
+                                         { "from_display_name", string{ from_uri.get_display_name() } },
                                          { "from_tag", getLocalTag() },
                                          { "call_id", call_ctx->initial_invite->callid },
                                          { "type", "call_start" } } },
@@ -3069,14 +2999,6 @@ void SBCCallLeg::onIdentityReady(const AmArg *identity_data_ptr)
 
 void SBCCallLeg::onRoutingReady()
 {
-    /*call_profile.sst_aleg_enabled = ctx.replaceParameters(
-        call_profile.sst_aleg_enabled,
-        "enable_aleg_session_timer", aleg_modified_req);
-
-    call_profile.sst_enabled = ctx.replaceParameters(
-        call_profile.sst_enabled,
-        "enable_session_timer", aleg_modified_req);*/
-
     if (call_profile.sst_aleg_enabled) {
         call_profile.eval_sst_config(ctx, aleg_modified_req, call_profile.sst_a_cfg);
         if (applySSTCfg(call_profile.sst_a_cfg, &aleg_modified_req) < 0) {
@@ -3097,49 +3019,28 @@ void SBCCallLeg::onRoutingReady()
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
-    /* moved to SBCCallProfile::evaluate_routing()
-        AmUriParser uac_ruri;
-        uac_ruri.uri = uac_req.r_uri;
-        if(!uac_ruri.parse_uri()) {
-            DBG("Error parsing request R-URI '%s'",uac_ruri.uri.c_str());
-            throw AmSession::Exception(400,"Failed to parse R-URI");
-        }
-
-        ruri = call_profile.ruri.empty() ? uac_req.r_uri : call_profile.ruri;
-        ctx.ruri_parser.uri = ruri;
-        if(!ctx.ruri_parser.parse_uri()) {
-            ERROR("Error parsing R-URI '%s'", ruri.data());
-            throw AmSession::Exception(500,SIP_REPLY_SERVER_INTERNAL_ERROR);
-        }
-
-        if(!call_profile.ruri_host.empty()) {
-            ctx.ruri_parser.uri_port.clear();
-            ctx.ruri_parser.uri_host = call_profile.ruri_host;
-            ruri = ctx.ruri_parser.uri_str();
-        }
-    */
-    ruri = ctx.ruri_parser.uri; // set by SBCCallProfile::evaluate_routing()
+    ruri = ctx.ruri_parser.uri_str(); // set by SBCCallProfile::evaluate_routing()
     from = call_profile.from.empty() ? aleg_modified_req.from : call_profile.from;
     to   = call_profile.to.empty() ? aleg_modified_req.to : call_profile.to;
 
-    AmUriParser from_uri, to_uri;
-    if (!from_uri.parse_nameaddr(from)) {
+    AmShallowUriParser uri_parser;
+    if (!uri_parser.parse_nameaddr(from)) {
         DBG("Error parsing From-URI '%s'", from.c_str());
         throw AmSession::Exception(400, "Failed to parse From-URI");
     }
+    from = uri_parser.nameaddr_str();
 
-    if (!to_uri.parse_nameaddr(to)) {
+    if (!uri_parser.parse_nameaddr(to)) {
         DBG("Error parsing To-URI '%s'", to.c_str());
         throw AmSession::Exception(400, "Failed to parse To-URI");
     }
 
-    if (to_uri.uri_host.empty()) {
-        to_uri.uri_host = ctx.ruri_parser.uri_host;
-        WARN("onRoutingReady: empty To domain. set to RURI domain: '%s'", ctx.ruri_parser.uri_host.data());
+    if (uri_parser.get_uri_host().empty()) {
+        uri_parser.set_uri_host_shallow(ctx.ruri_parser.get_uri_host());
+        auto ruri_host = ctx.ruri_parser.get_uri_host();
+        WARN("onRoutingReady: empty To domain. set to RURI domain: '%.*s'", ruri_host.length(), ruri_host.data());
     }
-
-    from = from_uri.nameaddr_str();
-    to   = to_uri.nameaddr_str();
+    to = uri_parser.nameaddr_str();
 
     applyAProfile();
     call_profile.apply_a_routing(ctx, aleg_modified_req, *dlg);

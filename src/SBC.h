@@ -29,7 +29,6 @@
 #include "AmB2BSession.h"
 
 #include "AmConfigReader.h"
-#include "AmUriParser.h"
 #include "HeaderFilter.h"
 #include "SBCCallProfile.h"
 #include "RegexMapper.h"

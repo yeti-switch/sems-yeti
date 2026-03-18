@@ -320,24 +320,24 @@ bool SBCCallProfile::evaluate_routing(ParamReplacerCtx &ctx, const AmSipRequest 
 
     // apply routing-related values to dlg
 
-    ctx.ruri_parser.uri = ruri.empty() ? req.r_uri : ruri;
-    if (!ctx.ruri_parser.parse_uri()) {
+    const auto &r_uri = ruri.empty() ? req.r_uri : ruri;
+    if (!ctx.ruri_parser.parse_uri(r_uri)) {
         if (!ruri.empty()) {
-            ERROR("Error parsing profile R-URI '%s'", ctx.ruri_parser.uri.data());
+            ERROR("Error parsing profile R-URI '%s'", r_uri.data());
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         } else {
-            DBG("Error parsing request R-URI '%s'", ctx.ruri_parser.uri.data());
+            DBG("Error parsing request R-URI '%s'", r_uri.data());
             throw AmSession::Exception(400, "Failed to parse R-URI");
         }
     }
 
     if (!ruri_host.empty()) {
-        ctx.ruri_parser.uri_port.clear();
-        ctx.ruri_parser.uri_host = ruri_host;
-        ctx.ruri_parser.uri      = ctx.ruri_parser.uri_str();
+        ctx.ruri_parser.set_uri_port(0);
+        ctx.ruri_parser.set_uri_host(ruri_host);
+        ctx.ruri_parser.set_uri_host(ruri_host);
     }
 
-    if (!apply_b_routing(ctx.ruri_parser.uri, dlg))
+    if (!apply_b_routing(ctx.ruri_parser.uri_str(), dlg))
         return false;
 
     // get outbound interface address
@@ -534,41 +534,6 @@ bool SBCCallProfile::apply_b_routing(const string &ruri, AmBasicSipDialog &dlg) 
     }
 
     return true;
-}
-
-int SBCCallProfile::apply_common_fields(ParamReplacerCtx &ctx, AmSipRequest &req) const
-{
-    if (!ruri.empty()) {
-        req.r_uri = ctx.replaceParameters(ruri, "RURI", req);
-    }
-
-    if (!ruri_host.empty()) {
-        string ruri_h = ctx.replaceParameters(ruri_host, "RURI-host", req);
-
-        ctx.ruri_parser.uri = req.r_uri;
-        if (!ctx.ruri_parser.parse_uri()) {
-            WARN("Error parsing R-URI '%s'", ctx.ruri_parser.uri.c_str());
-            return -1;
-        } else {
-            ctx.ruri_parser.uri_port.clear();
-            ctx.ruri_parser.uri_host = ruri_host;
-            req.r_uri                = ctx.ruri_parser.uri_str();
-        }
-    }
-
-    if (!from.empty()) {
-        req.from = ctx.replaceParameters(from, "From", req);
-    }
-
-    if (!to.empty()) {
-        req.to = ctx.replaceParameters(to, "To", req);
-    }
-
-    if (!callid.empty()) {
-        req.callid = ctx.replaceParameters(callid, "Call-ID", req);
-    }
-
-    return 0;
 }
 
 #if 0

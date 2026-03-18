@@ -37,27 +37,40 @@
 #include <algorithm>
 #include <stdlib.h>
 
-int replaceParsedParam(const string &s, size_t p, const AmUriParser &parsed, string &res)
+int replaceParsedParam(const string &s, size_t p, const AmShallowUriParser &parsed, string &res)
 {
     int skip_chars = 1;
 
     switch (s[p + 1]) {
     case 'u':
     { // URI
-        res += parsed.uri_user + "@" + parsed.uri_host;
-        if (!parsed.uri_port.empty())
-            res += ":" + parsed.uri_port;
+        res += string{ parsed.get_uri_user() } + "@" + string{ parsed.get_uri_host() };
+        if (parsed.get_uri_port())
+            res += ":" + int2str(parsed.get_uri_port());
     } break;
-    case 'U': res += parsed.uri_user; break; // User
+    case 'U': res += parsed.get_uri_user(); break; // User
     case 'd':
     { // domain
-        res += parsed.uri_host;
-        if (!parsed.uri_port.empty())
-            res += ":" + parsed.uri_port;
+        res += parsed.get_uri_host();
+        if (!parsed.get_uri_port())
+            res += ":" + int2str(parsed.get_uri_port());
     } break;
-    case 'h': res += parsed.uri_host; break;    // host
-    case 'p': res += parsed.uri_port; break;    // port
-    case 'H': res += parsed.uri_headers; break; // Headers
+    case 'h': res += parsed.get_uri_host(); break;          // host
+    case 'p': res += int2str(parsed.get_uri_port()); break; // port
+    case 'H':
+    { // Headers
+        bool first_hdr = true;
+        for (const auto &[name, value] : parsed.get_uri_headers()) {
+            if (!first_hdr)
+                res += "&";
+            res += name;
+            if (!value.empty()) {
+                res += "=";
+                res += value;
+            }
+            first_hdr = false;
+        }
+    } break; // Headers
     case 'P':
     { // Params
         if ((s.length() > p + 3) && (s[p + 2] == '(')) {
@@ -70,37 +83,41 @@ int replaceParsedParam(const string &s, size_t p, const AmUriParser &parsed, str
             }
             string param_name = s.substr(p + 3, skip_p - p - 3);
             if (param_name.empty()) {
-                res += parsed.uri_param;
+                bool first_param = true;
+                for (const auto &[name, value] : parsed.get_uri_params()) {
+                    if (!first_param)
+                        res += ";";
+                    res += name;
+                    if (!value.empty()) {
+                        res += "=";
+                        res += value;
+                    }
+                    first_param = false;
+                }
                 skip_chars = skip_p - p;
                 break;
             }
 
-            const string   &uri_params = parsed.uri_param;
-            const char     *c          = uri_params.c_str();
-            list<sip_avp *> params;
-
-            if (parse_gen_params(&params, &c, uri_params.length(), 0) < 0) {
-                DBG("could not parse URI parameters");
-                free_gen_params(&params);
-                break;
+            if (auto it = parsed.get_uri_params().find(param_name); it != parsed.get_uri_params().end()) {
+                res += it->second;
             }
-
-            string param;
-            for (list<sip_avp *>::iterator it = params.begin(); it != params.end(); it++) {
-                if (lower_cmp_n((*it)->name.s, (*it)->name.len, param_name.c_str(), param_name.length())) {
-                    continue;
-                }
-                param = c2stlstr((*it)->value);
-            }
-            free_gen_params(&params);
-            res += param;
             skip_chars = skip_p - p;
         } else {
-            res += parsed.uri_param;
+            bool first_param = true;
+            for (const auto &[name, value] : parsed.get_uri_params()) {
+                if (!first_param)
+                    res += ";";
+                res += name;
+                if (!value.empty()) {
+                    res += "=";
+                    res += value;
+                }
+                first_param = false;
+            }
         }
-    } break; // case 'P'
+    } break; // case 'P'*/
     case 'n':
-        res += parsed.display_name;
+        res += parsed.get_display_name();
         break; // Params
     // case 't': { // tag
     //   map<string, string>::const_iterator it = parsed.params.find("tag");
@@ -118,8 +135,9 @@ char *url_encode(const char *str);
 
 string replaceParameters(const string &s, const char *r_type, const AmSipRequest &req,
                          const SBCCallProfile *call_profile, const string &app_param,
-                         const string &outbound_interface_host, AmUriParser &ruri_parser, AmUriParser &from_parser,
-                         AmUriParser &to_parser, bool rebuild_ruri, bool rebuild_from, bool rebuild_to)
+                         const string &outbound_interface_host, AmShallowUriParser &ruri_parser,
+                         AmShallowUriParser &from_parser, AmShallowUriParser &to_parser, bool rebuild_ruri,
+                         bool rebuild_from, bool rebuild_to)
 {
     string        res;
     bool          is_replaced = false;
@@ -165,9 +183,8 @@ string replaceParameters(const string &s, const char *r_type, const AmSipRequest
                         break;
                     }
 
-                    if (from_parser.uri.empty()) {
-                        from_parser.uri = req.from;
-                        if (!from_parser.parse_uri()) {
+                    if (from_parser.get_uri_host().empty()) {
+                        if (!from_parser.parse_uri(req.from)) {
                             WARN("Error parsing From URI '%s'", req.from.c_str());
                             break;
                         }
@@ -192,9 +209,8 @@ string replaceParameters(const string &s, const char *r_type, const AmSipRequest
                         break;
                     }
 
-                    if (to_parser.uri.empty()) {
-                        to_parser.uri = req.to;
-                        if (!to_parser.parse_uri()) {
+                    if (to_parser.get_uri_host().empty()) {
+                        if (!to_parser.parse_uri(req.to)) {
                             WARN("Error parsing To URI '%s'", req.to.c_str());
                             break;
                         }
@@ -214,9 +230,8 @@ string replaceParameters(const string &s, const char *r_type, const AmSipRequest
                         break;
                     }
 
-                    if (ruri_parser.uri.empty()) {
-                        ruri_parser.uri = req.r_uri;
-                        if (!ruri_parser.parse_uri()) {
+                    if (ruri_parser.get_uri_host().empty()) {
+                        if (!ruri_parser.parse_uri(req.r_uri)) {
                             WARN("Error parsing R-URI '%s'", req.r_uri.c_str());
                             break;
                         }
@@ -284,19 +299,18 @@ string replaceParameters(const string &s, const char *r_type, const AmSipRequest
                         break;
                     }
 
-                    if (ruri_parser.uri.empty()) {
-                        ruri_parser.uri = req.r_uri;
-                        if (!ruri_parser.parse_uri()) {
+                    if (ruri_parser.get_uri_host().empty()) {
+                        if (!ruri_parser.parse_uri(req.r_uri)) {
                             WARN("Error parsing R-URI '%s'", req.r_uri.c_str());
                             break;
                         }
                     }
 
                     if (s[p + 1] == 'i') { // $di remote UAS IP address
-                        res += ruri_parser.uri_host;
+                        res += ruri_parser.get_uri_host();
                         break;
                     } else if (s[p + 1] == 'p') { // $dp remote UAS port
-                        res += ruri_parser.uri_port;
+                        res += int2str(ruri_parser.get_uri_port());
                         break;
                     }
 
@@ -356,21 +370,21 @@ string replaceParameters(const string &s, const char *r_type, const AmSipRequest
 #define case_HDR(pv_char, pv_name, hdr_name)                                                                           \
     case pv_char:                                                                                                      \
     {                                                                                                                  \
-        AmUriParser uri_parser;                                                                                        \
-        uri_parser.uri = getHeader(used_hdrs, hdr_name);                                                               \
+        AmShallowUriParser uri_parser;                                                                                 \
+        auto               hdr = getHeader(used_hdrs, hdr_name);                                                       \
         if ((s.length() == p + 1) || (s[p + 1] == '.')) {                                                              \
-            res += uri_parser.uri;                                                                                     \
+            res += hdr;                                                                                                \
             break;                                                                                                     \
         }                                                                                                              \
                                                                                                                        \
-        if (!uri_parser.parse_uri()) {                                                                                 \
-            WARN("Error parsing " pv_name " URI '%s'", uri_parser.uri.c_str());                                        \
+        if (!uri_parser.parse_uri(hdr)) {                                                                              \
+            WARN("Error parsing " pv_name " URI '%s'", hdr.c_str());                                                   \
             break;                                                                                                     \
         }                                                                                                              \
         if (s[p + 1] == 'i') {                                                                                         \
-            res += uri_parser.uri_user + "@" + uri_parser.uri_host;                                                    \
-            if (!uri_parser.uri_port.empty())                                                                          \
-                res += ":" + uri_parser.uri_port;                                                                      \
+            res += string{ uri_parser.get_uri_user() } + "@" + string{ uri_parser.get_uri_host() };                    \
+            if (uri_parser.get_uri_port())                                                                             \
+                res += ":" + int2str(uri_parser.get_uri_port());                                                       \
         } else {                                                                                                       \
             skip_chars = replaceParsedParam(s, p, uri_parser, res);                                                    \
         }                                                                                                              \
@@ -431,15 +445,15 @@ string replaceParameters(const string &s, const char *r_type, const AmSipRequest
                         res += getHeader(used_hdrs, hdr_name);
                     } else {
                         // parse URI and use component
-                        AmUriParser uri_parser;
-                        uri_parser.uri = getHeader(used_hdrs, hdr_name);
+                        AmShallowUriParser uri_parser;
+                        auto               hdr = getHeader(used_hdrs, hdr_name);
                         if ((s[p + 1] == '.')) {
-                            res += uri_parser.uri;
+                            res += hdr;
                             break;
                         }
 
-                        if (!uri_parser.parse_uri()) {
-                            WARN("Error parsing header %s URI '%s'", hdr_name.c_str(), uri_parser.uri.c_str());
+                        if (!uri_parser.parse_uri(hdr)) {
+                            WARN("Error parsing header %s URI '%s'", hdr_name.c_str(), hdr.c_str());
                             break;
                         }
                         // TODO: find out how to correct skip_chars correctly

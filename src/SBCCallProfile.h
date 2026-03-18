@@ -476,8 +476,6 @@ struct SBCCallProfile : public AmObject {
 
     bool apply_b_routing(const string &ruri, AmBasicSipDialog &dlg) const;
 
-    int apply_common_fields(ParamReplacerCtx &ctx, AmSipRequest &req) const;
-
     bool evaluateOutboundInterface();
 
     bool evaluate_routing(ParamReplacerCtx &ctx, const AmSipRequest &req, AmSipDialog &dlg);

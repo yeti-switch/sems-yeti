@@ -1,5 +1,6 @@
 #include "SqlCallProfile.h"
 #include "AmUtils.h"
+#include "AmShallowUriParser.h"
 #include "SBC.h"
 #include "yeti.h"
 #include "sdp_filter.h"
@@ -811,41 +812,24 @@ static void _patch_uri_transport(string &uri, unsigned int transport_id, const c
     case sip_transport::TCP:
     case sip_transport::TLS:
     {
-        AmUriParser parser;
-        auto        transport_name = transport_str(transport_id);
-        DBG("patch %s to use %.*s transport. current value is: '%s'", field_name, transport_name.len, transport_name.s,
-            uri.c_str());
-        parser.uri = uri;
-        if (!parser.parse_uri()) {
+        AmShallowUriParser parser;
+        auto               transport_name = transport_str(transport_id);
+        DBG("patch %s to use transport %d. current value is: '%s'", field_name, transport_id, uri.c_str());
+
+        if (!parser.parse_uri(uri)) {
             ERROR("Error parsing %s '%s' for protocol patching to %.*s. leave it as is", field_name, uri.c_str(),
                   transport_name.len, transport_name.s);
             break;
         }
-        // check for existent transport param
-        if (!parser.uri_param.empty()) {
-            bool can_patch       = true;
-            auto uri_params_list = explode(URL_decode(parser.uri_param), ";");
-            for (const auto &p : uri_params_list) {
-                auto v = explode(p, "=");
-                if (v[0] == "transport") {
-                    ERROR("attempt to patch %s with existent transport parameter: '%s'."
-                          " leave it as is",
-                          field_name, v.size() > 1 ? v[1].c_str() : "");
-                    can_patch = false;
-                    break;
-                }
-            }
-            if (can_patch) {
-                parser.uri_param += ";transport=";
-                parser.uri_param += c2stlstr(transport_name);
-                uri = parser.uri_str();
-                DBG("%s patched to: '%s'", field_name, uri.c_str());
-            }
-        } else {
-            parser.uri_param = "transport=";
-            parser.uri_param += c2stlstr(transport_name);
+
+        if (parser.patch_uri_transport_param(static_cast<sip_transport::sip_transport_id>(transport_id))) {
             uri = parser.uri_str();
             DBG("%s patched to: '%s'", field_name, uri.c_str());
+        } else {
+            const auto &transport_param = parser.get_uri_params().at("transport");
+            ERROR("attempt to patch %s with existent transport parameter: '%.*s'."
+                  " leave it as is",
+                  field_name, transport_param.length(), transport_param.data());
         }
     } break;
     default: ERROR("%s %d is not supported yet. ignore it", transport_field_name, transport_id);
