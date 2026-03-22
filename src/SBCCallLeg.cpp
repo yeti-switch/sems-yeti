@@ -1591,6 +1591,12 @@ void SBCCallLeg::applyAProfile()
 
     setAllow1xxWithoutToTag(call_profile.allow_1xx_without_to_tag);
 
+    if (auto gw_sip_settings = yeti.gateways_cache.get_sip_settings(call_profile.lega_gw_cache_id); gw_sip_settings) {
+        auto &s = gw_sip_settings.value();
+        dlg->setAllowedMethods(s.allowed_methods.empty() ? yeti.config.allowed_methods : s.allowed_methods);
+        dlg->setSupportedTags(s.supported_tags.empty() ? yeti.config.supported_tags : s.supported_tags);
+    }
+
     if (call_profile.rtprelay_enabled) {
         DBG("Enabling RTP relay mode for SBC call");
 
@@ -1705,6 +1711,12 @@ static TransProt apply_avpf(TransProt tp, bool need_avpf)
 void SBCCallLeg::applyBProfile()
 {
     setAllow1xxWithoutToTag(call_profile.allow_1xx_without_to_tag);
+
+    if (auto gw_sip_settings = yeti.gateways_cache.get_sip_settings(call_profile.legb_gw_cache_id); gw_sip_settings) {
+        auto &s = gw_sip_settings.value();
+        dlg->setAllowedMethods(s.allowed_methods.empty() ? yeti.config.allowed_methods : s.allowed_methods);
+        dlg->setSupportedTags(s.supported_tags.empty() ? yeti.config.supported_tags : s.supported_tags);
+    }
 
     redirects_allowed = call_profile.bleg_max_30x_redirects;
 
@@ -3368,7 +3380,6 @@ void SBCCallLeg::connectCallee(const string &remote_party, const string &remote_
 
     callee_session->setLocalParty(from, from);
     callee_session->setRemoteParty(remote_party, remote_uri);
-    callee_session->dlg->setAllowedMethods(yeti.config.allowed_methods);
     callee_session->dlg->setMaxForwards(invite.max_forwards);
 
     if (!callee_session->a_leg)

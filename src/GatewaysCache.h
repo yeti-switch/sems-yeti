@@ -3,7 +3,7 @@
 #include "AmArg.h"
 #include "AmThread.h"
 #include "AmSipMsg.h"
-
+#include "AmSipDialog.h"
 #include "GatewayStats.h"
 
 #include <unordered_map>
@@ -16,6 +16,11 @@ class GatewaysCache {
     struct TelRedirectData {
         string       transfer_tel_uri_host;
         list<string> transfer_append_headers_req;
+    };
+
+    struct SipSettings {
+        vector<string> allowed_methods;
+        vector<string> supported_tags;
     };
 
     struct MediaSettings {
@@ -65,6 +70,7 @@ class GatewaysCache {
         TelRedirectData tel_redirect_data;
 
         GatewayStats  stats;
+        SipSettings   sip_settings;
         MediaSettings media_settings;
 
         GatewayData(GatewayIdType gateway_id, const AmArg &r);
@@ -92,6 +98,7 @@ class GatewaysCache {
     bool should_skip(GatewayIdType gateway_id, int now);
 
     std::optional<TelRedirectData> get_redirect_data(GatewayIdType gateway_id);
+    std::optional<SipSettings>     get_sip_settings(GatewayIdType gateway_id);
 
     // rerurn [ice_enabled, rtcp_mux_enabled, rtcp_feedback_enabled]
     std::tuple<bool, bool, bool> get_media_settings_enabled(GatewayIdType gateway_id);

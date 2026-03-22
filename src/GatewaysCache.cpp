@@ -21,6 +21,21 @@ GatewaysCache::GatewayData::GatewayData(GatewayIdType gateway_id, const AmArg &r
         }
     }
 
+    // sip settings
+    const auto &allowed_methods_arg = r["allowed_methods"];
+    if (isArgArray(allowed_methods_arg)) {
+        for (auto i = 0u; i < allowed_methods_arg.size(); i++) {
+            sip_settings.allowed_methods.emplace_back(allowed_methods_arg.get(i).asCStr());
+        }
+    }
+
+    const auto &supported_tags_arg = r["supported_tags"];
+    if (isArgArray(supported_tags_arg)) {
+        for (auto i = 0u; i < supported_tags_arg.size(); i++) {
+            sip_settings.supported_tags.emplace_back(supported_tags_arg.get(i).asCStr());
+        }
+    }
+
     // media settings
     auto ice_mode_id_arg = r["ice_mode_id"];
     if (ice_mode_id_arg.isNumber())
@@ -84,18 +99,30 @@ GatewaysCache::GatewayData::GatewayData(GatewayIdType gateway_id, const AmArg &r
 }
 
 
+template <typename Iterator> void append_amrg_with_vector(Iterator begin, Iterator end, AmArg &out)
+{
+    out.assertArray();
+    while (begin != end) {
+        out.push(*begin++);
+    }
+}
+
 GatewaysCache::GatewayData::operator AmArg() const
 {
     AmArg a;
 
     // tel: refer/redirect
 
-    auto &transfer                        = a["transfer"];
-    transfer["tel_uri_host"]              = tel_redirect_data.transfer_tel_uri_host;
-    auto &transfer_append_headers_req_arg = transfer["append_headers_req"];
-    transfer_append_headers_req_arg.assertArray();
-    for (const auto &hdr : tel_redirect_data.transfer_append_headers_req)
-        transfer_append_headers_req_arg.push(hdr);
+    auto &transfer           = a["transfer"];
+    transfer["tel_uri_host"] = tel_redirect_data.transfer_tel_uri_host;
+    append_amrg_with_vector(tel_redirect_data.transfer_append_headers_req.begin(),
+                            tel_redirect_data.transfer_append_headers_req.end(), transfer["append_headers_req"]);
+
+    auto &sip = a["sip"];
+    append_amrg_with_vector(sip_settings.allowed_methods.begin(), sip_settings.allowed_methods.end(),
+                            sip["allowed_methods"]);
+    append_amrg_with_vector(sip_settings.supported_tags.begin(), sip_settings.supported_tags.end(),
+                            sip["supported_tags"]);
 
     auto &media                    = a["media"];
     media["ice_mode_id"]           = MediaSettings::mode2str(media_settings.ice_mode_id);
@@ -291,6 +318,17 @@ std::optional<GatewaysCache::TelRedirectData> GatewaysCache::get_redirect_data(G
         return std::nullopt;
 
     return gw_it->second.tel_redirect_data;
+}
+
+std::optional<GatewaysCache::SipSettings> GatewaysCache::get_sip_settings(GatewayIdType gateway_id)
+{
+    AmLock lock(mutex);
+
+    auto gw_it = gateways.find(gateway_id);
+    if (gw_it == gateways.end())
+        return std::nullopt;
+
+    return gw_it->second.sip_settings;
 }
 
 std::tuple<bool, bool, bool> GatewaysCache::get_media_settings_enabled(GatewayIdType gateway_id)
