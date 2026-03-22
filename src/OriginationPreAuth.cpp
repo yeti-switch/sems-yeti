@@ -205,19 +205,46 @@ bool OriginationPreAuth::onRequest(const AmSipRequest &req, bool match_subnet, R
 
     /* iterate over all matched subnets
      * from the one with the longest mask to the shortest */
+
+    // first cycle to match any entry with require_incoming_auth:false
     for (auto it = match_result.rbegin(); it != match_result.rend(); ++it) {
         const auto &auth = ip_auths[*it];
 
+        if (auth.require_incoming_auth)
+            continue;
+
         // check for x-yeti-auth
-        DBG("check against matched auth: %s(%s)", auth.ip.data(), auth.x_yeti_auth.data());
+        // DBG("check against matched auth: %s(%s)", auth.ip.data(), auth.x_yeti_auth.data());
         if (auth.x_yeti_auth != reply.x_yeti_auth) {
             continue;
         }
 
-        DBG("fully matched with auth: %s(%s) sip_auth:%d, identity:%d", auth.ip.data(), auth.x_yeti_auth.data(),
-            auth.require_incoming_auth, auth.require_identity_parsing);
+        DBG("matched entry without sip auth: %s(%s) identity:%d", auth.ip.data(), auth.x_yeti_auth.data(),
+            auth.require_identity_parsing);
 
-        reply.require_incoming_auth    = auth.require_incoming_auth;
+        reply.require_incoming_auth    = false;
+        reply.require_identity_parsing = auth.require_identity_parsing;
+
+        return true;
+    }
+
+    // second cycle to match any entry with require_incoming_auth:true
+    for (auto it = match_result.rbegin(); it != match_result.rend(); ++it) {
+        const auto &auth = ip_auths[*it];
+
+        if (!auth.require_incoming_auth)
+            continue;
+
+        // check for x-yeti-auth
+        // DBG("check against matched auth: %s(%s)", auth.ip.data(), auth.x_yeti_auth.data());
+        if (auth.x_yeti_auth != reply.x_yeti_auth) {
+            continue;
+        }
+
+        DBG("matched entry with sip auth: %s(%s) identity:%d", auth.ip.data(), auth.x_yeti_auth.data(),
+            auth.require_identity_parsing);
+
+        reply.require_incoming_auth    = true;
         reply.require_identity_parsing = auth.require_identity_parsing;
 
         return true;

@@ -474,7 +474,7 @@ void Yeti::initCfgTimerMappings()
     { "ip_auth",
         { [&](const string &key) {
             auto query = new PGParamExecute(
-                PGQueryData(yeti_routing_pg_worker, "SELECT * FROM load_ip_auth($1,$2)",
+                PGQueryData(yeti_routing_pg_worker, "SELECT * FROM load_ip_auth2($1,$2)",
                 true, /* single */
                 YETI_QUEUE_NAME, key),
                 PGTransactionData(), false);
