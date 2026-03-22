@@ -1,3 +1,7 @@
+sems-yeti (1.14.28) stable; urgency=medium
+  * GatewaysCache: add allowed_methods, supported_tags sip settings
+ -- dev <dev@yeti-switch.org>  Sun, 22 Mar 2026 15:19:35 +0200
+
 sems-yeti (1.14.27) stable; urgency=medium
   * skip rerouting on unexpected cdr ptr behavior. crash workaround
  -- dev <dev@yeti-switch.org>  Fri, 13 Mar 2026 01:36:33 +0200
