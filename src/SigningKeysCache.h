@@ -1,17 +1,21 @@
 #pragma once
 
 #include <AmIdentity.h>
+#include <AmStatistics.h>
+
+#include <botan/x509cert.h>
 
 #include <shared_mutex>
 
 using namespace std;
 
-class SigningKeysCache {
+class SigningKeysCache : public StatsCountersGroupsContainerInterface {
 
     struct SigningKeyEntry {
         string                              name;
         string                              x5u;
         std::unique_ptr<Botan::Private_Key> key;
+        vector<Botan::X509_Certificate>     cert_chain;
 
         SigningKeyEntry(const string &name, const string &x5u, std::unique_ptr<Botan::Private_Key> &key)
             : name(name)
@@ -31,6 +35,9 @@ class SigningKeysCache {
     std::optional<std::string> getIdentityHeader(AmIdentity &identity, unsigned long signing_key_id) const;
     void                       reloadSigningKeys(const AmArg &data);
 
-    // rpc methods
+    /* StatsCountersGroupsContainerInterface */
+    void operator()(const string &name, iterate_groups_callback_type callback);
+
+    /* rpc methods */
     void ShowSigningKeys(AmArg &ret) const;
 };
