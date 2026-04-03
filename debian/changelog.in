@@ -1,3 +1,8 @@
+sems-yeti (1.14.29) stable; urgency=medium
+  * use AmShallowUriParser
+  * expiration timestamp metrics for signing-keys
+ -- dev <dev@yeti-switch.org>  Fri, 03 Apr 2026 11:58:58 +0300
+
 sems-yeti (1.14.28) stable; urgency=medium
   * GatewaysCache: add allowed_methods, supported_tags sip settings
  -- dev <dev@yeti-switch.org>  Sun, 22 Mar 2026 15:19:35 +0200
