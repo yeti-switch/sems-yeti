@@ -125,7 +125,8 @@ class YetiRpc : public RpcTreeHandler, virtual YetiBase, virtual YetiRadius {
     rpc_handler showIPAuth;
     rpc_handler requestIPAuthReload;
 
-    rpc_handler showGatewaysCache;
+    rpc_handler showGatewaysCacheALeg;
+    rpc_handler showGatewaysCacheBLeg;
 
     async_rpc_handler showDBStates;
     async_rpc_handler reloadDBStates;

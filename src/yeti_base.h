@@ -94,7 +94,8 @@ struct YetiBase {
     OptionsProberManager options_prober_manager;
     SigningKeysCache     signing_keys_cache;
     OriginationPreAuth   orig_pre_auth;
-    GatewaysCache        gateways_cache;
+    GatewaysCacheALeg    gateways_cache_aleg;
+    GatewaysCacheBLeg    gateways_cache_bleg;
     CallProfilesCache    callprofiles_cache;
 
     // fields to provide synchronous configuration for DB-related entities

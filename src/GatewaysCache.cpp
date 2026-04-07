@@ -1,26 +1,20 @@
 #include "GatewaysCache.h"
-#include "log.h"
 #include "AmUtils.h"
 
 #define SKIP_RATE_MIN 20.0
 #define SKIP_RATE_MAX 100.0
 
-GatewaysCache::GatewayData::GatewayData(GatewayIdType gateway_id, const AmArg &r)
-    : id(gateway_id)
-    , throttling_enabled(false)
+template <typename Iterator> void append_amrg_with_vector(Iterator begin, Iterator end, AmArg &out)
 {
-    // tel: refer
-    const auto &transfer_tel_uri_host_arg = r["transfer_tel_uri_host"];
-    if (!isArgUndef(transfer_tel_uri_host_arg))
-        tel_redirect_data.transfer_tel_uri_host = transfer_tel_uri_host_arg.asCStr();
-
-    const auto &transfer_append_headers_req_arg = r["transfer_append_headers_req"];
-    if (isArgArray(transfer_append_headers_req_arg)) {
-        for (auto i = 0u; i < transfer_append_headers_req_arg.size(); i++) {
-            tel_redirect_data.transfer_append_headers_req.push_back(transfer_append_headers_req_arg.get(i).asCStr());
-        }
+    out.assertArray();
+    while (begin != end) {
+        out.push(*begin++);
     }
+}
 
+GatewaysCacheDataBase::GatewaysCacheDataBase(GatewayIdType gateway_id, const AmArg &r)
+    : id(gateway_id)
+{
     // sip settings
     const auto &allowed_methods_arg = r["allowed_methods"];
     if (isArgArray(allowed_methods_arg)) {
@@ -48,6 +42,37 @@ GatewaysCache::GatewayData::GatewayData(GatewayIdType gateway_id, const AmArg &r
     auto rtcp_feedback_mode_id_arg = r["rtcp_feedback_mode_id"];
     if (rtcp_feedback_mode_id_arg.isNumber())
         media_settings.rtcp_feedback_mode_id = rtcp_feedback_mode_id_arg.asNumber<MediaSettings::MediaModeId>();
+}
+
+void GatewaysCacheDataBase::GatewaysCacheDataBase::serialize_base(AmArg &ret) const
+{
+    auto &sip = ret["sip"];
+    append_amrg_with_vector(sip_settings.allowed_methods.begin(), sip_settings.allowed_methods.end(),
+                            sip["allowed_methods"]);
+    append_amrg_with_vector(sip_settings.supported_tags.begin(), sip_settings.supported_tags.end(),
+                            sip["supported_tags"]);
+
+    auto &media                    = ret["media"];
+    media["ice_mode_id"]           = MediaSettings::mode2str(media_settings.ice_mode_id);
+    media["rtcp_mux_mode_id"]      = MediaSettings::mode2str(media_settings.rtcp_mux_mode_id);
+    media["rtcp_feedback_mode_id"] = MediaSettings::mode2str(media_settings.rtcp_feedback_mode_id);
+}
+
+GatewayDataBleg::GatewayDataBleg(GatewayIdType gateway_id, const AmArg &r)
+    : GatewaysCacheDataBase(gateway_id, r)
+    , throttling_enabled(false)
+{
+    // tel: refer
+    const auto &transfer_tel_uri_host_arg = r["transfer_tel_uri_host"];
+    if (!isArgUndef(transfer_tel_uri_host_arg))
+        tel_redirect_data.transfer_tel_uri_host = transfer_tel_uri_host_arg.asCStr();
+
+    const auto &transfer_append_headers_req_arg = r["transfer_append_headers_req"];
+    if (isArgArray(transfer_append_headers_req_arg)) {
+        for (auto i = 0u; i < transfer_append_headers_req_arg.size(); i++) {
+            tel_redirect_data.transfer_append_headers_req.push_back(transfer_append_headers_req_arg.get(i).asCStr());
+        }
+    }
 
     // throttling
     auto &throttling_codes = r["throttling_codes"];
@@ -98,18 +123,11 @@ GatewaysCache::GatewayData::GatewayData(GatewayIdType gateway_id, const AmArg &r
     throttling_enabled = true;
 }
 
-
-template <typename Iterator> void append_amrg_with_vector(Iterator begin, Iterator end, AmArg &out)
-{
-    out.assertArray();
-    while (begin != end) {
-        out.push(*begin++);
-    }
-}
-
-GatewaysCache::GatewayData::operator AmArg() const
+GatewayDataBleg::GatewayDataBleg::operator AmArg() const
 {
     AmArg a;
+
+    serialize_base(a);
 
     // tel: refer/redirect
 
@@ -117,17 +135,6 @@ GatewaysCache::GatewayData::operator AmArg() const
     transfer["tel_uri_host"] = tel_redirect_data.transfer_tel_uri_host;
     append_amrg_with_vector(tel_redirect_data.transfer_append_headers_req.begin(),
                             tel_redirect_data.transfer_append_headers_req.end(), transfer["append_headers_req"]);
-
-    auto &sip = a["sip"];
-    append_amrg_with_vector(sip_settings.allowed_methods.begin(), sip_settings.allowed_methods.end(),
-                            sip["allowed_methods"]);
-    append_amrg_with_vector(sip_settings.supported_tags.begin(), sip_settings.supported_tags.end(),
-                            sip["supported_tags"]);
-
-    auto &media                    = a["media"];
-    media["ice_mode_id"]           = MediaSettings::mode2str(media_settings.ice_mode_id);
-    media["rtcp_mux_mode_id"]      = MediaSettings::mode2str(media_settings.rtcp_mux_mode_id);
-    media["rtcp_feedback_mode_id"] = MediaSettings::mode2str(media_settings.rtcp_feedback_mode_id);
 
     // throttling
     auto &throttling = a["throttling"];
@@ -170,7 +177,7 @@ GatewaysCache::GatewayData::operator AmArg() const
     return a;
 }
 
-double GatewaysCache::GatewayData::getFailureRate() const
+double GatewayDataBleg::getFailureRate() const
 {
     const auto &s = stats.global;
     int         n = s.failed_replies + s.success_replies;
@@ -180,7 +187,7 @@ double GatewaysCache::GatewayData::getFailureRate() const
     return static_cast<double>(s.failed_replies) * 100 / n;
 }
 
-double GatewaysCache::GatewayData::getSkipRate(double failure_rate) const
+double GatewayDataBleg::getSkipRate(double failure_rate) const
 {
     if (failure_rate < throttling_threshold_start)
         return 0;
@@ -191,65 +198,14 @@ double GatewaysCache::GatewayData::getSkipRate(double failure_rate) const
     return SKIP_RATE_MIN + (failure_rate_multiplier * (failure_rate - throttling_threshold_start));
 }
 
-GatewaysCache::GatewaysCache()
+GatewaysCacheBLeg::GatewaysCacheBLeg()
+    : GatewaysCacheBase()
 {
     std::random_device rd;
     random_generator.seed(rd());
 }
 
-int GatewaysCache::configure()
-{
-    return 0;
-}
-
-void GatewaysCache::update(const AmArg &data)
-{
-    if (!isArgArray(data))
-        return;
-
-    GatewaysContainer tmp;
-    for (size_t i = 0; i < data.size(); ++i) {
-        auto         &row        = data[i];
-        GatewayIdType gateway_id = row["id"].asLongLong();
-        try {
-            tmp.try_emplace(gateway_id, gateway_id, row);
-        } catch (...) {
-            ERROR("got exception on gateway emplacing: %s", row.print().data());
-        }
-    }
-
-    AmLock lock(mutex);
-    gateways.swap(tmp);
-
-    /* copy runtime stats data for gateways with enabled throttling
-     * TODO: move stats to another container */
-    for (const auto &old_gw : tmp) {
-        auto it = gateways.find(old_gw.first);
-        if (it != gateways.end() && it->second.throttling_enabled && old_gw.second.throttling_enabled) {
-            it->second.stats = old_gw.second.stats;
-            it->second.stats.set_window_size(it->second.throttling_window);
-        }
-    }
-}
-
-void GatewaysCache::info(const AmArg &arg, AmArg &ret)
-{
-    auto &entries = ret["gateways"];
-    entries.assertStruct();
-
-    AmLock lock(mutex);
-
-    if (0 == arg.size()) {
-        for (const auto &[id, gw] : gateways)
-            entries[long2str(id)] = gw;
-    } else {
-        auto gw = gateways.find(arg2int(arg[0]));
-        if (gw != gateways.end())
-            entries[long2str(gw->first)] = gw->second;
-    }
-}
-
-void GatewaysCache::update_reply_stats(GatewayIdType gateway_id, const AmSipReply &reply)
+void GatewaysCacheBLeg::update_reply_stats(GatewayDataBleg::GatewayIdType gateway_id, const AmSipReply &reply)
 {
     AmLock lock(mutex);
 
@@ -274,7 +230,7 @@ void GatewaysCache::update_reply_stats(GatewayIdType gateway_id, const AmSipRepl
     gw.stats.add_success_reply(reply.recv_timestamp.tv_sec);
 }
 
-bool GatewaysCache::should_skip(GatewayIdType gateway_id, int now)
+bool GatewaysCacheBLeg::should_skip(GatewayDataBleg::GatewayIdType gateway_id, int now)
 {
     AmLock lock(mutex);
 
@@ -309,7 +265,8 @@ bool GatewaysCache::should_skip(GatewayIdType gateway_id, int now)
     return ret;
 }
 
-std::optional<GatewaysCache::TelRedirectData> GatewaysCache::get_redirect_data(GatewayIdType gateway_id)
+std::optional<GatewayDataBleg::TelRedirectData>
+GatewaysCacheBLeg::get_redirect_data(GatewayDataBleg::GatewayIdType gateway_id)
 {
     AmLock lock(mutex);
 
@@ -318,43 +275,4 @@ std::optional<GatewaysCache::TelRedirectData> GatewaysCache::get_redirect_data(G
         return std::nullopt;
 
     return gw_it->second.tel_redirect_data;
-}
-
-std::optional<GatewaysCache::SipSettings> GatewaysCache::get_sip_settings(GatewayIdType gateway_id)
-{
-    AmLock lock(mutex);
-
-    auto gw_it = gateways.find(gateway_id);
-    if (gw_it == gateways.end())
-        return std::nullopt;
-
-    return gw_it->second.sip_settings;
-}
-
-std::tuple<bool, bool, bool> GatewaysCache::get_media_settings_enabled(GatewayIdType gateway_id)
-{
-    AmLock lock(mutex);
-
-    auto gw_it = gateways.find(gateway_id);
-    if (gw_it == gateways.end())
-        return { false, false, false };
-
-    const auto &m = gw_it->second.media_settings;
-    return { m.ice_mode_id == MediaSettings::MEDIA_MODE_ENABLED,
-             m.rtcp_mux_mode_id == MediaSettings::MEDIA_MODE_ENABLED,
-             m.rtcp_feedback_mode_id == MediaSettings::MEDIA_MODE_ENABLED };
-}
-
-std::tuple<bool, bool, bool> GatewaysCache::get_media_settings_allowed(GatewayIdType gateway_id)
-{
-    AmLock lock(mutex);
-
-    auto gw_it = gateways.find(gateway_id);
-    if (gw_it == gateways.end())
-        return { true, true, true };
-
-    const auto &m = gw_it->second.media_settings;
-    return { m.ice_mode_id != MediaSettings::MEDIA_MODE_DISABLED,
-             m.rtcp_mux_mode_id != MediaSettings::MEDIA_MODE_DISABLED,
-             m.rtcp_feedback_mode_id != MediaSettings::MEDIA_MODE_DISABLED };
 }

@@ -195,7 +195,8 @@ void YetiRpc::init_rpc_tree()
     method(show, "ip_auth", "show ip auth list", showIPAuth, "");
     method(show, "db_states", "show db reloading status", showDBStates, "");
 
-    method(show, "gateways_cache", "show gateways cache", showGatewaysCache, "");
+    method(show, "gateways_cache_aleg", "show origination gateways cache", showGatewaysCacheALeg, "");
+    method(show, "gateways_cache_bleg", "show termination gateways cache", showGatewaysCacheBLeg, "");
 
     /* request */
     leaf(root, request, "request", "modify commands");
@@ -1058,13 +1059,22 @@ void YetiRpc::requestIPAuthReload(const AmArg &, AmArg &)
     deprecated_db_reload_cmd();
 }
 
-void YetiRpc::showGatewaysCache(const AmArg &arg, AmArg &ret)
+void YetiRpc::showGatewaysCacheALeg(const AmArg &arg, AmArg &ret)
+{
+    if (router.get_lega_gw_cache_key().empty()) {
+        throw AmSession::Exception(500, "origination gateways cache is disabled. "
+                                        "set routing.lega_gw_cache_key");
+    }
+    gateways_cache_aleg.info(arg, ret);
+}
+
+void YetiRpc::showGatewaysCacheBLeg(const AmArg &arg, AmArg &ret)
 {
     if (router.get_legb_gw_cache_key().empty()) {
         throw AmSession::Exception(500, "gateways cache is disabled. "
-                                        "set at least one of the routing.{lega_gw_cache_key, legb_gw_cache_key}");
+                                        "set routing.legb_gw_cache_key");
     }
-    gateways_cache.info(arg, ret);
+    gateways_cache_bleg.info(arg, ret);
 }
 
 bool YetiRpc::showDBStates(const string &connection_id, const AmArg &request_id, const AmArg &params)

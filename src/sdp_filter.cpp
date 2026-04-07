@@ -558,7 +558,7 @@ int processSdpOffer(SBCCallLeg *call, SBCCallProfile &call_profile, AmMimeBody &
 
             bool allow_rtcp_feedback;
             std::tie(std::ignore, std::ignore, allow_rtcp_feedback) =
-                Yeti::instance().gateways_cache.get_media_settings_allowed(call_profile.lega_gw_cache_id);
+                Yeti::instance().gateways_cache_aleg.get_media_settings_allowed(call_profile.lega_gw_cache_id);
 
             if (is_rtcp_feedback && !allow_rtcp_feedback) {
                 DBG("got offer media transport %s while rtcp_feedback is disabled",

@@ -345,7 +345,7 @@ void SBCCallLeg::processResourcesAndSdp()
                 (!profile->legab_res_mode_enabled || lega_res_chk_step))
             {
                 DBG("check throttling for profile. attempt %d", attempt);
-                if (yeti.gateways_cache.should_skip(profile->legb_gw_cache_id, now)) {
+                if (yeti.gateways_cache_bleg.should_skip(profile->legb_gw_cache_id, now)) {
                     DBG("skipped by throttling for legb_gw_cache_id:%d", profile->legb_gw_cache_id);
 
                     // get next profile
@@ -549,7 +549,7 @@ bool SBCCallLeg::chooseNextProfile()
         }
 
         DBG("no refuse field. check it for throttling");
-        if (profile->legb_gw_cache_id && yeti.gateways_cache.should_skip(profile->legb_gw_cache_id, now)) {
+        if (profile->legb_gw_cache_id && yeti.gateways_cache_bleg.should_skip(profile->legb_gw_cache_id, now)) {
             DBG("skipped by throttling for legb_gw_cache_id:%d", profile->legb_gw_cache_id);
 
             profile = call_ctx->getNextProfile(GET_PROFILE_CDR_UPDATE, GET_PROFILE_PROFILES_NO_REFUSING);
@@ -1521,7 +1521,9 @@ void SBCCallLeg::applyAProfile()
 
     setAllow1xxWithoutToTag(call_profile.allow_1xx_without_to_tag);
 
-    if (auto gw_sip_settings = yeti.gateways_cache.get_sip_settings(call_profile.lega_gw_cache_id); gw_sip_settings) {
+    if (auto gw_sip_settings = yeti.gateways_cache_aleg.get_sip_settings(call_profile.lega_gw_cache_id);
+        gw_sip_settings)
+    {
         auto &s = gw_sip_settings.value();
         dlg->setAllowedMethods(s.allowed_methods.empty() ? yeti.config.allowed_methods : s.allowed_methods);
         dlg->setSupportedTags(s.supported_tags.empty() ? yeti.config.supported_tags : s.supported_tags);
@@ -1558,7 +1560,7 @@ void SBCCallLeg::applyAProfile()
             setMediaTransport(first_media.transport);
 
             auto [allow_ice, allow_rtcp_mux, allow_rtcp_feedback] =
-                yeti.gateways_cache.get_media_settings_allowed(call_profile.lega_gw_cache_id);
+                yeti.gateways_cache_aleg.get_media_settings_allowed(call_profile.lega_gw_cache_id);
 
             if (first_media.is_ice && allow_ice) {
                 useIceMediaStream();
@@ -1642,7 +1644,9 @@ void SBCCallLeg::applyBProfile()
 {
     setAllow1xxWithoutToTag(call_profile.allow_1xx_without_to_tag);
 
-    if (auto gw_sip_settings = yeti.gateways_cache.get_sip_settings(call_profile.legb_gw_cache_id); gw_sip_settings) {
+    if (auto gw_sip_settings = yeti.gateways_cache_bleg.get_sip_settings(call_profile.legb_gw_cache_id);
+        gw_sip_settings)
+    {
         auto &s = gw_sip_settings.value();
         dlg->setAllowedMethods(s.allowed_methods.empty() ? yeti.config.allowed_methods : s.allowed_methods);
         dlg->setSupportedTags(s.supported_tags.empty() ? yeti.config.supported_tags : s.supported_tags);
@@ -1675,7 +1679,7 @@ void SBCCallLeg::applyBProfile()
     // was read from caller but reading directly from profile now
     if (call_profile.rtprelay_enabled) {
         auto [use_ice, use_rtcp_mux, use_rtcp_feedback] =
-            yeti.gateways_cache.get_media_settings_enabled(call_profile.legb_gw_cache_id);
+            yeti.gateways_cache_bleg.get_media_settings_enabled(call_profile.legb_gw_cache_id);
 
         if (call_profile.rtprelay_interface_value >= 0)
             setRtpInterface(call_profile.rtprelay_interface_value);
@@ -2307,7 +2311,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
                 }
                 auto profile               = *call_ctx->getCurrentProfile();
                 auto legb_gw_cache_id      = profile.legb_gw_cache_id;
-                auto tel_redirect_data_ret = yeti.gateways_cache.get_redirect_data(legb_gw_cache_id);
+                auto tel_redirect_data_ret = yeti.gateways_cache_bleg.get_redirect_data(legb_gw_cache_id);
                 if (!tel_redirect_data_ret) {
                     DBG("no gateway cache data for legb_gw_cache_id:%s. reject tel URI xfer: %s", legb_gw_cache_id,
                         refer_to.c_str());
@@ -2416,7 +2420,7 @@ void SBCCallLeg::onSipReply(const AmSipRequest &req, const AmSipReply &reply, Am
         if (reply.code >= 200 && reply.cseq_method == SIP_METH_INVITE) {
             auto &gw_id = call_ctx->getCurrentProfile()->legb_gw_cache_id;
             if (gw_id)
-                yeti.gateways_cache.update_reply_stats(gw_id, reply);
+                yeti.gateways_cache_bleg.update_reply_stats(gw_id, reply);
         }
 
         if (call_ctx->transfer_intermediate_state && reply.cseq_method == SIP_METH_INVITE) {

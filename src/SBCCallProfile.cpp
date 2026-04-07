@@ -498,8 +498,7 @@ bool SBCCallProfile::apply_b_routing(const string &ruri, AmBasicSipDialog &dlg) 
     dlg.setRemoteUri(ruri);
 
     if (!bleg_route_set.empty()) {
-        if (parse_and_validate_route(bleg_route_set) == 0)
-            dlg.setRouteSet(bleg_route_set);
+        dlg.setRouteSet(bleg_route_set);
     } else if (!outbound_proxy.empty()) {
         dlg.outbound_proxy       = outbound_proxy;
         dlg.force_outbound_proxy = force_outbound_proxy;

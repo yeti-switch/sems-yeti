@@ -255,7 +255,7 @@ void Yeti::run()
 
         for (int n = 0; n < ret; ++n) {
             const struct epoll_event &e = events[n];
-            f                     = e.data.fd;
+            f                           = e.data.fd;
 
             if (f == db_cfg_reload_timer) {
                 checkStates();
@@ -403,7 +403,7 @@ bool Yeti::isAllComponentsInited()
 
 void Yeti::initCfgTimerMappings()
 {
-// clang-format off
+    // clang-format off
     db_config_timer_mappings = {
 
     // identity_validator
@@ -590,12 +590,29 @@ void Yeti::initCfgTimerMappings()
             options_prober_manager.load_probers(e.result);
         } }
     },
+    { "aleg_gateways_cache",
+        { [&](const string &key) {
+            if (!router.get_lega_gw_cache_key().empty())
+                yeti_routing_db_query("SELECT * FROM load_aleg_gateway_attributes_cache()", key);
+        }, [&](const PGResponse &e) {
+            gateways_cache_aleg.update(e.result);
+        } }
+    },
+    { "bleg_gateways_cache",
+        { [&](const string &key) {
+            if (!router.get_legb_gw_cache_key().empty())
+                yeti_routing_db_query("SELECT * FROM load_bleg_gateway_attributes_cache()", key);
+        }, [&](const PGResponse &e) {
+            gateways_cache_bleg.update(e.result);
+        } }
+    },
+    //keep old state for back-compatibility. apply it for Blegs. DEPRECATE: remove
     { "gateways_cache",
         { [&](const string &key) {
-            if (!(router.get_lega_gw_cache_key().empty() and router.get_legb_gw_cache_key().empty()))
+            if (!router.get_legb_gw_cache_key().empty())
                 yeti_routing_db_query("SELECT * FROM load_gateway_attributes_cache()", key);
         }, [&](const PGResponse &e) {
-            gateways_cache.update(e.result);
+            gateways_cache_bleg.update(e.result);
         } }
     },
     // CallProfilesCache
@@ -607,7 +624,8 @@ void Yeti::initCfgTimerMappings()
         } }
     },
     }; //db_config_timer_mappings
-// clang-format on
+
+    // clang-format on
 
     for (auto &mapping : db_config_timer_mappings)
         mapping.second.init_exceptions_counter(mapping.first);
@@ -617,7 +635,7 @@ void Yeti::checkStates() noexcept
 {
     string token = AmSession::getNewId();
     yeti_routing_db_query("SELECT * FROM check_states()", token);
-// clang-format off
+    // clang-format off
     db_requests.emplace(
         token,
         db_req_entry(
@@ -647,14 +665,16 @@ void Yeti::checkStates() noexcept
             [](const PGTimeout &) {}
         )
     );
-// clang-format on
+
+    // clang-format on
 }
 
 void Yeti::showStates(const JsonRpcRequestEvent &e)
 {
     string token = AmSession::getNewId();
     yeti_routing_db_query("SELECT * FROM check_states()", token);
-// clang-format off
+
+    // clang-format off
     db_requests.emplace(
         token,
         db_req_entry(
@@ -673,7 +693,8 @@ void Yeti::showStates(const JsonRpcRequestEvent &e)
             [e](const PGTimeout &) { postJsonRpcReply(e, "timeout"); }
         )
     );
-// clang-format on
+
+    // clang-format on
 }
 
 bool Yeti::verifyHttpDestinations()

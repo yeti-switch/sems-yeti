@@ -5,6 +5,7 @@
 #include "yeti.h"
 #include "sdp_filter.h"
 #include "sip/parse_via.h"
+#include "sip/parse_route.h"
 #include "sip/resolver.h"
 #include "db/DbHelpers.h"
 #include "jsonArg.h"
@@ -882,6 +883,16 @@ bool SqlCallProfile::eval(const ResourceControl &rctl)
         DBG("%s: incorrect registered_aor_mode_id value. replace %d -> %d", aleg_local_tag.data(),
             registered_aor_mode_id, REGISTERED_AOR_MODE_AS_IS);
         registered_aor_mode_id = REGISTERED_AOR_MODE_AS_IS;
+    }
+
+    if (!bleg_route_set.empty() && (parse_and_validate_route(bleg_route_set) != 0)) {
+        ERROR("failed to parse bleg_route_set. ignore it: %s", bleg_route_set.c_str());
+        bleg_route_set.clear();
+    }
+
+    if (!aleg_route_set.empty() && (parse_and_validate_route(aleg_route_set) != 0)) {
+        ERROR("failed to parse aleg_route_set. ignore it: %s", aleg_route_set.c_str());
+        aleg_route_set.clear();
     }
 
     return eval_transport_ids() && eval_protocol_priority() && eval_resources(rctl) && eval_radius() &&

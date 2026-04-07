@@ -3,7 +3,7 @@
 
 TEST_F(YetiTest, GatewaysCacheThrottling)
 {
-    GatewaysCache cache;
+    GatewaysCacheBLeg cache;
     cache.update({ { AmArg{
         { "id", 1LL },
         { "throttling_codes", AmArg{ "local408", "408" } },
@@ -86,7 +86,7 @@ TEST_F(YetiTest, GatewaysCacheMediaSettings)
     AmArg arg, ret;
     arg.assertArray();
 
-    GatewaysCache cache;
+    GatewaysCacheALeg cache;
 
     // check defaults
     cache.update({ { AmArg{ { "id", 1LL } } } });
@@ -100,10 +100,11 @@ TEST_F(YetiTest, GatewaysCacheMediaSettings)
     }
 
     // check parsing
-    cache.update({ { AmArg{ { "id", 1LL },
-                            { "ice_mode_id", GatewaysCache::MediaSettings::MEDIA_MODE_DISABLED },
-                            { "rtcp_mux_mode_id", GatewaysCache::MediaSettings::MEDIA_MODE_DISABLED },
-                            { "rtcp_feedback_mode_id", GatewaysCache::MediaSettings::MEDIA_MODE_DISABLED } } } });
+    cache.update(
+        { { AmArg{ { "id", 1LL },
+                   { "ice_mode_id", GatewaysCacheDataBase::MediaSettings::MEDIA_MODE_DISABLED },
+                   { "rtcp_mux_mode_id", GatewaysCacheDataBase::MediaSettings::MEDIA_MODE_DISABLED },
+                   { "rtcp_feedback_mode_id", GatewaysCacheDataBase::MediaSettings::MEDIA_MODE_DISABLED } } } });
 
     {
         cache.info(arg, ret);
