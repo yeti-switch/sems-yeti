@@ -382,8 +382,12 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
 
     push_token = DbAmArg_hash_get_str(t, "push_token");
 
-    lega_gw_cache_id = !lega_gw_cache_key.empty() ? DbAmArg_hash_get_int(t, lega_gw_cache_key, 0) : 0;
-    legb_gw_cache_id = !legb_gw_cache_key.empty() ? DbAmArg_hash_get_int(t, legb_gw_cache_key, 0) : 0;
+    lega_gw_cache_id = !lega_gw_cache_key.empty()
+                           ? DbAmArg_hash_get_as_number<decltype(lega_gw_cache_id)>(t, lega_gw_cache_key, 0)
+                           : 0;
+    legb_gw_cache_id = !legb_gw_cache_key.empty()
+                           ? DbAmArg_hash_get_as_number<decltype(legb_gw_cache_id)>(t, legb_gw_cache_key, 0)
+                           : 0;
 
     DBG("Yeti: loaded SQL profile");
 

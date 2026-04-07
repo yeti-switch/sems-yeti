@@ -17,3 +17,14 @@ std::string DbAmArg_hash_get_str_any(const AmArg &a, const std::string &key,
 int DbAmArg_hash_get_int(const AmArg &a, const std::string &key, int default_value = 0);
 
 int DbAmArg_hash_get_int(const AmArg &a, const std::string &key, int default_value, int failover_value);
+
+
+template <typename T> int DbAmArg_hash_get_as_number(const AmArg &a, const std::string &key, T default_value)
+{
+    if (!a.hasMember(key))
+        return default_value;
+    AmArg &v = a[key];
+    if (isArgUndef(v))
+        return default_value;
+    return v.asNumber<T>();
+}

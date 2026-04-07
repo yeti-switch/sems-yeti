@@ -3,7 +3,6 @@
 #include "AmArg.h"
 #include "AmThread.h"
 #include "AmSipMsg.h"
-#include "AmSipDialog.h"
 #include "GatewayStats.h"
 
 #include <unordered_map>
@@ -12,7 +11,7 @@
 #include <optional>
 
 struct GatewaysCacheDataBase {
-    using GatewayIdType = int;
+    using GatewayIdType = uint64_t;
 
     struct SipSettings {
         vector<string> allowed_methods;

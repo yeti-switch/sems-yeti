@@ -28,18 +28,18 @@
 
 #include "AmConfigReader.h"
 #include "HeaderFilter.h"
-#include "ampi/UACAuthAPI.h"
+#include "GatewaysCache.h"
 #include "ParamReplacer.h"
-#include "atomic_types.h"
-#include "sip/msg_logger.h"
 #include "ampi/RadiusClientAPI.h"
+#include "ampi/UACAuthAPI.h"
+#include "sip/msg_logger.h"
 #include "sip/resolver.h"
 #include "sip/types.h"
+#include "atomic_types.h"
 
 #include <set>
 #include <string>
 #include <map>
-#include <list>
 
 using std::map;
 using std::pair;
@@ -326,8 +326,8 @@ struct SBCCallProfile : public AmObject {
 
     string push_token;
 
-    int lega_gw_cache_id;
-    int legb_gw_cache_id;
+    GatewaysCacheDataBase::GatewayIdType lega_gw_cache_id;
+    GatewaysCacheDataBase::GatewayIdType legb_gw_cache_id;
 
     struct TranscoderSettings {
         enum { DTMFAlways, DTMFNever } dtmf_mode;
