@@ -5,29 +5,21 @@
 #include "format_helper.h"
 #include "AmPlugIn.h"
 #include "AmArg.h"
-#include "jsonArg.h"
 #include "AmSession.h"
 #include "AmUtils.h"
 #include "AmAudioFile.h"
-#include "AmMediaProcessor.h"
 #include "SDPFilter.h"
-#include "CallLeg.h"
 #include "Registration.h"
 #include "CodecsGroup.h"
 #include "Sensors.h"
 #include "AmEventDispatcher.h"
-#include "ampi/SctpBusAPI.h"
 #include "ampi/PostgreSqlAPI.h"
-#include "ampi/SipRegistrarApi.h"
 #include "ampi/IdentityValidatorApi.h"
 #include "sip/resolver.h"
 #include "ObjectsCounter.h"
 
 #include "cfg/yeti_opts.h"
 #include "cfg/statistics_opts.h"
-#include "cfg/cfg_helpers.h"
-
-#include "IPTree.h"
 
 #include <string.h>
 #include <ctime>
@@ -236,7 +228,7 @@ int Yeti::onLoad()
 
 void Yeti::run()
 {
-    int                ret, f;
+    int                f;
     struct epoll_event events[EPOLL_MAX_EVENTS];
 
     setThreadName("yeti-worker");
@@ -250,7 +242,7 @@ void Yeti::run()
     stopped = false;
     do {
         // DBG("epoll_wait...");
-        ret = epoll_wait(epoll_fd, events, EPOLL_MAX_EVENTS, -1);
+        int ret = epoll_wait(epoll_fd, events, EPOLL_MAX_EVENTS, -1);
 
         // DBG("epoll_wait = %d",ret);
 
@@ -262,7 +254,7 @@ void Yeti::run()
             continue;
 
         for (int n = 0; n < ret; ++n) {
-            struct epoll_event &e = events[n];
+            const struct epoll_event &e = events[n];
             f                     = e.data.fd;
 
             if (f == db_cfg_reload_timer) {
@@ -296,7 +288,7 @@ void Yeti::on_stop()
 #pragma GCC diagnostic pop
 }
 
-#define ON_EVENT_TYPE(type) if (type *e = dynamic_cast<type *>(ev))
+#define ON_EVENT_TYPE(type) if (const type *e = dynamic_cast<const type *>(ev))
 
 void Yeti::process(AmEvent *ev)
 {
@@ -331,8 +323,8 @@ void Yeti::process(AmEvent *ev)
                     ERROR("AmArg::OutOfBoundsException in cfg timer handler: %s", e->token.data());
                 } catch (AmArg::TypeMismatchException &) {
                     ERROR("AmArg::TypeMismatchException in cfg timer handler: %s", e->token.data());
-                } catch (std::exception &exception) {
-                    ERROR("std::exception in cfg timer handler '%s': %s", e->token.data(), exception.what());
+                } catch (std::exception &exc) {
+                    ERROR("std::exception in cfg timer handler '%s': %s", e->token.data(), exc.what());
                 } catch (std::string &s) {
                     ERROR("cfg timer handler %s exception: %s", e->token.data(), s.data());
                 } catch (...) {
@@ -411,163 +403,211 @@ bool Yeti::isAllComponentsInited()
 
 void Yeti::initCfgTimerMappings()
 {
+// clang-format off
     db_config_timer_mappings = {
 
-        // identity_validator
-        {   "stir_shaken_trusted_certificates",
-         { [&](const string &key) {
-         if (!isIdentityValidatorAvailbale())
-         return;
-         AmEventDispatcher::instance()->post(IDENTITY_VALIDATOR_APP_QUEUE, new LoadTrustedCertsRequest());
-         },
-         [&](const PGResponse &e) {} }                                                                        },
-        {   "stir_shaken_trusted_repositories",
-         { [&](const string &key) {
-         if (!isIdentityValidatorAvailbale())
-         return;
-         AmEventDispatcher::instance()->post(IDENTITY_VALIDATOR_APP_QUEUE, new LoadTrustedReposRequest());
-         },
-         [&](const PGResponse &e) {} }                                                                        },
-        // signing_key_cache
-        {   "stir_shaken_signing_certificates",
-         { [&](const string &key) {
-         if (!isIdentityValidatorAvailbale())
-         return;
-         yeti_routing_db_query("SELECT * FROM load_stir_shaken_signing_certificates()", key);
-         },
-         [&](const PGResponse &e) { signing_keys_cache.reloadSigningKeys(e.result); } }                       },
-
-        // orig_pre_auth
-        {                            "ip_auth",
-         { [&](const string &key) {
-         auto query = new PGParamExecute(PGQueryData(yeti_routing_pg_worker, "SELECT * FROM load_ip_auth($1,$2)",
-         true, /* single */
-         YETI_QUEUE_NAME, key),
-         PGTransactionData(), false);
-         query->addParam(AmConfig.node_id).addParam(config.pop_id);
-         AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, query);
-         },
-         [&](const PGResponse &e) { orig_pre_auth.reloadLoadIPAuth(e.result); } }                             },
-        {                         "trusted_lb",
-         { [&](const string &key) { yeti_routing_db_query("SELECT * FROM load_trusted_lb()", key); },
-         [&](const PGResponse &e) { orig_pre_auth.reloadLoadBalancers(e.result); } }                          },
-
-        // Sensors
-        {                            "sensors",
-         { [&](const string &key) { yeti_routing_db_query("SELECT * FROM load_sensor()", key); },
-         [&](const PGResponse &e) { Sensors::instance()->load_sensors_config(e.result); } }                   },
-
-        /* CodesTranslator performs 6 SQL queries to load data.
-         * use artifical subkeys to distinguish them */
-        {                       "translations",
-         { [&](const string &) {
-         // iterate subkeys
-         auto end_it = db_config_timer_mappings.lower_bound("translations/");
-         for (auto it = db_config_timer_mappings.upper_bound("translations."); it != end_it; ++it) {
-         it->second.on_reload(it->first);
-         }
-         },
-         [&](const PGResponse &) {
+    // identity_validator
+    { "stir_shaken_trusted_certificates",
+        { [&](const string &) {
+            if (!isIdentityValidatorAvailbale())
+                return;
+            AmEventDispatcher::instance()->post(IDENTITY_VALIDATOR_APP_QUEUE, new LoadTrustedCertsRequest());
+        }, [&](const PGResponse &) {} }
+    },
+    { "stir_shaken_trusted_repositories",
+        { [&](const string &) {
+            if (!isIdentityValidatorAvailbale())
+                return;
+            AmEventDispatcher::instance()->post(IDENTITY_VALIDATOR_APP_QUEUE, new LoadTrustedReposRequest());
+        }, [&](const PGResponse &) {} }
+    },
+    // signing_key_cache
+    { "stir_shaken_signing_certificates",
+        { [&](const string &key) {
+            if (!isIdentityValidatorAvailbale())
+                return;
+            yeti_routing_db_query("SELECT * FROM load_stir_shaken_signing_certificates()", key);
+        },
+        [&](const PGResponse &e) {
+            signing_keys_cache.reloadSigningKeys(e.result);
+        } }
+    },
+    // orig_pre_auth
+    { "ip_auth",
+        { [&](const string &key) {
+            auto query = new PGParamExecute(
+                PGQueryData(yeti_routing_pg_worker, "SELECT * FROM load_ip_auth($1,$2)",
+                true, /* single */
+                YETI_QUEUE_NAME, key),
+                PGTransactionData(), false);
+            query->addParam(AmConfig.node_id).addParam(config.pop_id);
+            AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, query);
+        }, [&](const PGResponse &e) {
+            orig_pre_auth.reloadLoadIPAuth(e.result);
+        } }
+    },
+    { "trusted_lb",
+        { [&](const string &key) {
+            yeti_routing_db_query("SELECT * FROM load_trusted_lb()", key);
+        }, [&](const PGResponse &e) {
+            orig_pre_auth.reloadLoadBalancers(e.result);
+        } }
+    },
+    // Sensors
+    { "sensors",
+        { [&](const string &key) {
+            yeti_routing_db_query("SELECT * FROM load_sensor()", key);
+        }, [&](const PGResponse &e) {
+            Sensors::instance()->load_sensors_config(e.result);
+        } }
+    },
+    /* CodesTranslator performs 6 SQL queries to load data.
+     * use artifical subkeys to distinguish them */
+    { "translations",
+        { [&](const string &) {
+            // iterate subkeys
+            auto end_it = db_config_timer_mappings.lower_bound("translations/");
+            for (auto it = db_config_timer_mappings.upper_bound("translations."); it != end_it; ++it) {
+                it->second.on_reload(it->first);
+            }
+        }, [&](const PGResponse &) {
          // never called. alias key
-         } }                                                                                                  },
-        {          "translations.dc_rerouting",
-         { [&](const string &key) { yeti_routing_db_query("SELECT * FROM load_disconnect_code_rerouting()", key); },
-         [&](const PGResponse &e) { CodesTranslator::instance()->load_disconnect_code_rerouting(e.result); } } },
-        {            "translations.dc_rewrite",
-         { [&](const string &key) { yeti_routing_db_query("SELECT * FROM load_disconnect_code_rewrite()", key); },
-         [&](const PGResponse &e) { CodesTranslator::instance()->load_disconnect_code_rewrite(e.result); } }  },
-        {             "translations.dc_refuse",
-         { [&](const string &key) { yeti_routing_db_query("SELECT * FROM load_disconnect_code_refuse()", key); },
-         [&](const PGResponse &e) { CodesTranslator::instance()->load_disconnect_code_refuse(e.result); } }   },
-        {    "translations.dc_refuse_override",
-         { [&](const string &key) {
-         yeti_routing_db_query("SELECT * FROM load_disconnect_code_refuse_overrides()", key);
-         },
-         [&](const PGResponse &e) {
-         CodesTranslator::instance()->load_disconnect_code_refuse_overrides(e.result);
-         } }                                                                                                  },
-        { "translations.dc_rerouting_override",
-         { [&](const string &key) {
-         yeti_routing_db_query("SELECT * FROM load_disconnect_code_rerouting_overrides()", key);
-         },
-         [&](const PGResponse &e) {
-         CodesTranslator::instance()->load_disconnect_code_rerouting_overrides(e.result);
-         } }                                                                                                  },
-        {   "translations.dc_rewrite_override",
-         { [&](const string &key) {
-         yeti_routing_db_query("SELECT * FROM load_disconnect_code_rewrite_overrides()", key);
-         },
-         [&](const PGResponse &e) {
-         CodesTranslator::instance()->load_disconnect_code_rewrite_overrides(e.result);
-         } }                                                                                                  },
-
-        // CodecsGroups
-        {                       "codec_groups",
-         { [&](const string &key) {
-         yeti_routing_db_query(router.is_new_codec_groups() ? "SELECT * FROM load_codec_groups()"
-         : "SELECT * FROM load_codecs()",
-         key);
-         },
-         [&](const PGResponse &e) {
-         if (router.is_new_codec_groups())
-         CodecsGroups::instance()->load_codec_groups(e.result);
-         else
-         CodecsGroups::instance()->load_codecs(e.result);
-         } }                                                                                                  },
-
-        // Registration
-        {                      "registrations",
-         { [&](const string &key) {
-         auto query = new PGParamExecute(
-         PGQueryData(yeti_routing_pg_worker, "SELECT * FROM load_registrations_out($1,$2)", true, /* single */
-         YETI_QUEUE_NAME, key),
-         PGTransactionData(), false);
-         query->addParam(config.pop_id).addParam(AmConfig.node_id);
-         AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, query);
-         },
-         [&](const PGResponse &e) { Registration::instance()->load_registrations(e.result); } }               },
-
-        // YetiRadius
-        {      "radius_authorization_profiles",
-         { [&](const string &key) {
-         if (config.use_radius)
-         yeti_routing_db_query("SELECT * FROM load_radius_profiles()", key);
-         },
-         [&](const PGResponse &e) { load_radius_auth_connections(e.result); } }                               },
-        {         "radius_accounting_profiles",
-         { [&](const string &key) {
-         if (config.use_radius)
-         yeti_routing_db_query("SELECT * FROM load_radius_accounting_profiles()", key);
-         },
-         [&](const PGResponse &e) { load_radius_acc_connections(e.result); } }                                },
-
-        // Auth
-        {                   "auth_credentials",
-         { [&](const string &key) { yeti_routing_db_query("SELECT * FROM load_incoming_auth()", key); },
-         [&](const PGResponse &e) { router.reload_credentials(e.result); } }                                  },
-
-        // OptionsProberManager
-        {                    "options_probers",
-         { [&](const string &key) {
-         auto query = new PGParamExecute(
-         PGQueryData(yeti_routing_pg_worker, "SELECT * FROM load_sip_options_probers($1)", true, /* single */
-         YETI_QUEUE_NAME, key),
-         PGTransactionData(), false);
-         query->addParam(AmConfig.node_id);
-         AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, query);
-         },
-         [&](const PGResponse &e) { options_prober_manager.load_probers(e.result); } }                        },
-        {                     "gateways_cache",
-         { [&](const string &key) {
-         if (!(router.get_lega_gw_cache_key().empty() and router.get_legb_gw_cache_key().empty()))
-         yeti_routing_db_query("SELECT * FROM load_gateway_attributes_cache()", key);
-         },
-         [&](const PGResponse &e) { gateways_cache.update(e.result); } }                                      },
-        // CallProfilesCache
-        {                       "callprofiles",
-         { [&](const string &key) { yeti_routing_db_query("SELECT * FROM load_callprofiles()", key); },
-         [&](const PGResponse &e) { callprofiles_cache.load_callprofiles(e); } }                              },
-    };
+        } }
+    },
+    { "translations.dc_rerouting",
+        { [&](const string &key) {
+            yeti_routing_db_query("SELECT * FROM load_disconnect_code_rerouting()", key);
+        }, [&](const PGResponse &e) {
+            CodesTranslator::instance()->load_disconnect_code_rerouting(e.result);
+        } }
+    },
+    { "translations.dc_rewrite",
+        { [&](const string &key) {
+            yeti_routing_db_query("SELECT * FROM load_disconnect_code_rewrite()", key);
+        }, [&](const PGResponse &e) {
+            CodesTranslator::instance()->load_disconnect_code_rewrite(e.result);
+        } }
+    },
+    { "translations.dc_refuse",
+        { [&](const string &key) {
+            yeti_routing_db_query("SELECT * FROM load_disconnect_code_refuse()", key);
+        }, [&](const PGResponse &e) {
+            CodesTranslator::instance()->load_disconnect_code_refuse(e.result);
+        } }
+    },
+    { "translations.dc_refuse_override",
+        { [&](const string &key) {
+            yeti_routing_db_query("SELECT * FROM load_disconnect_code_refuse_overrides()", key);
+        }, [&](const PGResponse &e) {
+            CodesTranslator::instance()->load_disconnect_code_refuse_overrides(e.result);
+        } }
+    },
+    { "translations.dc_rerouting_override",
+        { [&](const string &key) {
+            yeti_routing_db_query("SELECT * FROM load_disconnect_code_rerouting_overrides()", key);
+        }, [&](const PGResponse &e) {
+            CodesTranslator::instance()->load_disconnect_code_rerouting_overrides(e.result);
+        } }
+    },
+    { "translations.dc_rewrite_override",
+        { [&](const string &key) {
+            yeti_routing_db_query("SELECT * FROM load_disconnect_code_rewrite_overrides()", key);
+        }, [&](const PGResponse &e) {
+            CodesTranslator::instance()->load_disconnect_code_rewrite_overrides(e.result);
+        } }
+    },
+    // CodecsGroups
+    { "codec_groups",
+        { [&](const string &key) {
+            yeti_routing_db_query(
+                router.is_new_codec_groups() ?
+                    "SELECT * FROM load_codec_groups()"
+                  : "SELECT * FROM load_codecs()",
+                key);
+        }, [&](const PGResponse &e) {
+            if (router.is_new_codec_groups())
+                CodecsGroups::instance()->load_codec_groups(e.result);
+            else
+                CodecsGroups::instance()->load_codecs(e.result);
+        } }
+    },
+    // Registration
+    { "registrations",
+        { [&](const string &key) {
+            auto query = new PGParamExecute(
+                PGQueryData(
+                    yeti_routing_pg_worker,
+                    "SELECT * FROM load_registrations_out($1,$2)",
+                    true, /* single */
+                    YETI_QUEUE_NAME, key),
+                PGTransactionData(),
+                false);
+            query->addParam(config.pop_id).addParam(AmConfig.node_id);
+            AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, query);
+        }, [&](const PGResponse &e) {
+            Registration::instance()->load_registrations(e.result);
+        } }
+    },
+    // YetiRadius
+    { "radius_authorization_profiles",
+        { [&](const string &key) {
+            if (config.use_radius)
+                yeti_routing_db_query("SELECT * FROM load_radius_profiles()", key);
+        }, [&](const PGResponse &e) {
+            load_radius_auth_connections(e.result);
+        } }
+    },
+    { "radius_accounting_profiles",
+        { [&](const string &key) {
+            if (config.use_radius)
+                yeti_routing_db_query("SELECT * FROM load_radius_accounting_profiles()", key);
+        }, [&](const PGResponse &e) {
+            load_radius_acc_connections(e.result);
+        } }
+    },
+    // Auth
+    { "auth_credentials",
+        { [&](const string &key) {
+            yeti_routing_db_query("SELECT * FROM load_incoming_auth()", key);
+        }, [&](const PGResponse &e) {
+            router.reload_credentials(e.result);
+        } }
+    },
+    // OptionsProberManager
+    {   "options_probers",
+        { [&](const string &key) {
+            auto query = new PGParamExecute(
+                PGQueryData(
+                    yeti_routing_pg_worker,
+                    "SELECT * FROM load_sip_options_probers($1)",
+                    true, /* single */
+                    YETI_QUEUE_NAME,
+                    key),
+                PGTransactionData(), false);
+            query->addParam(AmConfig.node_id);
+            AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, query);
+        }, [&](const PGResponse &e) {
+            options_prober_manager.load_probers(e.result);
+        } }
+    },
+    { "gateways_cache",
+        { [&](const string &key) {
+            if (!(router.get_lega_gw_cache_key().empty() and router.get_legb_gw_cache_key().empty()))
+                yeti_routing_db_query("SELECT * FROM load_gateway_attributes_cache()", key);
+        }, [&](const PGResponse &e) {
+            gateways_cache.update(e.result);
+        } }
+    },
+    // CallProfilesCache
+    { "callprofiles",
+        { [&](const string &key) {
+            yeti_routing_db_query("SELECT * FROM load_callprofiles()", key);
+        }, [&](const PGResponse &e) {
+            callprofiles_cache.load_callprofiles(e);
+        } }
+    },
+    }; //db_config_timer_mappings
+// clang-format on
 
     for (auto &mapping : db_config_timer_mappings)
         mapping.second.init_exceptions_counter(mapping.first);
@@ -577,50 +617,63 @@ void Yeti::checkStates() noexcept
 {
     string token = AmSession::getNewId();
     yeti_routing_db_query("SELECT * FROM check_states()", token);
-    db_requests.emplace(token, db_req_entry(
-                                   [&](const PGResponse &e) {
-                                       try {
-                                           const AmArg &r = e.result[0];
-                                           for (auto &a : r) {
-                                               // DBG("%s: %d",a.first.data(),a.second.asInt());
-                                               if (!db_cfg_states.hasMember(a.first) ||
-                                                   a.second.asInt() > db_cfg_states[a.first].asInt()) {
-                                                   DBG("new or newer db_state %d for: %s", a.second.asInt(),
-                                                       a.first.data());
-                                                   auto it = db_config_timer_mappings.find(a.first);
-                                                   if (it != db_config_timer_mappings.end()) {
-                                                       it->second.on_reload(it->first);
-                                                   } else {
-                                                       ERROR("unknown db_state: %s", a.first.data());
-                                                   }
-                                               }
-                                           }
-                                           db_cfg_states = r;
-                                       } catch (...) {
-                                           DBG("exception on check db state response processing");
-                                       }
-                                   },
-                                   [](const PGResponseError &err) {}, [](const PGTimeout &timeout) {}));
+// clang-format off
+    db_requests.emplace(
+        token,
+        db_req_entry(
+            [&](const PGResponse &e) {
+                try {
+                    const AmArg &r = e.result[0];
+                    for (auto &a : r) {
+                        // DBG("%s: %d",a.first.data(),a.second.asInt());
+                        if (!db_cfg_states.hasMember(a.first) ||
+                            a.second.asInt() > db_cfg_states[a.first].asInt()) {
+                            DBG("new or newer db_state %d for: %s", a.second.asInt(),
+                                a.first.data());
+                            auto it = db_config_timer_mappings.find(a.first);
+                            if (it != db_config_timer_mappings.end()) {
+                                it->second.on_reload(it->first);
+                            } else {
+                                ERROR("unknown db_state: %s", a.first.data());
+                            }
+                        }
+                    }
+                    db_cfg_states = r;
+                } catch (...) {
+                    DBG("exception on check db state response processing");
+                }
+            },
+            [](const PGResponseError &) {},
+            [](const PGTimeout &) {}
+        )
+    );
+// clang-format on
 }
 
 void Yeti::showStates(const JsonRpcRequestEvent &e)
 {
     string token = AmSession::getNewId();
     yeti_routing_db_query("SELECT * FROM check_states()", token);
-    db_requests.emplace(token, db_req_entry(
-                                   [&, e](const PGResponse &resp) {
-                                       AmArg ret;
-                                       ret.assertStruct();
-                                       const AmArg &r = resp.result[0];
-                                       for (auto &a : r) {
-                                           if (db_cfg_states.hasMember(a.first))
-                                               ret[a.first]["local"] = db_cfg_states[a.first];
-                                           ret[a.first]["db"] = a.second;
-                                       }
-                                       postJsonRpcReply(e, ret);
-                                   },
-                                   [e](const PGResponseError &err) { postJsonRpcReply(e, err.error); },
-                                   [e](const PGTimeout &timeout) { postJsonRpcReply(e, "timeout"); }));
+// clang-format off
+    db_requests.emplace(
+        token,
+        db_req_entry(
+            [&, e](const PGResponse &resp) {
+                AmArg ret;
+                ret.assertStruct();
+                const AmArg &r = resp.result[0];
+                for (auto &a : r) {
+                    if (db_cfg_states.hasMember(a.first))
+                        ret[a.first]["local"] = db_cfg_states[a.first];
+                    ret[a.first]["db"] = a.second;
+                }
+                postJsonRpcReply(e, ret);
+            },
+            [e](const PGResponseError &err) { postJsonRpcReply(e, err.error); },
+            [e](const PGTimeout &) { postJsonRpcReply(e, "timeout"); }
+        )
+    );
+// clang-format on
 }
 
 bool Yeti::verifyHttpDestinations()
