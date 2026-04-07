@@ -1071,7 +1071,7 @@ void YetiRpc::showGatewaysCacheALeg(const AmArg &arg, AmArg &ret)
 void YetiRpc::showGatewaysCacheBLeg(const AmArg &arg, AmArg &ret)
 {
     if (router.get_legb_gw_cache_key().empty()) {
-        throw AmSession::Exception(500, "gateways cache is disabled. "
+        throw AmSession::Exception(500, "termination gateways cache is disabled. "
                                         "set routing.legb_gw_cache_key");
     }
     gateways_cache_bleg.info(arg, ret);
