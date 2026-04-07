@@ -74,7 +74,7 @@ struct Cdr : public CdrBase
     int    time_limit;
 
     AmArg  dyn_fields;
-    string outbound_proxy;
+    string bleg_predefined_route_set;
     string ruri;
 
     vector<AmArg> trusted_hdrs;

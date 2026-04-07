@@ -152,12 +152,20 @@ void Cdr::update_sql(const SqlCallProfile &profile)
     DBG3("Cdr::%s(SqlCallProfile)", FUNC_NAME);
 
     trusted_hdrs_gw = profile.trusted_hdrs_gw;
-    outbound_proxy  = profile.route;
     ruri            = profile.ruri;
     dyn_fields      = profile.dyn_fields;
     time_limit      = profile.time_limit;
     dump_level_id   = profile.dump_level_id;
     resources       = profile.resources;
+
+    // should match logic in SBCCallProfile::apply_b_routing() + AmBasicSipDialog::getRoute
+    const string &route = (!profile.route.empty()) ? profile.route : profile.bleg_route_set;
+    if (profile.bleg_route_set.empty() && !profile.outbound_proxy.empty()) {
+        bleg_predefined_route_set = "<" + profile.outbound_proxy + ";lr>";
+        if (!route.empty())
+            bleg_predefined_route_set += ",";
+    }
+    bleg_predefined_route_set += route;
 }
 
 void Cdr::update_sbc(const SBCCallProfile &profile)
@@ -961,7 +969,7 @@ void Cdr::apply_params(QueryInfo &query_info, const DynFieldsT &)
     invoc_str_no_empty(legB_remote_ip);
     invoc(legB_remote_port);
     invoc(ruri);
-    invoc(outbound_proxy);
+    invoc(bleg_predefined_route_set);
 
     invoc_json(serialize_timers_data());
 
