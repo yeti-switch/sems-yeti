@@ -15,7 +15,7 @@ ResourceRedisClient::Connection::Connection(const string &id)
 
 ResourceRedisClient::Connection::~Connection()
 {
-    DBG("ResourceRedisClient::Connection::~Connection()");
+    DBG3("ResourceRedisClient::Connection::~Connection()");
 }
 
 const RedisScript *ResourceRedisClient::Connection::script(const string &name)

@@ -70,7 +70,7 @@ void CodesTranslator::load_disconnect_code_rerouting(const AmArg &data)
             auto &row = data[i];
             auto  it  = _code2pref.emplace(DbAmArg_hash_get_int(row, "received_code", 0),
                                            DbAmArg_hash_get_bool(row, "stop_rerouting", true));
-            DBG("ResponsePref:     %d -> stop_hunting: %d", it.first->first, it.first->second.is_stop_hunting);
+            DBG3("ResponsePref:     %d -> stop_hunting: %d", it.first->first, it.first->second.is_stop_hunting);
         }
     }
 
@@ -93,8 +93,8 @@ void CodesTranslator::load_disconnect_code_rewrite(const AmArg &data)
             auto it = _code2trans.try_emplace(code, DbAmArg_hash_get_bool(row, "o_pass_reason_to_originator", false),
                                               DbAmArg_hash_get_int(row, "o_rewrited_code", code), rewrited_reason);
 
-            DBG("ResponseTrans:     %d -> %d:'%s' pass_reason: %d", code, it.first->second.rewrite_code,
-                it.first->second.rewrite_reason.c_str(), it.first->second.pass_reason_to_originator);
+            DBG3("ResponseTrans:     %d -> %d:'%s' pass_reason: %d", code, it.first->second.rewrite_code,
+                 it.first->second.rewrite_reason.c_str(), it.first->second.pass_reason_to_originator);
         }
     }
 
@@ -121,8 +121,8 @@ void CodesTranslator::load_disconnect_code_refuse(const AmArg &data)
                                     DbAmArg_hash_get_bool(row, "o_store_cdr", true),
                                     DbAmArg_hash_get_bool(row, "o_silently_drop", false));
 
-            DBG("DbTrans:     %d -> <%d:'%s'>, <%d:'%s'>", code, internal_code, internal_reason.c_str(), response_code,
-                response_reason.c_str());
+            DBG3("DbTrans:     %d -> <%d:'%s'>, <%d:'%s'>", code, internal_code, internal_reason.c_str(), response_code,
+                 response_reason.c_str());
         }
     }
 
@@ -170,8 +170,8 @@ void CodesTranslator::load_disconnect_code_rerouting_overrides(const AmArg &data
             auto it = _overrides.emplace(override_id, Code2PrefContainer())
                           .first->second.emplace(code, DbAmArg_hash_get_bool(row, "stop_rerouting", true));
 
-            DBG("Override %d ResponsePref:     %d -> stop_hunting: %d", override_id, code,
-                it.first->second.is_stop_hunting);
+            DBG3("Override %d ResponsePref:     %d -> stop_hunting: %d", override_id, code,
+                 it.first->second.is_stop_hunting);
         }
     }
 
@@ -199,8 +199,8 @@ void CodesTranslator::load_disconnect_code_rewrite_overrides(const AmArg &data)
                                                DbAmArg_hash_get_int(row, "o_rewrited_code", code), rewrited_reason);
 
             auto &t = it.first->second;
-            DBG("Override %d ResponseTrans:     %d -> %d:'%s' pass_reason: %d", override_id, code, t.rewrite_code,
-                t.rewrite_reason.c_str(), t.pass_reason_to_originator);
+            DBG3("Override %d ResponseTrans:     %d -> %d:'%s' pass_reason: %d", override_id, code, t.rewrite_code,
+                 t.rewrite_reason.c_str(), t.pass_reason_to_originator);
         }
     }
 

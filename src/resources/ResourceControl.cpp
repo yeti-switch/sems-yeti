@@ -145,7 +145,7 @@ int ResourceControl::load_resources_config()
     }
 
     for (const auto &it : type2cfg) {
-        DBG("resource cfg:     <%s>", it.second.print().c_str());
+        DBG3("resource cfg:     <%s>", it.second.print().c_str());
     }
 
     return 0;

@@ -132,7 +132,7 @@ SqlRouter::SqlRouter()
 
 SqlRouter::~SqlRouter()
 {
-    DBG("SqlRouter instance[%p] destroyed", this);
+    DBG3("SqlRouter instance[%p] destroyed", this);
 }
 
 void SqlRouter::sanitize_query_params(QueryInfo &query_info, const std::string &context_id, const char *context_name,
@@ -167,7 +167,7 @@ void SqlRouter::apply_routing_headers(const AmArg &data)
         AmArg &a = data.get(i);
 
         const char *vartype = a["vartype"].asCStr();
-        DBG("load_interface_in:     %u: %s : %s", i, a["varname"].asCStr(), vartype);
+        DBG3("load_interface_in:     %u: %s : %s", i, a["varname"].asCStr(), vartype);
 
         used_header_fields.emplace_back(a);
 
@@ -196,7 +196,7 @@ int SqlRouter::load_db_interface_in_out()
             const char *varname = a["varname"].asCStr();
             bool        forcdr  = a["forcdr"].asBool();
 
-            DBG("load_interface_out:     %zd: %s : %s, %d", i, varname, vartype, forcdr);
+            DBG3("load_interface_out:     %zd: %s : %s, %d", i, varname, vartype, forcdr);
             if (forcdr) {
                 dyn_fields.emplace_back(varname, vartype);
             }

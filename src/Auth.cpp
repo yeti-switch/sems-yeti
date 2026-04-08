@@ -147,7 +147,7 @@ void Auth::reload_credentials(const AmArg &data)
             c.add(data[i]);
     }
 
-    DBG("loaded credentials list. by_user:%zd, bt_gid:%zd, allowed_jwt_auth:%d", c.by_user.size(), c.by_gid.size(),
+    DBG("loaded credentials list. by_user:%zd, by_gid:%zd, allowed_jwt_auth:%d", c.by_user.size(), c.by_gid.size(),
         c.allowed_jwt_auth.size());
 
     credentials.swap(c);

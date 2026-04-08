@@ -186,14 +186,12 @@ void CodecsGroups::load_codec_groups(const AmArg &data)
                 return;
             }
 
-            DBG("codec '%s' added to group %d", name.c_str(), group_id);
+            DBG3("codec '%s' added to group %d", name.c_str(), group_id);
         }
 
         unsigned int ptime = DbAmArg_hash_get_int(row, "ptime", 0);
         _m[group_id].set_ptime(ptime);
     }
-
-    INFO("codecs groups are loaded successfully. apply changes");
 
     AmLock l(codec_groups_mutex);
     codec_groups.swap(_m);

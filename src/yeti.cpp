@@ -269,14 +269,14 @@ void Yeti::run()
 
     AmEventDispatcher::instance()->delEventQueue(YETI_QUEUE_NAME);
 
-    DBG("yeti-worker finished");
+    DBG3("yeti-worker finished");
 }
 
 void Yeti::on_stop()
 {
     uint64_t u = 1;
 
-    DBG("Yeti::on_stop");
+    DBG3("Yeti::on_stop");
 
     cdr_list.stop();
     rctl.stop();
@@ -384,7 +384,7 @@ void Yeti::process(AmEvent *ev)
     }
     else ON_EVENT_TYPE(AmSystemEvent) {
         if (e->sys_event == AmSystemEvent::ServerShutdown) {
-            DBG("got shutdown event");
+            DBG3("got shutdown event");
             stop();
         }
         return;
@@ -652,7 +652,7 @@ void Yeti::onCheckStatesReply(const PGResponse &e)
             if (auto it = db_config_timer_mappings.find(a.first); it != db_config_timer_mappings.end()) {
                 it->second.on_reload(it->first);
             } else {
-                ERROR("unknown db_state: %s", a.first.data());
+                DBG2("unknown db_state: %s", a.first.data());
             }
         }
     }

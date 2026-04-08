@@ -310,7 +310,7 @@ void ResourceRedisConnection::run()
     epoll_unlink(epoll_fd);
     close(epoll_fd);
 
-    DBG("ResourceRedisConnection stopped");
+    DBG3("ResourceRedisConnection stopped");
 
     stopped.set(true);
 }
