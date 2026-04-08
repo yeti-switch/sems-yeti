@@ -1,3 +1,8 @@
+sems-yeti (1.14.31) stable; urgency=medium
+  * ignore 'gateways_cache' db_state if {a,b}leg_gateways_cache are present
+  * libsems1.184
+ -- dev <dev@yeti-switch.org>  Wed, 08 Apr 2026 20:49:04 +0300
+
 sems-yeti (1.14.30) stable; urgency=medium
   * GatewaysCache: separate A/Bleg caches
   * cdr: write predefined routesets
