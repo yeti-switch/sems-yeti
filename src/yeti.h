@@ -57,6 +57,7 @@ class Yeti : public YetiRpc,
     map<string, db_req_entry>            db_requests;
 
     void initCfgTimerMappings();
+    void onCheckStatesReply(const PGResponse &e);
     void checkStates() noexcept;
     void showStates(const JsonRpcRequestEvent &e);
 

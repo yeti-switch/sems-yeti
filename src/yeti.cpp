@@ -631,32 +631,45 @@ void Yeti::initCfgTimerMappings()
         mapping.second.init_exceptions_counter(mapping.first);
 }
 
+void Yeti::onCheckStatesReply(const PGResponse &e)
+{
+    const AmArg &r = e.result[0];
+
+    // back-compatibility: process mutually exclusive states
+    std::set<std::string_view> deprecated_states;
+    if (r.hasMember("aleg_gateways_cache") || r.hasMember("bleg_gateways_cache")) {
+        deprecated_states.emplace("gateways_cache");
+    }
+
+    for (auto &a : r) {
+        // DBG("%s: %d",a.first.data(),a.second.asInt());
+        if (!db_cfg_states.hasMember(a.first) || a.second.asInt() > db_cfg_states[a.first].asInt()) {
+            DBG("new or newer db_state %d for: %s", a.second.asInt(), a.first.data());
+            if (deprecated_states.contains(a.first)) {
+                DBG("skip deprecated db_state: %s", a.first.data());
+                continue;
+            }
+            if (auto it = db_config_timer_mappings.find(a.first); it != db_config_timer_mappings.end()) {
+                it->second.on_reload(it->first);
+            } else {
+                ERROR("unknown db_state: %s", a.first.data());
+            }
+        }
+    }
+    db_cfg_states = r;
+}
+
 void Yeti::checkStates() noexcept
 {
     string token = AmSession::getNewId();
-    yeti_routing_db_query("SELECT * FROM check_states()", token);
+
     // clang-format off
     db_requests.emplace(
         token,
         db_req_entry(
             [&](const PGResponse &e) {
                 try {
-                    const AmArg &r = e.result[0];
-                    for (auto &a : r) {
-                        // DBG("%s: %d",a.first.data(),a.second.asInt());
-                        if (!db_cfg_states.hasMember(a.first) ||
-                            a.second.asInt() > db_cfg_states[a.first].asInt()) {
-                            DBG("new or newer db_state %d for: %s", a.second.asInt(),
-                                a.first.data());
-                            auto it = db_config_timer_mappings.find(a.first);
-                            if (it != db_config_timer_mappings.end()) {
-                                it->second.on_reload(it->first);
-                            } else {
-                                ERROR("unknown db_state: %s", a.first.data());
-                            }
-                        }
-                    }
-                    db_cfg_states = r;
+                    onCheckStatesReply(e);
                 } catch (...) {
                     DBG("exception on check db state response processing");
                 }
@@ -667,6 +680,8 @@ void Yeti::checkStates() noexcept
     );
 
     // clang-format on
+
+    yeti_routing_db_query("SELECT * FROM check_states()", token);
 }
 
 void Yeti::showStates(const JsonRpcRequestEvent &e)
