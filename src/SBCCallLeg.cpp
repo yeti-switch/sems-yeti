@@ -268,8 +268,6 @@ void SBCCallLeg::terminateLegOnReplyException(const AmSipReply &reply, const Int
         }
     }
 
-    relayError(reply.cseq_method, reply.cseq, true, static_cast<int>(e.response_code), e.response_reason.c_str());
-
     if (getCallStatus() == Connected) {
         DBG("if(getCallStatus()==Connected) {");
         stopCall(CallLeg::StatusChangeCause::InternalError);
@@ -1851,10 +1849,10 @@ std::optional<std::tuple<int, std::string>> SBCCallLeg::relayEvent(AmEvent *ev)
 
         if (getCallStatus() == CallLeg::Connected && (reply.code == 481 || reply.code == 408)) {
             DBG("got fatal error reply code for reINVITE. terminate call");
-            terminateLegOnReplyException(reply,
-                                         InternalException(DC_REINVITE_ERROR_REPLY, call_ctx->getOverrideId(a_leg)));
+            auto exception = InternalException(DC_REINVITE_ERROR_REPLY, call_ctx->getOverrideId(a_leg));
+            terminateLegOnReplyException(reply, exception);
             delete ev;
-            return std::make_tuple(-488, string());
+            return std::make_tuple(exception.response_code, exception.response_reason);
         }
 
         DBG("Yeti::relayEvent(%p) filtering body for reply %d cseq.method '%s' (c/t '%s') oa_state = %d", to_void(this),
@@ -1934,16 +1932,14 @@ std::optional<std::tuple<int, std::string>> SBCCallLeg::relayEvent(AmEvent *ev)
                     }
                 }
 
-                if (res != 0) {
-                    terminateLegOnReplyException(reply, InternalException(res, call_ctx->getOverrideId(a_leg)));
-                    delete ev;
-                    return std::make_tuple(-488, string());
-                }
+                if (res != 0)
+                    throw InternalException(res, call_ctx->getOverrideId(a_leg));
+
             } catch (InternalException &exception) {
                 DBG("got internal exception %d on reply processing", exception.icode);
                 terminateLegOnReplyException(reply, exception);
                 delete ev;
-                return std::make_tuple(-488, string());
+                return std::make_tuple(exception.response_code, exception.response_reason);
             }
         } while (0);
 
