@@ -255,9 +255,9 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
 
     bool reinvite(const AmSdp &sdp, unsigned &request_cseq);
 
-    int  relayEvent(AmEvent *ev) override;
-    void onSipRequest(const AmSipRequest &req) override;
-    bool isALeg() { return a_leg; }
+    std::optional<std::tuple<int, std::string>> relayEvent(AmEvent *ev) override;
+    void                                        onSipRequest(const AmSipRequest &req) override;
+    bool                                        isALeg() { return a_leg; }
 
     virtual void setMediaSession(AmB2BMedia *new_session) override;
     virtual void computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &mask, PayloadRelayMap &map) override;

@@ -1753,7 +1753,7 @@ void SBCCallLeg::addIdentityHeader(AmSipRequest &req)
     }
 }
 
-int SBCCallLeg::relayEvent(AmEvent *ev)
+std::optional<std::tuple<int, std::string>> SBCCallLeg::relayEvent(AmEvent *ev)
 {
     B2BSipReplyEvent *reply_ev;
     string            referrer_session;
@@ -1767,11 +1767,11 @@ int SBCCallLeg::relayEvent(AmEvent *ev)
                 DBG("relayEvent(%p) reply 200 OK for leg without call_ctx and other_id", to_void(this));
                 dlg->reply(req, 200, "OK");
                 delete ev;
-                return 0;
+                return std::nullopt;
             }
         }
         DBG("relayEvent(%p) zero ctx. ignore event", to_void(this));
-        return -1;
+        return std::make_tuple(-1, string());
     }
 
     AmOfferAnswer::OAState dlg_oa_state = dlg->getOAState();
@@ -1817,12 +1817,12 @@ int SBCCallLeg::relayEvent(AmEvent *ev)
             }
             if (res != 0) {
                 delete ev;
-                return -488;
+                return std::make_tuple(-488, string());
             }
         } catch (InternalException &exception) {
             DBG("got internal exception %d on request processing", exception.icode);
             delete ev;
-            return -448;
+            return std::make_tuple(-488, string());
         }
 
         inplaceHeaderPatternFilter(req.hdrs, a_leg ? call_profile.headerfilter_a2b : call_profile.headerfilter_b2a);
@@ -1854,7 +1854,7 @@ int SBCCallLeg::relayEvent(AmEvent *ev)
             terminateLegOnReplyException(reply,
                                          InternalException(DC_REINVITE_ERROR_REPLY, call_ctx->getOverrideId(a_leg)));
             delete ev;
-            return -488;
+            return std::make_tuple(-488, string());
         }
 
         DBG("Yeti::relayEvent(%p) filtering body for reply %d cseq.method '%s' (c/t '%s') oa_state = %d", to_void(this),
@@ -1937,13 +1937,13 @@ int SBCCallLeg::relayEvent(AmEvent *ev)
                 if (res != 0) {
                     terminateLegOnReplyException(reply, InternalException(res, call_ctx->getOverrideId(a_leg)));
                     delete ev;
-                    return -488;
+                    return std::make_tuple(-488, string());
                 }
             } catch (InternalException &exception) {
                 DBG("got internal exception %d on reply processing", exception.icode);
                 terminateLegOnReplyException(reply, exception);
                 delete ev;
-                return -488;
+                return std::make_tuple(-488, string());
             }
         } while (0);
 
