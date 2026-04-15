@@ -1,3 +1,7 @@
+sems-yeti (1.14.32) stable; urgency=medium
+  * fix doubled reply event after terminateLegOnReplyException() and null CDR in onBlegRefused()
+ -- dev <dev@yeti-switch.org>  Wed, 15 Apr 2026 22:01:16 +0300
+
 sems-yeti (1.14.31) stable; urgency=medium
   * ignore 'gateways_cache' db_state if {a,b}leg_gateways_cache are present
   * libsems1.184
