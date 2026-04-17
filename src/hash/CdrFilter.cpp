@@ -63,7 +63,7 @@ static cmp_type_t get_type_by_name(const string &type_name)
         return c_type_string;
     } else if (type_name == "timestamp") {
         return c_type_timestamp;
-    } else if (type_name == "double") {
+    } else if (type_name == "double" || type_name == "double precision") {
         return c_type_double;
     }
     throw std::string("unsupported field type '" + type_name + "'");
