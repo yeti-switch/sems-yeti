@@ -4,7 +4,7 @@
 #include "AmSipDialog.h"
 #include "sip/defs.h"
 #include "AmUtils.h"
-#include "AmIdentity.h"
+#include "AmJwt.h"
 #include "cfg/yeti_opts.h"
 
 #include <unistd.h>
@@ -170,8 +170,8 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
     // JWT authorization
     auto jwt_value = std::string_view(auth_hdr).substr(scheme_pos + 7);
 
-    AmIdentity jwt;
-    if (!jwt.parse(jwt_value, true)) {
+    AmJwt jwt;
+    if (!jwt.parse(jwt_value)) {
         DBG("failed to parse JWT: %s", jwt_value.data());
         return -JWT_PARSE_ERROR;
     }
