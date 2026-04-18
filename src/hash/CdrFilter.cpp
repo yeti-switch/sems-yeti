@@ -181,6 +181,22 @@ DEFINE_STATIC_FIELD_COMPARATORS(connect_time, timestamp)
     }
 DEF_ALL_OPS(DEF_DYN_CMP_INT_FUNC)
 
+#define DEF_DYN_CMP_DOUBLE_FUNC(op, opname)                                                                            \
+    static bool cmp_dyn_double_function_##opname(const Cdr *cdr, const string &field_name, double value)               \
+    {                                                                                                                  \
+        if (!cdr->dyn_fields.hasMember(field_name)) {                                                                  \
+            ERROR("can't find dynamic field %s in %s", field_name.c_str(), FUNC_NAME);                                 \
+            return false;                                                                                              \
+        }                                                                                                              \
+        AmArg &a = cdr->dyn_fields[field_name];                                                                        \
+        if (a.getType() != AmArg::Double) {                                                                            \
+            ERROR("invalid type for field %s in %s", field_name.c_str(), FUNC_NAME);                                   \
+            return false;                                                                                              \
+        }                                                                                                              \
+        return a.asDouble() op value;                                                                                  \
+    }
+DEF_ALL_OPS(DEF_DYN_CMP_DOUBLE_FUNC)
+
 #define DEF_DYN_CMP_LONG_LONG_INT_FUNC(op, opname)                                                                     \
     static bool cmp_dyn_long_long_int_function_##opname(const Cdr *cdr, const string &field_name, long_long_int value) \
     {                                                                                                                  \
@@ -332,6 +348,18 @@ cmp_functor::cmp_functor(int value, const string &field_name, cmp_cond_t cmp_con
     DBG("created functor %s", info().c_str());
 }
 
+// dynamic fields with type double
+cmp_functor::cmp_functor(double value, const string &field_name, cmp_cond_t cmp_cond)
+    : cmp_type(c_type_double)
+    , cmp_field(c_field_dynamic)
+    , cmp_cond(cmp_cond)
+    , dyn_field_name(field_name)
+    , v_double(value)
+{
+    DYN_FIELD_CASE(double)
+    DBG("created functor %s", info().c_str());
+}
+
 // dynamic fields with type bigint (long long int)
 cmp_functor::cmp_functor(long long int value, const string &field_name, cmp_cond_t cmp_cond)
     : cmp_type(c_type_long_long_int)
@@ -369,6 +397,7 @@ bool cmp_functor::operator()(const Cdr *cdr) const
     if (cmp_field == c_field_dynamic) {
         switch (cmp_type) {
         case c_type_int:           return (*fptr_dyn_int)(cdr, dyn_field_name, v_int); break;
+        case c_type_double:        return (*fptr_dyn_double)(cdr, dyn_field_name, v_double); break;
         case c_type_long_long_int: return (*fptr_dyn_long_long_int)(cdr, dyn_field_name, v_long_long_int); break;
         case c_type_string:        return (*fptr_dyn_string)(cdr, dyn_field_name, v_string); break;
         default:                   ;
@@ -547,7 +576,7 @@ void insert_rule(cmp_rules &rules, const string &field, const string &op, const 
             throw string(string("can't cast '") + value + "' to double");
         }
         if (field_name_type == c_field_dynamic)
-            throw string(string("not supported dynamic field type: ") + get_cmp_type_name(field_type));
+            rules.push_back(cmp_functor(v_double, field, cond_type));
         else
             rules.push_back(cmp_functor(v_double, field_name_type, cond_type));
     } break;

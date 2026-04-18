@@ -57,6 +57,7 @@ DEF_STATIC_CMP_FUNCTION(timestamp, const timeval &)
     typedef cmp_dyn_##type##_function *cmp_dyn_##type##_function_ptr;
 
 DEF_DYNAMIC_CMP_FUNCTION(int, int)
+DEF_DYNAMIC_CMP_FUNCTION(double, double)
 DEF_DYNAMIC_CMP_FUNCTION(string, const string &)
 
 typedef long long int long_long_int;
@@ -79,6 +80,7 @@ class cmp_functor {
     STATIC_CMP_FUNCTION_PTR(timestamp) fptr_timestamp;
 
     DYNAMIC_CMP_FUNCTION_PTR(int) fptr_dyn_int;
+    DYNAMIC_CMP_FUNCTION_PTR(double) fptr_dyn_double;
     DYNAMIC_CMP_FUNCTION_PTR(long_long_int) fptr_dyn_long_long_int;
     DYNAMIC_CMP_FUNCTION_PTR(string) fptr_dyn_string;
 
@@ -97,6 +99,7 @@ class cmp_functor {
 
     /* constructor for dynamic fields */
     cmp_functor(int value, const string &field_name, cmp_cond_t cmp_cond);
+    cmp_functor(double value, const string &field_name, cmp_cond_t cmp_cond);
     cmp_functor(long long int value, const string &field_name, cmp_cond_t cmp_cond);
     cmp_functor(const string &value, const string &field_name, cmp_cond_t cmp_cond);
 
