@@ -68,7 +68,8 @@ class YetiComponentInited : public AmEvent {
 
 struct YetiBase {
     YetiBase()
-        : configuration_finished(false)
+        : router(gateways_cache_aleg)
+        , configuration_finished(false)
         , confuse_cfg(nullptr)
         , orig_pre_auth(config)
     {

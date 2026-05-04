@@ -109,8 +109,8 @@ std::ostream &operator<<(std::ostream &out, const SqlPlaceHolderArgs &args)
 }
 
 
-SqlRouter::SqlRouter()
-    : Auth()
+SqlRouter::SqlRouter(GatewaysCacheALeg &gateways_cache_aleg)
+    : Auth(gateways_cache_aleg)
     , db_hits(stat_group(Counter, "yeti", "router_db_hits").addAtomicCounter())
     , db_hits_time(stat_group(Counter, "yeti", "router_db_hits_time").addAtomicCounter())
     , hits(stat_group(Counter, "yeti", "router_hits").addAtomicCounter())

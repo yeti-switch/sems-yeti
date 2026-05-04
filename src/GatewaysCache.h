@@ -153,18 +153,11 @@ template <typename GatewayDataType> class GatewaysCacheBase {
 };
 
 struct GatewayDataAleg : public GatewaysCacheDataBase {
-  public:
-    GatewayDataAleg(GatewayIdType gateway_id, const AmArg &r)
-        : GatewaysCacheDataBase(gateway_id, r)
-    {
-    }
+    // JWT HS256 auth
+    string jwt_auth_secret;
 
-    operator AmArg() const final
-    {
-        AmArg ret;
-        serialize_base(ret);
-        return ret;
-    }
+    GatewayDataAleg(GatewayIdType gateway_id, const AmArg &r);
+    operator AmArg() const final;
 };
 
 struct GatewayDataBleg : public GatewaysCacheDataBase {
@@ -199,10 +192,9 @@ class GatewaysCacheALeg : public GatewaysCacheBase<GatewayDataAleg> {
     void merge(GatewayDataAleg &, const GatewayDataAleg &) final {}
 
   public:
-    GatewaysCacheALeg()
-        : GatewaysCacheBase()
-    {
-    }
+    GatewaysCacheALeg();
+
+    std::optional<string> get_jwt_auth_secret(GatewaysCacheDataBase::GatewayIdType gateway_id);
 };
 
 class GatewaysCacheBLeg : public GatewaysCacheBase<GatewayDataBleg> {

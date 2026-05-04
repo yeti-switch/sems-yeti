@@ -70,10 +70,11 @@ void Auth::CredentialsContainer::swap(CredentialsContainer &rhs)
     allowed_jwt_auth.swap(rhs.allowed_jwt_auth);
 }
 
-Auth::Auth()
+Auth::Auth(GatewaysCacheALeg &gateways_cache_aleg)
     : uac_auth(nullptr)
     , skip_logging_invite_challenge(false)
     , skip_logging_invite_success(false)
+    , gateways_cache_aleg(gateways_cache_aleg)
 {
 }
 
@@ -155,16 +156,12 @@ void Auth::reload_credentials(const AmArg &data)
 
 std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
 {
-    // sems-jwt-tool encode --key test.key.pem --raw --claim=id:1/i --claim=iat:$(date +%s)/i
+    // ES256: sems-jwt-tool encode --key test.key.pem --raw --claim=id:1/i --claim=iat:$(date +%s)/i
+    // HS256: sems-jwt-tool encode --secret test --raw --claim=id:1/i --claim=iat:$(date +%s)/i
 
     auto scheme_pos = auth_hdr.find_first_not_of(' ');
     if (((auth_hdr.size() - scheme_pos) <= 6) || 0 != strncasecmp(&auth_hdr[scheme_pos], "Bearer", 6)) {
         return std::nullopt;
-    }
-
-    if (!jwt_public_key) {
-        DBG("got Bearer auth hdr and no 'auth.jwt_public_key'. return verify error");
-        return -JWT_VERIFY_ERROR;
     }
 
     // JWT authorization
@@ -176,14 +173,8 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
         return -JWT_PARSE_ERROR;
     }
 
-    // verify signature
-    if (!jwt.verify(jwt_public_key.get())) {
-        DBG("JWT verification failed");
-        return -JWT_VERIFY_ERROR;
-    }
-
     // check 'exp' claim
-    auto &jwt_data = jwt.get_payload();
+    const auto &jwt_data = jwt.get_payload();
     DBG("jwt payload: %s", jwt_data.print().data());
 
     if (jwt_data.hasMember("exp")) {
@@ -199,34 +190,69 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
         }
     }
 
+    string_view jwt_alg{ jwt.get_header()["alg"].asCStr() };
+    bool        alg_is_hs256 = false;
+
+    if (jwt_alg == "ES256") {
+        if (!jwt_public_key) {
+            DBG("got Bearer JWT ES256 auth hdr and no 'auth.jwt_public_key'. return verify error");
+            return -JWT_VERIFY_ERROR;
+        }
+
+        // verify ES256 signature
+        if (!jwt.verify(jwt_public_key.get())) {
+            DBG("JWT ES256 verification failed");
+            return -JWT_VERIFY_ERROR;
+        }
+    } else if (jwt_alg == "HS256") {
+        alg_is_hs256 = true;
+    } else {
+        DBG("unsupported JWT alg: %s", jwt_alg.data());
+        return -JWT_DATA_ERROR;
+    }
+
     // process 'gid', 'id' claims
     auth_id_type id;
-    AmLock       l(credentials_mutex);
+    {
+        AmLock l(credentials_mutex);
+        if (jwt_data.hasMember("gid")) {
+            AmArg &gid = jwt_data["gid"];
+            if (!isArgCStr(gid))
+                return -JWT_DATA_ERROR;
 
-    if (jwt_data.hasMember("gid")) {
-        AmArg &gid = jwt_data["gid"];
-        if (!isArgCStr(gid))
+            auto it = credentials.by_gid.find(gid.asCStr());
+            if (it == credentials.by_gid.end()) {
+                DBG("no matches for JWT gid: %s", gid.asCStr());
+                return -JWT_AUTH_ERROR;
+            }
+            id = it->second;
+            DBG("JWT gid resolved: %s -> %d", gid.asCStr(), id);
+        } else if (jwt_data.hasMember("id")) {
+            auto &id_arg = jwt_data["id"];
+            if (!id_arg.isNumber())
+                return -JWT_DATA_ERROR;
+            id = id_arg.asNumber<auth_id_type>();
+            DBG("JWT id: %d", id);
+            if (!credentials.allowed_jwt_auth.contains(id)) {
+                DBG("JWT auth is not allowed for: %d", id);
+                return -JWT_AUTH_ERROR;
+            }
+        } else {
             return -JWT_DATA_ERROR;
+        }
+    }
 
-        auto it = credentials.by_gid.find(gid.asCStr());
-        if (it == credentials.by_gid.end()) {
-            DBG("no matches for JWT gid: %s", gid.asCStr());
+    if (alg_is_hs256) {
+        // verify signature for HS256 JWT using secret from gateway cache
+        auto jwt_auth_secret = gateways_cache_aleg.get_jwt_auth_secret(id);
+        if (!jwt_auth_secret) {
+            DBG("JWT HS256 auth failed. no gateway or empty secret for id: %d", id);
             return -JWT_AUTH_ERROR;
         }
-        id = it->second;
-        DBG("JWT gid resolved: %s -> %d", gid.asCStr(), id);
-    } else if (jwt_data.hasMember("id")) {
-        auto &id_arg = jwt_data["id"];
-        if (!id_arg.isNumber())
-            return -JWT_DATA_ERROR;
-        id = id_arg.asNumber<auth_id_type>();
-        DBG("JWT id: %d", id);
-        if (!credentials.allowed_jwt_auth.contains(id)) {
-            DBG("JWT auth is not allowed for: %d", id);
-            return -JWT_AUTH_ERROR;
+        if (!jwt.verify(jwt_auth_secret.value())) {
+            DBG("JWT HS256 verification failed");
+            return -JWT_VERIFY_ERROR;
         }
-    } else {
-        return -JWT_DATA_ERROR;
     }
 
     return id;

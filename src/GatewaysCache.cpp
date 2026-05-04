@@ -58,6 +58,47 @@ void GatewaysCacheDataBase::GatewaysCacheDataBase::serialize_base(AmArg &ret) co
     media["rtcp_feedback_mode_id"] = MediaSettings::mode2str(media_settings.rtcp_feedback_mode_id);
 }
 
+GatewayDataAleg::GatewayDataAleg(GatewayIdType gateway_id, const AmArg &r)
+    : GatewaysCacheDataBase(gateway_id, r)
+{
+    const auto &jwt_auth_secret_arg = r["jwt_auth_secret"];
+    if (isArgCStr(jwt_auth_secret_arg))
+        jwt_auth_secret = jwt_auth_secret_arg.asCStr();
+}
+
+GatewayDataAleg::GatewayDataAleg::operator AmArg() const
+{
+    AmArg a;
+
+    serialize_base(a);
+
+    if (!jwt_auth_secret.empty())
+        a["jwt_auth_secret"] = jwt_auth_secret;
+
+    return a;
+}
+
+GatewaysCacheALeg::GatewaysCacheALeg()
+    : GatewaysCacheBase()
+{
+}
+
+std::optional<string> GatewaysCacheALeg::get_jwt_auth_secret(GatewaysCacheDataBase::GatewayIdType gateway_id)
+{
+    AmLock lock(mutex);
+
+    auto gw_it = gateways.find(gateway_id);
+    if (gw_it == gateways.end())
+        return std::nullopt;
+
+    const auto &ret = gw_it->second.jwt_auth_secret;
+    if (ret.empty())
+        return std::nullopt;
+
+    return ret;
+}
+
+
 GatewayDataBleg::GatewayDataBleg(GatewayIdType gateway_id, const AmArg &r)
     : GatewaysCacheDataBase(gateway_id, r)
     , throttling_enabled(false)

@@ -4,6 +4,7 @@
 #include "AmConfigReader.h"
 #include "AmThread.h"
 #include "OriginationPreAuth.h"
+#include "GatewaysCache.h"
 
 #include <unordered_map>
 #include <optional>
@@ -61,6 +62,7 @@ class Auth {
     } credentials;
     AmMutex credentials_mutex;
 
+    GatewaysCacheALeg          &gateways_cache_aleg;
     std::optional<auth_id_type> check_jwt_auth(const string &auth_hdr);
 
   protected:
@@ -71,7 +73,7 @@ class Auth {
                              const OriginationPreAuth::Reply &ip_auth_data);
 
   public:
-    Auth();
+    Auth(GatewaysCacheALeg &gateways_cache_aleg);
     void auth_info(AmArg &ret);
     void auth_info_by_user(const string &username, AmArg &ret);
     void auth_info_by_id(auth_id_type id, AmArg &ret);

@@ -13,6 +13,7 @@
 #include "Auth.h"
 #include "CallCtx.h"
 #include "OriginationPreAuth.h"
+#include "GatewaysCache.h"
 
 #include <functional>
 
@@ -77,7 +78,7 @@ class SqlRouter : public Auth {
                                std::function<const char *(unsigned int)> get_param_name);
 
   public:
-    SqlRouter();
+    SqlRouter(GatewaysCacheALeg &gateways_cache_aleg);
     ~SqlRouter();
 
     int configure(cfg_t *confuse_cfg, AmConfigReader &cfg);
