@@ -196,7 +196,7 @@ struct GatewayDataBleg : public GatewaysCacheDataBase {
 class GatewaysCacheALeg : public GatewaysCacheBase<GatewayDataAleg> {
     // no any Aleg specific things yet
   protected:
-    void merge(GatewayDataAleg &, const GatewayDataAleg &) final {};
+    void merge(GatewayDataAleg &, const GatewayDataAleg &) final {}
 
   public:
     GatewaysCacheALeg()
@@ -217,7 +217,7 @@ class GatewaysCacheBLeg : public GatewaysCacheBase<GatewayDataBleg> {
             dst.stats = src.stats;
             dst.stats.set_window_size(src.throttling_window);
         }
-    };
+    }
 
   public:
     GatewaysCacheBLeg();
