@@ -1,3 +1,7 @@
+sems-yeti (1.14.35) stable; urgency=medium
+  * add auth by HS256 JWT tokens
+ -- dev <dev@yeti-switch.org>  Tue, 05 May 2026 12:42:51 +0300
+
 sems-yeti (1.14.34) stable; urgency=medium
   * active calls filter: add support for double dynamic fields
  -- dev <dev@yeti-switch.org>  Sat, 18 Apr 2026 13:08:20 +0300
