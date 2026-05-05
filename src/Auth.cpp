@@ -207,33 +207,34 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
 
     // process 'gid', 'id' claims
     auth_id_type id;
-    {
-        AmLock l(credentials_mutex);
-        if (jwt_data.hasMember("gid")) {
-            AmArg &gid = jwt_data["gid"];
-            if (!isArgCStr(gid))
-                return -JWT_DATA_ERROR;
 
-            auto it = credentials.by_gid.find(gid.asCStr());
-            if (it == credentials.by_gid.end()) {
-                DBG("no matches for JWT gid: %s", gid.asCStr());
-                return -JWT_AUTH_ERROR;
-            }
-            id = it->second;
-            DBG("JWT gid resolved: %s -> %d", gid.asCStr(), id);
-        } else if (jwt_data.hasMember("id")) {
-            auto &id_arg = jwt_data["id"];
-            if (!id_arg.isNumber())
-                return -JWT_DATA_ERROR;
-            id = id_arg.asNumber<auth_id_type>();
-            DBG("JWT id: %d", id);
-            if (!credentials.allowed_jwt_auth.contains(id)) {
-                DBG("JWT auth is not allowed for: %d", id);
-                return -JWT_AUTH_ERROR;
-            }
-        } else {
+    if (jwt_data.hasMember("gid")) {
+        AmArg &gid = jwt_data["gid"];
+        if (!isArgCStr(gid))
             return -JWT_DATA_ERROR;
+
+        AmLock l(credentials_mutex);
+        if (auto it = credentials.by_gid.find(gid.asCStr()); it != credentials.by_gid.end()) {
+            id = it->second;
+        } else {
+            DBG("no matches for JWT gid: %s", gid.asCStr());
+            return -JWT_AUTH_ERROR;
         }
+        DBG("JWT gid resolved: %s -> %d", gid.asCStr(), id);
+    } else if (jwt_data.hasMember("id")) {
+        auto &id_arg = jwt_data["id"];
+        if (!id_arg.isNumber())
+            return -JWT_DATA_ERROR;
+        id = id_arg.asNumber<auth_id_type>();
+        DBG("JWT id: %d", id);
+
+        AmLock l(credentials_mutex);
+        if (!credentials.allowed_jwt_auth.contains(id)) {
+            DBG("JWT auth is not allowed for: %d", id);
+            return -JWT_AUTH_ERROR;
+        }
+    } else {
+        return -JWT_DATA_ERROR;
     }
 
     if (alg_is_hs256) {
