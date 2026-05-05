@@ -198,12 +198,6 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
             DBG("got Bearer JWT ES256 auth hdr and no 'auth.jwt_public_key'. return verify error");
             return -JWT_VERIFY_ERROR;
         }
-
-        // verify ES256 signature
-        if (!jwt.verify(jwt_public_key.get())) {
-            DBG("JWT ES256 verification failed");
-            return -JWT_VERIFY_ERROR;
-        }
     } else if (jwt_alg == "HS256") {
         alg_is_hs256 = true;
     } else {
@@ -251,6 +245,12 @@ std::optional<Auth::auth_id_type> Auth::check_jwt_auth(const string &auth_hdr)
         }
         if (!jwt.verify(jwt_auth_secret.value())) {
             DBG("JWT HS256 verification failed");
+            return -JWT_VERIFY_ERROR;
+        }
+    } else {
+        // verify ES256 signature
+        if (!jwt.verify(jwt_public_key.get())) {
+            DBG("JWT ES256 verification failed");
             return -JWT_VERIFY_ERROR;
         }
     }
