@@ -1,5 +1,7 @@
 ﻿#include "SigningKeysCache.h"
 #include <AmSession.h>
+#include <AmUtils.h>
+
 #include <log.h>
 #include <format_helper.h>
 
@@ -28,7 +30,7 @@ struct SigningKeysCacheMetricGroup : public StatCountersGroupsInterface {
         auto &labels   = signing_keys.back().labels;
         labels["id"]   = id;
         labels["name"] = name;
-        labels["cn"]   = cn;
+        labels["cn"]   = escape_prometheus_label(cn);
 
         signing_keys.back().value = value;
     }
