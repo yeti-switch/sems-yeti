@@ -1,3 +1,7 @@
+sems-yeti (1.14.36) stable; urgency=medium
+  * SigningKeysCache: escape 'cn' label
+ -- dev <dev@yeti-switch.org>  Thu, 07 May 2026 11:07:10 +0300
+
 sems-yeti (1.14.35) stable; urgency=medium
   * add auth by HS256 JWT tokens
  -- dev <dev@yeti-switch.org>  Tue, 05 May 2026 12:42:51 +0300
