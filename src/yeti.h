@@ -10,6 +10,8 @@
 #include <AmEventFdQueue.h>
 #include "ampi/SipRegistrarApi.h"
 
+#include <chrono>
+
 extern string yeti_auth_feedback_header;
 
 class Yeti : public YetiRpc,
@@ -27,17 +29,22 @@ class Yeti : public YetiRpc,
     bool         is_identity_validator_availbale;
 
     struct cfg_timer_mapping_entry {
-        std::function<void(const string &key)>   on_reload;
+        std::function<bool(const string &key)>   on_reload;
         std::function<void(const PGResponse &e)> on_db_response;
-        AtomicCounter                           *exceptions_counter;
-        cfg_timer_mapping_entry(std::function<void(const string &key)>   on_reload,
+        AtomicCounter                           *exceptions_counter   = nullptr;
+        AtomicCounter                           *reload_count_counter = nullptr;
+        AtomicCounter                           *reload_time_counter  = nullptr;
+        std::chrono::steady_clock::time_point    reload_start_time{};
+        cfg_timer_mapping_entry(std::function<bool(const string &key)>   on_reload,
                                 std::function<void(const PGResponse &e)> on_db_response)
             : on_reload(on_reload)
             , on_db_response(on_db_response)
         {
         }
 
-        void init_exceptions_counter(const string &key);
+        void init_counters(const string &key);
+        void reload(const string &key);
+        void on_finish_reload();
     };
 
     struct db_req_entry {
