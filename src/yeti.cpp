@@ -72,7 +72,7 @@ void Yeti::cfg_timer_mapping_entry::init_counters(const string &key)
 
 void Yeti::cfg_timer_mapping_entry::reload(const string &key)
 {
-    if(on_reload(key) == false)
+    if (on_reload(key) == false)
         return;
 
     reload_count_counter->inc();
@@ -81,8 +81,8 @@ void Yeti::cfg_timer_mapping_entry::reload(const string &key)
 
 void Yeti::cfg_timer_mapping_entry::on_finish_reload()
 {
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - reload_start_time);
+    auto elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - reload_start_time);
     reload_time_counter->inc(elapsed.count());
 }
 
