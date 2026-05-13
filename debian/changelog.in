@@ -1,3 +1,8 @@
+sems-yeti (1.14.37) stable; urgency=medium
+  * add sems_yeti_config_reload_count, sems_yeti_config_reload_time metrics for db_states
+  * libsems1.189
+ -- dev <dev@yeti-switch.org>  Wed, 13 May 2026 11:34:33 +0300
+
 sems-yeti (1.14.36) stable; urgency=medium
   * SigningKeysCache: escape 'cn' label
  -- dev <dev@yeti-switch.org>  Thu, 07 May 2026 11:07:10 +0300
