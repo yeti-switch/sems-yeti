@@ -106,7 +106,7 @@ class SBCFactory : public AmSessionFactory, public AmConfigFactory, public AmDyn
     AmSession *onInvite(const AmSipRequest &req, const string &app_name,
                         const map<string, string> &app_params) override;
 
-    void onOoDRequest(const AmSipRequest &req) override;
+    void onOoDRequest(const AmSipRequest &req, const string &app_name) override;
 
     AmSessionEventHandlerFactory *session_timer_fact;
 

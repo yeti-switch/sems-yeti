@@ -344,7 +344,7 @@ AmSession *SBCFactory::onInvite(const AmSipRequest &req, const string &, const m
     return leg;
 }
 
-void SBCFactory::onOoDRequest(const AmSipRequest &req)
+void SBCFactory::onOoDRequest(const AmSipRequest &req, const string &app_name)
 {
     DBG("processing message %s %s", req.method.c_str(), req.r_uri.c_str());
 
@@ -352,7 +352,7 @@ void SBCFactory::onOoDRequest(const AmSipRequest &req)
         options_requests_counter.inc();
         if (core_options_handling) {
             DBG3("processing OPTIONS in core");
-            AmSessionFactory::onOoDRequest(req);
+            AmSessionFactory::onOoDRequest(req, app_name);
             return;
         }
     }
