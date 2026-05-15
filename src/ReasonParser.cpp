@@ -70,9 +70,13 @@ void ReasonParser::parse_reason(const std::string &hdrs, size_t reason_begin, si
 
             // check proto. SIP/Q.850
             auto len = name_end_pos - name_start_pos;
-            if (0 == hdrs.compare(name_start_pos, len, reason_proto_sip)) {
+            if (len == reason_proto_sip.size() &&
+                0 == strncasecmp(hdrs.c_str() + name_start_pos, reason_proto_sip.c_str(), len))
+            {
                 current_reason = &sip_reason;
-            } else if (0 == hdrs.compare(name_start_pos, len, reason_proto_q850)) {
+            } else if (len == reason_proto_q850.size() &&
+                       0 == strncasecmp(hdrs.c_str() + name_start_pos, reason_proto_q850.c_str(), len))
+            {
                 current_reason = &q850_reason;
             } else {
                 current_reason = nullptr;
