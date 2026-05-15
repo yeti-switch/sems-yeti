@@ -227,6 +227,21 @@ TEST_F(YetiTest, ReasonParserSIPFlat)
 }
 
 
+TEST_F(YetiTest, ReasonParserProtoCaseInsensitive)
+{
+    YetiCfg::headers_processing_config::leg_reasons cfg;
+    cfg.add_q850_reason = true;
+    cfg.add_sip_reason  = true;
+
+    ReasonParser p;
+    p.parse_headers("Reason: SiP; cause=200; text=\"Call completed elsewhere\" , "
+                    "q.850 ;cause=16 ;text=\"Terminated\"");
+
+    AmArg serialized_reasons;
+    p.serialize(serialized_reasons, cfg);
+    ASSERT_EQ(serialized_reasons, reasons_expected);
+}
+
 TEST_F(YetiTest, ReasonParserSIPFlatCauseBorderValues)
 {
     YetiCfg::headers_processing_config::leg_reasons cfg;
