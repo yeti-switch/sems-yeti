@@ -1,3 +1,9 @@
+sems-yeti (1.14.38) stable; urgency=medium
+  * libsems1.190
+  * ReasonParser: case-insensitive reason protocol matching
+  * Cdr: fix bleg_predefined_route_set appending on call profile failovers
+ -- dev <dev@yeti-switch.org>  Mon, 18 May 2026 16:27:28 +0300
+
 sems-yeti (1.14.37) stable; urgency=medium
   * add sems_yeti_config_reload_count, sems_yeti_config_reload_time metrics for db_states
   * libsems1.189
