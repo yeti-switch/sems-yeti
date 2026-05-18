@@ -159,6 +159,7 @@ void Cdr::update_sql(const SqlCallProfile &profile)
     resources       = profile.resources;
 
     // should match logic in SBCCallProfile::apply_b_routing() + AmBasicSipDialog::getRoute
+    bleg_predefined_route_set.clear();
     const string &route = (!profile.route.empty()) ? profile.route : profile.bleg_route_set;
     if (profile.bleg_route_set.empty() && !profile.outbound_proxy.empty()) {
         bleg_predefined_route_set = "<" + profile.outbound_proxy + ";lr>";
