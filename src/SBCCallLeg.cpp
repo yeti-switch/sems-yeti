@@ -3903,11 +3903,6 @@ void SBCCallLeg::computeRelayMask(const SdpMedia &m, bool &enable, PayloadMask &
     }
 
     CallLeg::computeRelayMask(m, enable, mask, map);
-
-    if (call_profile.force_relay_CN) {
-        mask.set(COMFORT_NOISE_PAYLOAD_TYPE);
-        TRACE("mark payload 13(CN) for relay");
-    }
 }
 
 int SBCCallLeg::onSdpCompleted(const AmSdp &local, const AmSdp &remote, bool sdp_offer_owner)
