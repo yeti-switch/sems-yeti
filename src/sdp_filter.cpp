@@ -302,6 +302,13 @@ inline bool is_telephone_event(const SdpPayload &p)
     return (c == DTMF_ENCODING_NAME);
 }
 
+inline bool is_comfort_noise(const SdpPayload &p)
+{
+    string c = p.encoding_name;
+    std::transform(c.begin(), c.end(), c.begin(), ::toupper);
+    return (c == COMFORT_NOISE_ENCODING_NAME);
+}
+
 int filter_arrange_SDP(AmSdp &sdp, const std::vector<SdpPayload> &static_payloads, bool add_codecs, int ptime)
 {
     // DBG("filter_arrange_SDP() add_codecs = %s", add_codecs?"yes":"no");
@@ -351,8 +358,11 @@ int filter_arrange_SDP(AmSdp &sdp, const std::vector<SdpPayload> &static_payload
         }
         // dump_SdpPayload(new_pl);
 
-        if ((!new_pl.size() && media.payloads.size())                      // no payloads remained after filtering
-            || (new_pl.size() == 1 && is_telephone_event(new_pl.front()))) // the last payload is telephone-event
+        auto is_signaling_only = [](const SdpPayload &p) { return is_telephone_event(p) || is_comfort_noise(p); };
+
+        if ((!new_pl.size() && media.payloads.size()) // no payloads remained
+            || (!new_pl.empty() && std::all_of(new_pl.begin(), new_pl.end(),
+                                               is_signaling_only))) // only signaling (tevent/CN)
         {
             new_pl.push_back(*media.payloads.begin());
             media.port              = 0;
