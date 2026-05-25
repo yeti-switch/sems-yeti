@@ -184,6 +184,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
     ~SBCCallLeg();
 
     void process(AmEvent *ev) override;
+    void onB2BEvent(B2BEvent *ev) override;
     void onInvite(const AmSipRequest &req) override;
     void onIdentityReady(const AmArg *identity_data_ptr = nullptr);
     void onRoutingReady();

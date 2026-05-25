@@ -2165,12 +2165,13 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
                     dlg->reply(req, 488, "Not Acceptable Here");
                     return;
                 }
+
+                processLocalRequest(upd_req);
             } catch (InternalException &e) {
                 dlg->reply(req, e.response_code, e.response_reason);
                 return;
             }
 
-            processLocalRequest(upd_req);
             return;
         } else if (req.method == SIP_METH_PRACK &&
                    ((a_leg && !call_profile.aleg_relay_prack) || (!a_leg && !call_profile.bleg_relay_prack)))
@@ -2259,12 +2260,13 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
                     dlg->reply(req, 488, "Not Acceptable Here");
                     return;
                 }
+
+                processLocalRequest(inv_req);
             } catch (InternalException &e) {
                 dlg->reply(req, e.response_code, e.response_reason);
                 return;
             }
 
-            processLocalRequest(inv_req);
             return;
         } else if (req.method == SIP_METH_REFER) {
             if (a_leg) {
@@ -2659,7 +2661,11 @@ void SBCCallLeg::updateLocalSdp(AmSdp &sdp, const string &sip_msg_method, unsign
     // remember transcodable payload IDs
     // if (call_profile.transcoder.isActive()) savePayloadIDs(sdp);
     DBG("updateLocalSdp: transport: %s", transport_p_2_str(sdp.media.begin()->transport).data());
-    CallLeg::updateLocalSdp(sdp, sip_msg_method, sip_msg_cseq);
+    try {
+        CallLeg::updateLocalSdp(sdp, sip_msg_method, sip_msg_cseq);
+    } catch (const AmSession::NoFreeRtpPortsException &) {
+        throw InternalException(DC_NO_FREE_RTP_PORTS, call_ctx->getOverrideId(a_leg));
+    }
 }
 
 void SBCCallLeg::onControlCmd(string &cmd, AmArg &params)
@@ -3124,6 +3130,29 @@ void SBCCallLeg::onRtpSendingError()
     }
 
     CallLeg::onRtpSendingError();
+}
+
+void SBCCallLeg::onB2BEvent(B2BEvent *ev)
+{
+    try {
+        try {
+            CallLeg::onB2BEvent(ev);
+        } catch (const AmSession::NoFreeRtpPortsException &) {
+            throw InternalException(DC_NO_FREE_RTP_PORTS, call_ctx ? call_ctx->getOverrideId(a_leg) : 0);
+        }
+    } catch (InternalException &e) {
+        DBG("%s(%p,leg%s) caught InternalException(%d) during B2B event handling", FUNC_NAME, to_void(this),
+            a_leg ? "A" : "B", e.icode);
+
+        if (call_ctx) {
+            with_cdr_for_read
+            {
+                cdr->update_internal_reason(DisconnectByTS, e.internal_reason, e.internal_code, e.icode);
+            }
+        }
+
+        onException(e.response_code, e.response_reason);
+    }
 }
 
 void SBCCallLeg::onFailure()
@@ -3975,7 +4004,11 @@ bool SBCCallLeg::getSdpOffer(AmSdp &offer)
         DBG("provide saved initial offer for connecting legB");
         offer          = call_ctx->bleg_initial_offer;
         auto addr_type = dlg->getOutboundAddrType();
-        m->replaceConnectionAddress(offer, a_leg, addr_type);
+        try {
+            m->replaceConnectionAddress(offer, a_leg, addr_type);
+        } catch (const AmSession::NoFreeRtpPortsException &) {
+            throw InternalException(DC_NO_FREE_RTP_PORTS, call_ctx->getOverrideId(a_leg));
+        }
     }
 
     offer.origin.sessV = local_sdp.origin.sessV + 1; // increase session version. rfc4566 5.2 <sess-version>

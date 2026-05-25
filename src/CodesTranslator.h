@@ -26,6 +26,7 @@
 #define DC_SESSION_TIMEOUT     128
 #define DC_INTERNAL_ERROR      129
 #define DC_TRANSACTION_TIMEOUT 130
+#define DC_NO_FREE_RTP_PORTS   134
 
 #define DC_NOT_REGISTERED          131
 #define DC_LEGB_RTP_TIMEOUT        132
