@@ -1,6 +1,7 @@
 #include "Registration.h"
 #include "sip/parse_via.h"
 #include "AmSipRegistration.h"
+#include "AmUtils.h"
 #include "ampi/SIPRegistrarClientAPI.h"
 #include "yeti.h"
 #include "db/DbHelpers.h"
@@ -119,6 +120,8 @@ bool Registration::read_registration(const AmArg &r, RegistrationsContainer &reg
     for (const auto &t : str_fields) {
         ri[std::get<0>(t)] = DbAmArg_hash_get_str_any(r, std::get<1>(t));
     }
+    // escape the display name so it stays a valid SIP quoted-string in the From/To headers
+    ri["name"] = escape_dquoted(ri["name"].asCStr());
 
     static std::vector<std::tuple<const char *, const char *, int>> int_fields({
         {            "expires_interval",                      "o_expire",                            0 },
