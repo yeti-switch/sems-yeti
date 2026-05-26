@@ -881,7 +881,7 @@ bool SqlCallProfile::eval(const ResourceControl &rctl)
         if (!evaluateOutboundInterface())
             return false;
 
-    if (registered_aor_mode_id < REGISTERED_AOR_MODE_AS_IS ||
+    if (registered_aor_mode_id < REGISTERED_AOR_MODE_DISABLED ||
         registered_aor_mode_id > REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO)
     {
         DBG("%s: incorrect registered_aor_mode_id value. replace %d -> %d", aleg_local_tag.data(),

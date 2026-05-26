@@ -125,7 +125,11 @@ typedef pair<unsigned int, std::string>        ReplyCodeReasonPair;
 typedef map<unsigned int, ReplyCodeReasonPair> ReplyTranslationMap;
 
 struct SBCCallProfile : public AmObject {
-    enum { REGISTERED_AOR_MODE_AS_IS = 1, REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO = 2 };
+    enum {
+        REGISTERED_AOR_MODE_DISABLED                    = 0,
+        REGISTERED_AOR_MODE_AS_IS                       = 1,
+        REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO = 2
+    };
 
     string aleg_local_tag;
 

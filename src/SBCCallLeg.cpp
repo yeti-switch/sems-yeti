@@ -286,7 +286,9 @@ void SBCCallLeg::processAorResolving()
 
     // check for registered_aor_id in profiles
     for (const auto &p : call_ctx->profiles) {
-        if (0 == p.disconnect_code_id && 0 != p.registered_aor_id) {
+        if (0 == p.disconnect_code_id && 0 != p.registered_aor_id &&
+            SqlCallProfile::REGISTERED_AOR_MODE_DISABLED != p.registered_aor_mode_id)
+        {
             event.aor_ids.emplace(std::to_string(p.registered_aor_id));
         }
     }
@@ -1236,7 +1238,9 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
         DBG("> process profile idx:%u, disconnect_code_id: %d, registered_aor_id:%d", profile_idx, p.disconnect_code_id,
             p.registered_aor_id);
 
-        if (p.disconnect_code_id != 0 || p.registered_aor_id == 0) {
+        if (p.disconnect_code_id != 0 || p.registered_aor_id == 0 ||
+            SqlCallProfile::REGISTERED_AOR_MODE_DISABLED == p.registered_aor_mode_id)
+        {
             ++it;
             DBG("< skip profile %u processing. "
                 "disconnect code is set or aor resolving is not needed",
