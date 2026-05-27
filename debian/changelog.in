@@ -1,3 +1,11 @@
+sems-yeti (1.14.39) stable; urgency=medium
+  * add internal disconnect code 134 for exhausted rtp ports pool
+  * add display name escaping for registrations
+  * add registered_aor_mode_id 0 (disabled) to skip AoR processing
+  * fix SDP rejection for only CN/telephone-event in codecs intersection
+  * libsems1.191
+ -- dev <dev@yeti-switch.org>  Wed, 27 May 2026 20:07:24 +0300
+
 sems-yeti (1.14.38) stable; urgency=medium
   * libsems1.190
   * ReasonParser: case-insensitive reason protocol matching
