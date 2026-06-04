@@ -814,6 +814,15 @@ void CallLeg::addNewCallee(CallLeg *callee, ConnectLegEvent *e, AmB2BSession::RT
 {
     AmB2BMedia *m = nullptr;
 
+    typedef std::unique_ptr<CallLeg, std::function<void(CallLeg*)>> ScopeGuard;
+    ScopeGuard sg(callee, [&](CallLeg* ptr){
+        if(!ptr) return;
+        if(m)
+            m->changeSession(!a_leg, NULL);
+        delete ptr;
+    });
+    std::unique_ptr<ConnectLegEvent> eptr(e);
+
     callee->setRtpRelayMode(mode);
     if (mode != RTP_Direct) {
         m = getMediaSession();
@@ -849,7 +858,7 @@ void CallLeg::addNewCallee(CallLeg *callee, ConnectLegEvent *e, AmB2BSession::RT
     callee->start();
 
     AmSessionContainer *sess_cont = AmSessionContainer::instance();
-    sess_cont->addSession(callee->getLocalTag(), callee);
+    sess_cont->addSession(callee->getLocalTag(), sg.release());
 
     // generate connect event to the newly added leg
     // Warning: correct callee's role must be already set (in constructor or so)
@@ -859,7 +868,7 @@ void CallLeg::addNewCallee(CallLeg *callee, ConnectLegEvent *e, AmB2BSession::RT
     // used because it would just overwrite already set things. Note that in many
     // classes derived from AmB2BCaller[Callee]Session was a lot of things set
     // explicitly)
-    AmSessionContainer::instance()->postEvent(callee->getLocalTag(), e);
+    AmSessionContainer::instance()->postEvent(callee->getLocalTag(), eptr.release());
 
     if (call_status == Disconnected)
         updateCallStatus(NoReply);
