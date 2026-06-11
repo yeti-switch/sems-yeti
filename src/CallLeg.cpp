@@ -814,14 +814,15 @@ void CallLeg::addNewCallee(CallLeg *callee, ConnectLegEvent *e, AmB2BSession::RT
 {
     AmB2BMedia *m = nullptr;
 
-    typedef std::unique_ptr<CallLeg, std::function<void(CallLeg*)>> ScopeGuard;
-    ScopeGuard sg(callee, [&](CallLeg* ptr){
-        if(!ptr) return;
-        if(m)
+    typedef std::unique_ptr<CallLeg, std::function<void(CallLeg *)>> ScopeGuard;
+    ScopeGuard                                                       sg(callee, [&](CallLeg *ptr) {
+        if (!ptr)
+            return;
+        if (m)
             m->changeSession(!a_leg, NULL);
         delete ptr;
     });
-    std::unique_ptr<ConnectLegEvent> eptr(e);
+    std::unique_ptr<ConnectLegEvent>                                 eptr(e);
 
     callee->setRtpRelayMode(mode);
     if (mode != RTP_Direct) {
