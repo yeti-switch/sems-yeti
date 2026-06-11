@@ -1,3 +1,8 @@
+sems-yeti (1.14.40) stable; urgency=medium
+  * CallLeg::addNewCallee: fix memory leak
+  * libsems1.193
+ -- dev <dev@yeti-switch.org>  Thu, 11 Jun 2026 12:41:58 +0300
+
 sems-yeti (1.14.39) stable; urgency=medium
   * add internal disconnect code 134 for exhausted rtp ports pool
   * add display name escaping for registrations
