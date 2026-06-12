@@ -281,7 +281,10 @@ inline void clear_media_params(AmSdp &sdp)
 {
     sdp.ice_pwd.clear();
     sdp.ice_ufrag.clear();
-    sdp.use_ice = false;
+    sdp.use_ice    = false;
+    sdp.use_bundle = false;
+    sdp.groups.clear();
+    sdp.extmaps.clear();
     for (auto &m : sdp.media) {
         m.ice_pwd.clear();
         m.ice_ufrag.clear();
@@ -292,6 +295,9 @@ inline void clear_media_params(AmSdp &sdp)
         m.zrtp_hash.hash.clear();
 #endif
         m.is_multiplex = false;
+        m.mid.clear();
+        m.extmaps.clear();
+        m.use_bundle = false;
     }
 }
 
