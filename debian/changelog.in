@@ -1,3 +1,7 @@
+sems-yeti (1.14.41) stable; urgency=medium
+  * libsems1.195
+ -- dev <dev@yeti-switch.org>  Mon, 15 Jun 2026 15:54:21 +0300
+
 sems-yeti (1.14.40) stable; urgency=medium
   * CallLeg::addNewCallee: fix memory leak
   * libsems1.193
