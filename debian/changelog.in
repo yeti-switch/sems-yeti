@@ -1,3 +1,9 @@
+sems-yeti (1.14.42) stable; urgency=medium
+  * OriginationPreAuth: prioritize entries with require_incoming_auth:false
+  * ip_auth db state: load_ip_auth(node_id,pop_id) -> load_ip_auth2(node_id,pop_id)
+  * libsems1.199
+ -- dev <dev@yeti-switch.org>  Thu, 25 Jun 2026 18:42:38 +0300
+
 sems-yeti (1.14.41) stable; urgency=medium
   * libsems1.195
  -- dev <dev@yeti-switch.org>  Mon, 15 Jun 2026 15:54:21 +0300
