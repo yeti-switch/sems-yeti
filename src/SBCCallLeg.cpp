@@ -2788,6 +2788,9 @@ void SBCCallLeg::process(AmEvent *ev)
             if (call_ctx) {
                 with_cdr_for_read cdr->is_redirected = true;
             }
+            if (dlg->getRemoteUri() != redirect_event->target) {
+                dlg->setRemoteUri(redirect_event->target);
+            }
             return;
         }
 
