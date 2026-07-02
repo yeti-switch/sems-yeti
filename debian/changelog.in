@@ -1,3 +1,8 @@
+sems-yeti (1.14.43) stable; urgency=medium
+  * fix auth for redirected requests
+  * libsems1.201
+ -- dev <dev@yeti-switch.org>  Thu, 02 Jul 2026 12:17:08 +0300
+
 sems-yeti (1.14.42) stable; urgency=medium
   * OriginationPreAuth: prioritize entries with require_incoming_auth:false
   * ip_auth db state: load_ip_auth(node_id,pop_id) -> load_ip_auth2(node_id,pop_id)
