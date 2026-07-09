@@ -535,37 +535,6 @@ bool SBCCallProfile::apply_b_routing(const string &ruri, AmBasicSipDialog &dlg) 
     return true;
 }
 
-#if 0
-int SBCCallProfile::refuse(ParamReplacerCtx& ctx, const AmSipRequest& req) const
-{
-  string m_refuse_with = ctx.replaceParameters(refuse_with, "refuse_with", req);
-  if (m_refuse_with.empty()) {
-    ERROR("refuse_with empty after replacing (was '%s' in profile %s)",
-	  refuse_with.c_str(), profile_file.c_str());
-    return -1;
-  }
-
-  size_t spos = m_refuse_with.find(' ');
-  unsigned int refuse_with_code;
-  if (spos == string::npos || spos == m_refuse_with.size() ||
-      str2i(m_refuse_with.substr(0, spos), refuse_with_code)) {
-    ERROR("invalid refuse_with '%s'->'%s' in  %s. Expected <code> <reason>",
-	  refuse_with.c_str(), m_refuse_with.c_str(), profile_file.c_str());
-    return -1;
-  }
-
-  string refuse_with_reason = m_refuse_with.substr(spos+1);
-  string hdrs = ctx.replaceParameters(append_headers, "append_headers", req);
-  //TODO: hdrs = remove_empty_headers(hdrs);
-  if (hdrs.size()>2) assertEndCRLF(hdrs);
-
-  DBG("refusing call with %u %s", refuse_with_code, refuse_with_reason.c_str());
-  AmSipDialog::reply_error(req, refuse_with_code, refuse_with_reason, hdrs);
-
-  return 0;
-}
-#endif
-
 /** removes headers with empty values from headers list separated by "\r\n" */
 static string remove_empty_headers(const string &s, const char *field_name)
 {

@@ -432,7 +432,7 @@ void SBCCallLeg::processResourcesAndSdp()
                 }
 
                 ParamReplacerCtx rctx(profile);
-                if (router.check_and_refuse(profile, cdr, aleg_modified_req, rctx)) {
+                if (router.check_and_refuse(this, profile, cdr, aleg_modified_req, rctx)) {
                     throw AmSession::Exception(cdr->disconnect_rewrited_code, cdr->disconnect_rewrited_reason);
                 }
             }
@@ -542,7 +542,7 @@ bool SBCCallLeg::chooseNextProfile()
 
         {
             ParamReplacerCtx rctx(profile);
-            if (router.check_and_refuse(profile, cdr, *call_ctx->initial_invite, rctx)) {
+            if (router.check_and_refuse(this, profile, cdr, *call_ctx->initial_invite, rctx)) {
                 DBG("profile contains refuse code");
                 break;
             }
@@ -810,7 +810,7 @@ void SBCCallLeg::onPostgresResponseError(PGResponseError &e)
     delete call_ctx;
     call_ctx = nullptr;
 
-    AmSipDialog::reply_error(uac_req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    dlg->reply(uac_req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     dlg->drop();
     dlg->dropTransactions();
     setStopped();
@@ -824,7 +824,7 @@ void SBCCallLeg::onPostgresTimeout(PGTimeout &)
     delete call_ctx;
     call_ctx = nullptr;
 
-    AmSipDialog::reply_error(uac_req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    dlg->reply(uac_req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     dlg->drop();
     dlg->dropTransactions();
     setStopped();
@@ -851,7 +851,7 @@ void SBCCallLeg::onProfilesReady()
         delete call_ctx;
         call_ctx = nullptr;
 
-        AmSipDialog::reply_error(uac_req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+        dlg->reply(uac_req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         dlg->drop();
         dlg->dropTransactions();
         setStopped();
@@ -875,7 +875,7 @@ void SBCCallLeg::onProfilesReady()
             ERROR("got callprofile with auth_required "
                   "for already authorized request. reply internal error. i:%s",
                   dlg->getCallid().data());
-            AmSipDialog::reply_error(uac_req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+            dlg->reply(uac_req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
 
         dlg->drop();
@@ -887,7 +887,7 @@ void SBCCallLeg::onProfilesReady()
     cdr->set_start_time(call_start_time);
 
     ctx.call_profile = profile;
-    if (router.check_and_refuse(profile, cdr, uac_req, ctx, true)) {
+    if (router.check_and_refuse(this, profile, cdr, uac_req, ctx, true)) {
         if (!call_ctx->SQLexception) { // avoid to write cdr on failed getprofile()
             cdr->dump_level_id = 0;    // override dump_level_id. we have no logging at this stage
             if (call_profile.global_tag.empty()) {
@@ -904,7 +904,6 @@ void SBCCallLeg::onProfilesReady()
         delete call_ctx;
         call_ctx = nullptr;
 
-        // AmSipDialog::reply_error(req,500,SIP_REPLY_SERVER_INTERNAL_ERROR);
         dlg->drop();
         dlg->dropTransactions();
         setStopped();
@@ -1328,7 +1327,7 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
             if (next_profile == profiles.end() || (*next_profile).disconnect_code_id != 0) {
                 DBG("no more profiles or reject profile after the skipped profile. terminate leg");
                 router.write_cdr(call_ctx->cdr, true);
-                AmSipDialog::reply_error(aleg_modified_req, response_code, response_reason);
+                dlg->reply(aleg_modified_req, response_code, response_reason);
                 terminateLeg();
                 return;
             }
@@ -2954,7 +2953,7 @@ void SBCCallLeg::onInvite(const AmSipRequest &req)
             size_t name_end, val_begin, val_end, hdr_end;
             if (skip_header(req.hdrs, start_pos, name_end, val_begin, val_end, hdr_end)) {
                 ERROR("failed to parse headers: %s", req.hdrs.data());
-                AmSipDialog::reply_error(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+                dlg->reply(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
                 dlg->drop();
                 dlg->dropTransactions();
                 setStopped();

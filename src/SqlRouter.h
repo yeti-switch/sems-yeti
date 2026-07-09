@@ -14,6 +14,7 @@
 #include "CallCtx.h"
 #include "OriginationPreAuth.h"
 #include "GatewaysCache.h"
+#include "AmSession.h"
 
 #include <functional>
 
@@ -104,8 +105,8 @@ class SqlRouter : public Auth {
     const DynFieldsT &getDynFields() const { return dyn_fields; }
 
     /*! return true if call refused */
-    bool check_and_refuse(SqlCallProfile *profile, Cdr *cdr, const AmSipRequest &req, ParamReplacerCtx &ctx,
-                          bool send_reply = false);
+    bool check_and_refuse(AmSession *session, SqlCallProfile *profile, Cdr *cdr, const AmSipRequest &req,
+                          ParamReplacerCtx &ctx, bool send_reply = false);
 
     void          update_counters(struct timeval &start_time);
     bool          is_new_codec_groups() { return new_codec_groups; }

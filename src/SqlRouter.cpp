@@ -780,8 +780,8 @@ static void assertEndCRLF(string &s)
     }
 }
 
-bool SqlRouter::check_and_refuse(SqlCallProfile *profile, Cdr *cdr, const AmSipRequest &req, ParamReplacerCtx &ctx,
-                                 bool send_reply)
+bool SqlRouter::check_and_refuse(AmSession *session, SqlCallProfile *profile, Cdr *cdr, const AmSipRequest &req,
+                                 ParamReplacerCtx &ctx, bool send_reply)
 {
     bool         need_reply;
     bool         write_cdr;
@@ -811,7 +811,7 @@ bool SqlRouter::check_and_refuse(SqlCallProfile *profile, Cdr *cdr, const AmSipR
         string hdrs = ctx.replaceParameters(profile->append_headers, "append_headers", req);
         if (hdrs.size() > 2)
             assertEndCRLF(hdrs);
-        AmSipDialog::reply_error(req, response_code, response_reason, hdrs);
+        session->dlg->reply(req, response_code, response_reason, nullptr, hdrs);
     }
     return true;
 }
