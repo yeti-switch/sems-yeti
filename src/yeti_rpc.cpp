@@ -49,7 +49,7 @@ typedef YetiRpc::rpc_handler YetiRpc::*YetiRpcHandler;
     }
 
 struct CallNotFoundException : public AmSession::Exception {
-    CallNotFoundException(string local_tag)
+    explicit CallNotFoundException(const string &local_tag)
         : AmSession::Exception(404, "call with local_tag: '" + local_tag + "' is not found")
     {
     }
@@ -59,38 +59,6 @@ static void deprecated_db_reload_cmd()
 {
     throw AmSession::Exception(410, "deprecated. use: yeti.request.db_states.reload");
 }
-
-struct rpc_entry : public AmObject {
-    YetiRpcHandler handler;
-    string         leaf_descr, func_descr, arg, arg_descr;
-    AmArg          leaves;
-
-    rpc_entry(string ld)
-        : handler(NULL)
-        , leaf_descr(ld)
-    {
-    }
-
-    rpc_entry(string ld, YetiRpcHandler h, string fd)
-        : handler(h)
-        , leaf_descr(ld)
-        , func_descr(fd)
-    {
-    }
-
-    rpc_entry(string ld, YetiRpcHandler h, string fd, string a, string ad)
-        : handler(h)
-        , leaf_descr(ld)
-        , func_descr(fd)
-        , arg(a)
-        , arg_descr(ad)
-    {
-    }
-
-    bool isMethod() { return handler != NULL; }
-    bool hasLeafs() { return leaves.getType() == AmArg::Struct; }
-    bool hasLeaf(const char *leaf) { return hasLeafs() && leaves.hasMember(leaf); }
-};
 
 void YetiRpc::init_rpc_tree()
 {
@@ -373,7 +341,7 @@ bool YetiRpc::getCall(const string &connection_id, const AmArg &request_id, cons
 
 void YetiRpc::GetCall(SBCCallLeg *leg, AmArg &ret)
 {
-    if (!cdr_list.getCall(leg, ret, &router)) {
+    if (!cdr_list.getCall(leg, ret)) {
         CallNotFoundException e(leg->getLocalTag());
         ret["error"]            = AmArg();
         ret["error"]["code"]    = e.code;
@@ -403,7 +371,7 @@ bool YetiRpc::getCalls(const string &connection_id, const AmArg &request_id, con
             }
 
             ret.push(AmArg());
-            if (!rpc.cdr_list.getCall(leg, ret.back(), &rpc.router)) {
+            if (!rpc.cdr_list.getCall(leg, ret.back())) {
                 ret.pop_back();
             }
         },
@@ -461,14 +429,14 @@ bool YetiRpc::getCallsFields(const string &connection_id, const AmArg &request_i
             if (!leg)
                 return;
 
-            CallFields    *call_fields  = (CallFields *)user_data;
-            YetiRpc       &rpc          = Yeti::instance();
-            cmp_rules     &filter_rules = call_fields->filter_rules;
-            vector<string> fields       = call_fields->fields;
+            CallFields      *call_fields  = (CallFields *)user_data;
+            YetiRpc         &rpc          = Yeti::instance();
+            const cmp_rules &filter_rules = call_fields->filter_rules;
+            vector<string>   fields       = call_fields->fields;
 
             ret.assertArray();
             ret.push(AmArg());
-            if (!rpc.cdr_list.getCallsFields(leg, ret.back(), &rpc.router, filter_rules, fields)) {
+            if (!rpc.cdr_list.getCallsFields(leg, ret.back(), filter_rules, fields)) {
                 ret.pop_back();
             }
         },
@@ -767,7 +735,7 @@ bool YetiRpc::showSessionsInfo(const string &connection_id, const AmArg &request
                 for (int i = 0; i < ret.size(); i++) {
                     if (!isArgStruct(ret[i]))
                         continue;
-                    for (auto &it : ret[i])
+                    for (const auto &it : ret[i])
                         send_ret[it.first] = it.second;
                 }
                 postJsonRpcReply(*request, send_ret);

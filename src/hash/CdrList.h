@@ -60,12 +60,10 @@ class CdrList : public AmThread,
     struct get_calls_ctx {
         struct timeval        now;
         int                   node_id, pop_id;
-        const SqlRouter      *router;
         const vector<string> *fields;
-        get_calls_ctx(int node_id, int pop_id, const SqlRouter *router, const vector<string> *fields = NULL)
+        get_calls_ctx(int node_id, int pop_id, const vector<string> *fields = NULL)
             : node_id(node_id)
             , pop_id(pop_id)
-            , router(router)
             , fields(fields)
         {
             gettimeofday(&now, NULL);
@@ -82,9 +80,8 @@ class CdrList : public AmThread,
     ~CdrList();
 
     long int getCallsCount();
-    bool     getCall(SBCCallLeg *leg, AmArg &call, const SqlRouter *router);
-    bool     getCallsFields(SBCCallLeg *leg, AmArg &calls, const SqlRouter *router, const cmp_rules &rules,
-                            const vector<string> &fields);
+    bool     getCall(SBCCallLeg *leg, AmArg &call);
+    bool     getCallsFields(SBCCallLeg *leg, AmArg &calls, const cmp_rules &rules, const vector<string> &fields);
 
     void onSessionFinalize(Cdr *cdr);
 

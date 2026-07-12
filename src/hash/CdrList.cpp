@@ -21,6 +21,7 @@ CdrList::CdrList()
     , snapshots_interval(0)
     , last_snapshot_ts(0)
     , stopped(false)
+    , router(nullptr)
 {
     snapshot_id.fields.sign    = 0;
     snapshot_id.fields.node_id = AmConfig.node_id;
@@ -56,10 +57,10 @@ long int CdrList::getCallsCount()
     return calls_count;
 }
 
-bool CdrList::getCall(SBCCallLeg *leg, AmArg &call, const SqlRouter *router)
+bool CdrList::getCall(SBCCallLeg *leg, AmArg &call)
 {
     const auto         &gc = Yeti::instance().config;
-    const get_calls_ctx ctx(AmConfig.node_id, gc.pop_id, router);
+    const get_calls_ctx ctx(AmConfig.node_id, gc.pop_id);
 
     if (!leg->isALeg())
         return false;
@@ -74,11 +75,10 @@ bool CdrList::getCall(SBCCallLeg *leg, AmArg &call, const SqlRouter *router)
     return true;
 }
 
-bool CdrList::getCallsFields(SBCCallLeg *leg, AmArg &call, const SqlRouter *router, const cmp_rules &filter_rules,
-                             const vector<string> &fields)
+bool CdrList::getCallsFields(SBCCallLeg *leg, AmArg &call, const cmp_rules &filter_rules, const vector<string> &fields)
 {
     const auto         &gc = Yeti::instance().config;
-    const get_calls_ctx ctx(AmConfig.node_id, gc.pop_id, router, &fields);
+    const get_calls_ctx ctx(AmConfig.node_id, gc.pop_id, &fields);
 
     if (!leg)
         return false;
@@ -312,7 +312,7 @@ void CdrList::onTimer()
     len               = strftime(strftime_buf, sizeof strftime_buf, "%F", &t);
     snapshot_date_str = string(strftime_buf, len);
 
-    auto             &gc = Yeti::instance().config;
+    const auto       &gc = Yeti::instance().config;
     const DynFieldsT &df = router->getDynFields();
 
     struct SnapshotInfo {
@@ -382,7 +382,7 @@ void CdrList::onTimer()
                 return;
 
             info->cdr_list->snapshot_id.fields.counter++;
-            auto &gc = Yeti::instance().config;
+            const auto &gc = Yeti::instance().config;
             ret.push(AmArg());
             AmArg &call = ret.back();
             call["id"]  = info->cdr_list->snapshot_id.v;
@@ -501,7 +501,7 @@ void CdrList::cdr2arg(AmArg &arg, const Cdr *cdr, const get_calls_ctx &ctx) cons
 
     // cdr->add_versions_to_amarg(arg);
 
-    const DynFieldsT &df = ctx.router->getDynFields();
+    const DynFieldsT &df = router->getDynFields();
     for (const auto &dit : df) {
         const string &fname = dit.name;
         AmArg        &f     = cdr->dyn_fields[fname];
@@ -588,7 +588,7 @@ void CdrList::cdr2arg_filtered(AmArg &arg, const Cdr *cdr, const get_calls_ctx &
 
     // filter("versions") cdr->add_versions_to_amarg(arg);
 
-    const DynFieldsT &df = ctx.router->getDynFields();
+    const DynFieldsT &df = router->getDynFields();
     for (const auto &dit : df) {
         const string &fname = dit.name;
         filter(fname)
