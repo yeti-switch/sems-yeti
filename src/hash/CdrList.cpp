@@ -287,8 +287,8 @@ void CdrList::onTimer()
     PostponedCdrsContainer local_postponed_calls;
 
     static struct tm t;
-    // static struct timeval tv; //fake call interval end value
-    u_int64_t now         = wheeltimer::instance()->unix_clock.get();
+    u_int64_t        now =
+        std::chrono::duration_cast<std::chrono::seconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
     u_int64_t snapshot_ts = now - (now % snapshots_interval);
 
     string snapshot_timestamp_str, snapshot_date_str;
@@ -302,10 +302,9 @@ void CdrList::onTimer()
 
     last_snapshot_ts = snapshot_ts;
 
-    /*tv.tv_usec = 0;
-    tv.tv_sec = snapshot_ts;*/
     ts = snapshot_ts;
-    localtime_r(&ts, &t);
+    // TODO: use chrono formatter directly. remove gmtime_r, strftime usage
+    gmtime_r(&ts, &t);
 
     len                    = strftime(strftime_buf, sizeof strftime_buf, "%F %T", &t);
     snapshot_timestamp_str = string(strftime_buf, len);
