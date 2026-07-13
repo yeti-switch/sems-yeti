@@ -1,3 +1,7 @@
+sems-yeti (1.14.45) stable; urgency=medium
+  * fix empty clickhouse active-calls snapshots sending
+ -- dev <dev@yeti-switch.org>  Mon, 13 Jul 2026 20:07:34 +0300
+
 sems-yeti (1.14.44) stable; urgency=medium
   * use UTC for timestamps in clickhouse snapshots and radius hooks
   * fix error replies logging in pcap files
