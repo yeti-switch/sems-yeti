@@ -4,6 +4,9 @@
 #include "cdr/Cdr.h"
 #include "yeti.h"
 
+// for timeval2str_utc()
+#include "cdr/CdrBase.h"
+
 // TODO: move to AmUtils
 string timeval2str_ntp_utc(const timeval &tv)
 {
@@ -31,7 +34,7 @@ static inline void radius_auth(SBCCallLeg *call, const Cdr &cdr, SBCCallProfile 
 
     v["call_time_start"] = timeval2str_ntp_utc(cdr.start_time);
 
-    v["time_start"]       = timeval2str(cdr.start_time);
+    v["time_start"]       = timeval2str_utc(cdr.start_time);
     v["time_start_float"] = timeval2str_usec(cdr.start_time);
     v["time_start_int"]   = long2str(cdr.start_time.tv_sec);
 
@@ -62,11 +65,11 @@ static inline void radius_accounting_start(SBCCallLeg *call, const Cdr &cdr, SBC
     PlaceholdersHash &v = call->getPlaceholders();
 
     if (call->isALeg()) {
-        v["time_connect"]       = timeval2str(cdr.connect_time);
+        v["time_connect"]       = timeval2str_utc(cdr.connect_time);
         v["time_connect_float"] = timeval2str_usec(cdr.connect_time);
         v["time_connect_int"]   = long2str(cdr.connect_time.tv_sec);
     } else { // bleg
-        v["time_connect"]       = timeval2str(cdr.bleg_connect_time);
+        v["time_connect"]       = timeval2str_utc(cdr.bleg_connect_time);
         v["time_connect_float"] = timeval2str_usec(cdr.bleg_connect_time);
         v["time_connect_int"]   = long2str(cdr.bleg_connect_time.tv_sec);
 
