@@ -11,7 +11,7 @@ jobs:
     container: debian:${{ matrix.distribution }}
     strategy:
       matrix:
-       distribution: [trixie]
+       distribution: [bookworm, trixie]
     steps:
       - name: install aux deps
         run: apt update && apt -y --no-install-recommends install git ca-certificates curl gpg wget
