@@ -4,6 +4,23 @@
 #include "cdr/Cdr.h"
 #include "yeti.h"
 
+// TODO: move to AmUtils
+string timeval2str_ntp_utc(const timeval &tv)
+{
+    time_t    t;
+    struct tm tt;
+    int       time_len, date_len, s_len;
+    char      time[10] = { 0 }, date[24] = { 0 }, s[64];
+
+    t = tv.tv_sec;
+    gmtime_r(&t, &tt);
+
+    time_len = strftime(time, sizeof time, "%H:%M:%S", &tt);
+    date_len = strftime(date, sizeof date, "%Z %a %b %d %Y", &tt);
+    s_len    = snprintf(s, sizeof s, "%.*s.%03d %.*s", time_len, time, (int)(tv.tv_usec / 1000), date_len, date);
+    return string(s, s_len);
+}
+
 static inline void radius_auth(SBCCallLeg *call, const Cdr &cdr, SBCCallProfile &call_profile, const AmSipRequest &req)
 {
     PlaceholdersHash &v         = call->getPlaceholders();
@@ -12,7 +29,7 @@ static inline void radius_auth(SBCCallLeg *call, const Cdr &cdr, SBCCallProfile 
     v["call_local_tag"]    = local_tag;
     v["call_orig_call_id"] = req.callid;
 
-    v["call_time_start"] = timeval2str_ntp(cdr.start_time);
+    v["call_time_start"] = timeval2str_ntp_utc(cdr.start_time);
 
     v["time_start"]       = timeval2str(cdr.start_time);
     v["time_start_float"] = timeval2str_usec(cdr.start_time);

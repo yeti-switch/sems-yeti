@@ -1080,7 +1080,7 @@ void Cdr::snapshot_info(AmArg &s, const DynFieldsT &df) const
 
 #define add_field(val)          s[#val] = val;
 #define add_field_as(name, val) s[name] = val;
-#define add_timeval_field(val)  s[#val] = timerisset(&val) ? timeval2str(val) : AmArg();
+#define add_timeval_field(val)  s[#val] = timerisset(&val) ? timeval2str_utc(val) : AmArg();
 
     add_timeval_field(cdr_born_time);
     add_timeval_field(start_time);
@@ -1151,7 +1151,7 @@ void Cdr::snapshot_info_filtered(AmArg &s, const DynFieldsT &df, const unordered
     if (wanted_fields.count(name##_key) > 0)
 #define add_field(val)          filter(val) s[val##_key] = val;
 #define add_field_as(name, val) filter(name) s[name##_key] = val;
-#define add_timeval_field(val)  filter(val) s[val##_key] = timerisset(&val) ? timeval2str(val) : AmArg();
+#define add_timeval_field(val)  filter(val) s[val##_key] = timerisset(&val) ? timeval2str_utc(val) : AmArg();
 
     add_timeval_field(cdr_born_time);
     add_timeval_field(start_time);

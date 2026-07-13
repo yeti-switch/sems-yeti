@@ -12,8 +12,6 @@
 #include "AmEventDispatcher.h"
 #include "ampi/HttpClientAPI.h"
 
-#include <chrono>
-
 #define EPOLL_MAX_EVENTS 2048
 
 CdrList::CdrList()
@@ -281,38 +279,19 @@ void CdrList::on_stop()
 
 void CdrList::onTimer()
 {
-    int                 len;
-    time_t              ts;
-    char                strftime_buf[64];
     static const string end_time_key("end_time");
 
     PostponedCdrsContainer local_postponed_calls;
 
-    static struct tm t;
-    u_int64_t        now =
-        std::chrono::duration_cast<std::chrono::seconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-    u_int64_t snapshot_ts = now - (now % snapshots_interval);
-
-    string snapshot_timestamp_str, snapshot_date_str;
-
+    auto now         = static_cast<time_t>(wheeltimer::instance()->unix_clock.get());
+    auto snapshot_ts = now - (now % snapshots_interval);
     if (last_snapshot_ts && last_snapshot_ts == snapshot_ts) {
         ERROR("duplicate snapshot %lu timestamp. "
               "ignore timer event (can lead to time gap between snapshots)",
               snapshot_ts);
         return;
     }
-
     last_snapshot_ts = snapshot_ts;
-
-    ts = snapshot_ts;
-    // TODO: use chrono formatter directly. remove gmtime_r, strftime usage
-    gmtime_r(&ts, &t);
-
-    len                    = strftime(strftime_buf, sizeof strftime_buf, "%F %T", &t);
-    snapshot_timestamp_str = string(strftime_buf, len);
-
-    len               = strftime(strftime_buf, sizeof strftime_buf, "%F", &t);
-    snapshot_date_str = string(strftime_buf, len);
 
     const auto       &gc = Yeti::instance().config;
     const DynFieldsT &df = router->getDynFields();
@@ -322,14 +301,23 @@ void CdrList::onTimer()
         string   snapshot_timestamp_str;
         string   snapshot_date_str;
         CdrList *cdr_list;
-    };
-    SnapshotInfo *info  = new SnapshotInfo;
-    AmArg        &calls = info->calls;
+        SnapshotInfo(CdrList *cdr_list, time_t tt)
+            : cdr_list(cdr_list)
+        {
+            static struct tm t;
+            static char      strftime_buf[64];
+            gmtime_r(&tt, &t);
 
+            auto len               = strftime(strftime_buf, sizeof strftime_buf, "%F %T", &t);
+            snapshot_timestamp_str = string(strftime_buf, len);
+
+            len               = strftime(strftime_buf, sizeof strftime_buf, "%F", &t);
+            snapshot_date_str = string(strftime_buf, len);
+        }
+    };
+    SnapshotInfo *info  = new SnapshotInfo(this, now);
+    AmArg        &calls = info->calls;
     calls.assertArray();
-    info->snapshot_timestamp_str = snapshot_timestamp_str;
-    info->snapshot_date_str      = snapshot_date_str;
-    info->cdr_list               = this;
 
     snapshot_id.fields.timestamp = snapshot_ts;
 
@@ -348,8 +336,8 @@ void CdrList::onTimer()
             snapshot_id.fields.counter++;
             call["id"] = snapshot_id.v;
 
-            call["snapshot_timestamp"] = snapshot_timestamp_str;
-            call["snapshot_date"]      = snapshot_date_str;
+            call["snapshot_timestamp"] = info->snapshot_timestamp_str;
+            call["snapshot_date"]      = info->snapshot_date_str;
             call["node_id"]            = AmConfig.node_id;
             call["pop_id"]             = gc.pop_id;
             call["buffered"]           = true;

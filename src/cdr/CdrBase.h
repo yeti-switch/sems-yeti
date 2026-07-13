@@ -23,3 +23,6 @@ class CdrBase {
 
     virtual ~CdrBase() {}
 };
+
+// TODO: move to AmUtils
+string timeval2str_utc(const timeval &tv);

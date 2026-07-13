@@ -172,7 +172,7 @@ void AuthCdr::apply_params(QueryInfo &query_info) const
 
 void AuthCdr::info(AmArg &s)
 {
-    s["request_time"] = timeval2str(request_time);
+    s["request_time"] = timeval2str_utc(request_time);
     s["remote_ip"]    = remote_ip;
     s["remote_port"]  = remote_port;
     s["r_uri"]        = r_uri;

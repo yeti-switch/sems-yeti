@@ -25,7 +25,7 @@ class CdrList : public AmThread,
     string                snapshots_table;
     string                snapshots_body_header;
     unordered_set<string> snapshots_fields_whitelist;
-    u_int64_t             last_snapshot_ts;
+    time_t                last_snapshot_ts;
     AmEventFd             stop_event;
     AmTimerFd             timer;
     AmCondition<bool>     stopped;
