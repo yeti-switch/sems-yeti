@@ -403,7 +403,8 @@ void CdrList::onTimer()
                 for (auto j = 0u; j < ret[i].size(); j++)
                     info->calls.push(ret[i][j]);
             }
-            info->cdr_list->sendSnapshot(info->calls);
+            if (info->calls.size())
+                info->cdr_list->sendSnapshot(info->calls);
             delete info;
         },
         info);
