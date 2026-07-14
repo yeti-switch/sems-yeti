@@ -315,7 +315,7 @@ void CdrList::onTimer()
             snapshot_date_str = string(strftime_buf, len);
         }
     };
-    SnapshotInfo *info  = new SnapshotInfo(this, now);
+    SnapshotInfo *info  = new SnapshotInfo(this, snapshot_ts);
     AmArg        &calls = info->calls;
     calls.assertArray();
 
