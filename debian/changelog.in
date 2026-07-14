@@ -1,3 +1,7 @@
+sems-yeti (1.14.46) stable; urgency=medium
+  * fix snapshot_timestamp rounding for active calls snapshosts
+ -- dev <dev@yeti-switch.org>  Mon, 13 Jul 2026 20:07:34 +0300
+
 sems-yeti (1.14.45) stable; urgency=medium
   * fix empty clickhouse active-calls snapshots sending
  -- dev <dev@yeti-switch.org>  Mon, 13 Jul 2026 20:07:34 +0300
