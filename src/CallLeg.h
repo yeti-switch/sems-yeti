@@ -287,7 +287,8 @@ class CallLeg : public AmB2BSession {
      * directly by successors, right?) */
     void terminateNotConnectedLegs();
 
-    virtual void updateLocalSdp(AmSdp &sdp, const string &sip_msg_method, unsigned int sip_msg_cseq) override;
+    virtual void updateLocalSdp(AmSdp &sdp, const string &sip_msg_method, unsigned int sip_msg_cseq,
+                                bool local = false) override;
 
     void setAllow1xxWithoutToTag(bool allow) { allow_1xx_without_to_tag = allow; }
 

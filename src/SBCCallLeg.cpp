@@ -2184,6 +2184,8 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
         } else if (req.method == SIP_METH_INVITE) {
             if ((a_leg && call_profile.aleg_relay_reinvite) || (!a_leg && call_profile.bleg_relay_reinvite)) {
                 DBG("skip local processing. relay");
+                if (auto *m = getMediaSession())
+                    m->beginTransactionMode();
                 break;
             }
 
@@ -2433,6 +2435,11 @@ void SBCCallLeg::onSipReply(const AmSipRequest &req, const AmSipReply &reply, Am
         }
     }
 
+    if (reply.code >= 300 && reply.cseq_method == SIP_METH_INVITE) {
+        if (auto *m = getMediaSession())
+            m->rollbackTransactionMode();
+    }
+
     CallLeg::onSipReply(req, reply, old_dlg_status);
 }
 
@@ -2659,7 +2666,7 @@ void SBCCallLeg::onDtmf(AmDtmfEvent *e)
     }
 }
 
-void SBCCallLeg::updateLocalSdp(AmSdp &sdp, const string &sip_msg_method, unsigned int sip_msg_cseq)
+void SBCCallLeg::updateLocalSdp(AmSdp &sdp, const string &sip_msg_method, unsigned int sip_msg_cseq, bool local)
 {
     if (sdp.media.empty()) {
         throw InternalException(DC_REPLY_SDP_EMPTY_ANSWER, call_ctx->getOverrideId(a_leg));
@@ -2672,7 +2679,7 @@ void SBCCallLeg::updateLocalSdp(AmSdp &sdp, const string &sip_msg_method, unsign
     // if (call_profile.transcoder.isActive()) savePayloadIDs(sdp);
     DBG("updateLocalSdp: transport: %s", transport_p_2_str(sdp.media.begin()->transport).data());
     try {
-        CallLeg::updateLocalSdp(sdp, sip_msg_method, sip_msg_cseq);
+        CallLeg::updateLocalSdp(sdp, sip_msg_method, sip_msg_cseq, local);
     } catch (const AmSession::NoFreeRtpPortsException &) {
         throw InternalException(DC_NO_FREE_RTP_PORTS, call_ctx->getOverrideId(a_leg));
     }
@@ -3792,7 +3799,7 @@ void SBCCallLeg::alterHoldRequest(AmSdp &sdp)
 void SBCCallLeg::processLocalRequest(AmSipRequest &req)
 {
     DBG("%s() local_tag = %s", FUNC_NAME, getLocalTag().c_str());
-    updateLocalBody(req.body, req.method, req.cseq);
+    updateLocalBody(req.body, req.method, req.cseq, /*local*/ true);
     dlg->reply(req, 200, "OK", &req.body, "", SIP_FLAGS_VERBATIM);
 }
 
@@ -3968,6 +3975,8 @@ int SBCCallLeg::onSdpCompleted(const AmSdp &local, const AmSdp &remote, bool sdp
         {
             cdr->setSdpCompleted(a_leg);
         }
+        if (auto *m = getMediaSession())
+            m->notifyOACompleted(a_leg);
     }
 
     if (!a_leg)

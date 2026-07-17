@@ -1043,7 +1043,7 @@ void CallLeg::adjustOffer(AmSdp &sdp)
     }
 }
 
-void CallLeg::updateLocalSdp(AmSdp &sdp, const string &sip_msg_method, unsigned int sip_msg_cseq)
+void CallLeg::updateLocalSdp(AmSdp &sdp, const string &sip_msg_method, unsigned int sip_msg_cseq, bool local)
 {
     TRACE("%s: updateLocalSdp (OA: %d, oa_cseq: %u, msg_cseq: %u)\n", getLocalTag().c_str(), dlg->getOAState(),
           dlg->getOAcseq(), sip_msg_cseq);
@@ -1066,7 +1066,7 @@ void CallLeg::updateLocalSdp(AmSdp &sdp, const string &sip_msg_method, unsigned 
         non_hold_sdp = sdp;
     }
 
-    AmB2BSession::updateLocalSdp(sdp, sip_msg_method, sip_msg_cseq);
+    AmB2BSession::updateLocalSdp(sdp, sip_msg_method, sip_msg_cseq, local);
 }
 
 void CallLeg::offerRejected()
