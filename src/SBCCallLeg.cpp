@@ -2666,7 +2666,7 @@ void SBCCallLeg::onDtmf(AmDtmfEvent *e)
     }
 }
 
-void SBCCallLeg::updateLocalSdp(AmSdp &sdp, const string &sip_msg_method, unsigned int sip_msg_cseq, bool local)
+void SBCCallLeg::updateLocalSdp(AmSdp &sdp, const string &sip_msg_method, unsigned int sip_msg_cseq)
 {
     if (sdp.media.empty()) {
         throw InternalException(DC_REPLY_SDP_EMPTY_ANSWER, call_ctx->getOverrideId(a_leg));
@@ -2679,7 +2679,7 @@ void SBCCallLeg::updateLocalSdp(AmSdp &sdp, const string &sip_msg_method, unsign
     // if (call_profile.transcoder.isActive()) savePayloadIDs(sdp);
     DBG("updateLocalSdp: transport: %s", transport_p_2_str(sdp.media.begin()->transport).data());
     try {
-        CallLeg::updateLocalSdp(sdp, sip_msg_method, sip_msg_cseq, local);
+        CallLeg::updateLocalSdp(sdp, sip_msg_method, sip_msg_cseq);
     } catch (const AmSession::NoFreeRtpPortsException &) {
         throw InternalException(DC_NO_FREE_RTP_PORTS, call_ctx->getOverrideId(a_leg));
     }
@@ -3799,7 +3799,9 @@ void SBCCallLeg::alterHoldRequest(AmSdp &sdp)
 void SBCCallLeg::processLocalRequest(AmSipRequest &req)
 {
     DBG("%s() local_tag = %s", FUNC_NAME, getLocalTag().c_str());
-    updateLocalBody(req.body, req.method, req.cseq, /*local*/ true);
+    if (auto *m = getMediaSession())
+        m->setLocalOa(a_leg); // arm the "next OA on this leg is our own reply" flag
+    updateLocalBody(req.body, req.method, req.cseq);
     dlg->reply(req, 200, "OK", &req.body, "", SIP_FLAGS_VERBATIM);
 }
 
