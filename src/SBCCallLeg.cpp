@@ -2137,11 +2137,20 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
         {
             dlg->reply(req, 200, "OK", nullptr, "", SIP_FLAGS_VERBATIM);
             return;
-        } else if (req.method == SIP_METH_UPDATE && ((a_leg && !call_profile.aleg_relay_update) ||
-                                                     (!a_leg && !call_profile.bleg_relay_update)
-                                                     // disable relay in early dialog
-                                                     || dlg->getStatus() != AmBasicSipDialog::Connected))
-        {
+        } else if (req.method == SIP_METH_UPDATE) {
+            bool is_local = (a_leg && !call_profile.aleg_relay_update) ||
+                            (!a_leg && !call_profile.bleg_relay_update)
+                            // disable relay in early dialog
+                            || dlg->getStatus() != AmBasicSipDialog::Connected;
+            if (!is_local) {
+                if (req.body.hasContentType(SIP_APPLICATION_SDP)) {
+                    DBG("skip local processing. relay UPDATE with SDP");
+                    if (auto *m = getMediaSession())
+                        m->beginTransactionMode();
+                }
+                break;
+            }
+
             const AmMimeBody *sdp_body = req.body.hasContentType(SIP_APPLICATION_SDP);
             if (!sdp_body) {
                 DBG("got UPDATE without body. local processing enabled. generate 200OK without SDP");
@@ -2435,7 +2444,7 @@ void SBCCallLeg::onSipReply(const AmSipRequest &req, const AmSipReply &reply, Am
         }
     }
 
-    if (reply.code >= 300 && reply.cseq_method == SIP_METH_INVITE) {
+    if (reply.code >= 300 && (reply.cseq_method == SIP_METH_INVITE || reply.cseq_method == SIP_METH_UPDATE)) {
         if (auto *m = getMediaSession())
             m->rollbackTransactionMode();
     }
