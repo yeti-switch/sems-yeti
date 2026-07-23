@@ -2494,6 +2494,13 @@ void SBCCallLeg::onSendRequest(AmSipRequest &req, int &flags)
             DBG("appending '%s' to outbound request (B leg)", call_profile.append_headers_req.c_str());
             req.hdrs += call_profile.append_headers_req;
         }
+
+        if (req.to_tag.empty()) {
+            with_cdr_for_read
+            {
+                cdr->update_with_bleg_sip_request(req);
+            }
+        }
     }
 
     if (nullptr != auth) {
@@ -3307,11 +3314,6 @@ void SBCCallLeg::normalizeSdpVersion(uint64_t &sdp_session_version_in, unsigned 
 void SBCCallLeg::connectCallee(const string &remote_party, const string &remote_uri, const string &from,
                                const AmSipRequest &, const AmSipRequest &invite, AmSipDialog *p_dlg)
 {
-    with_cdr_for_read
-    {
-        cdr->update_with_bleg_sip_request(invite);
-    }
-
     SBCCallLeg *callee_session = SBCFactory::instance()->getCallLegCreator()->create(this, p_dlg);
 
     callee_session->setLocalParty(from, from);
