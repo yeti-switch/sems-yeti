@@ -131,6 +131,11 @@ struct SBCCallProfile : public AmObject {
         REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO = 2
     };
 
+    enum PidfloModeId {
+        PIDFLO_MODE_DISABLED = 0, // do not relay application/pidf+xml in offer
+        PIDFLO_MODE_RELAY,        // relay application/pidf+xml for A->B offer
+    };
+
     string aleg_local_tag;
 
     string md5hash;
@@ -311,6 +316,8 @@ struct SBCCallProfile : public AmObject {
     int registered_aor_mode_id;
     int skip_code_id;
 
+    int pidflo_mode_id;
+
     int aleg_media_encryption_mode_id;
     int bleg_media_encryption_mode_id;
 
@@ -458,6 +465,7 @@ struct SBCCallProfile : public AmObject {
         , registered_aor_id(0)
         , registered_aor_mode_id(REGISTERED_AOR_MODE_AS_IS)
         , skip_code_id(0)
+        , pidflo_mode_id(PIDFLO_MODE_DISABLED)
         , aleg_media_encryption_mode_id(0)
         , bleg_media_encryption_mode_id(0)
         , aleg_media_allow_zrtp(false)

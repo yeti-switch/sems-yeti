@@ -19,6 +19,8 @@
 #define DBG_SDP(sdp, prefix)             ;
 #endif
 
+#define SIP_APPLICATION_PIDFXML "application/pidf+xml"
+
 const char *conn_location2str(int location_id)
 {
     static const char *both         = "both";
@@ -804,7 +806,30 @@ int filterSdpOffer(SBCCallLeg *call, _AmSipMsgInDlg &sip_msg, SBCCallProfile &ca
     if (out_sdp)
         *out_sdp = sdp;
 
-    apply_sdp_to_body(body, sdp_body, sdp, true /* TODO: get it from the callprofile */);
+    // apply_sdp_to_body(body, sdp_body, sdp, true /* TODO: get it from the callprofile */);
+
+    string n_body;
+    sdp.print(n_body);
+
+    if (a_leg && call_profile.pidflo_mode_id == SBCCallProfile::PIDFLO_MODE_RELAY) {
+        auto pidflo_part_ptr = body.hasContentType(SIP_APPLICATION_PIDFXML);
+        if (pidflo_part_ptr) {
+            // remove all parts except sdp and pidflo
+            AmMimeBody pidflo_part{ *pidflo_part_ptr };
+            body.clear();
+
+            body.addPart(SIP_APPLICATION_SDP)->setPayload((const unsigned char *)n_body.c_str(), n_body.length());
+            *body.addPart(SIP_APPLICATION_PIDFXML) = pidflo_part;
+        } else {
+            // no pidflo part. reduce to singlepart with SDP
+            body.clear();
+            body.parse(SIP_APPLICATION_SDP, (const unsigned char *)n_body.c_str(), n_body.length());
+        }
+    } else {
+        // reduce to singlepart. drop everything except SDP
+        body.clear();
+        body.parse(SIP_APPLICATION_SDP, (const unsigned char *)n_body.c_str(), n_body.length());
+    }
 
     return res;
 }

@@ -364,6 +364,8 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
     registered_aor_id      = DbAmArg_hash_get_int(t, "registered_aor_id", 0);
     registered_aor_mode_id = DbAmArg_hash_get_int(t, "registered_aor_mode_id", REGISTERED_AOR_MODE_AS_IS);
 
+    pidflo_mode_id = DbAmArg_hash_get_int(t, "pidflo_mode_id", PIDFLO_MODE_DISABLED);
+
     aleg_media_encryption_mode_id = DbAmArg_hash_get_int(t, "aleg_media_encryption_mode_id", 0);
     bleg_media_encryption_mode_id = DbAmArg_hash_get_int(t, "bleg_media_encryption_mode_id", 0);
 
