@@ -62,7 +62,6 @@ struct SqlCallProfile : public SBCCallProfile
     bool eval_protocol_priority();
     bool eval(const ResourceControl &rctl);
 
-    void            infoPrint(const DynFieldsT &df);
     void            info(AmArg & s);
     SqlCallProfile *copy();
 };
