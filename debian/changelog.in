@@ -1,3 +1,8 @@
+sems-yeti (1.14.47) stable; urgency=medium
+  * add 'pidflo_mode_id' call profile parameter
+  * fix missed bleg_cdr_headers in CDR when set by 'append_headers_req'
+ -- dev <dev@yeti-switch.org>  Thu, 23 Jul 2026 17:52:26 +0300
+
 sems-yeti (1.14.46) stable; urgency=medium
   * fix snapshot_timestamp rounding for active calls snapshosts
  -- dev <dev@yeti-switch.org>  Mon, 13 Jul 2026 20:07:34 +0300
