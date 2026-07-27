@@ -1,3 +1,7 @@
+sems-yeti (1.14.48) stable; urgency=medium
+  * adapt to sems core b2b refactor. libsems1.203
+ -- dev <dev@yeti-switch.org>  Mon, 27 Jul 2026 15:33:06 +0300
+
 sems-yeti (1.14.47) stable; urgency=medium
   * add 'pidflo_mode_id' call profile parameter
   * fix missed bleg_cdr_headers in CDR when set by 'append_headers_req'
