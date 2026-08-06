@@ -1,3 +1,7 @@
+sems-yeti (1.14.49) stable; urgency=medium
+  * libsems1.204
+ -- dev <dev@yeti-switch.org>  Thu, 06 Aug 2026 16:44:27 +0300
+
 sems-yeti (1.14.48) stable; urgency=medium
   * adapt to sems core b2b refactor. libsems1.203
  -- dev <dev@yeti-switch.org>  Mon, 27 Jul 2026 15:33:06 +0300
