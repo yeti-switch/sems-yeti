@@ -1,3 +1,7 @@
+sems-yeti (1.14.50) stable; urgency=medium
+  * libsems1.205
+ -- dev <dev@yeti-switch.org>  Fri, 14 Aug 2026 21:19:27 +0300
+
 sems-yeti (1.14.49) stable; urgency=medium
   * libsems1.204
  -- dev <dev@yeti-switch.org>  Thu, 06 Aug 2026 16:44:27 +0300
