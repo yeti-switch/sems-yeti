@@ -21,7 +21,7 @@ jobs:
           curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg
       - name: add yeti pkg repo
         run: >
-          echo "deb [arch=amd64] https://deb.yeti-switch.org/debian/1.15 ${{ matrix.distribution }} main" > /etc/apt/sources.list.d/yeti.list &&
+          echo "deb [arch=amd64] https://deb.yeti-switch.org/debian/build-1.15 ${{ matrix.distribution }} main" > /etc/apt/sources.list.d/yeti.list &&
           wget https://deb.yeti-switch.org/yeti.gpg -O /etc/apt/trusted.gpg.d/yeti-key.asc
       - run: apt update && apt install -y --no-install-recommends postgresql-18 postgresql-client-18 redis-server
 
