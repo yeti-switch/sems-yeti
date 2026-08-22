@@ -1,3 +1,7 @@
+sems-yeti (1.15.2) stable; urgency=medium
+  * SBCCallLeg::onBeforeDestroy(): fix empty slots skipping on RTP stats serialization
+ -- dev <dev@yeti-switch.org>  Sat, 22 Aug 2026 22:08:16 +0300
+
 sems-yeti (1.15.1) stable; urgency=medium
   * fix missed RTP stats in CDRs
  -- dev <dev@yeti-switch.org>  Sat, 22 Aug 2026 16:02:33 +0300
