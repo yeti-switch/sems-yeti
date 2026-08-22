@@ -124,7 +124,6 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
      */
     virtual bool onBeforeRTPRelay(AmRtpPacket *p, sockaddr_storage *remote_addr) override;
     virtual void onAfterRTPRelay(AmRtpPacket *p, sockaddr_storage *remote_addr) override;
-    virtual void onRTPStreamDestroy(AmRtpStream *stream) override;
 
     void alterHoldRequestImpl(AmSdp &sdp); // do the SDP update (called by alterHoldRequest)
 

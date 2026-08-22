@@ -1992,6 +1992,25 @@ void SBCCallLeg::onBeforeDestroy()
         return;
     }
 
+    forEachRtpStream([&](AmRtpAudio *stream, MediaType type, TransProt) {
+        AmRtpStream::MediaStats stats;
+        stream->getMediaStats(stats);
+        if (!timerisset(&stats.time_start))
+            return;
+        with_cdr_for_read
+        {
+            if (cdr->writed)
+                return;
+            if (a_leg) {
+                if (cdr->aleg_media_stats.size() < MAX_STREAM_STATS)
+                    cdr->aleg_media_stats.push_back(stats);
+            } else {
+                if (cdr->bleg_media_stats.size() < MAX_STREAM_STATS)
+                    cdr->bleg_media_stats.push_back(stats);
+            }
+        }
+    });
+
     if (call_profile.record_audio) {
         if (yeti.config.audio_recorder_compress) {
             AmAudioFileRecorderProcessor::instance()->removeRecorder(getLocalTag());
@@ -3665,37 +3684,6 @@ void SBCCallLeg::onAfterRTPRelay(AmRtpPacket *p, sockaddr_storage *)
 {
     for (list<::atomic_int *>::iterator it = rtp_pegs.begin(); it != rtp_pegs.end(); ++it) {
         (*it)->inc(p->getBufferSize());
-    }
-}
-
-void SBCCallLeg::onRTPStreamDestroy(AmRtpStream *stream)
-{
-    if (gettid() != thread_id) {
-        ERROR("called from the thread(%d) while owned by the thread(%d). ignore", gettid(), thread_id);
-        log_demangled_stacktrace(L_ERR);
-        return;
-    }
-
-    DBG("%s(%p,leg%s)", FUNC_NAME, to_void(this), a_leg ? "A" : "B");
-
-    if (!call_ctx)
-        return;
-    AmRtpStream::MediaStats stats;
-    stream->getMediaStats(stats);
-    if (!timerisset(&stats.time_start))
-        return;
-
-    with_cdr_for_read
-    {
-        if (cdr->writed)
-            return;
-        if (a_leg) {
-            if (cdr->aleg_media_stats.size() < MAX_STREAM_STATS)
-                cdr->aleg_media_stats.push_back(stats);
-        } else {
-            if (cdr->bleg_media_stats.size() < MAX_STREAM_STATS)
-                cdr->bleg_media_stats.push_back(stats);
-        }
     }
 }
 
