@@ -1993,6 +1993,8 @@ void SBCCallLeg::onBeforeDestroy()
     }
 
     forEachRtpStream([&](AmRtpAudio *stream, MediaType type, TransProt) {
+        if (!stream)
+            return;
         AmRtpStream::MediaStats stats;
         stream->getMediaStats(stats);
         if (!timerisset(&stats.time_start))
