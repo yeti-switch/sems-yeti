@@ -210,9 +210,6 @@ void SBCCallLeg::init()
     Cdr &cdr = *call_ctx->cdr.get();
 
     if (a_leg) {
-        call_profile.set_logger_path(
-            format("{}/{}_{}.pcap", yeti.config.msg_logger_dir, getLocalTag(), AmConfig.node_id));
-
         if (global_tag.empty()) {
             ERROR("%s empty global_tag. disable recording", getLocalTag().data());
             call_profile.record_audio = false;
@@ -886,10 +883,16 @@ void SBCCallLeg::onProfilesReady()
 
     cdr->set_start_time(call_start_time);
 
-    ctx.call_profile = profile;
+    call_profile      = *profile;
+    placeholders_hash = profile->placeholders_hash;
+    ctx.call_profile  = profile;
+    ctx.app_param     = getHeader(uac_req.hdrs, PARAM_HDR, true);
+
+    if (!call_ctx->SQLexception) {
+        applyAlegLoggerSettings(*profile);
+    }
     if (router.check_and_refuse(this, profile, cdr, uac_req, ctx, true)) {
         if (!call_ctx->SQLexception) { // avoid to write cdr on failed getprofile()
-            cdr->dump_level_id = 0;    // override dump_level_id. we have no logging at this stage
             if (call_profile.global_tag.empty()) {
                 global_tag = getLocalTag();
             } else {
@@ -910,7 +913,6 @@ void SBCCallLeg::onProfilesReady()
         return;
     }
 
-
     // check for registered_aor_id in profiles
     std::set<int> aor_ids;
     for (const auto &p : call_ctx->profiles) {
@@ -922,9 +924,6 @@ void SBCCallLeg::onProfilesReady()
     if (!aor_ids.empty()) {
         DBG("got %zd AoR ids to resolve", aor_ids.size());
     }
-
-    call_profile      = *call_ctx->getCurrentProfile();
-    placeholders_hash = call_ctx->getCurrentProfile()->placeholders_hash;
 
     set_sip_relay_only(false);
 
@@ -946,9 +945,6 @@ void SBCCallLeg::onProfilesReady()
         global_tag = call_profile.global_tag;
     }
 
-    ctx.call_profile = &call_profile;
-    ctx.app_param    = getHeader(uac_req.hdrs, PARAM_HDR, true);
-
     init();
 
     modified_req      = uac_req;
@@ -959,26 +955,9 @@ void SBCCallLeg::onProfilesReady()
         modified_req.max_forwards = aleg_modified_req.max_forwards;
     }
 
-    if (!logger) {
-        if (!call_profile.get_logger_path().empty() && (call_profile.log_sip || call_profile.log_rtp)) {
-            DBG3("pcap logging requested by call_profile");
-            // open the logger if not already opened
-            ParamReplacerCtx ctx(&call_profile);
-            string log_path = ctx.replaceParameters(call_profile.get_logger_path(), "msg_logger_path", uac_req);
-            if (!openLogger(log_path)) {
-                WARN("can't open msg_logger_path: '%s'", log_path.c_str());
-            }
-        } else if (yeti.config.pcap_memory_logger) {
-            DBG3("no pcap logging by call_profile, but pcap_memory_logger enabled. set in-memory logger");
-            setLogger(new in_memory_msg_logger());
-            memory_logger_enabled = true;
-        } else {
-            DBG3("continue without pcap logger");
-        }
+    if (call_profile.aleg_sensor_level_id & LOG_SIP_MASK) {
+        uac_req.log(nullptr, getSensor());
     }
-
-    uac_req.log((call_profile.log_sip || memory_logger_enabled) ? getLogger() : nullptr,
-                call_profile.aleg_sensor_level_id & LOG_SIP_MASK ? getSensor() : nullptr);
 
     sip_uri uac_ruri;
     if (parse_uri(&uac_ruri, uac_req.r_uri.data(), uac_req.r_uri.length()) < 0) {
@@ -988,16 +967,6 @@ void SBCCallLeg::onProfilesReady()
 
     call_ctx->cdr->update_with_aleg_sip_request(uac_req);
     call_ctx->initial_invite = new AmSipRequest(aleg_modified_req);
-
-    if (yeti.config.early_100_trying) {
-        msg_logger *logger = getLogger();
-        if (logger) {
-            early_trying_logger->relog(logger);
-        }
-    } else {
-        dlg->reply(uac_req, 100, "Connecting");
-    }
-
 
     radius_auth(this, *call_ctx->cdr, call_profile, uac_req);
 
@@ -1197,6 +1166,39 @@ void SBCCallLeg::process_push_token_profile(SqlCallProfile &p)
         ERROR("token_type %d is not supported", token_type);
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         break;
+    }
+}
+
+void SBCCallLeg::applyAlegLoggerSettings(SqlCallProfile &profile)
+{
+    if (!logger) {
+        profile.set_logger_path(format("{}/{}_{}.pcap", yeti.config.msg_logger_dir, getLocalTag(), AmConfig.node_id));
+        call_profile.set_logger_path(profile.get_logger_path());
+
+        if (!profile.get_logger_path().empty() && (profile.log_sip || profile.log_rtp)) {
+            DBG3("pcap logging requested by call_profile");
+            // open the logger if not already opened
+            string log_path = ctx.replaceParameters(profile.get_logger_path(), "msg_logger_path", uac_req);
+            if (!openLogger(log_path)) {
+                WARN("can't open msg_logger_path: '%s'", log_path.c_str());
+            }
+        } else if (yeti.config.pcap_memory_logger) {
+            DBG3("no pcap logging by call_profile, but pcap_memory_logger enabled. set in-memory logger");
+            setLogger(new in_memory_msg_logger());
+            memory_logger_enabled = true;
+        } else {
+            DBG3("continue without pcap logger");
+        }
+    }
+
+    uac_req.log((call_profile.log_sip || memory_logger_enabled) ? getLogger() : nullptr, nullptr);
+
+    if (yeti.config.early_100_trying) {
+        if (logger) {
+            early_trying_logger->relog(logger);
+        }
+    } else {
+        dlg->reply(uac_req, 100, "Connecting");
     }
 }
 

@@ -172,6 +172,8 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
     void setRejectCdr(int disconnect_code_id);
     void process_push_token_profile(SqlCallProfile &p);
 
+    void applyAlegLoggerSettings(SqlCallProfile &profile);
+
   public:
     SqlRouter       &router;
     CdrList         &cdr_list;
