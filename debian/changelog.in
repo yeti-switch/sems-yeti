@@ -1,3 +1,7 @@
+sems-yeti (1.15.3) stable; urgency=medium
+  * write pcap dump for refusing call profiles
+ -- dev <dev@yeti-switch.org>  Fri, 28 Aug 2026 18:53:17 +0300
+
 sems-yeti (1.15.2) stable; urgency=medium
   * SBCCallLeg::onBeforeDestroy(): fix empty slots skipping on RTP stats serialization
  -- dev <dev@yeti-switch.org>  Sat, 22 Aug 2026 22:08:16 +0300
