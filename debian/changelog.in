@@ -1,3 +1,7 @@
+sems-yeti (1.15.4) stable; urgency=medium
+  * fix CDR profile-related fields on initial reject by resources
+ -- dev <dev@yeti-switch.org>  Mon, 31 Aug 2026 15:03:46 +0300
+
 sems-yeti (1.15.3) stable; urgency=medium
   * write pcap dump for refusing call profiles
  -- dev <dev@yeti-switch.org>  Fri, 28 Aug 2026 18:53:17 +0300
