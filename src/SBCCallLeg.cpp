@@ -396,9 +396,11 @@ void SBCCallLeg::processResourcesAndSdp()
             } else if (rctl_ret == RES_CTL_NEXT) {
                 DBG("check resources failed with code %d. internal code: %d", rctl_ret,
                     resource_config.internal_code_id);
-                profile = call_ctx->getNextProfile(GET_PROFILE_CDR_UPDATE, GET_PROFILE_PROFILES_ALL);
+                auto prev_profile = profile;
+                profile           = call_ctx->getNextProfile(GET_PROFILE_CDR_UPDATE, GET_PROFILE_PROFILES_ALL);
 
                 if (nullptr == profile) {
+                    cdr->update_sql(*prev_profile);
                     cdr->update_failed_resource(*ri);
                     DBG("there are no more profiles");
                     throw AmSession::Exception(503, "no more profiles");
@@ -417,6 +419,7 @@ void SBCCallLeg::processResourcesAndSdp()
                         static_cast<unsigned int>(resource_config.internal_code_id), internal_code, internal_reason,
                         response_code, response_reason, call_ctx->getOverrideId(a_leg));
 
+                    cdr->update_sql(*prev_profile);
                     cdr->update_failed_resource(*ri);
 
                     rctl.replace(internal_reason, *ri, resource_config);
