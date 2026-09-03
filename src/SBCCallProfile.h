@@ -313,6 +313,16 @@ struct SBCCallProfile : public AmObject {
     GatewaysCacheDataBase::GatewayIdType lega_gw_cache_id;
     GatewaysCacheDataBase::GatewayIdType legb_gw_cache_id;
 
+    int time_limit         = 0;
+    int disconnect_code_id = 0;
+    int aleg_override_id   = 0;
+    int bleg_override_id   = 0;
+
+    /** whether or not we should parse trusted headers from this gateway */
+    bool trusted_hdrs_gw = false;
+
+    AmArg dyn_fields;
+
     struct TranscoderSettings {
         enum { DTMFAlways, DTMFNever } dtmf_mode;
 

@@ -13,9 +13,7 @@
 #include <algorithm>
 
 SqlCallProfile::SqlCallProfile()
-    : aleg_override_id(0)
-    , bleg_override_id(0)
-    , legab_res_mode_enabled{ false }
+    : legab_res_mode_enabled{ false }
 {
 }
 

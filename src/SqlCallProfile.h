@@ -19,15 +19,7 @@ struct SqlCallProfile : public SBCCallProfile
                         ObjCounter(SqlCallProfile)
 #endif
 {
-    int time_limit;
-    int disconnect_code_id;
-    int aleg_override_id, bleg_override_id;
     int dump_level_id;
-
-    /** whether or not we should parse trusted headers from this gateway */
-    bool trusted_hdrs_gw;
-
-    AmArg dyn_fields;
 
     bool         legab_res_mode_enabled;
     string       lega_res;
