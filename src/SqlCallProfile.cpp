@@ -141,15 +141,6 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
     whitelist.filter_type = Whitelist;
     sdpalinesfilter.push_back(whitelist);
     bleg_sdpalinesfilter.push_back(whitelist);
-    // if (!readFilter(t, "sdp_alines_filter", sdpalinesfilter, false)) {
-    //     ERROR("failed to read sdp_alines_filter");
-    //     return false;
-    // }
-    //
-    // if (!readFilter(t, "bleg_sdp_alines_filter", bleg_sdpalinesfilter, false, FILTER_TYPE_WHITELIST)) {
-    //     ERROR("failed to read bleg_sdp_alines_filter");
-    //     return false;
-    // }
 
     sst_enabled = DbAmArg_hash_get_bool_any(t, "enable_session_timer", false);
     if (t.hasMember("enable_aleg_session_timer")) {
@@ -187,8 +178,8 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
         CP_SST_CFGVAR("", "maximum_timer", sst_b_cfg);
         // CP_SST_CFGVAR("", "session_refresh_method", sst_b_cfg);
         CP_SST_CFGVAR("", "accept_501_reply", sst_b_cfg);
-        session_refresh_method_id = DbAmArg_hash_get_int(t, "session_refresh_method_id", 1);
-        CP_SESSION_REFRESH_METHOD(session_refresh_method_id, sst_b_cfg);
+        int refresh_method_id = DbAmArg_hash_get_int(t, "session_refresh_method_id", 1);
+        CP_SESSION_REFRESH_METHOD(refresh_method_id, sst_b_cfg);
     }
 
     if (sst_aleg_enabled) {
@@ -199,8 +190,8 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
         CP_SST_CFGVAR("aleg_", "maximum_timer", sst_a_cfg);
         // CP_SST_CFGVAR("aleg_", "session_refresh_method", sst_a_cfg);
         CP_SST_CFGVAR("aleg_", "accept_501_reply", sst_a_cfg);
-        aleg_session_refresh_method_id = DbAmArg_hash_get_int(t, "aleg_session_refresh_method_id", 1);
-        CP_SESSION_REFRESH_METHOD(aleg_session_refresh_method_id, sst_a_cfg);
+        int refresh_method_id = DbAmArg_hash_get_int(t, "aleg_session_refresh_method_id", 1);
+        CP_SESSION_REFRESH_METHOD(refresh_method_id, sst_a_cfg);
     }
 #undef CP_SST_CFGVAR
 #undef CP_SESSION_REFRESH_METHOD
@@ -399,50 +390,6 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
 ResourceList &SqlCallProfile::getResourceList(bool a_leg)
 {
     return legab_res_mode_enabled ? (a_leg ? lega_rl : rl) : rl;
-}
-
-inline void printFilterList(const char *name, const vector<FilterEntry> &filter_list)
-{
-    int i = 0;
-    for (vector<FilterEntry>::const_iterator fe = filter_list.begin(); fe != filter_list.end(); fe++, i++) {
-        DBG("%s[%d]: %zd items in list", name, i, fe->filter_list.size());
-    }
-}
-
-bool SqlCallProfile::readFilter(const AmArg &t, const char *cfg_key_filter, vector<FilterEntry> &filter_list,
-                                bool keep_transparent_entry, int failover_type_id)
-{
-    FilterEntry hf;
-
-    string filter_key_type_field = string(cfg_key_filter) + "_type_id";
-    string filter_list_field     = string(cfg_key_filter) + "_list";
-
-    int filter_type_id;
-    filter_type_id = DbAmArg_hash_get_int(t, filter_key_type_field, FILTER_TYPE_TRANSPARENT, failover_type_id);
-
-    switch (filter_type_id) {
-    case FILTER_TYPE_TRANSPARENT: hf.filter_type = Transparent; break;
-    case FILTER_TYPE_BLACKLIST:   hf.filter_type = Blacklist; break;
-    case FILTER_TYPE_WHITELIST:   hf.filter_type = Whitelist; break;
-    default:
-        hf.filter_type = Undefined;
-        ERROR("invalid %s type_id: %d", cfg_key_filter, filter_type_id);
-        return false;
-    }
-
-    // no transparent filter
-    if (!keep_transparent_entry && hf.filter_type == Transparent)
-        return true;
-
-    vector<string> elems = explode(DbAmArg_hash_get_str(t, filter_list_field), ",");
-    for (vector<string>::iterator it = elems.begin(); it != elems.end(); it++) {
-        string c = *it;
-        std::transform(c.begin(), c.end(), c.begin(), ::tolower);
-        hf.filter_list.insert(c);
-    }
-
-    filter_list.push_back(hf);
-    return true;
 }
 
 bool SqlCallProfile::readFilterSet(const AmArg &t, const char *cfg_key_filter, vector<FilterEntry> &filter_list)
@@ -690,13 +637,6 @@ bool SqlCallProfile::eval(const ResourceControl &rctl)
 
     return eval_transport_ids() && eval_protocol_priority() && eval_resources(rctl) && eval_radius() &&
            eval_media_encryption();
-}
-
-SqlCallProfile *SqlCallProfile::copy()
-{
-    SqlCallProfile *profile = new SqlCallProfile();
-    *profile                = *this;
-    return profile;
 }
 
 void SqlCallProfile::info(AmArg &s)

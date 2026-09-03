@@ -101,26 +101,6 @@ template <class T> class ref_counted_ptr {
     }
 };
 
-class PayloadDesc {
-  protected:
-    std::string name;
-    unsigned    clock_rate; // 0 means "doesn't matter"
-
-  public:
-    bool        match(const SdpPayload &p) const;
-    std::string print() const;
-    bool        operator==(const PayloadDesc &other) const;
-
-    /* FIXME: really want all of this?
-     * reads from format: name/clock_rate, nothing need to be set
-     * for example:
-     *	  PCMU
-     *	  bla/48000
-     *	  /48000
-     * */
-    bool read(const std::string &s);
-};
-
 typedef pair<unsigned int, std::string>        ReplyCodeReasonPair;
 typedef map<unsigned int, ReplyCodeReasonPair> ReplyTranslationMap;
 
@@ -137,9 +117,6 @@ struct SBCCallProfile : public AmObject {
     };
 
     string aleg_local_tag;
-
-    string md5hash;
-    // string profile_file;
 
     string ruri;      /* updated if set */
     string ruri_host; /* updated if set */
@@ -215,7 +192,6 @@ struct SBCCallProfile : public AmObject {
 
     vector<FilterEntry> sdpalinesfilter;
     vector<FilterEntry> bleg_sdpalinesfilter;
-    vector<FilterEntry> mediafilter;
 
     bool aleg_relay_prack, bleg_relay_prack;
     bool aleg_relay_reinvite, bleg_relay_reinvite;
@@ -257,8 +233,6 @@ struct SBCCallProfile : public AmObject {
     string aleg_append_headers_req;
     string aleg_append_headers_reply;
 
-    string refuse_with;
-
     bool rtprelay_enabled;
     bool force_symmetric_rtp;
     bool aleg_force_symmetric_rtp;
@@ -292,7 +266,6 @@ struct SBCCallProfile : public AmObject {
     int    outbound_interface_value;
 
     string aleg_outbound_interface;
-    int    aleg_outbound_interface_value;
 
     bool bleg_force_cancel_routeset;
 
@@ -346,9 +319,6 @@ struct SBCCallProfile : public AmObject {
         bool enabled;
         bool evaluate(ParamReplacerCtx &ctx, const AmSipRequest &req);
 
-        bool   readConfig(AmConfigReader &cfg);
-        void   infoPrint() const;
-        bool   operator==(const TranscoderSettings &rhs) const;
         string print() const;
 
         bool isActive() { return enabled; }
@@ -387,7 +357,6 @@ struct SBCCallProfile : public AmObject {
         const string &activity_str(bool a_leg) { return a_leg ? aleg.activity_str : bleg.activity_str; }
         bool          alter_b2b(bool a_leg) { return a_leg ? aleg.alter_b2b : bleg.alter_b2b; }
 
-        void readConfig(AmConfigReader &cfg);
         bool evaluate(ParamReplacerCtx &ctx, const AmSipRequest &req);
     } hold_settings;
 
@@ -477,12 +446,7 @@ struct SBCCallProfile : public AmObject {
     {
     }
 
-    bool   operator==(const SBCCallProfile &rhs) const;
     string print() const;
-
-#if 0
-  int refuse(ParamReplacerCtx& ctx, const AmSipRequest& req) const;
-#endif
 
     int apply_a_routing(ParamReplacerCtx &ctx, const AmSipRequest &req, AmBasicSipDialog &dlg) const;
 
@@ -493,9 +457,6 @@ struct SBCCallProfile : public AmObject {
     bool evaluate_routing(ParamReplacerCtx &ctx, const AmSipRequest &req, AmSipDialog &dlg);
 
     bool evaluate(ParamReplacerCtx &ctx, const AmSipRequest &req);
-
-    bool evaluateRTPRelayInterface();
-    bool evaluateRTPRelayAlegInterface();
 
     void eval_sst_config(ParamReplacerCtx &ctx, const AmSipRequest &req, AmConfigReader &sst_cfg);
 

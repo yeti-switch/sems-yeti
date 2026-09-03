@@ -25,22 +25,13 @@
 
 #include "SBCCallProfile.h"
 #include "SBC.h"
-#include <algorithm>
 
 #include "log.h"
 #include "AmUtils.h"
-#include "AmPlugIn.h"
 #include "AmLcConfig.h"
-
-#include "SBCCallControlAPI.h"
-#include "RTPParameters.h"
-#include "SDPFilter.h"
 
 #include "sip/pcap_logger.h"
 #include "sip/parse_route.h"
-
-typedef vector<SdpPayload>::iterator PayloadIterator;
-// static string payload2str(const SdpPayload &p);
 
 void PlaceholdersHash::update(const PlaceholdersHash &h)
 {
@@ -153,57 +144,6 @@ void PlaceholdersHash::update(const PlaceholdersHash &h)
 
 //////////////////////////////////////////////////////////////////////////////////
 
-/*static bool payloadDescsEqual(const vector<PayloadDesc> &a, const vector<PayloadDesc> &b)
-{
-  // not sure if this function is really needed (seems that vectors can be
-  // compared using builtin operator== but anyway ...)
-  if (a.size() != b.size()) return false;
-  vector<PayloadDesc>::const_iterator ia = a.begin();
-  vector<PayloadDesc>::const_iterator ib = b.begin();
-  for (; ia != a.end(); ++ia, ++ib) {
-    if (!(*ia == *ib)) return false;
-  }
-
-  return true;
-}*/
-
-bool SBCCallProfile::operator==(const SBCCallProfile &rhs) const
-{
-    bool res = ruri == rhs.ruri && ruri_host == rhs.ruri_host && from == rhs.from && to == rhs.to &&
-               // contact == rhs.contact &&
-               callid == rhs.callid && outbound_proxy == rhs.outbound_proxy && aleg_route_set == rhs.aleg_route_set &&
-               bleg_route_set == rhs.bleg_route_set && force_outbound_proxy == rhs.force_outbound_proxy &&
-               aleg_outbound_proxy == rhs.aleg_outbound_proxy &&
-               aleg_force_outbound_proxy == rhs.aleg_force_outbound_proxy && next_hop == rhs.next_hop &&
-               next_hop_1st_req == rhs.next_hop_1st_req && next_hop_fixed == rhs.next_hop_fixed &&
-               patch_ruri_next_hop == rhs.patch_ruri_next_hop && aleg_next_hop == rhs.aleg_next_hop &&
-               headerfilter_a2b == rhs.headerfilter_a2b && headerfilter_b2a == rhs.headerfilter_b2a &&
-               mediafilter == rhs.mediafilter && sst_enabled == rhs.sst_enabled &&
-               sst_aleg_enabled == rhs.sst_aleg_enabled && auth_enabled == rhs.auth_enabled &&
-               auth_aleg_enabled == rhs.auth_aleg_enabled && reply_translations == rhs.reply_translations &&
-               append_headers == rhs.append_headers && refuse_with == rhs.refuse_with &&
-               rtprelay_enabled == rhs.rtprelay_enabled && force_symmetric_rtp == rhs.force_symmetric_rtp;
-
-    if (auth_enabled) {
-        res = res && auth_credentials.user == rhs.auth_credentials.user &&
-              auth_credentials.pwd == rhs.auth_credentials.pwd;
-    }
-    if (auth_aleg_enabled) {
-        res = res && auth_aleg_credentials.user == rhs.auth_aleg_credentials.user &&
-              auth_aleg_credentials.pwd == rhs.auth_aleg_credentials.pwd;
-    }
-    res = res && (transcoder == rhs.transcoder);
-    return res;
-}
-
-string stringset_print(const set<string> &s)
-{
-    string res;
-    for (set<string>::const_iterator i = s.begin(); i != s.end(); i++)
-        res += *i + " ";
-    return res;
-}
-
 string SBCCallProfile::print() const
 {
     string res = "SBC call profile dump: ~~~~~~~~~~~~~~~~~\n";
@@ -211,7 +151,6 @@ string SBCCallProfile::print() const
     res += "ruri_host:            " + ruri_host + "\n";
     res += "from:                 " + from + "\n";
     res += "to:                   " + to + "\n";
-    // res += "contact:              " + contact + "\n";
     res += "callid:               " + callid + "\n";
     res += "bleg_route_set:       " + bleg_route_set + "\n";
     res += "outbound_proxy:       " + outbound_proxy + "\n";
@@ -223,15 +162,6 @@ string SBCCallProfile::print() const
     res += "next_hop_1st_req:     " + string(next_hop_1st_req ? "true" : "false") + "\n";
     res += "next_hop_fixed:       " + string(next_hop_fixed ? "true" : "false") + "\n";
     res += "aleg_next_hop:        " + aleg_next_hop + "\n";
-    // res += "headerfilter:         " + string(FilterType2String(headerfilter)) + "\n";
-    // res += "headerfilter_list:    " + stringset_print(headerfilter_list) + "\n";
-    // res += "messagefilter:        " + string(FilterType2String(messagefilter)) + "\n";
-    // res += "messagefilter_list:   " + stringset_print(messagefilter_list) + "\n";
-    // res += "sdpfilter_enabled:    " + string(sdpfilter_enabled?"true":"false") + "\n";
-    // res += "sdpfilter:            " + string(FilterType2String(sdpfilter)) + "\n";
-    // res += "sdpfilter_list:       " + stringset_print(sdpfilter_list) + "\n";
-    // res += "sdpalinesfilter:      " + string(FilterType2String(sdpalinesfilter)) + "\n";
-    // res += "sdpalinesfilter_list: " + stringset_print(sdpalinesfilter_list) + "\n";
     res += "sst_enabled:          " + int2str(sst_enabled) + "\n";
     res += "sst_aleg_enabled:     " + int2str(sst_aleg_enabled) + "\n";
     res += "auth_enabled:         " + string(auth_enabled ? "true" : "false") + "\n";
@@ -258,35 +188,6 @@ string SBCCallProfile::print() const
     res += "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
     return res;
 }
-
-/*static bool isTranscoderNeeded(const AmSipRequest& req, vector<PayloadDesc> &caps,
-                   bool default_value)
-{
-  const AmMimeBody* body = req.body.hasContentType(SIP_APPLICATION_SDP);
-  if (!body) return default_value;
-
-  AmSdp sdp;
-  int res = sdp.parse((const char *)body->getPayload());
-  if (res != 0) {
-    DBG("SDP parsing failed!");
-    return default_value;
-  }
-
-  // not nice, but we need to compare codec names and thus normalized SDP is
-  // required
-  normalizeSDP(sdp, false, "");
-
-  // go through payloads and try find one of the supported ones
-  for (vector<SdpMedia>::iterator m = sdp.media.begin(); m != sdp.media.end(); ++m) {
-    for (vector<SdpPayload>::iterator p = m->payloads.begin(); p != m->payloads.end(); ++p) {
-      for (vector<PayloadDesc>::iterator i = caps.begin(); i != caps.end(); ++i) {
-        if (i->match(*p)) return false; // found compatible codec
-      }
-    }
-  }
-
-  return true; // no compatible codec found, transcoding needed
-}*/
 
 void SBCCallProfile::eval_sst_config(ParamReplacerCtx &ctx, const AmSipRequest &req, AmConfigReader &sst_cfg)
 {
@@ -417,18 +318,6 @@ bool SBCCallProfile::evaluateOutboundInterface()
         }
     }
     DBG("oubound interface resolved '%s' -> %d", outbound_interface.c_str(), outbound_interface_value);
-    return true;
-}
-
-bool SBCCallProfile::evaluateRTPRelayInterface()
-{
-    EVALUATE_IFACE_RTP(rtprelay_interface, rtprelay_interface_value);
-    return true;
-}
-
-bool SBCCallProfile::evaluateRTPRelayAlegInterface()
-{
-    EVALUATE_IFACE_RTP(aleg_rtprelay_interface, aleg_rtprelay_interface_value);
     return true;
 }
 
@@ -583,129 +472,9 @@ void SBCCallProfile::fix_append_hdrs(ParamReplacerCtx &ctx, const AmSipRequest &
     fix_append_hdr_list(req, ctx, aleg_append_headers_reply, "aleg_append_headers_reply");
 }
 
-static bool readPayload(SdpPayload &p, const string &src)
-{
-    vector<string> elems = explode(src, "/");
-
-    if (elems.size() < 1)
-        return false;
-
-    if (elems.size() > 2)
-        str2int(elems[1], p.encoding_param);
-    if (elems.size() > 1)
-        str2int(elems[1], p.clock_rate);
-    else
-        p.clock_rate = 8000; // default value
-    p.encoding_name = elems[0];
-
-    string pname = p.encoding_name;
-    transform(pname.begin(), pname.end(), pname.begin(), ::tolower);
-
-    // fix static payload type numbers
-    // (http://www.iana.org/assignments/rtp-parameters/rtp-parameters.xml)
-    for (int i = 0; i < IANA_RTP_PAYLOADS_SIZE; i++) {
-        string s = IANA_RTP_PAYLOADS[i].payload_name;
-        transform(s.begin(), s.end(), s.begin(), ::tolower);
-        if (p.encoding_name == s && (unsigned)p.clock_rate == IANA_RTP_PAYLOADS[i].clock_rate &&
-            (p.encoding_param == -1 || ((unsigned)p.encoding_param == IANA_RTP_PAYLOADS[i].channels)))
-            p.payload_type = i;
-    }
-
-    return true;
-}
-
-[[maybe_unused]] static bool read(const std::string &src, vector<SdpPayload> &codecs)
-{
-    vector<string> elems = explode(src, ",");
-
-    AmPlugIn *plugin = AmPlugIn::instance();
-
-    for (vector<string>::iterator it = elems.begin(); it != elems.end(); ++it) {
-        SdpPayload p;
-        if (!readPayload(p, *it))
-            return false;
-        int             payload_id = plugin->getDynPayload(p.encoding_name, p.clock_rate, 0);
-        amci_payload_t *payload    = plugin->payload(payload_id);
-        if (!payload) {
-            ERROR("Ignoring unknown payload found in call profile: %s/%i", p.encoding_name.c_str(), p.clock_rate);
-        } else {
-            if (payload_id < DYNAMIC_PAYLOAD_TYPE_START)
-                p.payload_type = payload->payload_id;
-            else
-                p.payload_type = -1;
-
-            codecs.push_back(p);
-        }
-    }
-    return true;
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-
-/*bool SBCCallProfile::TranscoderSettings::readTranscoderMode(const std::string &src)
-{
-  static const string always("always");
-  static const string never("never");
-  static const string on_missing_compatible("on_missing_compatible");
-
-  if (src == always) { transcoder_mode = Always; return true; }
-  if (src == never) { transcoder_mode = Never; return true; }
-  if (src == on_missing_compatible) { transcoder_mode = OnMissingCompatible; return true; }
-  if (src.empty()) { transcoder_mode = Never; return true; } // like default value
-  ERROR("unknown value of enable_transcoder option: %s", src.c_str());
-
-  return false;
-}*/
-
-void SBCCallProfile::TranscoderSettings::infoPrint() const
-{
-    // DBG("transcoder audio codecs: %s", audio_codecs_str.c_str());
-    // DBG("callee codec capabilities: %s", callee_codec_capabilities_str.c_str());
-    // DBG("enable transcoder: %s", transcoder_mode_str.c_str());
-    // DBG("norelay audio codecs: %s", audio_codecs_norelay_str.c_str());
-    // DBG("norelay audio codecs (aleg): %s", audio_codecs_norelay_aleg_str.c_str());
-}
-
-bool SBCCallProfile::TranscoderSettings::readConfig(AmConfigReader &cfg)
-{
-    return true;
-}
-
-bool SBCCallProfile::TranscoderSettings::operator==(const TranscoderSettings &rhs) const
-{
-    // bool res = (transcoder_mode == rhs.transcoder_mode);
-    bool res = (enabled == rhs.enabled);
-    // res = res && (payloadDescsEqual(callee_codec_capabilities, rhs.callee_codec_capabilities));
-    // res = res && (audio_codecs == rhs.audio_codecs);
-    return res;
-}
-
 string SBCCallProfile::TranscoderSettings::print() const
 {
-    /*string res("transcoder audio codecs:");
-    for (vector<SdpPayload>::const_iterator i = audio_codecs.begin(); i != audio_codecs.end(); ++i) {
-      res += " ";
-      res += payload2str(*i);
-    }*/
-
-    /*res += "\ncallee codec capabilities:";
-    for (vector<PayloadDesc>::const_iterator i = callee_codec_capabilities.begin();
-        i != callee_codec_capabilities.end(); ++i)
-    {
-      res += " ";
-      res += i->print();
-    }*/
-
-    /*string s("?");
-    switch (transcoder_mode) {
-      case Always: s = "always"; break;
-      case Never: s = "never"; break;
-      case OnMissingCompatible: s = "on_missing_compatible"; break;
-    }
-    res += "\nenable transcoder: " + s;*/
-
     string res("transcoder currently enabled: ");
-    // res += "\ntranscoder currently enabled: ";
     if (enabled)
         res += "yes\n";
     else
@@ -750,66 +519,6 @@ msg_logger *SBCCallProfile::get_logger(const AmSipRequest &req)
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-
-bool PayloadDesc::match(const SdpPayload &p) const
-{
-    string enc_name = p.encoding_name;
-    transform(enc_name.begin(), enc_name.end(), enc_name.begin(), ::tolower);
-
-    if ((name.size() > 0) && (name != enc_name))
-        return false;
-    if (clock_rate && (p.clock_rate > 0) && clock_rate != (unsigned)p.clock_rate)
-        return false;
-    return true;
-}
-
-bool PayloadDesc::read(const std::string &s)
-{
-    vector<string> elems = explode(s, "/");
-    if (elems.size() > 1) {
-        name = elems[0];
-        str2i(elems[1], clock_rate);
-    } else if (elems.size() > 0) {
-        name       = elems[0];
-        clock_rate = 0;
-    }
-    transform(name.begin(), name.end(), name.begin(), ::tolower);
-    return true;
-}
-
-string PayloadDesc::print() const
-{
-    std::string s(name);
-    s += " / ";
-    if (!clock_rate)
-        s += "whatever rate";
-    else
-        s += int2str(clock_rate);
-    return s;
-}
-
-bool PayloadDesc::operator==(const PayloadDesc &other) const
-{
-    if (name != other.name)
-        return false;
-    if (clock_rate != other.clock_rate)
-        return false;
-    return true;
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-
-void SBCCallProfile::HoldSettings::readConfig(AmConfigReader &cfg)
-{
-    // store string values for later evaluation
-    aleg.mark_zero_connection_str = cfg.getParameter("hold_zero_connection_aleg");
-    aleg.activity_str             = cfg.getParameter("hold_activity_aleg");
-    aleg.alter_b2b_str            = cfg.getParameter("hold_alter_b2b_aleg");
-
-    bleg.mark_zero_connection_str = cfg.getParameter("hold_zero_connection_bleg");
-    bleg.activity_str             = cfg.getParameter("hold_activity_bleg");
-    bleg.alter_b2b_str            = cfg.getParameter("hold_alter_b2b_bleg");
-}
 
 bool SBCCallProfile::HoldSettings::HoldParams::setActivity(const string &s)
 {
