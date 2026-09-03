@@ -89,6 +89,7 @@ void Yeti::cfg_timer_mapping_entry::on_finish_reload()
 Yeti::Yeti()
     : AmEventFdQueue(this)
 {
+    AmEventDispatcher::instance()->addEventQueue(YETI_QUEUE_NAME, this);
     initCfgTimerMappings();
 }
 
@@ -252,8 +253,6 @@ void Yeti::run()
 
     setThreadName("yeti-worker");
     DBG3("start yeti-worker");
-
-    AmEventDispatcher::instance()->addEventQueue(YETI_QUEUE_NAME, this);
 
     // load configurations from DB without waiting for timer
     // onDbCfgReloadTimer();
