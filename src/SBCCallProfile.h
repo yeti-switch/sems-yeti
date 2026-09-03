@@ -31,6 +31,7 @@
 #include "GatewaysCache.h"
 #include "ParamReplacer.h"
 #include "resources/Resource.h"
+#include "db/DbTypes.h"
 #include "ampi/RadiusClientAPI.h"
 #include "ampi/UACAuthAPI.h"
 #include "sip/msg_logger.h"
@@ -46,6 +47,8 @@ using std::map;
 using std::pair;
 using std::set;
 using std::string;
+
+class ResourceControl;
 
 class PlaceholdersHash : public std::map<string, string> {
   public:
@@ -63,6 +66,10 @@ class PlaceholdersHash : public std::map<string, string> {
 #define DTMF_TX_MODE_INBAND          0x8 // inband dtmf
 
 #define DTMF_RX_MODE_ALL (DTMF_RX_MODE_RFC2833 | DTMF_RX_MODE_INFO | DTMF_RX_MODE_INBAND)
+
+#define REFRESH_METHOD_INVITE                 1
+#define REFRESH_METHOD_UPDATE                 2
+#define REFRESH_METHOD_UPDATE_FALLBACK_INVITE 3
 
 template <class T> class ref_counted_ptr {
   private:
@@ -105,7 +112,12 @@ template <class T> class ref_counted_ptr {
 typedef pair<unsigned int, std::string>        ReplyCodeReasonPair;
 typedef map<unsigned int, ReplyCodeReasonPair> ReplyTranslationMap;
 
-struct SBCCallProfile : public AmObject {
+struct SBCCallProfile : public AmObject
+#ifdef OBJECTS_COUNTER
+    ,
+                        ObjCounter(SBCCallProfile)
+#endif
+{
     enum {
         REGISTERED_AOR_MODE_DISABLED                    = 0,
         REGISTERED_AOR_MODE_AS_IS                       = 1,
@@ -381,12 +393,21 @@ struct SBCCallProfile : public AmObject {
     void create_logger(const AmSipRequest &req);
 
   public:
-    bool          log_rtp;
-    bool          log_sip;
-    bool          has_logger() { return logger.get() != NULL; }
-    msg_logger   *get_logger(const AmSipRequest &req);
-    void          set_logger_path(const std::string path) { msg_logger_path = path; }
-    const string &get_logger_path() const { return msg_logger_path; }
+    bool log_rtp;
+    bool log_sip;
+    bool has_logger()
+    {
+        return logger.get() != NULL;
+    }
+    msg_logger *get_logger(const AmSipRequest &req);
+    void        set_logger_path(const std::string path)
+    {
+        msg_logger_path = path;
+    }
+    const string &get_logger_path() const
+    {
+        return msg_logger_path;
+    }
 
     SBCCallProfile()
         : bleg_protocol_priority_id(dns_priority::IPv4_only)
@@ -456,19 +477,36 @@ struct SBCCallProfile : public AmObject {
 
     string print() const;
 
-    int apply_a_routing(ParamReplacerCtx &ctx, const AmSipRequest &req, AmBasicSipDialog &dlg) const;
+    static bool is_empty_profile(const AmArg &a);
+    bool readFromTuple(const AmArg &t, const string &local_tag, const DynFieldsT &df, const string &lega_gw_cache_key,
+                       const string &legb_gw_cache_key);
+    bool readFilterSet(const AmArg &t, const char *cfg_key_filter, vector<FilterEntry> &filter_list);
+    bool readCodecPrefs(const AmArg &t);
+    bool readDynFields(const AmArg &t, const DynFieldsT &df);
+
+    ResourceList &getResourceList(bool a_leg = false);
+
+    bool eval_media_encryption();
+    bool eval_resources(const ResourceControl &rctl);
+    bool eval_radius();
+    bool eval_protocol_priority();
+    bool eval(const ResourceControl &rctl);
+
+    void info(AmArg & s);
+
+    int apply_a_routing(ParamReplacerCtx & ctx, const AmSipRequest &req, AmBasicSipDialog &dlg) const;
 
     bool apply_b_routing(const string &ruri, AmBasicSipDialog &dlg) const;
 
     bool evaluateOutboundInterface();
 
-    bool evaluate_routing(ParamReplacerCtx &ctx, const AmSipRequest &req, AmSipDialog &dlg);
+    bool evaluate_routing(ParamReplacerCtx & ctx, const AmSipRequest &req, AmSipDialog &dlg);
 
-    bool evaluate(ParamReplacerCtx &ctx, const AmSipRequest &req);
+    bool evaluate(ParamReplacerCtx & ctx, const AmSipRequest &req);
 
-    void eval_sst_config(ParamReplacerCtx &ctx, const AmSipRequest &req, AmConfigReader &sst_cfg);
+    void eval_sst_config(ParamReplacerCtx & ctx, const AmSipRequest &req, AmConfigReader &sst_cfg);
 
-    void fix_append_hdrs(ParamReplacerCtx &ctx, const AmSipRequest &req);
+    void fix_append_hdrs(ParamReplacerCtx & ctx, const AmSipRequest &req);
 };
 
 #endif // _SBCCallProfile_h

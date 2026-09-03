@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../SqlCallProfile.h"
+#include "../SBCCallProfile.h"
 #include "../resources/Resource.h"
 #include "../ReasonParser.h"
 
@@ -124,9 +124,9 @@ struct Cdr : public CdrBase
 
     Cdr();
     // initial CDR in CallCtx::getFirstProfile
-    Cdr(const SqlCallProfile &profile);
+    Cdr(const SBCCallProfile &profile);
     // rerouting/failover CDRs in CallCtx::getNextProfile, SBCCallLeg::onRedisReply
-    Cdr(const Cdr &cdr, const SqlCallProfile &profile);
+    Cdr(const Cdr &cdr, const SBCCallProfile &profile);
     // std::queue::emplace(construct_at) in CdrList::onSessionFinalize
     Cdr(const Cdr &cdr) = default;
 
@@ -134,7 +134,7 @@ struct Cdr : public CdrBase
 
     // void init();
 
-    void update_sql(const SqlCallProfile &profile);
+    void update_sql(const SBCCallProfile &profile);
     void update_sbc(const SBCCallProfile &profile);
 
     void update_with_aleg_sip_request(const AmSipRequest &req);
@@ -148,7 +148,7 @@ struct Cdr : public CdrBase
 
     void update_with_action(UpdateAction act);
 
-    void update_with_resource_list(const SqlCallProfile &profile);
+    void update_with_resource_list(const SBCCallProfile &profile);
     void update_failed_resource(const Resource &r);
 
     void add_dtmf_event(bool aleg, int event, struct timeval &now, int rx_proto, int tx_proto);

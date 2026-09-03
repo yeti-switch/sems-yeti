@@ -105,7 +105,7 @@ class SqlRouter : public Auth {
     const DynFieldsT &getDynFields() const { return dyn_fields; }
 
     /*! return true if call refused */
-    bool check_and_refuse(AmSession *session, SqlCallProfile *profile, Cdr *cdr, const AmSipRequest &req,
+    bool check_and_refuse(AmSession *session, SBCCallProfile *profile, Cdr *cdr, const AmSipRequest &req,
                           ParamReplacerCtx &ctx, bool send_reply = false);
 
     void          update_counters(struct timeval &start_time);

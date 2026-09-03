@@ -6,7 +6,7 @@
 #include "AmThread.h"
 
 #include "cdr/Cdr.h"
-#include "SqlCallProfile.h"
+#include "SBCCallProfile.h"
 #include "resources/Resource.h"
 
 class SqlRouter;
@@ -35,8 +35,8 @@ struct CallCtx {
     unsigned int references;
 
     std::unique_ptr<Cdr>           cdr;
-    list<SqlCallProfile>           profiles;
-    list<SqlCallProfile>::iterator current_profile;
+    list<SBCCallProfile>           profiles;
+    list<SBCCallProfile>::iterator current_profile;
     AmSipRequest                  *initial_invite;
     vector<SdpMedia>               aleg_negotiated_media;
     vector<SdpMedia>               bleg_negotiated_media;
@@ -61,11 +61,11 @@ struct CallCtx {
     /* init cdr to refuse with disconnect_code_id */
     bool setRejectCdr(int disconnect_code_id);
 
-    SqlCallProfile *getFirstProfile();
-    SqlCallProfile *getNextProfile(get_profile_cdr_behavior       cdr_behavior,
+    SBCCallProfile *getFirstProfile();
+    SBCCallProfile *getNextProfile(get_profile_cdr_behavior       cdr_behavior,
                                    get_profile_filtering_behavior profiles_filtering_behavior);
 
-    SqlCallProfile *getCurrentProfile();
+    SBCCallProfile *getCurrentProfile();
 
     void setRingingTimeout() { ringing_timeout = true; }
     bool isRingingTimeout() { return ringing_timeout; }
@@ -76,5 +76,5 @@ struct CallCtx {
     ResourceList &getCurrentResourceList();
     int           getOverrideId(bool aleg = true);
 
-    string &getResourceHandler(SqlCallProfile &profile, bool a_leg = false);
+    string &getResourceHandler(SBCCallProfile &profile, bool a_leg = false);
 };

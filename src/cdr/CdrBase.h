@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../SqlCallProfile.h"
+#include "../SBCCallProfile.h"
 #include "AmThread.h"
 
 class CdrBase {

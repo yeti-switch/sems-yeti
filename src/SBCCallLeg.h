@@ -170,9 +170,9 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
                                      int auth_feedback_code = Auth::NO_AUTH);
 
     void setRejectCdr(int disconnect_code_id);
-    void process_push_token_profile(SqlCallProfile &p);
+    void process_push_token_profile(SBCCallProfile &p);
 
-    void applyAlegLoggerSettings(SqlCallProfile &profile);
+    void applyAlegLoggerSettings(SBCCallProfile &profile);
 
   public:
     SqlRouter       &router;

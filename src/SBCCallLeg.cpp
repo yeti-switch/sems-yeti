@@ -284,7 +284,7 @@ void SBCCallLeg::processAorResolving()
     // check for registered_aor_id in profiles
     for (const auto &p : call_ctx->profiles) {
         if (0 == p.disconnect_code_id && 0 != p.registered_aor_id &&
-            SqlCallProfile::REGISTERED_AOR_MODE_DISABLED != p.registered_aor_mode_id)
+            SBCCallProfile::REGISTERED_AOR_MODE_DISABLED != p.registered_aor_mode_id)
         {
             event.aor_ids.emplace(std::to_string(p.registered_aor_id));
         }
@@ -306,7 +306,7 @@ void SBCCallLeg::processResourcesAndSdp()
 {
     DBG("%s(%p,leg%s)", FUNC_NAME, to_void(this), a_leg ? "A" : "B");
 
-    SqlCallProfile *profile = nullptr;
+    SBCCallProfile *profile = nullptr;
 
     ResourceList::iterator ri;
     ResourceConfig         resource_config;
@@ -520,7 +520,7 @@ bool SBCCallLeg::chooseNextProfile()
     DBG("%s", getLocalTag().data());
 
     ResourceConfig         resource_config;
-    SqlCallProfile        *profile = nullptr;
+    SBCCallProfile        *profile = nullptr;
     ResourceCtlResponse    rctl_ret;
     ResourceList::iterator ri;
     bool                   has_profile = false;
@@ -747,11 +747,11 @@ void SBCCallLeg::onPostgresResponse(PGResponse &e)
                 }
             }
 
-            if (SqlCallProfile::is_empty_profile(a))
+            if (SBCCallProfile::is_empty_profile(a))
                 continue;
 
             call_ctx->profiles.emplace_back();
-            SqlCallProfile &p = call_ctx->profiles.back();
+            SBCCallProfile &p = call_ctx->profiles.back();
 
             // read profile
             ret = false;
@@ -846,7 +846,7 @@ void SBCCallLeg::onProfilesReady()
         p.log_rtp = max_log_rtp;
     }
 
-    SqlCallProfile *profile = call_ctx->getFirstProfile();
+    SBCCallProfile *profile = call_ctx->getFirstProfile();
     if (nullptr == profile) {
         delete call_ctx;
         call_ctx = nullptr;
@@ -1033,7 +1033,7 @@ void SBCCallLeg::onRadiusReply(const RadiusReplyEvent &ev)
     }
 }
 
-static void replace_profile_fields(const SipRegistrarResolveResponseEvent::aor_data &data, SqlCallProfile &p)
+static void replace_profile_fields(const SipRegistrarResolveResponseEvent::aor_data &data, SBCCallProfile &p)
 {
     if (p.registered_aor_mode_id) {
         DBG(">> profile ruri: '%s', to: '%s', aor: '%s', registered_aor_mode_id:%d", p.ruri.data(), p.to.data(),
@@ -1048,8 +1048,8 @@ static void replace_profile_fields(const SipRegistrarResolveResponseEvent::aor_d
 
         // replace RURI
         switch (p.registered_aor_mode_id) {
-        case SqlCallProfile::REGISTERED_AOR_MODE_AS_IS: p.ruri = data.contact; break;
-        case SqlCallProfile::REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO:
+        case SBCCallProfile::REGISTERED_AOR_MODE_AS_IS: p.ruri = data.contact; break;
+        case SBCCallProfile::REGISTERED_AOR_MODE_REPLACE_RURI_TRANSPORT_INFO:
         {
             AmShallowUriParser ruri_parser;
             if (ruri_parser.parse_uri(p.ruri)) {
@@ -1099,7 +1099,7 @@ static void replace_profile_fields(const SipRegistrarResolveResponseEvent::aor_d
     }
 }
 
-void SBCCallLeg::process_push_token_profile(SqlCallProfile &p)
+void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
 {
     // subscribe for the reg events
     std::unique_ptr<SipRegistrarResolveAorsSubscribeEvent> event_ptr{ new SipRegistrarResolveAorsSubscribeEvent{
@@ -1172,7 +1172,7 @@ void SBCCallLeg::process_push_token_profile(SqlCallProfile &p)
     }
 }
 
-void SBCCallLeg::applyAlegLoggerSettings(SqlCallProfile &profile)
+void SBCCallLeg::applyAlegLoggerSettings(SBCCallProfile &profile)
 {
     if (!logger) {
         profile.set_logger_path(format("{}/{}_{}.pcap", yeti.config.msg_logger_dir, getLocalTag(), AmConfig.node_id));
@@ -1215,7 +1215,7 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
 
     if (e.aors.empty() && (!waiting_for_location)) {
         // check if we have at least one non-rejecting profile without registered_aor_id requirement
-        auto it = std::find_if(profiles.begin(), profiles.end(), [](const SqlCallProfile &p) {
+        auto it = std::find_if(profiles.begin(), profiles.end(), [](const SBCCallProfile &p) {
             return p.disconnect_code_id == 0 && p.registered_aor_id == 0;
         });
 
@@ -1223,7 +1223,7 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
             // no valid profiles to create Blegs
             // search for the first profile with push_token
             it = std::find_if(profiles.begin(), profiles.end(),
-                              [](const SqlCallProfile &p) { return !p.push_token.empty(); });
+                              [](const SBCCallProfile &p) { return !p.push_token.empty(); });
 
             if (it != profiles.end()) {
                 process_push_token_profile(*it);
@@ -1237,13 +1237,13 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
 
     unsigned int profile_idx = 0, sub_profile_idx;
     for (auto it = profiles.begin(); it != profiles.end(); profile_idx++) {
-        SqlCallProfile &p = *it;
+        SBCCallProfile &p = *it;
 
         DBG("> process profile idx:%u, disconnect_code_id: %d, registered_aor_id:%d", profile_idx, p.disconnect_code_id,
             p.registered_aor_id);
 
         if (p.disconnect_code_id != 0 || p.registered_aor_id == 0 ||
-            SqlCallProfile::REGISTERED_AOR_MODE_DISABLED == p.registered_aor_mode_id)
+            SBCCallProfile::REGISTERED_AOR_MODE_DISABLED == p.registered_aor_mode_id)
         {
             ++it;
             DBG("< skip profile %u processing. "
@@ -1313,7 +1313,7 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
 
         // skip profiles with skip_code_id writing CDRs
         do {
-            SqlCallProfile &p = *next_profile;
+            SBCCallProfile &p = *next_profile;
             DBG("process profile with skip_code_id: %d", p.skip_code_id);
 
             bool write_cdr = CodesTranslator::instance()->translate_db_code(
@@ -3965,7 +3965,7 @@ int SBCCallLeg::onSdpCompleted(const AmSdp &local, const AmSdp &remote, bool sdp
 
     AmSdp offer(local), answer(remote);
 
-    const SqlCallProfile *sql_call_profile = call_ctx->getCurrentProfile();
+    const SBCCallProfile *sql_call_profile = call_ctx->getCurrentProfile();
     if (sql_call_profile) {
         cutNoAudioStreams(offer, sql_call_profile->filter_noaudio_streams);
         cutNoAudioStreams(answer, sql_call_profile->filter_noaudio_streams);

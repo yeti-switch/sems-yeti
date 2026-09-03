@@ -59,7 +59,7 @@ bool CallCtx::setRejectCdr(int disconnect_code_id)
     return true;
 }
 
-SqlCallProfile *CallCtx::getFirstProfile()
+SBCCallProfile *CallCtx::getFirstProfile()
 {
     // DBG("%s() this = %p",FUNC_NAME,this);
     if (profiles.empty())
@@ -74,7 +74,7 @@ SqlCallProfile *CallCtx::getFirstProfile()
 /*
  *we should not change the cdr or increase the number of attempts in early_state
  */
-SqlCallProfile *CallCtx::getNextProfile(get_profile_cdr_behavior       cdr_behavior,
+SBCCallProfile *CallCtx::getNextProfile(get_profile_cdr_behavior       cdr_behavior,
                                         get_profile_filtering_behavior profiles_filtering_behavior)
 {
     auto next_profile     = current_profile;
@@ -91,7 +91,7 @@ SqlCallProfile *CallCtx::getNextProfile(get_profile_cdr_behavior       cdr_behav
     while ((*next_profile).skip_code_id != 0) {
         unsigned int          internal_code, response_code;
         string                internal_reason, response_reason;
-        const SqlCallProfile &p = *next_profile;
+        const SBCCallProfile &p = *next_profile;
 
         bool write_cdr = CodesTranslator::instance()->translate_db_code(
             p.skip_code_id, internal_code, internal_reason, response_code, response_reason, p.aleg_override_id);
@@ -168,7 +168,7 @@ SqlCallProfile *CallCtx::getNextProfile(get_profile_cdr_behavior       cdr_behav
     return &(*current_profile);
 }
 
-SqlCallProfile *CallCtx::getCurrentProfile()
+SBCCallProfile *CallCtx::getCurrentProfile()
 {
     if (current_profile == profiles.end())
         return NULL;
@@ -195,7 +195,7 @@ ResourceList &CallCtx::getCurrentResourceList()
     return (*current_profile).rl;
 }
 
-string &CallCtx::getResourceHandler(SqlCallProfile &profile, bool a_leg)
+string &CallCtx::getResourceHandler(SBCCallProfile &profile, bool a_leg)
 {
     return profile.legab_res_mode_enabled ? (a_leg ? lega_resource_handler : profile.resource_handler)
                                           : profile.resource_handler;

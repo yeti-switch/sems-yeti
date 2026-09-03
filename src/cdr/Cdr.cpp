@@ -96,7 +96,7 @@ Cdr::Cdr()
     aleg_headers_snapshot_amarg.assertStruct();
 }
 
-Cdr::Cdr(const SqlCallProfile &profile)
+Cdr::Cdr(const SBCCallProfile &profile)
     : Cdr()
 {
     DBG3("Cdr[%p](profile = %p)", this, &profile);
@@ -104,7 +104,7 @@ Cdr::Cdr(const SqlCallProfile &profile)
     update_sql(profile);
 }
 
-Cdr::Cdr(const Cdr &cdr, const SqlCallProfile &profile)
+Cdr::Cdr(const Cdr &cdr, const SBCCallProfile &profile)
     : Cdr(profile)
 {
     DBG3("Cdr[%p](cdr = %p, profile = %p)", this, &cdr, &profile);
@@ -147,9 +147,9 @@ void Cdr::replace(string &s, const string &from, const string &to)
     }
 }
 
-void Cdr::update_sql(const SqlCallProfile &profile)
+void Cdr::update_sql(const SBCCallProfile &profile)
 {
-    DBG3("Cdr::%s(SqlCallProfile)", FUNC_NAME);
+    DBG3("Cdr::%s(SBCCallProfile)", FUNC_NAME);
 
     trusted_hdrs_gw = profile.trusted_hdrs_gw;
     ruri            = profile.ruri;
@@ -348,7 +348,7 @@ void Cdr::update_with_action(UpdateAction act)
     }
 }
 
-void Cdr::update_with_resource_list(const SqlCallProfile &profile)
+void Cdr::update_with_resource_list(const SBCCallProfile &profile)
 {
     active_resources_amarg.clear();
     active_resources_clickhouse.clear();

@@ -780,7 +780,7 @@ static void assertEndCRLF(string &s)
     }
 }
 
-bool SqlRouter::check_and_refuse(AmSession *session, SqlCallProfile *profile, Cdr *cdr, const AmSipRequest &req,
+bool SqlRouter::check_and_refuse(AmSession *session, SBCCallProfile *profile, Cdr *cdr, const AmSipRequest &req,
                                  ParamReplacerCtx &ctx, bool send_reply)
 {
     bool         need_reply;

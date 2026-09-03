@@ -143,7 +143,7 @@ static void init_counters()
 {
     ObjCounterInit(Cdr);
     ObjCounterInit(AuthCdr);
-    ObjCounterInit(SqlCallProfile);
+    ObjCounterInit(SBCCallProfile);
 }
 
 int Yeti::onLoad()

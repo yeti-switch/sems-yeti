@@ -617,7 +617,7 @@ void YetiRpc::RemoveCall(SBCCallLeg *leg, AmArg &ret)
         return;
     }
 
-    SqlCallProfile *p = call_ctx->getCurrentProfile();
+    SBCCallProfile *p = call_ctx->getCurrentProfile();
     if (!p) {
         ERROR("no current profile for leg: %s", local_tag.data());
         return;
@@ -711,7 +711,7 @@ static void SBCCallLeg2AmArg(SBCCallLeg *leg, AmArg &s)
     if (ctx) {
         if (Cdr *cdr = ctx->cdr.get())
             cdr->info(s);
-        if (SqlCallProfile *profile = ctx->getCurrentProfile())
+        if (SBCCallProfile *profile = ctx->getCurrentProfile())
             profile->info(s);
     }
 }
