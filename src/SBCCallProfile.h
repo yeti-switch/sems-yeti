@@ -30,6 +30,7 @@
 #include "HeaderFilter.h"
 #include "GatewaysCache.h"
 #include "ParamReplacer.h"
+#include "resources/Resource.h"
 #include "ampi/RadiusClientAPI.h"
 #include "ampi/UACAuthAPI.h"
 #include "sip/msg_logger.h"
@@ -123,7 +124,6 @@ struct SBCCallProfile : public AmObject {
     string from;      /* updated if set */
     string to;        /* updated if set */
 
-    unsigned int bleg_transport_id;
     unsigned int bleg_protocol_priority_id;
 
     PlaceholdersHash placeholders_hash;
@@ -139,15 +139,13 @@ struct SBCCallProfile : public AmObject {
     bool keep_vias;
     bool bleg_keep_vias;
 
-    string       outbound_proxy;
-    bool         force_outbound_proxy;
-    unsigned int outbound_proxy_transport_id;
+    string outbound_proxy;
+    bool   force_outbound_proxy;
 
     string route;
 
-    string       aleg_outbound_proxy;
-    bool         aleg_force_outbound_proxy;
-    unsigned int aleg_outbound_proxy_transport_id;
+    string aleg_outbound_proxy;
+    bool   aleg_force_outbound_proxy;
 
     string aleg_route_set;
     string bleg_route_set;
@@ -291,9 +289,6 @@ struct SBCCallProfile : public AmObject {
 
     int pidflo_mode_id;
 
-    int aleg_media_encryption_mode_id;
-    int bleg_media_encryption_mode_id;
-
     TransProt aleg_media_transport;
     bool      aleg_media_allow_zrtp;
 
@@ -322,6 +317,14 @@ struct SBCCallProfile : public AmObject {
     bool trusted_hdrs_gw = false;
 
     AmArg dyn_fields;
+
+    int dump_level_id = 0;
+
+    bool         legab_res_mode_enabled = false;
+    ResourceList lega_rl;
+    /* legb_res */
+    string       resources;
+    ResourceList rl;
 
     struct TranscoderSettings {
         enum { DTMFAlways, DTMFNever } dtmf_mode;
@@ -386,13 +389,10 @@ struct SBCCallProfile : public AmObject {
     const string &get_logger_path() const { return msg_logger_path; }
 
     SBCCallProfile()
-        : bleg_transport_id(0)
-        , bleg_protocol_priority_id(dns_priority::IPv4_only)
+        : bleg_protocol_priority_id(dns_priority::IPv4_only)
         , dlg_nat_handling(false)
         , keep_vias(false)
         , bleg_keep_vias(false)
-        , outbound_proxy_transport_id(0)
-        , aleg_outbound_proxy_transport_id(0)
         , next_hop_1st_req(false)
         , patch_ruri_next_hop(false)
         , next_hop_fixed(false)
@@ -445,8 +445,6 @@ struct SBCCallProfile : public AmObject {
         , registered_aor_mode_id(REGISTERED_AOR_MODE_AS_IS)
         , skip_code_id(0)
         , pidflo_mode_id(PIDFLO_MODE_DISABLED)
-        , aleg_media_encryption_mode_id(0)
-        , bleg_media_encryption_mode_id(0)
         , aleg_media_allow_zrtp(false)
         , bleg_media_allow_zrtp(false)
         , ss_crt_id(0)

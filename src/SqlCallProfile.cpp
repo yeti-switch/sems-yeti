@@ -12,13 +12,6 @@
 
 #include <algorithm>
 
-SqlCallProfile::SqlCallProfile()
-    : legab_res_mode_enabled{ false }
-{
-}
-
-SqlCallProfile::~SqlCallProfile() {}
-
 static void readMediaAcl(const AmArg &t, const char key[], std::vector<AmSubnet> &acl)
 {
     if (!t.hasMember(key))
@@ -45,6 +38,61 @@ static void readMediaAcl(const AmArg &t, const char key[], std::vector<AmSubnet>
     }
 }
 
+static TransProt encryption_mode2transport(int mode, bool &allow_zrtp, const char *field_name)
+{
+    /*
+     * 0  - RTP/AVP
+     * 1  - RTP/SAVP
+     * 2  - UDP/TLS/RTP/SAVP
+     * 3  - ZRTP (RTP/AVP + zrtp_hash)
+     */
+
+    allow_zrtp = false;
+    switch (mode) {
+    case 3:  allow_zrtp = true;
+    case 0:  return TP_RTPAVP;
+
+    case 1:  return TP_RTPSAVP;
+    case 2:  return TP_UDPTLSRTPSAVP;
+
+    default: ERROR("unexpected %s value %d", field_name, mode); return TP_NONE;
+    }
+}
+
+static void _patch_uri_transport(string &uri, unsigned int transport_id, const char *field_name,
+                                 const char *transport_field_name)
+{
+    if (!transport_id || uri.empty())
+        return;
+    switch (transport_id) {
+    case sip_transport::UDP: break;
+    case sip_transport::TCP:
+    case sip_transport::TLS:
+    {
+        AmShallowUriParser parser;
+        auto               transport_name = transport_str(transport_id);
+        DBG("patch %s to use transport %d. current value is: '%s'", field_name, transport_id, uri.c_str());
+
+        if (!parser.parse_uri(uri)) {
+            ERROR("Error parsing %s '%s' for protocol patching to %.*s. leave it as is", field_name, uri.c_str(),
+                  transport_name.len, transport_name.s);
+            break;
+        }
+
+        if (parser.patch_uri_transport_param(static_cast<sip_transport::sip_transport_id>(transport_id))) {
+            uri = parser.uri_str();
+            DBG("%s patched to: '%s'", field_name, uri.c_str());
+        } else {
+            const auto &transport_param = parser.get_uri_params().at("transport");
+            ERROR("attempt to patch %s with existent transport parameter: '%.*s'."
+                  " leave it as is",
+                  field_name, transport_param.length(), transport_param.data());
+        }
+    } break;
+    default: ERROR("%s %d is not supported yet. ignore it", transport_field_name, transport_id);
+    }
+}
+
 bool SqlCallProfile::is_empty_profile(const AmArg &a)
 {
     if (a.hasMember("ruri") && isArgCStr(a["ruri"]))
@@ -67,6 +115,7 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
     outbound_proxy = DbAmArg_hash_get_str(t, "outbound_proxy");
     bleg_route_set = DbAmArg_hash_get_str(t, "bleg_route_set");
 
+    string lega_res;
     if (t.hasMember("lega_res") || t.hasMember("legb_res")) {
         lega_res               = DbAmArg_hash_get_str(t, "lega_res");
         resources              = DbAmArg_hash_get_str(t, "legb_res");
@@ -104,6 +153,13 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
         return true; // skip excess fields reading for refusing profile
 
     // fields fore the routing profiles only
+
+    try {
+        lega_rl.parse(lega_res);
+        rl.parse(resources);
+    } catch (ResourceParseException &e) {
+        ERROR("%s: resources parse error:  %s <ctx = '%s'>", aleg_local_tag.data(), e.what.c_str(), e.ctx.c_str());
+    }
 
     from   = DbAmArg_hash_get_str(t, "from");
     to     = DbAmArg_hash_get_str(t, "to");
@@ -339,9 +395,12 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
     aleg_radius_acc_profile_id = DbAmArg_hash_get_int(t, "aleg_radius_acc_profile_id", 0);
     bleg_radius_acc_profile_id = DbAmArg_hash_get_int(t, "bleg_radius_acc_profile_id", 0);
 
-    bleg_transport_id                = DbAmArg_hash_get_int(t, "bleg_transport_protocol_id", 0);
-    outbound_proxy_transport_id      = DbAmArg_hash_get_int(t, "bleg_outbound_proxy_transport_protocol_id", 0);
-    aleg_outbound_proxy_transport_id = DbAmArg_hash_get_int(t, "aleg_outbound_proxy_transport_protocol_id", 0);
+    _patch_uri_transport(ruri, DbAmArg_hash_get_int(t, "bleg_transport_protocol_id", 0), "ruri",
+                         "bleg_transport_protocol_id");
+    _patch_uri_transport(outbound_proxy, DbAmArg_hash_get_int(t, "bleg_outbound_proxy_transport_protocol_id", 0),
+                         "outbound_proxy", "bleg_outbound_proxy_transport_protocol_id");
+    _patch_uri_transport(aleg_outbound_proxy, DbAmArg_hash_get_int(t, "aleg_outbound_proxy_transport_protocol_id", 0),
+                         "aleg_outbound_proxy", "aleg_outbound_proxy_transport_protocol_id");
 
     bleg_protocol_priority_id = DbAmArg_hash_get_int(t, "bleg_protocol_priority_id", dns_priority::IPv4_only);
 
@@ -355,8 +414,10 @@ bool SqlCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
 
     pidflo_mode_id = DbAmArg_hash_get_int(t, "pidflo_mode_id", PIDFLO_MODE_DISABLED);
 
-    aleg_media_encryption_mode_id = DbAmArg_hash_get_int(t, "aleg_media_encryption_mode_id", 0);
-    bleg_media_encryption_mode_id = DbAmArg_hash_get_int(t, "bleg_media_encryption_mode_id", 0);
+    aleg_media_transport = encryption_mode2transport(DbAmArg_hash_get_int(t, "aleg_media_encryption_mode_id", 0),
+                                                     aleg_media_allow_zrtp, "aleg_media_encryption_mode_id");
+    bleg_media_transport = encryption_mode2transport(DbAmArg_hash_get_int(t, "bleg_media_encryption_mode_id", 0),
+                                                     bleg_media_allow_zrtp, "bleg_media_encryption_mode_id");
 
     readMediaAcl(t, "aleg_rtp_acl", aleg_rtp_acl);
     readMediaAcl(t, "bleg_rtp_acl", bleg_rtp_acl);
@@ -452,15 +513,8 @@ bool SqlCallProfile::readDynFields(const AmArg &t, const DynFieldsT &df)
 
 bool SqlCallProfile::eval_resources(const ResourceControl &rctl)
 {
-    try {
-        lega_rl.parse(lega_res);
-        rl.parse(resources);
-
-        rctl.eval_resources(lega_rl);
-        rctl.eval_resources(rl);
-    } catch (ResourceParseException &e) {
-        ERROR("%s: resources parse error:  %s <ctx = '%s'>", aleg_local_tag.data(), e.what.c_str(), e.ctx.c_str());
-    }
+    rctl.eval_resources(lega_rl);
+    rctl.eval_resources(rl);
     return true;
 }
 
@@ -501,87 +555,17 @@ bool SqlCallProfile::eval_radius()
     return true;
 }
 
-static TransProt encryption_mode2transport(int mode, bool &allow_zrtp)
-{
-    /*
-     * 0  - RTP/AVP
-     * 1  - RTP/SAVP
-     * 2  - UDP/TLS/RTP/SAVP
-     * 3  - ZRTP (RTP/AVP + zrtp_hash)
-     */
-
-    allow_zrtp = false;
-    switch (mode) {
-    case 3:  allow_zrtp = true;
-    case 0:  return TP_RTPAVP;
-
-    case 1:  return TP_RTPSAVP;
-    case 2:  return TP_UDPTLSRTPSAVP;
-
-    default: return TP_NONE;
-    }
-}
-
 bool SqlCallProfile::eval_media_encryption()
 {
-    aleg_media_transport = encryption_mode2transport(aleg_media_encryption_mode_id, aleg_media_allow_zrtp);
     if (TP_NONE == aleg_media_transport) {
-        ERROR("%s: unexpected aleg_media_encryption_mode_id value %d", aleg_local_tag.data(),
-              aleg_media_encryption_mode_id);
+        ERROR("%s: unsupported aleg media encryption mode", aleg_local_tag.data());
         return false;
     }
 
-    bleg_media_transport = encryption_mode2transport(bleg_media_encryption_mode_id, bleg_media_allow_zrtp);
     if (TP_NONE == bleg_media_transport) {
-        ERROR("%s: unexpected bleg_media_encryption_mode_id value %d", aleg_local_tag.data(),
-              bleg_media_encryption_mode_id);
+        ERROR("%s: unsupported bleg media encryption mode", aleg_local_tag.data());
         return false;
     }
-
-    return true;
-}
-
-static void _patch_uri_transport(string &uri, unsigned int transport_id, const char *field_name,
-                                 const char *transport_field_name)
-{
-    if (!transport_id)
-        return;
-    switch (transport_id) {
-    case sip_transport::UDP: break;
-    case sip_transport::TCP:
-    case sip_transport::TLS:
-    {
-        AmShallowUriParser parser;
-        auto               transport_name = transport_str(transport_id);
-        DBG("patch %s to use transport %d. current value is: '%s'", field_name, transport_id, uri.c_str());
-
-        if (!parser.parse_uri(uri)) {
-            ERROR("Error parsing %s '%s' for protocol patching to %.*s. leave it as is", field_name, uri.c_str(),
-                  transport_name.len, transport_name.s);
-            break;
-        }
-
-        if (parser.patch_uri_transport_param(static_cast<sip_transport::sip_transport_id>(transport_id))) {
-            uri = parser.uri_str();
-            DBG("%s patched to: '%s'", field_name, uri.c_str());
-        } else {
-            const auto &transport_param = parser.get_uri_params().at("transport");
-            ERROR("attempt to patch %s with existent transport parameter: '%.*s'."
-                  " leave it as is",
-                  field_name, transport_param.length(), transport_param.data());
-        }
-    } break;
-    default: ERROR("%s %d is not supported yet. ignore it", transport_field_name, transport_id);
-    }
-}
-#define patch_uri_transport(profile_field, transport_id_field)                                                         \
-    _patch_uri_transport(profile_field, transport_id_field, #profile_field, #transport_id_field);
-
-bool SqlCallProfile::eval_transport_ids()
-{
-    patch_uri_transport(ruri, bleg_transport_id);
-    patch_uri_transport(outbound_proxy, outbound_proxy_transport_id);
-    patch_uri_transport(aleg_outbound_proxy, aleg_outbound_proxy_transport_id);
 
     return true;
 }
@@ -633,8 +617,7 @@ bool SqlCallProfile::eval(const ResourceControl &rctl)
         aleg_route_set.clear();
     }
 
-    return eval_transport_ids() && eval_protocol_priority() && eval_resources(rctl) && eval_radius() &&
-           eval_media_encryption();
+    return eval_protocol_priority() && eval_resources(rctl) && eval_radius() && eval_media_encryption();
 }
 
 void SqlCallProfile::info(AmArg &s)

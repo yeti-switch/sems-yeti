@@ -19,18 +19,6 @@ struct SqlCallProfile : public SBCCallProfile
                         ObjCounter(SqlCallProfile)
 #endif
 {
-    int dump_level_id;
-
-    bool         legab_res_mode_enabled;
-    string       lega_res;
-    ResourceList lega_rl;
-    /* legb_res */
-    string       resources;
-    ResourceList rl;
-
-    SqlCallProfile();
-    ~SqlCallProfile();
-
     static bool is_empty_profile(const AmArg &a);
     bool readFromTuple(const AmArg &t, const string &local_tag, const DynFieldsT &df, const string &lega_gw_cache_key,
                        const string &legb_gw_cache_key);
@@ -42,7 +30,6 @@ struct SqlCallProfile : public SBCCallProfile
     bool eval_media_encryption();
     bool eval_resources(const ResourceControl &rctl);
     bool eval_radius();
-    bool eval_transport_ids();
     bool eval_protocol_priority();
     bool eval(const ResourceControl &rctl);
 
