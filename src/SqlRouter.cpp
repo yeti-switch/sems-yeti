@@ -805,7 +805,7 @@ bool SqlRouter::check_and_refuse(AmSession *session, SBCCallProfile *profile, Cd
     if (send_reply && need_reply) {
         if (write_cdr) {
             cdr->update_with_aleg_sip_request(req);
-            cdr->update_sbc(*profile);
+            cdr->update_with_profile_logging_recording(*profile);
         }
         // prepare & send sip response
         string hdrs = ctx.replaceParameters(profile->append_headers, "append_headers", req);

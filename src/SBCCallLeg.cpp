@@ -215,7 +215,7 @@ void SBCCallLeg::init()
             call_profile.record_audio = false;
         }
 
-        cdr.update_sbc(call_profile);
+        cdr.update_with_profile_logging_recording(call_profile);
         setSensor(Sensors::instance()->getSensor(call_profile.aleg_sensor_id));
         cdr.update_init_aleg(getLocalTag(), global_tag, getCallID());
     } else {
@@ -400,7 +400,7 @@ void SBCCallLeg::processResourcesAndSdp()
                 profile           = call_ctx->getNextProfile(GET_PROFILE_CDR_UPDATE, GET_PROFILE_PROFILES_ALL);
 
                 if (nullptr == profile) {
-                    cdr->update_sql(*prev_profile);
+                    cdr->update_with_profile(*prev_profile);
                     cdr->update_failed_resource(*ri);
                     DBG("there are no more profiles");
                     throw AmSession::Exception(503, "no more profiles");
@@ -419,7 +419,7 @@ void SBCCallLeg::processResourcesAndSdp()
                         static_cast<unsigned int>(resource_config.internal_code_id), internal_code, internal_reason,
                         response_code, response_reason, call_ctx->getOverrideId(a_leg));
 
-                    cdr->update_sql(*prev_profile);
+                    cdr->update_with_profile(*prev_profile);
                     cdr->update_failed_resource(*ri);
 
                     rctl.replace(internal_reason, *ri, resource_config);
@@ -1348,7 +1348,7 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
     }
 
     if (auto cdr = call_ctx->cdr.get(); cdr) {
-        cdr->update_sql(*call_ctx->current_profile);
+        cdr->update_with_profile(*call_ctx->current_profile);
     }
 
     processResourcesAndSdp();

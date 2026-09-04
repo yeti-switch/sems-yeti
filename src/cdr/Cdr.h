@@ -134,8 +134,8 @@ struct Cdr : public CdrBase
 
     // void init();
 
-    void update_sql(const SBCCallProfile &profile);
-    void update_sbc(const SBCCallProfile &profile);
+    void update_with_profile(const SBCCallProfile &profile);
+    void update_with_profile_logging_recording(const SBCCallProfile &profile);
 
     void update_with_aleg_sip_request(const AmSipRequest &req);
     void update_with_bleg_sip_request(const AmSipRequest &req);

@@ -101,7 +101,7 @@ Cdr::Cdr(const SBCCallProfile &profile)
 {
     DBG3("Cdr[%p](profile = %p)", this, &profile);
 
-    update_sql(profile);
+    update_with_profile(profile);
 }
 
 Cdr::Cdr(const Cdr &cdr, const SBCCallProfile &profile)
@@ -147,7 +147,7 @@ void Cdr::replace(string &s, const string &from, const string &to)
     }
 }
 
-void Cdr::update_sql(const SBCCallProfile &profile)
+void Cdr::update_with_profile(const SBCCallProfile &profile)
 {
     DBG3("Cdr::%s(SBCCallProfile)", FUNC_NAME);
 
@@ -169,7 +169,7 @@ void Cdr::update_sql(const SBCCallProfile &profile)
     bleg_predefined_route_set += route;
 }
 
-void Cdr::update_sbc(const SBCCallProfile &profile)
+void Cdr::update_with_profile_logging_recording(const SBCCallProfile &profile)
 {
     DBG3("Cdr::%s(SBCCallProfile)", FUNC_NAME);
     msg_logger_path      = profile.get_logger_path();

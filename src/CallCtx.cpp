@@ -158,7 +158,7 @@ SBCCallProfile *CallCtx::getNextProfile(get_profile_cdr_behavior       cdr_behav
     } break;
     case GET_PROFILE_CDR_UPDATE:
         write_skipped_cdrs(false);
-        cdr->update_sql(*next_profile);
+        cdr->update_with_profile(*next_profile);
         break;
     }
 
