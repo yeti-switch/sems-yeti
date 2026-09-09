@@ -190,6 +190,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
     void onIdentityReady(const AmArg *identity_data_ptr = nullptr);
     void onRoutingReady();
     void onRtpSendingError() override;
+    void onInitStreamFailed(const string &reason) override;
     void onFailure() override;
     void onInviteException(int code, string reason, bool no_reply) override;
     bool onException(int code, const string &reason) noexcept override;

@@ -3187,6 +3187,25 @@ void SBCCallLeg::onRtpSendingError()
     CallLeg::onRtpSendingError();
 }
 
+void SBCCallLeg::onInitStreamFailed(const string &reason)
+{
+    DBG("%s(%p,leg%s) %s", FUNC_NAME, to_void(this), a_leg ? "A" : "B", reason.c_str());
+
+    if (call_ctx) {
+        with_cdr_for_read
+        {
+            InternalException e(FC_INVALID_MEDIA_TRANSPORT, call_ctx->getOverrideId(a_leg));
+            cdr->update_internal_reason(DisconnectByTS, e.internal_reason, e.internal_code, e.icode);
+            if (getCallStatus() == CallLeg::Connected) {
+                cdr->update_aleg_reason("Bye", 200);
+                cdr->update_bleg_reason("Bye", 200);
+            }
+        }
+    }
+
+    CallLeg::onInitStreamFailed(reason);
+}
+
 void SBCCallLeg::onB2BEvent(B2BEvent *ev)
 {
     try {
@@ -3550,6 +3569,7 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
         break;
     case CallLeg::StatusChangeCause::RtpTimeout:      reason = "RtpTimeout"; break;
     case CallLeg::StatusChangeCause::RtpSendingError: reason = "RtpSendingError"; break;
+    case CallLeg::StatusChangeCause::MediaInitFailed: reason = "MediaInitFailed"; break;
     case CallLeg::StatusChangeCause::SessionTimeout:
         reason                   = "SessionTimeout";
         internal_disconnect_code = DC_SESSION_TIMEOUT;
@@ -3992,7 +4012,13 @@ int SBCCallLeg::onSdpCompleted(const AmSdp &local, const AmSdp &remote, bool sdp
     if (!m)
         return ret;
 
-    m->updateStreams(false /* recompute relay and other parameters in direction A -> B*/, this, sdp_offer_owner);
+    string error;
+    if (!m->updateStreams(false /* recompute relay and other parameters in direction A -> B*/, this, sdp_offer_owner,
+                          error))
+    {
+        onInitStreamFailed(error);
+        return -1;
+    }
 
     // disable RTP timeout monitoring for early media
     m->setMonitorRtpTimeout(AmBasicSipDialog::Connected == dlg->getStatus());

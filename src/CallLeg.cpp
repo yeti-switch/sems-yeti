@@ -785,6 +785,12 @@ void CallLeg::onRtpSendingError()
     AmB2BSession::onRtpSendingError();
 }
 
+void CallLeg::onInitStreamFailed(const string &reason)
+{
+    updateCallStatus(Disconnected, StatusChangeCause::MediaInitFailed);
+    AmB2BSession::onInitStreamFailed(reason);
+}
+
 void CallLeg::onSessionTimeout()
 {
     updateCallStatus(Disconnected, StatusChangeCause::SessionTimeout);

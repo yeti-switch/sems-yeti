@@ -72,6 +72,7 @@ class CallLeg : public AmB2BSession {
             NoPrack,
             RtpTimeout,
             RtpSendingError,
+            MediaInitFailed,
             SessionTimeout,
             InternalError,
             Other
@@ -249,6 +250,7 @@ class CallLeg : public AmB2BSession {
     virtual void onNoPrack(const AmSipRequest &req, const AmSipReply &rpl) override;
     virtual void onRtpTimeout() override;
     virtual void onRtpSendingError() override;
+    virtual void onInitStreamFailed(const string &reason) override;
     virtual void onSessionTimeout() override;
 
     // @see AmB2BSession
