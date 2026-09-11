@@ -101,8 +101,13 @@ std::optional<string> GatewaysCacheALeg::get_jwt_auth_secret(GatewaysCacheDataBa
 
 GatewayDataBleg::GatewayDataBleg(GatewayIdType gateway_id, const AmArg &r)
     : GatewaysCacheDataBase(gateway_id, r)
+    , enable_via_alias(false)
     , throttling_enabled(false)
 {
+    const auto &enable_via_alias_arg = r["enable_via_alias"];
+    if (isArgBool(enable_via_alias_arg))
+        enable_via_alias = enable_via_alias_arg.asBool();
+
     // tel: refer
     const auto &transfer_tel_uri_host_arg = r["transfer_tel_uri_host"];
     if (!isArgUndef(transfer_tel_uri_host_arg))
@@ -169,6 +174,8 @@ GatewayDataBleg::GatewayDataBleg::operator AmArg() const
     AmArg a;
 
     serialize_base(a);
+
+    a["enable_via_alias"] = enable_via_alias;
 
     // tel: refer/redirect
 
@@ -316,4 +323,12 @@ GatewaysCacheBLeg::get_redirect_data(GatewayDataBleg::GatewayIdType gateway_id)
         return std::nullopt;
 
     return gw_it->second.tel_redirect_data;
+}
+
+bool GatewaysCacheBLeg::is_via_alias_enabled(GatewayDataBleg::GatewayIdType gateway_id)
+{
+    AmLock lock(mutex);
+
+    auto gw_it = gateways.find(gateway_id);
+    return gw_it != gateways.end() && gw_it->second.enable_via_alias;
 }

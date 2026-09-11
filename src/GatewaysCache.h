@@ -167,6 +167,9 @@ struct GatewayDataBleg : public GatewaysCacheDataBase {
         list<string> transfer_append_headers_req;
     } tel_redirect_data;
 
+    // RFC 5923: ';alias' in bleg Via
+    bool enable_via_alias;
+
     // throttling
     bool          throttling_enabled;
     int           throttling_minimum_calls;
@@ -215,6 +218,7 @@ class GatewaysCacheBLeg : public GatewaysCacheBase<GatewayDataBleg> {
     GatewaysCacheBLeg();
 
     std::optional<GatewayDataBleg::TelRedirectData> get_redirect_data(GatewayDataBleg::GatewayIdType gateway_id);
+    bool                                            is_via_alias_enabled(GatewayDataBleg::GatewayIdType gateway_id);
 
     void update_reply_stats(GatewayDataBleg::GatewayIdType gateway_id, const AmSipReply &reply);
     bool should_skip(GatewayDataBleg::GatewayIdType gateway_id, int now);

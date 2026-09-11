@@ -1658,6 +1658,8 @@ void SBCCallLeg::applyBProfile()
         dlg->setSupportedTags(s.supported_tags.empty() ? yeti.config.supported_tags : s.supported_tags);
     }
 
+    dlg->setViaAlias(yeti.gateways_cache_bleg.is_via_alias_enabled(call_profile.legb_gw_cache_id));
+
     redirects_allowed = call_profile.bleg_max_30x_redirects;
 
     if (call_profile.auth_enabled) {
