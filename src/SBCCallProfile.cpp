@@ -561,7 +561,7 @@ bool SBCCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
     bleg_rtp_filter_inband_dtmf = DbAmArg_hash_get_bool(t, "bleg_rtp_filter_inband_dtmf", false);
 
     if (aleg_rtp_filter_inband_dtmf || bleg_rtp_filter_inband_dtmf || (aleg_dtmf_recv_modes & DTMF_RX_MODE_INBAND) ||
-        (aleg_dtmf_recv_modes & DTMF_RX_MODE_INBAND))
+        (bleg_dtmf_recv_modes & DTMF_RX_MODE_INBAND))
     {
         transcoder.dtmf_mode = TranscoderSettings::DTMFAlways;
         force_transcoding    = true;
