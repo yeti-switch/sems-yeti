@@ -1,3 +1,7 @@
+sems-yeti (1.15.6) stable; urgency=medium
+  * fix segfaults on REFER. check for call_ctx ptr in SBCCallLeg::onSendRequest()
+ -- dev <dev@yeti-switch.org>  Wed, 16 Sep 2026 13:14:43 +0300
+
 sems-yeti (1.15.5) stable; urgency=medium
   * support alias for via header for b leg. new bleg gateway cache param: enable_via_alias
   * handle rtp stream init failures
