@@ -2539,7 +2539,7 @@ void SBCCallLeg::onSendRequest(AmSipRequest &req, int &flags)
             req.hdrs += call_profile.append_headers_req;
         }
 
-        if (req.to_tag.empty()) {
+        if (call_ctx && req.to_tag.empty()) {
             with_cdr_for_read
             {
                 cdr->update_with_bleg_sip_request(req);
