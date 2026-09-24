@@ -94,6 +94,8 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
     msg_sensor *sensor;
     bool        memory_logger_enabled;
     bool        waiting_for_location;
+    /** registered AoR id the push notification was sent for (process_push_token_profile) */
+    string push_aor_id;
 
     struct timeval profile_request_start_time;
 
@@ -170,7 +172,9 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
                                      int auth_feedback_code = Auth::NO_AUTH);
 
     void setRejectCdr(int disconnect_code_id);
+
     void process_push_token_profile(SBCCallProfile &p);
+    void unsubscribe_push_aor();
 
     void applyAlegLoggerSettings(SBCCallProfile &profile);
 

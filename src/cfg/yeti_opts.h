@@ -31,6 +31,7 @@ extern char section_name_redis[];
 extern char section_name_redis_write[];
 extern char section_name_redis_read[];
 extern char section_name_headers[];
+extern char section_name_push[];
 
 extern char opt_name_core_options_handling[];
 extern char opt_name_pcap_memory_logger[];
@@ -77,6 +78,10 @@ extern char opt_name_allowed_methods[];
 extern char opt_name_lega_gw_cache_key[];
 extern char opt_name_legb_gw_cache_key[];
 
+extern char opt_name_push_timeout[];
+extern char opt_name_push_fcm_destination[];
+extern char opt_name_push_webhook_destination[];
+
 // routing
 extern cfg_opt_t sig_yeti_routing_pool_opts[];
 extern cfg_opt_t sig_yeti_routing_cache_opts[];
@@ -100,6 +105,9 @@ extern cfg_opt_t sig_yeti_reg_opts[];
 
 // auth
 extern cfg_opt_t sig_yeti_auth_opts[];
+
+// push notifications for the not registered AoRs
+extern cfg_opt_t sig_yeti_push_opts[];
 extern cfg_opt_t lega_cdr_headers_opts[];
 
 // identity

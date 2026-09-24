@@ -39,6 +39,7 @@
 #include "ampi/RadiusClientAPI.h"
 #include "ampi/HttpClientAPI.h"
 #include "ampi/SipRegistrarApi.h"
+#include "cfg/yeti_opts.h"
 
 using namespace std;
 
@@ -48,6 +49,10 @@ using namespace std;
 #define FILE_RECORDER_RAW_EXT        ".wav"
 
 #define MEMORY_LOGGER_MAX_ENTRIES 100
+
+// token of the HttpPostEvent sent by process_push_token_profile. to tell its reply from the others in
+// onHttpPostResponse
+#define PUSH_HTTP_EVENT_TOKEN "push"
 
 inline void replace(string &s, const string &from, const string &to)
 {
@@ -1101,20 +1106,9 @@ static void replace_profile_fields(const SipRegistrarResolveResponseEvent::aor_d
 
 void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
 {
-    // subscribe for the reg events
-    std::unique_ptr<SipRegistrarResolveAorsSubscribeEvent> event_ptr{ new SipRegistrarResolveAorsSubscribeEvent{
-        getLocalTag() } };
-    event_ptr->timeout = std::chrono::milliseconds(4000);
-    event_ptr->aor_ids.emplace(std::to_string(p.registered_aor_id));
+    const auto &cfg = yeti.config.push;
 
-    if (false == AmSessionContainer::instance()->postEvent(SIP_REGISTRAR_QUEUE, event_ptr.release())) {
-        ERROR("failed to post 'resolve subscribe' event to registrar");
-        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-    }
-
-    waiting_for_location = true;
-
-    // send push
+    // token format: "<type>:<value>"
     auto semi_pos = p.push_token.find(':');
     if (semi_pos == std::string::npos) {
         ERROR("unexpected token format: missed ':' type/value separator");
@@ -1125,51 +1119,115 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
         ERROR("failed to get token type from string: %s", p.push_token.substr(0, semi_pos).data());
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
+    const string token_value = p.push_token.substr(semi_pos + 1);
     DBG("token_type: %d", token_type);
 
-    // TODO: move type -> http_dest,payload format,etc mappings to the cfg
-    enum TokenTypes { FCM = 0, APNS_PROD = 1, APNS_SAND = 2 };
+    enum TokenTypes { FCM = 0, APNS_PROD = 1, APNS_SAND = 2, WEBHOOK = 3 };
+
+    AmShallowUriParser from_uri;
+    // the From header as the caller sent it. the profile's own From is still a template ($Oi, ...) here
+    const string &from = call_ctx->initial_invite->from;
+    if (!from_uri.parse_nameaddr(from)) {
+        ERROR("Error parsing From-URI '%s'", from.c_str());
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+
+    using sc             = std::chrono::system_clock;
+    const string born_at = std::to_string(sc::to_time_t(sc::now()));
+    const string aor_id  = std::to_string(p.registered_aor_id);
+
+    string http_destination;
+    AmArg  data;
 
     switch (token_type) {
     case FCM:
-    {
-        AmShallowUriParser from_uri;
-        auto              &from = p.from.empty() ? call_ctx->initial_invite->from : call_profile.from;
-        if (!from_uri.parse_nameaddr(from)) {
-            ERROR("Error parsing From-URI '%s'", from.c_str());
-            throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-        }
-        using sc = std::chrono::system_clock;
-        AmArg data{
-            { "message", AmArg{ { "data",
-                                  AmArg{ // TODO: clarify payload format
-                                         { "born_at", std::to_string(sc::to_time_t(sc::now())) },
+        http_destination = cfg.fcm_destination;
+        data             = AmArg{
+                        { "message", AmArg{ { "data",
+                                              AmArg{ // TODO: clarify payload format
+                                         { "born_at", born_at },
                                          { "from_user", string{ from_uri.get_uri_user() } },
                                          { "from_display_name", string{ from_uri.get_display_name() } },
                                          { "from_tag", getLocalTag() },
                                          { "call_id", call_ctx->initial_invite->callid },
                                          { "type", "call_start" } } },
-                                { "android", AmArg{ { "priority", "high" } } },
-                                { "token", p.push_token.substr(semi_pos + 1) } } }
+                                            { "android", AmArg{ { "priority", "high" } } },
+                                            { "token", token_value } } }
         };
-
-        DBG("data: %s", data.print().data());
-
-        std::unique_ptr<HttpPostEvent> http_event{ new HttpPostEvent("fcm",            // destination_name
-                                                                     arg2json(data),   // data
-                                                                     "push",           // token
-                                                                     getLocalTag()) }; // session_id
-
-        if (!AmSessionContainer::instance()->postEvent(HTTP_EVENT_QUEUE, http_event.release())) {
-            ERROR("failed to post push notification");
+        break;
+    case WEBHOOK:
+        /* generic webhook: the value of the token is passed as is to the configured destination,
+         * which does the platform-specific delivery (APNs, FCM, several devices per AoR, ...) itself.
+         * a 2xx reply means the notification was accepted and the call keeps waiting for the registration,
+         * any other reply ends the wait at once (onHttpPostResponse) */
+        if (cfg.webhook_destination.empty()) {
+            ERROR("push_token of the webhook type but '%s.%s' is not configured", section_name_push,
+                  opt_name_push_webhook_destination);
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
-    } break;
+        http_destination          = cfg.webhook_destination;
+        data["type"]              = "call_start";
+        data["born_at"]           = born_at;
+        data["call_id"]           = call_ctx->initial_invite->callid;
+        data["from_tag"]          = getLocalTag();
+        data["from_user"]         = string{ from_uri.get_uri_user() };
+        data["from_display_name"] = string{ from_uri.get_display_name() };
+        data["from"]              = from;
+        data["to"]                = call_ctx->initial_invite->to;
+        data["ruri"]              = call_ctx->initial_invite->r_uri;
+        data["aor_id"]            = aor_id;
+        data["token"]             = token_value;
+        data["timeout"]           = static_cast<int>(cfg.timeout.count());
+        break;
     default:
         ERROR("token_type %d is not supported", token_type);
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-        break;
     }
+
+    // subscribe for the reg events
+    push_aor_id = aor_id;
+    std::unique_ptr<SipRegistrarResolveAorsSubscribeEvent> event_ptr{ new SipRegistrarResolveAorsSubscribeEvent{
+        getLocalTag() } };
+    event_ptr->timeout = cfg.timeout;
+    event_ptr->aor_ids.emplace(push_aor_id);
+
+    if (false == AmSessionContainer::instance()->postEvent(SIP_REGISTRAR_QUEUE, event_ptr.release())) {
+        ERROR("failed to post 'resolve subscribe' event to registrar");
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+
+    waiting_for_location = true;
+
+    // send push
+    DBG("data: %s", data.print().data());
+    INFO(
+        "%s send push notification of type %d to the http destination '%s'. wait %ld ms for the registration of aor %s",
+        getLocalTag().c_str(), token_type, http_destination.c_str(), static_cast<long>(cfg.timeout.count()),
+        push_aor_id.c_str());
+
+    std::unique_ptr<HttpPostEvent> http_event{ new HttpPostEvent(http_destination,      // destination_name
+                                                                 arg2json(data),        // data
+                                                                 PUSH_HTTP_EVENT_TOKEN, // token
+                                                                 getLocalTag()) };      // session_id
+
+    if (!AmSessionContainer::instance()->postEvent(HTTP_EVENT_QUEUE, http_event.release())) {
+        ERROR("failed to post push notification");
+        unsubscribe_push_aor();
+        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
+    }
+}
+
+void SBCCallLeg::unsubscribe_push_aor()
+{
+    if (push_aor_id.empty())
+        return;
+
+    std::unique_ptr<SipRegistrarResolveAorsUnsubscribeEvent> event_ptr{ new SipRegistrarResolveAorsUnsubscribeEvent{
+        getLocalTag() } };
+    event_ptr->aor_ids.emplace(push_aor_id);
+
+    if (false == AmSessionContainer::instance()->postEvent(SIP_REGISTRAR_QUEUE, event_ptr.release()))
+        ERROR("failed to post 'resolve unsubscribe' event to registrar");
 }
 
 void SBCCallLeg::applyAlegLoggerSettings(SBCCallProfile &profile)
@@ -1213,7 +1271,16 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
 
     auto &profiles = call_ctx->profiles;
 
-    if (e.aors.empty() && (!waiting_for_location)) {
+    if (waiting_for_location) {
+        // the reply to the subscription made in process_push_token_profile
+        waiting_for_location = false;
+        if (e.aors.empty()) {
+            INFO("%s no registration of aor %s within the push wait. process the call as not registered",
+                 getLocalTag().c_str(), push_aor_id.c_str());
+        } else {
+            INFO("%s aor %s registered after the push notification", getLocalTag().c_str(), push_aor_id.c_str());
+        }
+    } else if (e.aors.empty()) {
         // check if we have at least one non-rejecting profile without registered_aor_id requirement
         auto it = std::find_if(profiles.begin(), profiles.end(), [](const SBCCallProfile &p) {
             return p.disconnect_code_id == 0 && p.registered_aor_id == 0;
@@ -1362,9 +1429,28 @@ void SBCCallLeg::onValidateIdentitiesResponse(const ValidateIdentitiesResponse &
 
 void SBCCallLeg::onHttpPostResponse(const HttpPostResponseEvent &e)
 {
-    DBG("code: %ld, body:%s", e.code, e.data.data());
-    /* TODO: unsubscribe from reg event and terminate call here
-     * on http error reply for push notification */
+    DBG("code: %ld, token: %s, body:%s", e.code, e.token.c_str(), e.data.data());
+
+    if (e.token != PUSH_HTTP_EVENT_TOKEN)
+        return;
+
+    if (!waiting_for_location) {
+        DBG("push notification reply after the wait for the registration ended. ignore it");
+        return;
+    }
+
+    if (e.code >= 200 && e.code < 300) {
+        DBG("push notification accepted with code %ld. keep waiting for the registration of aor %s", e.code,
+            push_aor_id.c_str());
+        return;
+    }
+
+    ERROR("%s push notification failed with code %ld. stop waiting for the registration of aor %s",
+          getLocalTag().c_str(), e.code, push_aor_id.c_str());
+
+    // unsubscribe from the reg events and process the call as if the registrar found no AoRs
+    unsubscribe_push_aor();
+    onSipRegistrarResolveResponse(SipRegistrarResolveResponseEvent{});
 }
 
 void SBCCallLeg::onRtpTimeoutOverride(const AmRtpTimeoutEvent &)

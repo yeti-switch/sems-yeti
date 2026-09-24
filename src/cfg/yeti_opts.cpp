@@ -15,6 +15,10 @@
 #define YETI_DEFAULT_AUDIO_RECORDER_DIR "/var/spool/sems/record"
 #define YETI_DEFAULT_MSG_LOGGER_DIR     "/var/spool/sems/dump"
 
+// how long a call waits for the registration after the push notification, milliseconds
+#define YETI_PUSH_DEFAULT_TIMEOUT         4000
+#define YETI_PUSH_DEFAULT_FCM_DESTINATION "fcm"
+
 const vector<string> allowed_methods_default = { "INVITE", "ACK",  "BYE",    "CANCEL", "OPTIONS",
                                                  "NOTIFY", "INFO", "UPDATE", "PRACK" };
 
@@ -34,6 +38,7 @@ char section_name_redis[]                  = "redis";
 char section_name_redis_write[]            = "write";
 char section_name_redis_read[]             = "read";
 char section_name_headers[]                = "headers";
+char section_name_push[]                   = "push";
 
 char opt_name_core_options_handling[]           = "core_options_handling";
 char opt_name_pcap_memory_logger[]              = "pcap_memory_logger";
@@ -77,6 +82,10 @@ char opt_name_allowed_methods[] = "allowed_methods";
 
 char opt_name_lega_gw_cache_key[] = "lega_gw_cache_key";
 char opt_name_legb_gw_cache_key[] = "legb_gw_cache_key";
+
+char opt_name_push_timeout[]             = "timeout";
+char opt_name_push_fcm_destination[]     = "fcm_destination";
+char opt_name_push_webhook_destination[] = "webhook_destination";
 
 int add_routing_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
@@ -147,6 +156,11 @@ cfg_opt_t sig_yeti_auth_opts[] = { CFG_STR_LIST(opt_name_auth_realm, 0, CFGF_NOD
                                    CFG_BOOL(opt_name_auth_skip_logging_invite_success, cfg_false, CFGF_NODEFAULT),
                                    CFG_END() };
 
+// push
+cfg_opt_t sig_yeti_push_opts[] = { CFG_INT(opt_name_push_timeout, YETI_PUSH_DEFAULT_TIMEOUT, CFGF_NONE),
+                                   CFG_STR(opt_name_push_fcm_destination, YETI_PUSH_DEFAULT_FCM_DESTINATION, CFGF_NONE),
+                                   CFG_STR(opt_name_push_webhook_destination, "", CFGF_NONE), CFG_END() };
+
 cfg_opt_t lega_cdr_headers_opts[] = { CFG_FUNC(opt_func_name_header, add_aleg_cdr_header),
                                       CFG_BOOL(opt_name_cdr_headers_add_sip_reason, cfg_false, CFGF_NONE),
                                       CFG_BOOL(opt_name_cdr_headers_add_q850_reason, cfg_false, CFGF_NONE), CFG_END() };
@@ -193,6 +207,7 @@ cfg_opt_t yeti_opts[] = { CFG_INT(opt_name_pop_id, 0, CFGF_NONE),
                           CFG_SEC(section_name_rpc, sig_yeti_rpc_opts, CFGF_NONE),
                           CFG_SEC(section_name_statistics, sig_yeti_statistics_opts, CFGF_NONE),
                           CFG_SEC(section_name_auth, sig_yeti_auth_opts, CFGF_NONE),
+                          CFG_SEC(section_name_push, sig_yeti_push_opts, CFGF_NONE),
 
                           CFG_SEC(section_name_lega_cdr_headers, lega_cdr_headers_opts, CFGF_NONE),
                           CFG_SEC(section_name_legb_cdr_headers, legb_cdr_headers_opts, CFGF_NONE),
