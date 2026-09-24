@@ -36,6 +36,18 @@ struct YetiCfg {
     cdr_headers_t bleg_cdr_headers;
     cdr_headers_t bleg_reply_cdr_headers;
 
+    /* push notifications for the calls to the not registered AoRs
+     * (SBCCallLeg::process_push_token_profile) */
+    struct push_config {
+        // how long the call waits for the registration after the push was sent
+        std::chrono::milliseconds timeout{ 4000 };
+        // http_client destination for the FCM push tokens (type 0)
+        string fcm_destination{ "fcm" };
+        // http_client destination for the webhook push tokens (type 3). disabled when empty
+        string webhook_destination;
+        void   configure(cfg_t *cfg);
+    } push;
+
     bool core_options_handling;
     bool postgresql_debug;
     bool write_internal_disconnect_code;
