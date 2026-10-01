@@ -284,6 +284,7 @@ inline void clear_media_params(AmSdp &sdp)
     sdp.ice_pwd.clear();
     sdp.ice_ufrag.clear();
     sdp.use_ice    = false;
+    sdp.ice_lite   = false;
     sdp.use_bundle = false;
     sdp.groups.clear();
     sdp.extmaps.clear();
