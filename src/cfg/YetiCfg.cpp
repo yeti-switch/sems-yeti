@@ -96,11 +96,18 @@ void YetiCfg::headers_processing_config::configure(cfg_t *cfg)
         bleg.configure(legb_cdr_headers_sec);
 }
 
-void YetiCfg::push_config::configure(cfg_t *cfg)
+int YetiCfg::push_config::configure(cfg_t *cfg)
 {
     timeout             = std::chrono::milliseconds(cfg_getint(cfg, opt_name_push_timeout));
     fcm_destination     = cfg_getstr(cfg, opt_name_push_fcm_destination);
     webhook_destination = cfg_getstr(cfg, opt_name_push_webhook_destination);
+
+    if (timeout.count() <= 0) {
+        ERROR("%s.%s must be positive", section_name_push, opt_name_push_timeout);
+        return -1;
+    }
+
+    return 0;
 }
 
 int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
@@ -136,11 +143,8 @@ int YetiCfg::configure(cfg_t *cfg, AmConfigReader &am_cfg)
     headers_processing.configure(cfg);
 
     if (cfg_t *push_sec = cfg_getsec(cfg, section_name_push))
-        push.configure(push_sec);
-    if (push.timeout.count() <= 0) {
-        ERROR("%s.%s must be positive", section_name_push, opt_name_push_timeout);
-        return -1;
-    }
+        if (push.configure(push_sec))
+            return -1;
 
     serialize_to_amconfig(cfg, am_cfg);
 

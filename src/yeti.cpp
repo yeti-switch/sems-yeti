@@ -762,7 +762,6 @@ bool Yeti::verifyHttpDestinations()
 {
     std::multimap<string, string> destinations;
 
-    // push.fcm_destination is not checked here: most of the setups have no FCM push tokens at all
     if (!config.push.webhook_destination.empty())
         destinations.emplace(format("{}.{}", string(section_name_push), string(opt_name_push_webhook_destination)),
                              config.push.webhook_destination);

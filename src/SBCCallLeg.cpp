@@ -1165,19 +1165,21 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
                   opt_name_push_webhook_destination);
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
-        http_destination          = cfg.webhook_destination;
-        data["type"]              = "call_start";
-        data["born_at"]           = born_at;
-        data["call_id"]           = call_ctx->initial_invite->callid;
-        data["from_tag"]          = getLocalTag();
-        data["from_user"]         = string{ from_uri.get_uri_user() };
-        data["from_display_name"] = string{ from_uri.get_display_name() };
-        data["from"]              = from;
-        data["to"]                = call_ctx->initial_invite->to;
-        data["ruri"]              = call_ctx->initial_invite->r_uri;
-        data["aor_id"]            = aor_id;
-        data["token"]             = token_value;
-        data["timeout"]           = static_cast<int>(cfg.timeout.count());
+        http_destination = cfg.webhook_destination;
+        data             = AmArg{
+                        {              "type",                          "call_start" },
+                        {           "born_at",                               born_at },
+                        {           "call_id",      call_ctx->initial_invite->callid },
+                        {          "from_tag",                         getLocalTag() },
+                        {         "from_user",     string{ from_uri.get_uri_user() } },
+                        { "from_display_name", string{ from_uri.get_display_name() } },
+                        {              "from",                                  from },
+                        {                "to",          call_ctx->initial_invite->to },
+                        {              "ruri",       call_ctx->initial_invite->r_uri },
+                        {            "aor_id",                                aor_id },
+                        {             "token",                           token_value },
+                        {           "timeout", static_cast<int>(cfg.timeout.count()) },
+        };
         break;
     default:
         ERROR("token_type %d is not supported", token_type);
@@ -1185,11 +1187,10 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
     }
 
     // subscribe for the reg events
-    push_aor_id = aor_id;
     std::unique_ptr<SipRegistrarResolveAorsSubscribeEvent> event_ptr{ new SipRegistrarResolveAorsSubscribeEvent{
         getLocalTag() } };
     event_ptr->timeout = cfg.timeout;
-    event_ptr->aor_ids.emplace(push_aor_id);
+    event_ptr->aor_ids.emplace(aor_id);
 
     if (false == AmSessionContainer::instance()->postEvent(SIP_REGISTRAR_QUEUE, event_ptr.release())) {
         ERROR("failed to post 'resolve subscribe' event to registrar");
@@ -1199,11 +1200,10 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
     waiting_for_location = true;
 
     // send push
-    DBG("data: %s", data.print().data());
-    INFO(
-        "%s send push notification of type %d to the http destination '%s'. wait %ld ms for the registration of aor %s",
+    DBG3("data: %s", data.print().data());
+    DBG("%s send push notification of type %d to the http destination '%s'. wait %ld ms for the registration of aor %s",
         getLocalTag().c_str(), token_type, http_destination.c_str(), static_cast<long>(cfg.timeout.count()),
-        push_aor_id.c_str());
+        aor_id.c_str());
 
     std::unique_ptr<HttpPostEvent> http_event{ new HttpPostEvent(http_destination,      // destination_name
                                                                  arg2json(data),        // data
@@ -1212,19 +1212,19 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
 
     if (!AmSessionContainer::instance()->postEvent(HTTP_EVENT_QUEUE, http_event.release())) {
         ERROR("failed to post push notification");
-        unsubscribe_push_aor();
+        unsubscribe_push_aor(aor_id);
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 }
 
-void SBCCallLeg::unsubscribe_push_aor()
+void SBCCallLeg::unsubscribe_push_aor(const string &aor_id)
 {
-    if (push_aor_id.empty())
+    if (aor_id.empty())
         return;
 
     std::unique_ptr<SipRegistrarResolveAorsUnsubscribeEvent> event_ptr{ new SipRegistrarResolveAorsUnsubscribeEvent{
         getLocalTag() } };
-    event_ptr->aor_ids.emplace(push_aor_id);
+    event_ptr->aor_ids.emplace(aor_id);
 
     if (false == AmSessionContainer::instance()->postEvent(SIP_REGISTRAR_QUEUE, event_ptr.release()))
         ERROR("failed to post 'resolve unsubscribe' event to registrar");
@@ -1269,6 +1269,8 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
 
     getCtx_void;
 
+    const auto aor_id = to_string(call_profile.registered_aor_id);
+
     auto &profiles = call_ctx->profiles;
 
     if (waiting_for_location) {
@@ -1276,9 +1278,9 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
         waiting_for_location = false;
         if (e.aors.empty()) {
             INFO("%s no registration of aor %s within the push wait. process the call as not registered",
-                 getLocalTag().c_str(), push_aor_id.c_str());
+                 getLocalTag().c_str(), aor_id.c_str());
         } else {
-            INFO("%s aor %s registered after the push notification", getLocalTag().c_str(), push_aor_id.c_str());
+            INFO("%s aor %s registered after the push notification", getLocalTag().c_str(), aor_id.c_str());
         }
     } else if (e.aors.empty()) {
         // check if we have at least one non-rejecting profile without registered_aor_id requirement
@@ -1439,17 +1441,19 @@ void SBCCallLeg::onHttpPostResponse(const HttpPostResponseEvent &e)
         return;
     }
 
+    const auto aor_id = to_string(call_profile.registered_aor_id);
+
     if (e.code >= 200 && e.code < 300) {
         DBG("push notification accepted with code %ld. keep waiting for the registration of aor %s", e.code,
-            push_aor_id.c_str());
+            aor_id.c_str());
         return;
     }
 
     ERROR("%s push notification failed with code %ld. stop waiting for the registration of aor %s",
-          getLocalTag().c_str(), e.code, push_aor_id.c_str());
+          getLocalTag().c_str(), e.code, aor_id.c_str());
 
     // unsubscribe from the reg events and process the call as if the registrar found no AoRs
-    unsubscribe_push_aor();
+    unsubscribe_push_aor(aor_id);
     onSipRegistrarResolveResponse(SipRegistrarResolveResponseEvent{});
 }
 

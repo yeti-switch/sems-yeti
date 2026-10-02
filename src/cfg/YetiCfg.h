@@ -40,12 +40,12 @@ struct YetiCfg {
      * (SBCCallLeg::process_push_token_profile) */
     struct push_config {
         // how long the call waits for the registration after the push was sent
-        std::chrono::milliseconds timeout{ 4000 };
+        std::chrono::milliseconds timeout;
         // http_client destination for the FCM push tokens (type 0)
-        string fcm_destination{ "fcm" };
+        string fcm_destination;
         // http_client destination for the webhook push tokens (type 3). disabled when empty
         string webhook_destination;
-        void   configure(cfg_t *cfg);
+        int    configure(cfg_t *cfg);
     } push;
 
     bool core_options_handling;
