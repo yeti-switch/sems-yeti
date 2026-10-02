@@ -1,3 +1,8 @@
+sems-yeti (1.15.8) stable; urgency=medium
+  * add webhook push token type 3
+  * implement APNS push token types 1,2
+ -- dev <dev@yeti-switch.org>  Fri, 02 Oct 2026 23:53:52 +0300
+
 sems-yeti (1.15.7) stable; urgency=medium
   * libsems1.214. clear ice-lite SDP param on relay
  -- dev <dev@yeti-switch.org>  Fri, 02 Oct 2026 02:25:53 +0300
