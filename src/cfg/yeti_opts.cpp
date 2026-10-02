@@ -16,8 +16,10 @@
 #define YETI_DEFAULT_MSG_LOGGER_DIR     "/var/spool/sems/dump"
 
 // how long a call waits for the registration after the push notification, milliseconds
-#define YETI_PUSH_DEFAULT_TIMEOUT         4000
-#define YETI_PUSH_DEFAULT_FCM_DESTINATION "fcm"
+#define YETI_PUSH_DEFAULT_TIMEOUT                  4000
+#define YETI_PUSH_DEFAULT_FCM_DESTINATION          "fcm"
+#define YETI_PUSH_DEFAULT_APNS_DESTINATION         "apns"
+#define YETI_PUSH_DEFAULT_APNS_SANDBOX_DESTINATION "apns_sandbox"
 
 const vector<string> allowed_methods_default = { "INVITE", "ACK",  "BYE",    "CANCEL", "OPTIONS",
                                                  "NOTIFY", "INFO", "UPDATE", "PRACK" };
@@ -83,9 +85,11 @@ char opt_name_allowed_methods[] = "allowed_methods";
 char opt_name_lega_gw_cache_key[] = "lega_gw_cache_key";
 char opt_name_legb_gw_cache_key[] = "legb_gw_cache_key";
 
-char opt_name_push_timeout[]             = "timeout";
-char opt_name_push_fcm_destination[]     = "fcm_destination";
-char opt_name_push_webhook_destination[] = "webhook_destination";
+char opt_name_push_timeout[]                     = "timeout";
+char opt_name_push_fcm_destination[]             = "fcm_destination";
+char opt_name_push_apns_production_destination[] = "apns_destination";
+char opt_name_push_apns_sandbox_destination[]    = "apns_sandbox_destination";
+char opt_name_push_webhook_destination[]         = "webhook_destination";
 
 int add_routing_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
 int add_aleg_cdr_header(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv);
@@ -157,9 +161,14 @@ cfg_opt_t sig_yeti_auth_opts[] = { CFG_STR_LIST(opt_name_auth_realm, 0, CFGF_NOD
                                    CFG_END() };
 
 // push
-cfg_opt_t sig_yeti_push_opts[] = { CFG_INT(opt_name_push_timeout, YETI_PUSH_DEFAULT_TIMEOUT, CFGF_NONE),
-                                   CFG_STR(opt_name_push_fcm_destination, YETI_PUSH_DEFAULT_FCM_DESTINATION, CFGF_NONE),
-                                   CFG_STR(opt_name_push_webhook_destination, "", CFGF_NONE), CFG_END() };
+cfg_opt_t sig_yeti_push_opts[] = {
+    CFG_INT(opt_name_push_timeout, YETI_PUSH_DEFAULT_TIMEOUT, CFGF_NONE),
+    CFG_STR(opt_name_push_fcm_destination, YETI_PUSH_DEFAULT_FCM_DESTINATION, CFGF_NONE),
+    CFG_STR(opt_name_push_apns_production_destination, YETI_PUSH_DEFAULT_APNS_DESTINATION, CFGF_NONE),
+    CFG_STR(opt_name_push_apns_sandbox_destination, YETI_PUSH_DEFAULT_APNS_SANDBOX_DESTINATION, CFGF_NONE),
+    CFG_STR(opt_name_push_webhook_destination, "", CFGF_NONE),
+    CFG_END()
+};
 
 cfg_opt_t lega_cdr_headers_opts[] = { CFG_FUNC(opt_func_name_header, add_aleg_cdr_header),
                                       CFG_BOOL(opt_name_cdr_headers_add_sip_reason, cfg_false, CFGF_NONE),

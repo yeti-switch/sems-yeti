@@ -43,6 +43,10 @@ struct YetiCfg {
         std::chrono::milliseconds timeout;
         // http_client destination for the FCM push tokens (type 0)
         string fcm_destination;
+        // http_client destination for the APNS production push tokens (type 1)
+        string apns_production;
+        // http_client destination for the APNS sandbox push tokens (type 2)
+        string apns_sandbox;
         // http_client destination for the webhook push tokens (type 3). disabled when empty
         string webhook_destination;
         int    configure(cfg_t *cfg);

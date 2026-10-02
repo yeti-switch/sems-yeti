@@ -1126,8 +1126,7 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
 
     AmShallowUriParser from_uri;
     // the From header as the caller sent it. the profile's own From is still a template ($Oi, ...) here
-    const string &from = call_ctx->initial_invite->from;
-    if (!from_uri.parse_nameaddr(from)) {
+    if (!from_uri.parse_nameaddr(call_ctx->initial_invite->from)) {
         ERROR("Error parsing From-URI '%s'", from.c_str());
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
@@ -1136,24 +1135,45 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
     const string born_at = std::to_string(sc::to_time_t(sc::now()));
     const string aor_id  = std::to_string(p.registered_aor_id);
 
-    string http_destination;
-    AmArg  data;
+    std::unique_ptr<HttpPostEvent> http_event{ new HttpPostEvent(string(),              // destination_name
+                                                                 string(),              // data
+                                                                 PUSH_HTTP_EVENT_TOKEN, // token
+                                                                 getLocalTag()) };      // session_id
 
     switch (token_type) {
     case FCM:
-        http_destination = cfg.fcm_destination;
-        data             = AmArg{
-                        { "message", AmArg{ { "data",
-                                              AmArg{ // TODO: clarify payload format
-                                         { "born_at", born_at },
-                                         { "from_user", string{ from_uri.get_uri_user() } },
-                                         { "from_display_name", string{ from_uri.get_display_name() } },
-                                         { "from_tag", getLocalTag() },
-                                         { "call_id", call_ctx->initial_invite->callid },
-                                         { "type", "call_start" } } },
-                                            { "android", AmArg{ { "priority", "high" } } },
-                                            { "token", token_value } } }
-        };
+        http_event->destination_name = cfg.fcm_destination;
+        // https://firebase.google.com/docs/cloud-messaging/customize-messages/set-message-type?authuser=1
+        // clang-format off
+        http_event->data = arg2json(AmArg{{ "message", AmArg{
+            { "data",   AmArg{
+                { "born_at", born_at },
+                { "from_user", string{ from_uri.get_uri_user() } },
+                { "from_display_name", string{ from_uri.get_display_name() } },
+                { "from_tag", getLocalTag() },
+                { "call_id", call_ctx->initial_invite->callid },
+                { "type", "call_start" } }
+            },
+            { "android", AmArg{ { "priority", "high" } } },
+            { "token", token_value } } }
+        });
+        // clang-format on
+        break;
+    case APNS_PROD:
+    case APNS_SAND:
+        // https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification
+        http_event->destination_name = (token_type == APNS_PROD) ? cfg.apns_production : cfg.apns_sandbox;
+        // clang-format off
+        http_event->data = arg2json(AmArg{
+            { "born_at", born_at },
+            { "from_user", string{ from_uri.get_uri_user() } },
+            { "from_display_name", string{ from_uri.get_display_name() } },
+            { "from_tag", getLocalTag() },
+            { "call_id", call_ctx->initial_invite->callid },
+            { "type", "call_start" }
+        });
+        http_event->url_placeholders.emplace("device_token", token_value);
+        // clang-format on
         break;
     case WEBHOOK:
         /* generic webhook: the value of the token is passed as is to the configured destination,
@@ -1165,21 +1185,23 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
                   opt_name_push_webhook_destination);
             throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
         }
-        http_destination = cfg.webhook_destination;
-        data             = AmArg{
-                        {              "type",                          "call_start" },
-                        {           "born_at",                               born_at },
-                        {           "call_id",      call_ctx->initial_invite->callid },
-                        {          "from_tag",                         getLocalTag() },
-                        {         "from_user",     string{ from_uri.get_uri_user() } },
-                        { "from_display_name", string{ from_uri.get_display_name() } },
-                        {              "from",                                  from },
-                        {                "to",          call_ctx->initial_invite->to },
-                        {              "ruri",       call_ctx->initial_invite->r_uri },
-                        {            "aor_id",                                aor_id },
-                        {             "token",                           token_value },
-                        {           "timeout", static_cast<int>(cfg.timeout.count()) },
-        };
+        http_event->destination_name = cfg.webhook_destination;
+        // clang-format off
+        http_event->data = arg2json(AmArg{
+            { "type", "call_start" },
+            { "born_at", born_at },
+            { "call_id",  call_ctx->initial_invite->callid },
+            { "from_tag", getLocalTag() },
+            { "from_user", string{ from_uri.get_uri_user() } },
+            { "from_display_name", string{ from_uri.get_display_name() } },
+            { "from", from },
+            { "to", call_ctx->initial_invite->to },
+            { "ruri", call_ctx->initial_invite->r_uri },
+            { "aor_id", aor_id },
+            { "token", token_value },
+            { "timeout", static_cast<int>(cfg.timeout.count()) },
+        });
+        // clang-format on
         break;
     default:
         ERROR("token_type %d is not supported", token_type);
@@ -1200,15 +1222,10 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
     waiting_for_location = true;
 
     // send push
-    DBG3("data: %s", data.print().data());
+    DBG3("data: %s", http_event->data.c_str());
     DBG("%s send push notification of type %d to the http destination '%s'. wait %ld ms for the registration of aor %s",
-        getLocalTag().c_str(), token_type, http_destination.c_str(), static_cast<long>(cfg.timeout.count()),
+        getLocalTag().c_str(), token_type, http_event->destination_name.c_str(), static_cast<long>(cfg.timeout.count()),
         aor_id.c_str());
-
-    std::unique_ptr<HttpPostEvent> http_event{ new HttpPostEvent(http_destination,      // destination_name
-                                                                 arg2json(data),        // data
-                                                                 PUSH_HTTP_EVENT_TOKEN, // token
-                                                                 getLocalTag()) };      // session_id
 
     if (!AmSessionContainer::instance()->postEvent(HTTP_EVENT_QUEUE, http_event.release())) {
         ERROR("failed to post push notification");
@@ -1451,6 +1468,8 @@ void SBCCallLeg::onHttpPostResponse(const HttpPostResponseEvent &e)
 
     ERROR("%s push notification failed with code %ld. stop waiting for the registration of aor %s",
           getLocalTag().c_str(), e.code, aor_id.c_str());
+
+    // TODO: implement token invalidation callback
 
     // unsubscribe from the reg events and process the call as if the registrar found no AoRs
     unsubscribe_push_aor(aor_id);

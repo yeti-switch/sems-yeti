@@ -100,6 +100,8 @@ int YetiCfg::push_config::configure(cfg_t *cfg)
 {
     timeout             = std::chrono::milliseconds(cfg_getint(cfg, opt_name_push_timeout));
     fcm_destination     = cfg_getstr(cfg, opt_name_push_fcm_destination);
+    apns_production     = cfg_getstr(cfg, opt_name_push_apns_production_destination);
+    apns_sandbox        = cfg_getstr(cfg, opt_name_push_apns_sandbox_destination);
     webhook_destination = cfg_getstr(cfg, opt_name_push_webhook_destination);
 
     if (timeout.count() <= 0) {

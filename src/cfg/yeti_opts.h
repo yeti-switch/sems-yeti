@@ -80,6 +80,8 @@ extern char opt_name_legb_gw_cache_key[];
 
 extern char opt_name_push_timeout[];
 extern char opt_name_push_fcm_destination[];
+extern char opt_name_push_apns_production_destination[];
+extern char opt_name_push_apns_sandbox_destination[];
 extern char opt_name_push_webhook_destination[];
 
 // routing
