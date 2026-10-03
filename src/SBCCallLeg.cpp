@@ -160,7 +160,7 @@ SBCCallLeg::SBCCallLeg(fake_logger *early_logger, OriginationPreAuth::Reply &ip_
     , logger(nullptr)
     , sensor(nullptr)
     , memory_logger_enabled(false)
-    , waiting_for_location(false)
+    , push_wait_state(PUSH_NOT_SENT)
     , router(yeti.router)
     , cdr_list(yeti.cdr_list)
     , rctl(yeti.rctl)
@@ -1127,7 +1127,7 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
     AmShallowUriParser from_uri;
     // the From header as the caller sent it. the profile's own From is still a template ($Oi, ...) here
     if (!from_uri.parse_nameaddr(call_ctx->initial_invite->from)) {
-        ERROR("Error parsing From-URI '%s'", from.c_str());
+        ERROR("Error parsing From-URI '%s'", call_ctx->initial_invite->from.c_str());
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
@@ -1194,7 +1194,7 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
             { "from_tag", getLocalTag() },
             { "from_user", string{ from_uri.get_uri_user() } },
             { "from_display_name", string{ from_uri.get_display_name() } },
-            { "from", from },
+            { "from", call_ctx->initial_invite->from },
             { "to", call_ctx->initial_invite->to },
             { "ruri", call_ctx->initial_invite->r_uri },
             { "aor_id", aor_id },
@@ -1219,7 +1219,8 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
-    waiting_for_location = true;
+    push_aor_id     = aor_id;
+    push_wait_state = PUSH_WAITING;
 
     // send push
     DBG3("data: %s", http_event->data.c_str());
@@ -1286,18 +1287,22 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
 
     getCtx_void;
 
-    const auto aor_id = to_string(call_profile.registered_aor_id);
+    if (push_wait_state == PUSH_WAIT_ENDED) {
+        // posted by the registrar before it got the unsubscribe of a failed push. the call is processed already
+        DBG("%s registrar reply after the push wait ended. ignore it", getLocalTag().c_str());
+        return;
+    }
 
     auto &profiles = call_ctx->profiles;
 
-    if (waiting_for_location) {
+    if (push_wait_state == PUSH_WAITING) {
         // the reply to the subscription made in process_push_token_profile
-        waiting_for_location = false;
+        push_wait_state = PUSH_WAIT_ENDED;
         if (e.aors.empty()) {
             INFO("%s no registration of aor %s within the push wait. process the call as not registered",
-                 getLocalTag().c_str(), aor_id.c_str());
+                 getLocalTag().c_str(), push_aor_id.c_str());
         } else {
-            INFO("%s aor %s registered after the push notification", getLocalTag().c_str(), aor_id.c_str());
+            INFO("%s aor %s registered after the push notification", getLocalTag().c_str(), push_aor_id.c_str());
         }
     } else if (e.aors.empty()) {
         // check if we have at least one non-rejecting profile without registered_aor_id requirement
@@ -1453,26 +1458,24 @@ void SBCCallLeg::onHttpPostResponse(const HttpPostResponseEvent &e)
     if (e.token != PUSH_HTTP_EVENT_TOKEN)
         return;
 
-    if (!waiting_for_location) {
+    if (push_wait_state != PUSH_WAITING) {
         DBG("push notification reply after the wait for the registration ended. ignore it");
         return;
     }
 
-    const auto aor_id = to_string(call_profile.registered_aor_id);
-
     if (e.code >= 200 && e.code < 300) {
         DBG("push notification accepted with code %ld. keep waiting for the registration of aor %s", e.code,
-            aor_id.c_str());
+            push_aor_id.c_str());
         return;
     }
 
     ERROR("%s push notification failed with code %ld. stop waiting for the registration of aor %s",
-          getLocalTag().c_str(), e.code, aor_id.c_str());
+          getLocalTag().c_str(), e.code, push_aor_id.c_str());
 
     // TODO: implement token invalidation callback
 
     // unsubscribe from the reg events and process the call as if the registrar found no AoRs
-    unsubscribe_push_aor(aor_id);
+    unsubscribe_push_aor(push_aor_id);
     onSipRegistrarResolveResponse(SipRegistrarResolveResponseEvent{});
 }
 
