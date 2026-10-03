@@ -93,7 +93,11 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
     msg_logger *logger;
     msg_sensor *sensor;
     bool        memory_logger_enabled;
-    bool        waiting_for_location;
+
+    // wait for the registration after the push notification. PUSH_WAIT_ENDED is final, a later registrar reply is stale
+    enum PushWaitState { PUSH_NOT_SENT = 0, PUSH_WAITING, PUSH_WAIT_ENDED } push_wait_state;
+    // aor of the profile the push was sent for. not always the first profile (call_profile)
+    string push_aor_id;
 
     struct timeval profile_request_start_time;
 
