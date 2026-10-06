@@ -2011,6 +2011,42 @@ std::optional<std::tuple<int, std::string>> SBCCallLeg::relayEvent(AmEvent *ev)
                 }
 
                 if (call_profile.suppress_early_media && reply.code >= 180 && reply.code < 190) {
+                    if (call_profile.suppress_early_media.has_value()) {
+                        // back-compatibility for call_profile value
+                        if (!call_profile.suppress_early_media.value()) {
+                            DBG("skip early media suppression. disabled by call_profile");
+                            break;
+                        }
+                    } else {
+                        auto aleg_suppress_early_media_mode_id =
+                            yeti.gateways_cache_aleg.get_suppress_early_media_mode_id(call_profile.lega_gw_cache_id)
+                                .value_or(GatewaysCacheDataBase::SipSettings::SUPPRESS_EARLY_MEDIA_DISABLED);
+                        auto bleg_suppress_early_media_mode_id =
+                            yeti.gateways_cache_bleg.get_suppress_early_media_mode_id(call_profile.legb_gw_cache_id)
+                                .value_or(GatewaysCacheDataBase::SipSettings::SUPPRESS_EARLY_MEDIA_DISABLED);
+                        auto max_mode_id =
+                            std::max(aleg_suppress_early_media_mode_id, bleg_suppress_early_media_mode_id);
+
+                        DBG3("got 18x. modes aleg:%s, bleg:%s, max:%s",
+                             GatewaysCacheDataBase::SipSettings::supress_early_media_mode2str(
+                                 aleg_suppress_early_media_mode_id),
+                             GatewaysCacheDataBase::SipSettings::supress_early_media_mode2str(
+                                 bleg_suppress_early_media_mode_id),
+                             GatewaysCacheDataBase::SipSettings::supress_early_media_mode2str(max_mode_id));
+
+                        if (GatewaysCacheDataBase::SipSettings::SUPPRESS_EARLY_MEDIA_DISABLED == max_mode_id) {
+                            DBG("skip early media suppression. disabled");
+                            break;
+                        }
+
+                        if (GatewaysCacheDataBase::SipSettings::SUPPRESS_EARLY_MEDIA_NOT_AUTHORIZED == max_mode_id &&
+                            hasHeader(reply.hdrs, "P-Early-Media"))
+                        {
+                            DBG("skip early media suppression. non_authorized_only and has header P-Early-Media");
+                            break;
+                        }
+                    }
+
                     DBG("convert B->A reply %d %s to %d %s and clear body", reply.code, reply.reason.c_str(), 180,
                         SIP_REPLY_RINGING);
 

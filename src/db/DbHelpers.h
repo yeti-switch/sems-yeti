@@ -3,8 +3,10 @@
 #include <AmArg.h>
 
 #include <string>
+#include <optional>
 
-bool DbAmArg_hash_get_bool(const AmArg &a, const std::string &key, bool default_value = false);
+std::optional<bool> DbAmArg_hash_get_bool_optional(const AmArg &a, const std::string &key);
+bool                DbAmArg_hash_get_bool(const AmArg &a, const std::string &key, bool default_value = false);
 
 bool DbAmArg_hash_get_bool_any(const AmArg &a, const std::string &key, bool default_value = false);
 

@@ -194,8 +194,8 @@ struct SBCCallProfile : public AmObject
     RadiusAccountingRules aleg_radius_acc_rules;
     RadiusAccountingRules bleg_radius_acc_rules;
 
-    bool suppress_early_media;
-    bool force_one_way_early_media;
+    std::optional<bool> suppress_early_media;
+    bool                force_one_way_early_media;
 
     vector<FilterEntry> headerfilter_a2b;
     vector<FilterEntry> headerfilter_b2a;
@@ -431,7 +431,6 @@ struct SBCCallProfile : public AmObject
         , radius_profile_id(0)
         , aleg_radius_acc_profile_id(0)
         , bleg_radius_acc_profile_id(0)
-        , suppress_early_media(false)
         , force_one_way_early_media(false)
         , aleg_relay_prack(false)
         , bleg_relay_prack(false)

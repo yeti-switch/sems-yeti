@@ -1,18 +1,23 @@
 #include "DbHelpers.h"
 #include "log.h"
 
-bool DbAmArg_hash_get_bool(const AmArg &a, const std::string &key, bool default_value)
+std::optional<bool> DbAmArg_hash_get_bool_optional(const AmArg &a, const std::string &key)
 {
     if (!a.hasMember(key))
-        return default_value;
+        return std::nullopt;
     AmArg &v = a[key];
     if (isArgUndef(v))
-        return default_value;
+        return std::nullopt;
     if (!isArgBool(v)) {
         ERROR("not bool value by the key '%s'", key.data());
-        return default_value;
+        return std::nullopt;
     }
     return v.asBool();
+}
+
+bool DbAmArg_hash_get_bool(const AmArg &a, const std::string &key, bool default_value)
+{
+    return DbAmArg_hash_get_bool_optional(a, key).value_or(default_value);
 }
 
 bool DbAmArg_hash_get_bool_any(const AmArg &a, const std::string &key, bool default_value)

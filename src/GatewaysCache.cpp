@@ -16,6 +16,11 @@ GatewaysCacheDataBase::GatewaysCacheDataBase(GatewayIdType gateway_id, const AmA
     : id(gateway_id)
 {
     // sip settings
+    const auto &suppress_early_media_mode_id_arg = r["suppress_early_media_mode_id"];
+    if (suppress_early_media_mode_id_arg.isNumber())
+        sip_settings.suppress_early_media_mode_id =
+            suppress_early_media_mode_id_arg.asNumber<SipSettings::SuppressEarlyMediaModeId>();
+
     const auto &allowed_methods_arg = r["allowed_methods"];
     if (isArgArray(allowed_methods_arg)) {
         for (auto i = 0u; i < allowed_methods_arg.size(); i++) {
@@ -31,15 +36,15 @@ GatewaysCacheDataBase::GatewaysCacheDataBase(GatewayIdType gateway_id, const AmA
     }
 
     // media settings
-    auto ice_mode_id_arg = r["ice_mode_id"];
+    const auto &ice_mode_id_arg = r["ice_mode_id"];
     if (ice_mode_id_arg.isNumber())
         media_settings.ice_mode_id = ice_mode_id_arg.asNumber<MediaSettings::MediaModeId>();
 
-    auto rtcp_mux_mode_id_arg = r["rtcp_mux_mode_id"];
+    const auto &rtcp_mux_mode_id_arg = r["rtcp_mux_mode_id"];
     if (rtcp_mux_mode_id_arg.isNumber())
         media_settings.rtcp_mux_mode_id = rtcp_mux_mode_id_arg.asNumber<MediaSettings::MediaModeId>();
 
-    auto rtcp_feedback_mode_id_arg = r["rtcp_feedback_mode_id"];
+    const auto &rtcp_feedback_mode_id_arg = r["rtcp_feedback_mode_id"];
     if (rtcp_feedback_mode_id_arg.isNumber())
         media_settings.rtcp_feedback_mode_id = rtcp_feedback_mode_id_arg.asNumber<MediaSettings::MediaModeId>();
 }
@@ -47,6 +52,8 @@ GatewaysCacheDataBase::GatewaysCacheDataBase(GatewayIdType gateway_id, const AmA
 void GatewaysCacheDataBase::GatewaysCacheDataBase::serialize_base(AmArg &ret) const
 {
     auto &sip = ret["sip"];
+    sip["suppress_early_media_mode_id"] =
+        SipSettings::supress_early_media_mode2str(sip_settings.suppress_early_media_mode_id);
     append_amrg_with_vector(sip_settings.allowed_methods.begin(), sip_settings.allowed_methods.end(),
                             sip["allowed_methods"]);
     append_amrg_with_vector(sip_settings.supported_tags.begin(), sip_settings.supported_tags.end(),

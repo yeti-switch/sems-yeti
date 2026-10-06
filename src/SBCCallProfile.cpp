@@ -569,7 +569,7 @@ bool SBCCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
         transcoder.dtmf_mode = TranscoderSettings::DTMFNever;
     }
 
-    suppress_early_media      = DbAmArg_hash_get_bool(t, "suppress_early_media", false);
+    suppress_early_media      = DbAmArg_hash_get_bool_optional(t, "suppress_early_media");
     force_one_way_early_media = DbAmArg_hash_get_bool(t, "force_one_way_early_media", false);
     fake_ringing_timeout      = DbAmArg_hash_get_int(t, "fake_180_timer", 0);
 

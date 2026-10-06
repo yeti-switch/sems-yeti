@@ -14,8 +14,26 @@ struct GatewaysCacheDataBase {
     using GatewayIdType = uint64_t;
 
     struct SipSettings {
+        enum SuppressEarlyMediaModeId {
+            SUPPRESS_EARLY_MEDIA_DISABLED       = 0,  // do not supress
+            SUPPRESS_EARLY_MEDIA_NOT_AUTHORIZED = 10, // suppress not authorized(no P-Early-Media hdr)
+            SUPPRESS_EARLY_MEDIA_ALWAYS         = 20  // always suppress
+        };
+
+        SuppressEarlyMediaModeId suppress_early_media_mode_id = SUPPRESS_EARLY_MEDIA_DISABLED;
+
         vector<string> allowed_methods;
         vector<string> supported_tags;
+
+        static const char *supress_early_media_mode2str(SuppressEarlyMediaModeId mode_id)
+        {
+            switch (mode_id) {
+            case SUPPRESS_EARLY_MEDIA_DISABLED:       return "disabled";
+            case SUPPRESS_EARLY_MEDIA_NOT_AUTHORIZED: return "not_authorized_only";
+            case SUPPRESS_EARLY_MEDIA_ALWAYS:         return "always";
+            default:                                  return "unknown";
+            }
+        }
     };
 
     struct MediaSettings {
@@ -119,6 +137,18 @@ template <typename GatewayDataType> class GatewaysCacheBase {
             return std::nullopt;
 
         return gw_it->second.sip_settings;
+    }
+
+    std::optional<GatewaysCacheDataBase::SipSettings::SuppressEarlyMediaModeId>
+    get_suppress_early_media_mode_id(GatewaysCacheDataBase::GatewayIdType gateway_id)
+    {
+        AmLock lock(mutex);
+
+        auto gw_it = gateways.find(gateway_id);
+        if (gw_it == gateways.end())
+            return std::nullopt;
+
+        return gw_it->second.sip_settings.suppress_early_media_mode_id;
     }
 
     // return [ice_enabled, rtcp_mux_enabled, rtcp_feedback_enabled]
