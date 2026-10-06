@@ -1104,22 +1104,22 @@ static void replace_profile_fields(const SipRegistrarResolveResponseEvent::aor_d
     }
 }
 
-void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
+void SBCCallLeg::process_push_token_profile(SBCCallProfile &p, const string &push_token)
 {
     const auto &cfg = yeti.config.push;
 
     // token format: "<type>:<value>"
-    auto semi_pos = p.push_token.find(':');
+    auto semi_pos = push_token.find(':');
     if (semi_pos == std::string::npos) {
         ERROR("unexpected token format: missed ':' type/value separator");
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
     int token_type;
-    if (!str2int(p.push_token.substr(0, semi_pos), token_type)) {
-        ERROR("failed to get token type from string: %s", p.push_token.substr(0, semi_pos).data());
+    if (!str2int(push_token.substr(0, semi_pos), token_type)) {
+        ERROR("failed to get token type from string: %s", push_token.substr(0, semi_pos).data());
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
-    const string token_value = p.push_token.substr(semi_pos + 1);
+    const string token_value = push_token.substr(semi_pos + 1);
     DBG("token_type: %d", token_type);
 
     enum TokenTypes { FCM = 0, APNS_PROD = 1, APNS_SAND = 2, WEBHOOK = 3 };
@@ -1219,6 +1219,7 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p)
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
+    push_notified_aor_id = aor_id;
     waiting_for_location = true;
 
     // send push
@@ -1286,8 +1287,6 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
 
     getCtx_void;
 
-    const auto aor_id = to_string(call_profile.registered_aor_id);
-
     auto &profiles = call_ctx->profiles;
 
     if (waiting_for_location) {
@@ -1295,9 +1294,10 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
         waiting_for_location = false;
         if (e.aors.empty()) {
             INFO("%s no registration of aor %s within the push wait. process the call as not registered",
-                 getLocalTag().c_str(), aor_id.c_str());
+                 getLocalTag().c_str(), push_notified_aor_id.c_str());
         } else {
-            INFO("%s aor %s registered after the push notification", getLocalTag().c_str(), aor_id.c_str());
+            INFO("%s aor %s registered after the push notification", getLocalTag().c_str(),
+                 push_notified_aor_id.c_str());
         }
     } else if (e.aors.empty()) {
         // check if we have at least one non-rejecting profile without registered_aor_id requirement
@@ -1308,11 +1308,14 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
         if (it == profiles.end()) {
             // no valid profiles to create Blegs
             // search for the first profile with push_token
-            it = std::find_if(profiles.begin(), profiles.end(),
-                              [](const SBCCallProfile &p) { return !p.push_token.empty(); });
+            std::optional<string> push_token;
+            it = std::find_if(profiles.begin(), profiles.end(), [this, &push_token](const SBCCallProfile &p) {
+                push_token = yeti.gateways_cache_bleg.get_push_token(p.legb_gw_cache_id);
+                return push_token.has_value() && !push_token.value().empty();
+            });
 
             if (it != profiles.end()) {
-                process_push_token_profile(*it);
+                process_push_token_profile(*it, push_token.value());
                 return;
             }
         }
@@ -1458,21 +1461,19 @@ void SBCCallLeg::onHttpPostResponse(const HttpPostResponseEvent &e)
         return;
     }
 
-    const auto aor_id = to_string(call_profile.registered_aor_id);
-
     if (e.code >= 200 && e.code < 300) {
         DBG("push notification accepted with code %ld. keep waiting for the registration of aor %s", e.code,
-            aor_id.c_str());
+            push_notified_aor_id.c_str());
         return;
     }
 
     ERROR("%s push notification failed with code %ld. stop waiting for the registration of aor %s",
-          getLocalTag().c_str(), e.code, aor_id.c_str());
+          getLocalTag().c_str(), e.code, push_notified_aor_id.c_str());
 
     // TODO: implement token invalidation callback
 
     // unsubscribe from the reg events and process the call as if the registrar found no AoRs
-    unsubscribe_push_aor(aor_id);
+    unsubscribe_push_aor(push_notified_aor_id);
     onSipRegistrarResolveResponse(SipRegistrarResolveResponseEvent{});
 }
 

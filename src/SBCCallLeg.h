@@ -94,6 +94,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
     msg_sensor *sensor;
     bool        memory_logger_enabled;
     bool        waiting_for_location;
+    string      push_notified_aor_id;
 
     struct timeval profile_request_start_time;
 
@@ -171,7 +172,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
 
     void setRejectCdr(int disconnect_code_id);
 
-    void process_push_token_profile(SBCCallProfile &p);
+    void process_push_token_profile(SBCCallProfile &p, const string &push_token);
     void unsubscribe_push_aor(const string &aor_id);
 
     void applyAlegLoggerSettings(SBCCallProfile &profile);

@@ -617,8 +617,6 @@ bool SBCCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
         ss_crt_id = 0;
     }
 
-    push_token = DbAmArg_hash_get_str(t, "push_token");
-
     lega_gw_cache_id = !lega_gw_cache_key.empty()
                            ? DbAmArg_hash_get_as_number<decltype(lega_gw_cache_id)>(t, lega_gw_cache_key, 0)
                            : 0;

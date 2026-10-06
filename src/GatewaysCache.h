@@ -210,6 +210,8 @@ struct GatewayDataBleg : public GatewaysCacheDataBase {
     std::set<int> throttling_local_codes;
     std::set<int> throttling_remote_codes;
 
+    string push_token;
+
     GatewayStats stats;
 
     GatewayDataBleg(GatewayIdType gateway_id, const AmArg &r);
@@ -249,6 +251,7 @@ class GatewaysCacheBLeg : public GatewaysCacheBase<GatewayDataBleg> {
 
     std::optional<GatewayDataBleg::TelRedirectData> get_redirect_data(GatewayDataBleg::GatewayIdType gateway_id);
     bool                                            is_via_alias_enabled(GatewayDataBleg::GatewayIdType gateway_id);
+    std::optional<string>                           get_push_token(GatewayDataBleg::GatewayIdType gateway_id);
 
     void update_reply_stats(GatewayDataBleg::GatewayIdType gateway_id, const AmSipReply &reply);
     bool should_skip(GatewayDataBleg::GatewayIdType gateway_id, int now);

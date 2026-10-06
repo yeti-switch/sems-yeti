@@ -115,6 +115,11 @@ GatewayDataBleg::GatewayDataBleg(GatewayIdType gateway_id, const AmArg &r)
     if (isArgBool(enable_via_alias_arg))
         enable_via_alias = enable_via_alias_arg.asBool();
 
+    // push_token
+    const auto &push_token_arg = r["push_token"];
+    if (isArgCStr(push_token_arg))
+        push_token = push_token_arg.asCStr();
+
     // tel: refer
     const auto &transfer_tel_uri_host_arg = r["transfer_tel_uri_host"];
     if (!isArgUndef(transfer_tel_uri_host_arg))
@@ -229,6 +234,10 @@ GatewayDataBleg::GatewayDataBleg::operator AmArg() const
     s["throttled_requests"]          = stats.throttled_requests;
     s["throttled_requests_randomly"] = stats.throttled_requests_randomly;
 
+    // push_token
+    if (!push_token.empty())
+        a["push_token"] = push_token;
+
     return a;
 }
 
@@ -338,4 +347,14 @@ bool GatewaysCacheBLeg::is_via_alias_enabled(GatewayDataBleg::GatewayIdType gate
 
     auto gw_it = gateways.find(gateway_id);
     return gw_it != gateways.end() && gw_it->second.enable_via_alias;
+}
+
+std::optional<string> GatewaysCacheBLeg::get_push_token(GatewayDataBleg::GatewayIdType gateway_id)
+{
+    AmLock lock(mutex);
+
+    auto gw_it = gateways.find(gateway_id);
+    if (gw_it == gateways.end())
+        return std::nullopt;
+    return gw_it->second.push_token;
 }

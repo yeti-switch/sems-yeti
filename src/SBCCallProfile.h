@@ -315,8 +315,6 @@ struct SBCCallProfile : public AmObject
     string ss_dtn;
     string ss_otn;
 
-    string push_token;
-
     GatewaysCacheDataBase::GatewayIdType lega_gw_cache_id;
     GatewaysCacheDataBase::GatewayIdType legb_gw_cache_id;
 
