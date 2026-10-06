@@ -1,3 +1,8 @@
+sems-yeti (1.15.9) stable; urgency=medium
+  * add suppress_early_media_mode_id to gateways cache
+  * move push_token call_profile -> bleg gateways cache
+ -- dev <dev@yeti-switch.org>  Tue, 06 Oct 2026 13:08:54 +0300
+
 sems-yeti (1.15.8) stable; urgency=medium
   * add webhook push token type 3
   * implement APNS push token types 1,2
