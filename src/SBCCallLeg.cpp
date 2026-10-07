@@ -1361,7 +1361,7 @@ void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponse
             std::optional<string> push_token;
             it = std::find_if(profiles.begin(), profiles.end(), [this, &push_token](const SBCCallProfile &p) {
                 push_token = yeti.gateways_cache_bleg.get_push_token(p.legb_gw_cache_id);
-                return push_token.has_value() && !push_token.value().empty();
+                return p.disconnect_code_id == 0 && push_token.has_value() && !push_token.value().empty();
             });
 
             if (it != profiles.end()) {
