@@ -1998,7 +1998,7 @@ std::optional<std::tuple<int, std::string>> SBCCallLeg::relayEvent(AmEvent *ev)
         if ((a_leg && call_profile.keep_vias) || (!a_leg && call_profile.bleg_keep_vias)) {
             req.hdrs = req.vias + req.hdrs;
         }
-    } break;
+    } break; // B2BSipRequest
     case B2BSipReply:
     {
         reply_ev = dynamic_cast<B2BSipReplyEvent *>(ev);
@@ -2028,46 +2028,50 @@ std::optional<std::tuple<int, std::string>> SBCCallLeg::relayEvent(AmEvent *ev)
         DBG("Yeti::relayEvent(%p) filtering body for reply %d cseq.method '%s' (c/t '%s') oa_state = %d", to_void(this),
             reply.code, reply_ev->trans_method.c_str(), reply.body.getCTStr().c_str(), dlg_oa_state);
 
-        // append headers for 200 OK reply in direction B -> A
+        // process_suppress_early_media() must be called before any reply.hdrs mutations by filtering/appending
+        bool skip_sdp_processing = false;
+        if (!a_leg) {
+            skip_sdp_processing = process_suppress_early_media(reply);
+        }
+
+        // apply header filters
         if (!reply.local_reply) {
             inplaceHeaderPatternFilter(reply.hdrs,
                                        a_leg ? call_profile.headerfilter_a2b : call_profile.headerfilter_b2a);
         }
 
         do {
-            if (!a_leg) {
-                if (!call_profile.aleg_append_headers_reply.empty() &&
-                    (reply.code == 200 || (reply.code >= 180 && reply.code < 190)))
-                {
-                    size_t start_pos = 0;
-                    while (start_pos < call_profile.aleg_append_headers_reply.length()) {
-                        int    res;
-                        size_t name_end, val_begin, val_end, hdr_end;
-                        if ((res = skip_header(call_profile.aleg_append_headers_reply, start_pos, name_end, val_begin,
-                                               val_end, hdr_end)) != 0)
-                        {
-                            ERROR("%s skip_header for '%s' pos: %ld, returned %d", getLocalTag().data(),
-                                  call_profile.aleg_append_headers_reply.c_str(), start_pos, res);
-                            throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-                        }
-                        string hdr_name =
-                            call_profile.aleg_append_headers_reply.substr(start_pos, name_end - start_pos);
-                        start_pos = hdr_end;
-                        while (!getHeader(reply.hdrs, hdr_name).empty()) {
-                            removeHeader(reply.hdrs, hdr_name);
-                        }
+            // append headers for 200 OK reply in direction B -> A
+            if (!a_leg && !call_profile.aleg_append_headers_reply.empty() &&
+                (reply.code == 200 || (reply.code >= 180 && reply.code < 190)))
+            {
+                size_t start_pos = 0;
+                while (start_pos < call_profile.aleg_append_headers_reply.length()) {
+                    int    res;
+                    size_t name_end, val_begin, val_end, hdr_end;
+                    if ((res = skip_header(call_profile.aleg_append_headers_reply, start_pos, name_end, val_begin,
+                                           val_end, hdr_end)) != 0)
+                    {
+                        ERROR("%s skip_header for '%s' pos: %ld, returned %d", getLocalTag().data(),
+                              call_profile.aleg_append_headers_reply.c_str(), start_pos, res);
+                        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
                     }
-                    assertEndCRLF(call_profile.aleg_append_headers_reply);
-                    reply.hdrs += call_profile.aleg_append_headers_reply;
-                } // aleg_append_headers_reply
-
-                if (process_suppress_early_media(reply)) {
-                    // skip SDP processing if it was cleared by early media suppression
-                    break;
+                    string hdr_name = call_profile.aleg_append_headers_reply.substr(start_pos, name_end - start_pos);
+                    start_pos       = hdr_end;
+                    while (!getHeader(reply.hdrs, hdr_name).empty()) {
+                        removeHeader(reply.hdrs, hdr_name);
+                    }
                 }
+                assertEndCRLF(call_profile.aleg_append_headers_reply);
+                reply.hdrs += call_profile.aleg_append_headers_reply;
+            }
 
-            } // if (!a_leg)
+            if (skip_sdp_processing) {
+                // skip SDP processing if it was cleared by early media suppression
+                break;
+            }
 
+            // reply SDP filtering
             try {
                 int res;
                 { // scope for call_ctx mutex AmLock
@@ -2106,8 +2110,7 @@ std::optional<std::tuple<int, std::string>> SBCCallLeg::relayEvent(AmEvent *ev)
                 return std::make_tuple(exception.response_code, exception.response_reason);
             }
         } while (0);
-
-    } break;
+    } break; // B2BSipReply
     } // switch (ev->event_id)
 
     if (!referrer_session.empty()) {
