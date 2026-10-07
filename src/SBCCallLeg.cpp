@@ -1281,6 +1281,56 @@ void SBCCallLeg::applyAlegLoggerSettings(SBCCallProfile &profile)
     }
 }
 
+bool SBCCallLeg::process_suppress_early_media(AmSipReply &reply)
+{
+    if (reply.code < 180 || reply.code >= 190)
+        return false;
+
+    if (call_profile.suppress_early_media.has_value()) {
+        // back-compatibility for call_profile value
+        if (!call_profile.suppress_early_media.value()) {
+            DBG("skip early media suppression. disabled by call_profile");
+            return false;
+        }
+    } else {
+        auto aleg_suppress_early_media_mode_id =
+            yeti.gateways_cache_aleg.get_suppress_early_media_mode_id(call_profile.lega_gw_cache_id)
+                .value_or(GatewaysCacheDataBase::SipSettings::SUPPRESS_EARLY_MEDIA_DISABLED);
+        auto bleg_suppress_early_media_mode_id =
+            yeti.gateways_cache_bleg.get_suppress_early_media_mode_id(call_profile.legb_gw_cache_id)
+                .value_or(GatewaysCacheDataBase::SipSettings::SUPPRESS_EARLY_MEDIA_DISABLED);
+        auto max_mode_id = std::max(aleg_suppress_early_media_mode_id, bleg_suppress_early_media_mode_id);
+
+        DBG3("got 18x. modes aleg:%s, bleg:%s, max:%s",
+             GatewaysCacheDataBase::SipSettings::supress_early_media_mode2str(aleg_suppress_early_media_mode_id),
+             GatewaysCacheDataBase::SipSettings::supress_early_media_mode2str(bleg_suppress_early_media_mode_id),
+             GatewaysCacheDataBase::SipSettings::supress_early_media_mode2str(max_mode_id));
+
+        if (GatewaysCacheDataBase::SipSettings::SUPPRESS_EARLY_MEDIA_DISABLED == max_mode_id) {
+            DBG("skip early media suppression. disabled");
+            return false;
+        }
+
+        if (GatewaysCacheDataBase::SipSettings::SUPPRESS_EARLY_MEDIA_NOT_AUTHORIZED == max_mode_id &&
+            hasHeader(reply.hdrs, "P-Early-Media"))
+        {
+            DBG("skip early media suppression. non_authorized_only and has header P-Early-Media");
+            return false;
+        }
+    }
+
+    DBG("convert B->A reply %d %s to %d %s and clear body", reply.code, reply.reason.c_str(), 180, SIP_REPLY_RINGING);
+
+    // patch code and reason
+    reply.code   = 180;
+    reply.reason = SIP_REPLY_RINGING;
+
+    // сlear body
+    reply.body.clear();
+
+    return true;
+}
+
 void SBCCallLeg::onSipRegistrarResolveResponse(const SipRegistrarResolveResponseEvent &e)
 {
     DBG("%s onSipRegistrarResolveResponse", getLocalTag().c_str());
@@ -2009,56 +2059,14 @@ std::optional<std::tuple<int, std::string>> SBCCallLeg::relayEvent(AmEvent *ev)
                     }
                     assertEndCRLF(call_profile.aleg_append_headers_reply);
                     reply.hdrs += call_profile.aleg_append_headers_reply;
-                }
+                } // aleg_append_headers_reply
 
-                if (call_profile.suppress_early_media && reply.code >= 180 && reply.code < 190) {
-                    if (call_profile.suppress_early_media.has_value()) {
-                        // back-compatibility for call_profile value
-                        if (!call_profile.suppress_early_media.value()) {
-                            DBG("skip early media suppression. disabled by call_profile");
-                            break;
-                        }
-                    } else {
-                        auto aleg_suppress_early_media_mode_id =
-                            yeti.gateways_cache_aleg.get_suppress_early_media_mode_id(call_profile.lega_gw_cache_id)
-                                .value_or(GatewaysCacheDataBase::SipSettings::SUPPRESS_EARLY_MEDIA_DISABLED);
-                        auto bleg_suppress_early_media_mode_id =
-                            yeti.gateways_cache_bleg.get_suppress_early_media_mode_id(call_profile.legb_gw_cache_id)
-                                .value_or(GatewaysCacheDataBase::SipSettings::SUPPRESS_EARLY_MEDIA_DISABLED);
-                        auto max_mode_id =
-                            std::max(aleg_suppress_early_media_mode_id, bleg_suppress_early_media_mode_id);
-
-                        DBG3("got 18x. modes aleg:%s, bleg:%s, max:%s",
-                             GatewaysCacheDataBase::SipSettings::supress_early_media_mode2str(
-                                 aleg_suppress_early_media_mode_id),
-                             GatewaysCacheDataBase::SipSettings::supress_early_media_mode2str(
-                                 bleg_suppress_early_media_mode_id),
-                             GatewaysCacheDataBase::SipSettings::supress_early_media_mode2str(max_mode_id));
-
-                        if (GatewaysCacheDataBase::SipSettings::SUPPRESS_EARLY_MEDIA_DISABLED == max_mode_id) {
-                            DBG("skip early media suppression. disabled");
-                            break;
-                        }
-
-                        if (GatewaysCacheDataBase::SipSettings::SUPPRESS_EARLY_MEDIA_NOT_AUTHORIZED == max_mode_id &&
-                            hasHeader(reply.hdrs, "P-Early-Media"))
-                        {
-                            DBG("skip early media suppression. non_authorized_only and has header P-Early-Media");
-                            break;
-                        }
-                    }
-
-                    DBG("convert B->A reply %d %s to %d %s and clear body", reply.code, reply.reason.c_str(), 180,
-                        SIP_REPLY_RINGING);
-
-                    // patch code and reason
-                    reply.code   = 180;
-                    reply.reason = SIP_REPLY_RINGING;
-                    // сlear body
-                    reply.body.clear();
+                if (process_suppress_early_media(reply)) {
+                    // skip SDP processing if it was cleared by early media suppression
                     break;
                 }
-            }
+
+            } // if (!a_leg)
 
             try {
                 int res;
@@ -2077,7 +2085,7 @@ std::optional<std::tuple<int, std::string>> SBCCallLeg::relayEvent(AmEvent *ev)
                                                        : call_profile.static_codecs_aleg_id);
                         }
                     } else {
-                        DBG("relayEvent(): process asnwer in reply");
+                        DBG("relayEvent(): process answer in reply");
                         res = processSdpAnswer(
                             this, reply, reply.body, reply.cseq_method, call_ctx->get_other_negotiated_media(a_leg),
                             a_leg ? call_profile.bleg_single_codec : call_profile.aleg_single_codec,

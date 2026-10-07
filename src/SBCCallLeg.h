@@ -177,6 +177,8 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
 
     void applyAlegLoggerSettings(SBCCallProfile &profile);
 
+    bool process_suppress_early_media(AmSipReply &reply);
+
   public:
     SqlRouter       &router;
     CdrList         &cdr_list;
