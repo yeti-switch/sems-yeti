@@ -1,0 +1,44 @@
+[
+    {
+        "id": 1,
+        "name": "Customer account",
+        "internal_code_id": 1506,
+        "action_id": 1
+    },
+    {
+        "id": 3,
+        "name": "Customer auth",
+        "internal_code_id": 1507,
+        "action_id": 1
+    },
+    {
+        "id": 4,
+        "name": "Customer gateway",
+        "internal_code_id": 1508,
+        "action_id": 1
+    },
+    {
+        "id": 2,
+        "name": "Vendor account",
+        "internal_code_id": 1509,
+        "action_id": 2
+    },
+    {
+        "id": 5,
+        "name": "Vendor gateway",
+        "internal_code_id": 1510,
+        "action_id": 2
+    },
+    {
+        "id": 6,
+        "name": "Dialpeer",
+        "internal_code_id": 1511,
+        "action_id": 2
+    },
+    {
+        "id": 7,
+        "name": "Account total capacity",
+        "internal_code_id": 1512,
+        "action_id": 1
+    }
+]

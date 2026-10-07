@@ -1,0 +1,1274 @@
+[
+    {
+        "varname": "ruri",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_transport_protocol_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "from",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "to",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "call_id",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "dlg_nat_handling",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "force_outbound_proxy",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "outbound_proxy",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_outbound_proxy_transport_protocol_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_force_outbound_proxy",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_outbound_proxy",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_outbound_proxy_transport_protocol_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "next_hop",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "next_hop_1st_req",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_next_hop",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "sdp_filter_type_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "sdp_filter_list",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "sdp_alines_filter_type_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "sdp_alines_filter_list",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "enable_session_timer",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "enable_aleg_session_timer",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "session_expires",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "minimum_timer",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "maximum_timer",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "session_refresh_method_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "accept_501_reply",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_session_expires",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_minimum_timer",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_maximum_timer",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_session_refresh_method_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_accept_501_reply",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "enable_auth",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "auth_user",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "auth_pwd",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "enable_aleg_auth",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "auth_aleg_user",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "auth_aleg_pwd",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "append_headers",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "append_headers_req",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_append_headers_req",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "disconnect_code_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "enable_rtprelay",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "rtprelay_interface",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_rtprelay_interface",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "outbound_interface",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_outbound_interface",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "try_avoid_transcoding",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "rtprelay_dtmf_filtering",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "rtprelay_dtmf_detection",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "dump_level_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "time_limit",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "reply_translations",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_policy_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_policy_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_codecs_group_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_codecs_group_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_single_codec_in_200ok",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_single_codec_in_200ok",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "ringing_timeout",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "global_tag",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "patch_ruri_next_hop",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "rtprelay_force_dtmf_relay",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_force_symmetric_rtp",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_force_symmetric_rtp",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_symmetric_rtp_nonstop",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_symmetric_rtp_nonstop",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_rtp_ping",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_rtp_ping",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_relay_options",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_relay_options",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "filter_noaudio_streams",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_relay_reinvite",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_relay_reinvite",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_relay_hold",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_relay_hold",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_relay_prack",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_relay_prack",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_sdp_c_location_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_sdp_c_location_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "trusted_hdrs_gw",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_append_headers_reply",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_sdp_alines_filter_list",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_sdp_alines_filter_type_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "dead_rtp_time",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "rtp_relay_timestamp_aligning",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "allow_1xx_wo2tag",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "invite_timeout",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "srv_failover_timeout",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "rtp_force_relay_cn",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_sensor_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_sensor_level_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_sensor_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_sensor_level_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_dtmf_send_mode_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_dtmf_send_mode_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_dtmf_recv_modes",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_dtmf_recv_modes",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "suppress_early_media",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_relay_update",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_relay_update",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "force_one_way_early_media",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "radius_auth_profile_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "record_audio",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_radius_acc_profile_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_radius_acc_profile_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "transit_headers_a2b",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "transit_headers_b2a",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "src_number_radius",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": true
+    },
+    {
+        "varname": "dst_number_radius",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": true
+    },
+    {
+        "varname": "orig_gw_name",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": true
+    },
+    {
+        "varname": "customer_auth_name",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "customer_name",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": true
+    },
+    {
+        "varname": "customer_account_name",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": true
+    },
+    {
+        "varname": "term_gw_name",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": true
+    },
+    {
+        "varname": "fake_180_timer",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": true
+    },
+    {
+        "varname": "aleg_rel100_mode_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_rel100_mode_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_max_30x_redirects",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_max_transfers",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_auth_required",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_rtp_filter_inband_dtmf",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_rtp_filter_inband_dtmf",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_protocol_priority_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_media_encryption_mode_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_media_encryption_mode_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_sip_acl",
+        "vartype": "inet[]",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "aleg_rtp_acl",
+        "vartype": "inet[]",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_sip_acl",
+        "vartype": "inet[]",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "bleg_rtp_acl",
+        "vartype": "inet[]",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "registered_aor_id",
+        "vartype": "integer",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "customer_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "vendor_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "customer_acc_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "vendor_acc_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "customer_auth_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "destination_id",
+        "vartype": "bigint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "destination_prefix",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dialpeer_id",
+        "vartype": "bigint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dialpeer_prefix",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "orig_gw_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "term_gw_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "routing_group_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "rateplan_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "destination_initial_rate",
+        "vartype": "numeric",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "destination_next_rate",
+        "vartype": "numeric",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "destination_initial_interval",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "destination_next_interval",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "destination_rate_policy_id",
+        "vartype": "smallint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dialpeer_initial_interval",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dialpeer_next_interval",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dialpeer_next_rate",
+        "vartype": "numeric",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "destination_fee",
+        "vartype": "numeric",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dialpeer_initial_rate",
+        "vartype": "numeric",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dialpeer_fee",
+        "vartype": "numeric",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dst_prefix_in",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dst_prefix_out",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "src_prefix_in",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "src_prefix_out",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "src_name_in",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "src_name_out",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "diversion_in",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "diversion_out",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "auth_orig_protocol_id",
+        "vartype": "smallint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "auth_orig_ip",
+        "vartype": "inet",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "auth_orig_port",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dst_country_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dst_network_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dst_prefix_routing",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "src_prefix_routing",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "routing_plan_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "lrn",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "lnp_database_id",
+        "vartype": "smallint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "from_domain",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "to_domain",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "ruri_domain",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "src_area_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dst_area_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "routing_tag_ids",
+        "vartype": "smallint[]",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "pai_in",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "ppi_in",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "privacy_in",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "rpid_in",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "rpid_privacy_in",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "pai_out",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "ppi_out",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "privacy_out",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "rpid_out",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "rpid_privacy_out",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "customer_acc_check_balance",
+        "vartype": "boolean",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "destination_reverse_billing",
+        "vartype": "boolean",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "dialpeer_reverse_billing",
+        "vartype": "boolean",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "customer_auth_external_id",
+        "vartype": "bigint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "customer_external_id",
+        "vartype": "bigint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "vendor_external_id",
+        "vartype": "bigint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "customer_acc_external_id",
+        "vartype": "bigint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "vendor_acc_external_id",
+        "vartype": "bigint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "orig_gw_external_id",
+        "vartype": "bigint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "term_gw_external_id",
+        "vartype": "bigint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "customer_acc_vat",
+        "vartype": "numeric",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "lega_ss_status_id",
+        "vartype": "smallint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "legb_ss_status_id",
+        "vartype": "smallint",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "bleg_force_cancel_routeset",
+        "vartype": "boolean",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "registered_aor_mode_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "src_country_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "src_network_id",
+        "vartype": "integer",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "metadata",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": false
+    },
+    {
+        "varname": "customer_auth_external_type",
+        "vartype": "varchar",
+        "forcdr": true,
+        "forradius": true
+    },
+    {
+        "varname": "ss_crt_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "ss_otn",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "ss_dtn",
+        "vartype": "varchar",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "ss_attest_id",
+        "vartype": "smallint",
+        "forcdr": false,
+        "forradius": false
+    },
+    {
+        "varname": "package_counter_id",
+        "vartype": "bigint",
+        "forcdr": true,
+        "forradius": false
+    }
+]

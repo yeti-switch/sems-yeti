@@ -1,0 +1,20 @@
+[
+    {
+        "id": 1,
+        "allowed_methods": [
+            "INVITE",
+            "ACK",
+            "BYE",
+            "CANCEL",
+            "OPTIONS",
+            "NOTIFY",
+            "INFO",
+            "UPDATE",
+            "PRACK"
+        ],
+        "supported_tags": [
+            "timer",
+            "100rel"
+        ]
+    }
+]

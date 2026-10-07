@@ -1,0 +1,250 @@
+[
+    {
+        "received_code": 478,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 300,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 301,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 302,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 305,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 380,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 400,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 401,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 402,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 403,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 404,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 405,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 406,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 407,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 408,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 409,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 410,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 412,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 413,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 414,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 415,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 416,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 417,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 420,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 421,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 422,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 423,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 424,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 428,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 429,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 433,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 436,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 437,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 438,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 480,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 481,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 482,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 483,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 484,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 485,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 486,
+        "stop_rerouting": true
+    },
+    {
+        "received_code": 487,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 488,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 489,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 491,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 493,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 494,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 500,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 501,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 502,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 503,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 504,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 505,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 513,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 580,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 600,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 603,
+        "stop_rerouting": true
+    },
+    {
+        "received_code": 604,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 606,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 200,
+        "stop_rerouting": true
+    },
+    {
+        "received_code": 607,
+        "stop_rerouting": false
+    },
+    {
+        "received_code": 608,
+        "stop_rerouting": false
+    }
+]

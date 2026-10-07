@@ -9,3 +9,6 @@ debian/sems-modules-yeti
 debian/debhelper-build-stamp
 /html/*
 /coverage*
+/e2e_tests/spool
+/e2e_tests/junit.xml
+__pycache__
