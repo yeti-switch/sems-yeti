@@ -1,3 +1,7 @@
+sems-yeti (1.15.10) stable; urgency=medium
+  * fix SDP processing on 18x suppression skipping
+ -- dev <dev@yeti-switch.org>  Wed, 07 Oct 2026 13:16:25 +0300
+
 sems-yeti (1.15.9) stable; urgency=medium
   * add suppress_early_media_mode_id to gateways cache
   * move push_token call_profile -> bleg gateways cache
