@@ -114,6 +114,26 @@ int Auth::auth_configure(cfg_t *cfg)
         }
     }
 
+    allowed_digest_algs.assertArray();
+    if (cfg_size(cfg, opt_name_auth_allowed_digest_algs)) {
+        static std::set<string> known_algs = { "MD5", "SHA-256" };
+        for (auto i = 0u; i < cfg_size(cfg, opt_name_auth_allowed_digest_algs); i++) {
+            auto cfg_alg_name = cfg_getnstr(cfg, opt_name_auth_allowed_digest_algs, i);
+            if (known_algs.contains(cfg_alg_name)) {
+                DBG("add digest alg: %s", cfg_alg_name);
+                allowed_digest_algs.push(cfg_alg_name);
+            } else {
+                WARN("auth.%s: skip unknown alg: %s. allowed values: MD5, SHA-256", opt_name_auth_allowed_digest_algs,
+                     cfg_alg_name);
+            }
+        }
+    }
+
+    if (!allowed_digest_algs.size()) {
+        DBG("missed or incorrect auth.%s option. use MD5 only by default", opt_name_auth_allowed_digest_algs);
+        allowed_digest_algs.push("MD5");
+    }
+
     DBG("auth_init: configured to use realms: %s, skip_logging_invite_success: %s, skip_logging_invite_challenge: %s",
         realms.print().c_str(), skip_logging_invite_success ? "true" : "false",
         skip_logging_invite_challenge ? "true" : "false");
@@ -351,11 +371,18 @@ void Auth::send_auth_challenge(const AmSipRequest &req, const string &hdrs,
 {
     AmArg args, ret;
 
+    // realm
     if (!ip_auth_data.x_default_realm.empty()) {
         args.push(ip_auth_data.x_default_realm);
     } else {
         args.push(realms[0]);
     }
+
+    // flags (allowed qops)
+    args.push(AmArg()); // Undef means to use default flags configured in uac_auth section
+
+    // algorithms
+    args.push(allowed_digest_algs);
 
     ret.clear();
     uac_auth->invoke("getChallenge", args, ret);

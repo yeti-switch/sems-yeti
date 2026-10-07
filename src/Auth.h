@@ -35,6 +35,7 @@ class Auth {
   private:
     AmDynInvoke                       *uac_auth;
     AmArg                              realms;
+    AmArg                              allowed_digest_algs;
     string                             default_realm_header;
     bool                               skip_logging_invite_challenge;
     bool                               skip_logging_invite_success;

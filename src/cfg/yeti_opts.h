@@ -56,6 +56,7 @@ extern char opt_name_auth_default_realm_header[];
 extern char opt_name_auth_skip_logging_invite_challenge[];
 extern char opt_name_auth_skip_logging_invite_success[];
 extern char opt_name_auth_jwt_public_key[];
+extern char opt_name_auth_allowed_digest_algs[];
 
 extern char opt_func_name_header[];
 extern char opt_name_cdr_headers_add_sip_reason[];
