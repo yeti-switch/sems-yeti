@@ -109,5 +109,73 @@
                 "format_parameters": null
             }
         ]
+    },
+    {
+        "id": 2,
+        "ptime": null,
+        "codecs": [
+            {
+                "id": 1,
+                "name": "AMR-WB/16000",
+                "priority": 99,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 2,
+                "name": "AMR/8000",
+                "priority": 98,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 3,
+                "name": "PCMA/8000",
+                "priority": 97,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 4,
+                "name": "PCMU/8000",
+                "priority": 96,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 5,
+                "name": "telephone-event/8000",
+                "priority": 95,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            }
+        ]
+    },
+    {
+        "id": 3,
+        "ptime": null,
+        "codecs": [
+            {
+                "id": 1,
+                "name": "PCMA/8000",
+                "priority": 99,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 2,
+                "name": "PCMU/8000",
+                "priority": 98,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 3,
+                "name": "telephone-event/8000",
+                "priority": 97,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            }
+        ]
     }
 ]

@@ -16,5 +16,43 @@
             "timer",
             "100rel"
         ]
+    },
+    {
+        "id": 2,
+        "allowed_methods": [
+            "INVITE",
+            "ACK",
+            "BYE",
+            "CANCEL",
+            "OPTIONS",
+            "NOTIFY",
+            "INFO",
+            "UPDATE",
+            "PRACK"
+        ],
+        "supported_tags": [
+            "timer",
+            "100rel"
+        ],
+        "suppress_early_media_mode_id": 10
+    },
+    {
+        "id": 3,
+        "allowed_methods": [
+            "INVITE",
+            "ACK",
+            "BYE",
+            "CANCEL",
+            "OPTIONS",
+            "NOTIFY",
+            "INFO",
+            "UPDATE",
+            "PRACK"
+        ],
+        "supported_tags": [
+            "timer",
+            "100rel"
+        ],
+        "suppress_early_media_mode_id": 20
     }
 ]
