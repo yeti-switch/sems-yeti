@@ -3,9 +3,10 @@
 import itertools
 import re
 import time
+import uuid
 
 # payload type -> (encoding name, clock rate)
-STATIC_PAYLOADS = {0: ("PCMU", 8000), 8: ("PCMA", 8000), 13: ("CN", 8000), 18: ("G729", 8000)}
+STATIC_PAYLOADS = {0: ("PCMU", 8000), 3: ("GSM", 8000), 8: ("PCMA", 8000), 13: ("CN", 8000), 18: ("G729", 8000)}
 DYNAMIC_PAYLOADS = {"telephone-event": 101}
 
 DIRECTIONS = ("sendrecv", "sendonly", "recvonly", "inactive")
@@ -24,13 +25,14 @@ _session_ids = itertools.count(int(time.time()))
 
 
 class Media:
-    """m= line. codecs: encoding names ('pcmu', 'telephone-event', ...) for audio"""
+    """m= line. codecs for audio: encoding names ('pcmu', 'telephone-event', ...) with default payload types
+    or explicit (payload type, 'encoding/rate', fmtp or None) tuples"""
 
     def __init__(self, type="audio", port=0, codecs=("pcmu", "pcma", "telephone-event"),
                  direction="sendrecv", ptime=None, proto=None):
         self.type = type
         self.port = port
-        self.codecs = [c.lower() for c in codecs]
+        self.codecs = [c.lower() if isinstance(c, str) else c for c in codecs]
         self.direction = direction
         self.ptime = ptime
         self.proto = proto or ("udptl" if type == "image" else "RTP/AVP")
@@ -44,13 +46,15 @@ class Media:
 
         pts = []
         attrs = []
-        for name in self.codecs:
-            pt = payload_type(name)
+        for codec in self.codecs:
+            if isinstance(codec, str):
+                enc, rate = encoding(codec)
+                codec = (payload_type(codec), f"{enc}/{rate}", "0-15" if codec == "telephone-event" else None)
+            pt, rtpmap, fmtp = codec
             pts.append(str(pt))
-            enc, rate = encoding(name)
-            attrs.append(f"a=rtpmap:{pt} {enc}/{rate}")
-            if name == "telephone-event":
-                attrs.append(f"a=fmtp:{pt} 0-15")
+            attrs.append(f"a=rtpmap:{pt} {rtpmap}")
+            if fmtp:
+                attrs.append(f"a=fmtp:{pt} {fmtp}")
         out = [f"m={self.type} {self.port} {self.proto} {' '.join(pts)}"] + attrs
         if self.ptime:
             out.append(f"a=ptime:{self.ptime}")
@@ -149,7 +153,7 @@ def answer(offer_body, session, ports, codecs=("pcmu", "pcma", "cn", "telephone-
     """
     builds SDP answer for the offer:
       * the same number of streams, rejected (port 0) streams stay rejected
-      * audio: offered codecs supported by us, direction mirrored
+      * audio: offered codecs supported by us with offered payload types and fmtp, direction mirrored
       * image (T.38): accepted on ports['image']
     """
     offer = parse(offer_body)
@@ -161,7 +165,8 @@ def answer(offer_body, session, ports, codecs=("pcmu", "pcma", "cn", "telephone-
         if m["type"] == "image":
             media.append(Media("image", ports["image"], proto=m["proto"]))
             continue
-        common = [c for c in m["codecs"] if c in codecs] or ["pcmu"]
+        common = [(int(pt), m["rtpmap"][pt], m["fmtp"].get(pt)) for pt in m["fmts"]
+                  if m["rtpmap"].get(pt, "").split("/")[0] in codecs] or ["pcmu"]
         media.append(Media(m["type"], ports[m["type"]], codecs=common,
                            direction=ANSWER_DIRECTION[m["direction"]], ptime=ptime, proto=m["proto"]))
     return session.build(media)
@@ -191,4 +196,17 @@ def connection(body):
 
 
 def has_sdp(msg):
-    return bool(msg.body) and re.search(r"^v=0", msg.body, re.MULTILINE) is not None
+    """message has SDP body or SDP part of multipart body"""
+    return msg.sdp_body is not None
+
+
+def multipart(*parts, quoted_boundary=False):
+    """multipart/mixed body (RFC 2046) from (content_type, body, extra_headers) parts.
+    returns (Content-Type header value, body)"""
+    boundary = "e2e-boundary-" + uuid.uuid4().hex[:12]
+    out = []
+    for content_type, body, *rest in parts:
+        headers = [f"Content-Type: {content_type}"] + list(rest[0] if rest else [])
+        out.append(f"--{boundary}\r\n" + "\r\n".join(headers) + "\r\n\r\n" + body)
+    param = f'"{boundary}"' if quoted_boundary else boundary
+    return f"multipart/mixed;boundary={param}", "\r\n".join(out) + f"\r\n--{boundary}--\r\n"

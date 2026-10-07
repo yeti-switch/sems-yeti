@@ -14,6 +14,7 @@ CDR_FIELDS = [
     "disconnect_intermediate_code", "disconnect_intermediate_reason",
     "disconnect_rewrited_code", "disconnect_rewrited_reason",
     "orig_call_id", "term_call_id", "local_tag", "bleg_local_tag",
+    "msg_logger_path", "dump_level_id", "audio_record_enabled", "rtp_stats", "media_stats",
 ]
 
 
@@ -22,12 +23,40 @@ CDR_FIELDS = [
 UNHANDLED_SEQUENCE = "Unhandled sequence"
 
 
+def ints(record, fields):
+    """yeti passes some integer fields as text parameters: convert them back"""
+    for k in fields:
+        v = record.get(k)
+        if isinstance(v, str) and v.lstrip("-").isdigit():
+            record[k] = int(v)
+    return record
+
+
+CDR_INT_FIELDS = (
+    "attempt_num", "legA_transport_protocol_id", "legA_local_port", "legA_remote_port",
+    "legB_transport_protocol_id", "legB_local_port", "legB_remote_port",
+    "disconnect_code", "disconnect_initiator", "disconnect_intermediate_code", "disconnect_rewrited_code",
+)
+
+
+def media_stats(cdr, local_tag):
+    """media stats of the leg (Cdr::serialize_media_stats) from the CDR media_stats json:
+    rx_srtp_decrypt_errors, rx_dropped_packets, rx: [{rx_ssrc, rx_packets, ...}], tx_packets, ..."""
+    stats = cdr["media_stats"]
+    if isinstance(stats, str):
+        stats = json.loads(stats)
+    for s in stats or []:
+        if s["local_tag"] == local_tag:
+            return s
+    return None
+
+
 def is_unhandled(cdr):
     return cdr["disconnect_intermediate_reason"] == UNHANDLED_SEQUENCE
 
 
 class Cdrs:
-    """CDRs written by yeti through postgresql_proxy (etc/db_map/writecdr.lua)"""
+    """CDRs written by yeti through postgresql_proxy (etc/db_map/write_log.lua)"""
 
     def __init__(self, path):
         self.path = path
@@ -38,7 +67,7 @@ class Cdrs:
             for line in f:
                 if line.strip():
                     args = json.loads(line)
-                    cdrs.append(dict(zip(CDR_FIELDS, args)))
+                    cdrs.append(ints(dict(zip(CDR_FIELDS, args)), CDR_INT_FIELDS))
         return cdrs
 
     def unhandled(self):
@@ -88,3 +117,37 @@ def assert_call_cleaned_up(rpc, cdrs, caller, term_gw=None, code=200, reason="By
     if term_gw is not None and term_gw.invite_req is not None:
         assert cdr["term_call_id"] == term_gw.call_id, cdr
     return cdr
+
+
+# writeauth arguments order (src/cdr/AuthCdr.cpp auth_log_static_fields,
+# auth_error_id is inserted after internal_reason with write_auth_error_id enabled by default)
+AUTH_LOG_FIELDS = [
+    "is_master", "node_id", "pop_id", "request_time", "transport_proto_id",
+    "remote_ip", "remote_port", "local_ip", "local_port",
+    "username", "realm", "method", "ruri", "from_uri", "to_uri", "orig_call_id",
+    "success", "code", "reason", "internal_reason", "auth_error_id",
+    "nonce", "response", "auth_id", "i_aleg_cdr_headers",
+]
+
+
+class AuthLog:
+    """auth log records written by yeti through postgresql_proxy (etc/db_map/write_log.lua)"""
+
+    def __init__(self, path):
+        self.path = path
+
+    INT_FIELDS = ("transport_proto_id", "remote_port", "local_port", "code", "auth_error_id")
+
+    def all(self):
+        with open(self.path) as f:
+            return [ints(dict(zip(AUTH_LOG_FIELDS, json.loads(line))), self.INT_FIELDS)
+                    for line in f if line.strip()]
+
+    def wait(self, call_id, count=1, timeout=5):
+        """records for the SIP Call-ID"""
+        deadline = time.monotonic() + timeout
+        while True:
+            found = [r for r in self.all() if r["orig_call_id"] == call_id]
+            if len(found) >= count or time.monotonic() > deadline:
+                return found
+            time.sleep(0.1)

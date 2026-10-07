@@ -177,5 +177,134 @@
                 "format_parameters": null
             }
         ]
+    },
+    {
+        "id": 4,
+        "ptime": null,
+        "codecs": [
+            {
+                "id": 21,
+                "name": "AMR/8000",
+                "priority": 0,
+                "dynamic_payload_type": 97,
+                "format_parameters": "octet-align=1"
+            },
+            {
+                "id": 22,
+                "name": "PCMA/8000",
+                "priority": 0,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 23,
+                "name": "telephone-event/8000",
+                "priority": 0,
+                "dynamic_payload_type": 100,
+                "format_parameters": "0-16"
+            }
+        ]
+    },
+    {
+        "id": 5,
+        "ptime": 30,
+        "codecs": [
+            {
+                "id": 24,
+                "name": "PCMA/8000",
+                "priority": 0,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 25,
+                "name": "PCMU/8000",
+                "priority": 0,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 26,
+                "name": "telephone-event/8000",
+                "priority": 0,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            }
+        ]
+    },
+    {
+        "id": 6,
+        "ptime": null,
+        "codecs": [
+            {
+                "id": 27,
+                "name": "G729/8000",
+                "priority": 0,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 28,
+                "name": "telephone-event/8000",
+                "priority": 0,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            }
+        ]
+    },
+    {
+        "id": 7,
+        "ptime": null,
+        "codecs": [
+            {
+                "id": 29,
+                "name": "opus/48000/2",
+                "priority": 0,
+                "dynamic_payload_type": 107,
+                "format_parameters": "useinbandfec=1"
+            },
+            {
+                "id": 32,
+                "name": "speex/8000",
+                "priority": 0,
+                "dynamic_payload_type": 110,
+                "format_parameters": null
+            },
+            {
+                "id": 33,
+                "name": "speex/16000",
+                "priority": 0,
+                "dynamic_payload_type": 111,
+                "format_parameters": null
+            },
+            {
+                "id": 34,
+                "name": "speex/32000",
+                "priority": 0,
+                "dynamic_payload_type": 112,
+                "format_parameters": null
+            },
+            {
+                "id": 35,
+                "name": "GSM/8000",
+                "priority": 0,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 30,
+                "name": "PCMA/8000",
+                "priority": 0,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            },
+            {
+                "id": 31,
+                "name": "telephone-event/8000",
+                "priority": 0,
+                "dynamic_payload_type": null,
+                "format_parameters": null
+            }
+        ]
     }
 ]

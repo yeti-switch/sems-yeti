@@ -54,5 +54,81 @@
             "100rel"
         ],
         "suppress_early_media_mode_id": 20
+    },
+    {
+        "id": 10,
+        "allowed_methods": [
+            "INVITE",
+            "ACK",
+            "BYE",
+            "CANCEL",
+            "OPTIONS",
+            "NOTIFY",
+            "INFO",
+            "UPDATE",
+            "PRACK"
+        ],
+        "supported_tags": [
+            "timer",
+            "100rel"
+        ],
+        "push_token": "3:webhook-token"
+    },
+    {
+        "id": 11,
+        "allowed_methods": [
+            "INVITE",
+            "ACK",
+            "BYE",
+            "CANCEL",
+            "OPTIONS",
+            "NOTIFY",
+            "INFO",
+            "UPDATE",
+            "PRACK"
+        ],
+        "supported_tags": [
+            "timer",
+            "100rel"
+        ],
+        "push_token": "0:fcm-token"
+    },
+    {
+        "id": 12,
+        "allowed_methods": [
+            "INVITE",
+            "ACK",
+            "BYE",
+            "CANCEL",
+            "OPTIONS",
+            "NOTIFY",
+            "INFO",
+            "UPDATE",
+            "PRACK"
+        ],
+        "supported_tags": [
+            "timer",
+            "100rel"
+        ],
+        "push_token": "1:apns-token"
+    },
+    {
+        "id": 13,
+        "allowed_methods": [
+            "INVITE",
+            "ACK",
+            "BYE",
+            "CANCEL",
+            "OPTIONS",
+            "NOTIFY",
+            "INFO",
+            "UPDATE",
+            "PRACK"
+        ],
+        "supported_tags": [
+            "timer",
+            "100rel"
+        ],
+        "push_token": "2:apns-sandbox-token"
     }
 ]

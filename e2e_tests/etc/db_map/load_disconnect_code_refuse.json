@@ -189,6 +189,15 @@
         "o_silently_drop": false
     },
     {
+        "o_id": 131,
+        "o_code": 480,
+        "o_reason": "Gateway not registered",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
         "o_id": 132,
         "o_code": 200,
         "o_reason": "Rtp timeout(legB)",

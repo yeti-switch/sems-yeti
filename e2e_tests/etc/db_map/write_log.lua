@@ -1,7 +1,5 @@
--- appends CDR (writecdr arguments) as JSON array line to spool/cdr.jsonl
--- (path is relative to the SEMS working directory: e2e_tests)
-
-local CDR_FILE = "spool/cdr.jsonl"
+-- appends arguments of the logging prepared statement (writecdr, writeauth) as JSON array line
+-- to spool/<statement name>.jsonl (path is relative to the SEMS working directory: e2e_tests)
 
 local escapes = { ['"'] = '\\"', ['\\'] = '\\\\', ['\n'] = '\\n', ['\r'] = '\\r', ['\t'] = '\\t' }
 
@@ -33,12 +31,12 @@ local function encode(v)
     return encode(tostring(v))
 end
 
-function writecdr(query, ...)
+local function write_log(query, ...)
     local args = {}
     local n = select('#', ...)
     for i = 1, n do args[i] = encode((select(i, ...))) end
 
-    local f = io.open(CDR_FILE, "a")
+    local f = io.open("spool/" .. query .. ".jsonl", "a")
     if f then
         f:write("[" .. table.concat(args, ",") .. "]\n")
         f:close()
@@ -46,4 +44,4 @@ function writecdr(query, ...)
     return {}
 end
 
-return writecdr
+return write_log

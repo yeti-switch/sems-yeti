@@ -45,6 +45,27 @@ def test_call_routed_to_termination_gw(rpc, routing, cdrs, caller, term_gw):
 
     cdr = assert_call_cleaned_up(rpc, cdrs, caller, term_gw)
     assert cdr["legb_ruri"] == f"sip:term-user@{term_gw.ip}:{term_gw.port}", cdr
+    assert cdr["legb_outbound_proxy"] == "", cdr
+    assert inv.route_set == [], inv.raw
+
+
+def test_outbound_proxy(rpc, routing, cdrs, caller, term_gw, make_agent):
+    """INVITE is sent to the profile outbound_proxy with Route header, RURI is unchanged"""
+    proxy = make_agent()
+    outbound_proxy = f"sip:{proxy.ip}:{proxy.port}"
+    routing.set_profiles([route_to(term_gw, outbound_proxy=outbound_proxy), NO_ROUTES])
+
+    reply = caller.invite(YETI)
+    assert reply is not None and reply.code == 200, reply and reply.raw
+    inv = proxy.invite_req
+    assert inv is not None, "outbound proxy did not receive INVITE"
+    assert uri_hostport(inv.ruri) == (term_gw.ip, term_gw.port), inv.raw
+    assert inv.route_set == [f"<{outbound_proxy};lr>"], inv.raw
+    assert term_gw.wait_request("INVITE", timeout=0.5) is None, "INVITE is sent bypassing outbound proxy"
+
+    assert caller.bye().code == 200
+    cdr = assert_call_cleaned_up(rpc, cdrs, caller, proxy)
+    assert cdr["legb_outbound_proxy"] == f"<{outbound_proxy};lr>", cdr
 
 
 def test_media_relayed(rpc, routing, cdrs, caller, term_gw):
