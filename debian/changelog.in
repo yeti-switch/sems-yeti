@@ -1,3 +1,7 @@
+sems-yeti (1.15.12) stable; urgency=medium
+  * fix CDRs unandled sequence reason on ICE connectivity issues
+ -- dev <dev@yeti-switch.org>  Thu, 08 Oct 2026 16:37:24 +0300
+
 sems-yeti (1.15.11) stable; urgency=medium
   * skip refusing profiles on push_token profiles lookup
   * fix order between early media suppress checking and reply headers filtering
