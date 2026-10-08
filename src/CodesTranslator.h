@@ -8,48 +8,43 @@
 #include "db/DbConfig.h"
 
 // fail codes for TS
-#define FC_PARSE_FROM_FAILED       114
-#define FC_PARSE_TO_FAILED         115
-#define FC_PARSE_CONTACT_FAILED    116
-#define FC_NOT_PREPARED            117
-#define FC_DB_EMPTY_RESPONSE       118
-#define FC_READ_FROM_TUPLE_FAILED  119
-#define FC_EVALUATION_FAILED       120
-#define FC_GET_ACTIVE_CONNECTION   121
-#define FC_DB_BROKEN_EXCEPTION     122
-#define FC_DB_CONVERSION_EXCEPTION 123
-#define FC_DB_BASE_EXCEPTION       124
-
-#define DC_LEGA_RTP_TIMEOUT    125
-#define DC_NO_ACK              126
-#define DC_NO_PRACK            127
-#define DC_SESSION_TIMEOUT     128
-#define DC_INTERNAL_ERROR      129
-#define DC_TRANSACTION_TIMEOUT 130
-#define DC_NO_FREE_RTP_PORTS   134
-
-#define DC_NOT_REGISTERED          131
-#define DC_LEGB_RTP_TIMEOUT        132
-#define DC_FAILURE_RATE_THROTTLING 133
-
-#define FC_CG_GROUP_NOT_FOUND      140
-#define FC_CODECS_NOT_MATCHED      141
-#define FC_NO_SUITABLE_MEDIA       142
-#define FC_INVALID_MEDIA_TRANSPORT 143
-
-#define DC_RTP_SEND_ERROR         144
-#define DC_REINVITE_ERROR_REPLY   145
-#define DC_FIN_BEFORE_DB_RESPONSE 146
-
+#define FC_PARSE_FROM_FAILED           114
+#define FC_PARSE_TO_FAILED             115
+#define FC_PARSE_CONTACT_FAILED        116
+#define FC_NOT_PREPARED                117
+#define FC_DB_EMPTY_RESPONSE           118
+#define FC_READ_FROM_TUPLE_FAILED      119
+#define FC_EVALUATION_FAILED           120
+#define FC_GET_ACTIVE_CONNECTION       121
+#define FC_DB_BROKEN_EXCEPTION         122
+#define FC_DB_CONVERSION_EXCEPTION     123
+#define FC_DB_BASE_EXCEPTION           124
+#define DC_LEGA_RTP_TIMEOUT            125
+#define DC_NO_ACK                      126
+#define DC_NO_PRACK                    127
+#define DC_SESSION_TIMEOUT             128
+#define DC_INTERNAL_ERROR              129
+#define DC_TRANSACTION_TIMEOUT         130
+#define DC_NOT_REGISTERED              131
+#define DC_LEGB_RTP_TIMEOUT            132
+#define DC_FAILURE_RATE_THROTTLING     133
+#define DC_NO_FREE_RTP_PORTS           134
+#define FC_ICE_CONNECTIVITY_FAILED     135
+#define FC_CG_GROUP_NOT_FOUND          140
+#define FC_CODECS_NOT_MATCHED          141
+#define FC_NO_SUITABLE_MEDIA           142
+#define FC_INVALID_MEDIA_TRANSPORT     143
+#define DC_RTP_SEND_ERROR              144
+#define DC_REINVITE_ERROR_REPLY        145
+#define DC_FIN_BEFORE_DB_RESPONSE      146
 #define DC_REPLY_SDP_GENERIC_EXCEPTION 1500
 #define DC_REPLY_SDP_PARSING_FAILED    1501
 #define DC_REPLY_SDP_EMPTY_ANSWER      1502
 #define DC_REPLY_SDP_STREAMS_COUNT     1503
 #define DC_REPLY_SDP_STREAMS_TYPES     1504
 #define DC_RINGING_TIMEOUT             1505
-
-#define DC_RESOURCE_CACHE_ERROR  1600
-#define DC_RESOURCE_UNKNOWN_TYPE 1601
+#define DC_RESOURCE_CACHE_ERROR        1600
+#define DC_RESOURCE_UNKNOWN_TYPE       1601
 
 using namespace std;
 

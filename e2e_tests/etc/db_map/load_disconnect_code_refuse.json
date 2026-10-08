@@ -198,6 +198,33 @@
         "o_silently_drop": false
     },
     {
+        "o_id": 133,
+        "o_code": 480,
+        "o_reason": "Term. gw throttled",
+        "o_rewrited_code": 480,
+        "o_rewrited_reason": "Temporarily Unavailable",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 134,
+        "o_code": 500,
+        "o_reason": "No Free RTP ports",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": "Temporarily Unavailable",
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
+        "o_id": 135,
+        "o_code": 200,
+        "o_reason": "ICE connectivity failed",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
         "o_id": 140,
         "o_code": 488,
         "o_reason": "Codecs group $cg not found",
