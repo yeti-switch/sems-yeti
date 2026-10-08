@@ -216,7 +216,7 @@ int CallLeg::relaySipReply(AmSipReply &reply)
     if ((reply.code >= 300) && (reply.code <= 305) && !reply.contact.empty()) {
         // relay with Contact in 300 - 305 redirect messages
         AmSipReply n_reply(reply);
-        n_reply.hdrs += SIP_HDR_COLSP(SIP_HDR_CONTACT) + reply.contact + CRLF;
+        n_reply.hdrs.emplace(SIP_HDR_CONTACT, reply.contact);
 
         res = relaySip(req, n_reply);
     } else {
@@ -525,8 +525,8 @@ void CallLeg::putOnHold()
     if (dlg->getUACInvTransPending()) {
         // there is pending INVITE, add reinvite to waiting requests
         DBG("INVITE pending, queueing hold Re-Invite");
-        queueReinvite("", body);
-    } else if (dlg->reinvite("", &body, SIP_FLAGS_VERBATIM) != 0) {
+        queueReinvite({}, body);
+    } else if (dlg->reinvite({}, &body, SIP_FLAGS_VERBATIM) != 0) {
         ERROR("re-INVITE failed");
         offerRejected();
     }
@@ -559,8 +559,8 @@ void CallLeg::resumeHeld(/*bool send_reinvite*/)
         if (dlg->getUACInvTransPending()) {
             // there is a pending INVITE, add reinvite to waiting requests
             DBG("INVITE pending, queueing un-hold Re-Invite");
-            queueReinvite("", body);
-        } else if (dlg->reinvite("", &body, SIP_FLAGS_VERBATIM) != 0) {
+            queueReinvite({}, body);
+        } else if (dlg->reinvite({}, &body, SIP_FLAGS_VERBATIM) != 0) {
             ERROR("re-INVITE failed");
             offerRejected();
         }
@@ -915,7 +915,7 @@ void CallLeg::updateCallStatus(CallStatus new_status, const StatusChangeCause &c
     onCallStatusChange(cause);
 }
 
-void CallLeg::queueReinvite(const string &hdrs, const AmMimeBody &body, bool establishing, bool relayed_invite,
+void CallLeg::queueReinvite(const AmSipHeaderMap &hdrs, const AmMimeBody &body, bool establishing, bool relayed_invite,
                             unsigned int r_cseq)
 {
     PendingReinvite p;
@@ -992,7 +992,8 @@ void CallLeg::acceptPendingInvite(AmSipRequest *invite)
         updateCallStatus(Connected);
 }
 
-void CallLeg::reinvite(const string &hdrs, const AmMimeBody &body, bool relayed, unsigned r_cseq, bool establishing)
+void CallLeg::reinvite(const AmSipHeaderMap &hdrs, const AmMimeBody &body, bool relayed, unsigned r_cseq,
+                       bool establishing)
 {
     int res;
     try {

@@ -719,8 +719,8 @@ void SqlRouter::log_auth(const AmSipRequest &req, bool success, AmArg &ret, int 
 }
 
 void SqlRouter::send_and_log_auth_challenge(const AmSipRequest &req, const OriginationPreAuth::Reply &ip_auth_data,
-                                            const string &internal_reason, int auth_feedback_code, const string &hdrs,
-                                            bool post_auth_log)
+                                            const string &internal_reason, int auth_feedback_code,
+                                            const AmSipHeaderMap &hdrs, bool post_auth_log)
 {
     Auth::send_auth_challenge(req, hdrs, ip_auth_data);
     if (post_auth_log) {
@@ -771,15 +771,6 @@ void SqlRouter::getStats(AmArg &arg)
     arg["db_hits"] = static_cast<unsigned int>(db_hits.get());
 }
 
-static void assertEndCRLF(string &s)
-{
-    if (s[s.size() - 2] != '\r' || s[s.size() - 1] != '\n') {
-        while ((s[s.size() - 1] == '\r') || (s[s.size() - 1] == '\n'))
-            s.erase(s.size() - 1);
-        s += "\r\n";
-    }
-}
-
 bool SqlRouter::check_and_refuse(AmSession *session, SBCCallProfile *profile, Cdr *cdr, const AmSipRequest &req,
                                  ParamReplacerCtx &ctx, bool send_reply)
 {
@@ -808,10 +799,8 @@ bool SqlRouter::check_and_refuse(AmSession *session, SBCCallProfile *profile, Cd
             cdr->update_with_profile_logging_recording(*profile);
         }
         // prepare & send sip response
-        string hdrs = ctx.replaceParameters(profile->append_headers, "append_headers", req);
-        if (hdrs.size() > 2)
-            assertEndCRLF(hdrs);
-        session->dlg->reply(req, response_code, response_reason, nullptr, hdrs);
+        session->dlg->reply(req, response_code, response_reason, nullptr,
+                            SBCCallProfile::evaluateHeaders(ctx, req, profile->append_headers, "append_headers"));
     }
     return true;
 }

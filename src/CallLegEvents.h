@@ -19,9 +19,9 @@ enum {
 #define LAST_B2B_CALL_LEG_EVENT_ID B2BNotify
 
 struct B2BReferEvent : public B2BEvent {
-    string       referrer_session;
-    string       referred_to;
-    list<string> append_headers;
+    string         referrer_session;
+    string         referred_to;
+    AmSipHeaderMap append_headers;
 
     B2BReferEvent(const string &session, const string &target)
         : B2BEvent(B2BRefer)
@@ -44,8 +44,8 @@ struct B2BNotifyEvent : public B2BEvent {
 };
 
 struct ConnectLegEvent : public B2BEvent {
-    AmMimeBody body;
-    string     hdrs;
+    AmMimeBody     body;
+    AmSipHeaderMap hdrs;
 
     unsigned int r_cseq;
     bool         relayed_invite;
@@ -61,7 +61,7 @@ struct ConnectLegEvent : public B2BEvent {
     }
 
     // constructor from generated INVITE (for example blind call transfer)
-    ConnectLegEvent(const string &_hdrs, const AmMimeBody &_body)
+    ConnectLegEvent(const AmSipHeaderMap &_hdrs, const AmMimeBody &_body)
         : B2BEvent(ConnectLeg)
         , body(_body)
         , hdrs(_hdrs)
@@ -109,7 +109,7 @@ struct ReliableB2BEvent : public B2BEvent {
 struct ReconnectLegEvent: public ReliableB2BEvent
 {
   AmMimeBody body;
-  string hdrs;
+  AmSipHeaderMap hdrs;
 
   unsigned int r_cseq;
   bool relayed_invite;

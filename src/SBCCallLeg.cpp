@@ -495,9 +495,8 @@ void SBCCallLeg::processResourcesAndSdp()
             saveCallTimer(YETI_CALL_DURATION_TIMER, profile->time_limit);
         }
 
-        if (!call_profile.append_headers.empty()) {
-            replace(call_profile.append_headers, "%global_tag", getGlobalTag());
-        }
+        for (auto &[name, value] : call_profile.append_headers)
+            replace(value, "%global_tag", getGlobalTag());
 
         onRoutingReady();
 
@@ -657,9 +656,8 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
-    if (!call_profile.append_headers.empty()) {
-        replace(call_profile.append_headers, "%global_tag", getGlobalTag());
-    }
+    for (auto &[name, value] : call_profile.append_headers)
+        replace(value, "%global_tag", getGlobalTag());
 
     ruri = ctx.ruri_parser.uri_str(); // set by SBCCallProfile::evaluate_routing()
     from = call_profile.from.empty() ? orig_req.from : call_profile.from;
@@ -695,28 +693,12 @@ bool SBCCallLeg::connectCalleeRequest(const AmSipRequest &orig_req)
         removeHeader(invite_req.hdrs, SIP_HDR_MIN_SE);
     }
 
-    size_t start_pos = 0;
-    while (start_pos < call_profile.append_headers.length()) {
-        int    res;
-        size_t name_end, val_begin, val_end, hdr_end;
-        if ((res = skip_header(call_profile.append_headers, start_pos, name_end, val_begin, val_end, hdr_end)) != 0) {
-            ERROR("skip_header for '%s' pos: %ld, return %d", call_profile.append_headers.c_str(), start_pos, res);
-            throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-        }
-        string hdr_name = call_profile.append_headers.substr(start_pos, name_end - start_pos);
-        while (!getHeader(invite_req.hdrs, hdr_name).empty()) {
-            removeHeader(invite_req.hdrs, hdr_name);
-        }
-        start_pos = hdr_end;
-    }
+    for (const auto &[name, value] : call_profile.append_headers)
+        removeHeader(invite_req.hdrs, name);
 
     inplaceHeaderPatternFilter(invite_req.hdrs, call_profile.headerfilter_a2b);
 
-    if (call_profile.append_headers.size() > 2) {
-        string append_headers = call_profile.append_headers;
-        assertEndCRLF(append_headers);
-        invite_req.hdrs += append_headers;
-    }
+    invite_req.hdrs.insert(call_profile.append_headers.begin(), call_profile.append_headers.end());
 
     int res = filterSdpOffer(this, invite_req, call_profile, invite_req.body, invite_req.method,
                              call_profile.static_codecs_bleg_id, nullptr, &call_ctx->bleg_initial_offer);
@@ -1917,7 +1899,7 @@ void SBCCallLeg::addIdentityHeader(AmSipRequest &req)
 
     auto ret = yeti.signing_keys_cache.getIdentityHeader(identity, call_profile.ss_crt_id);
     if (ret) {
-        req.hdrs += "Identity: " + ret.value() + CRLF;
+        req.hdrs.emplace("Identity", ret.value());
     }
 }
 
@@ -1996,7 +1978,8 @@ std::optional<std::tuple<int, std::string>> SBCCallLeg::relayEvent(AmEvent *ev)
         inplaceHeaderPatternFilter(req.hdrs, a_leg ? call_profile.headerfilter_a2b : call_profile.headerfilter_b2a);
 
         if ((a_leg && call_profile.keep_vias) || (!a_leg && call_profile.bleg_keep_vias)) {
-            req.hdrs = req.vias + req.hdrs;
+            for (const auto &via : req.vias)
+                req.hdrs.emplace(SIP_HDR_VIA, via);
         }
     } break; // B2BSipRequest
     case B2BSipReply:
@@ -2045,25 +2028,10 @@ std::optional<std::tuple<int, std::string>> SBCCallLeg::relayEvent(AmEvent *ev)
             if (!a_leg && !call_profile.aleg_append_headers_reply.empty() &&
                 (reply.code == 200 || (reply.code >= 180 && reply.code < 190)))
             {
-                size_t start_pos = 0;
-                while (start_pos < call_profile.aleg_append_headers_reply.length()) {
-                    int    res;
-                    size_t name_end, val_begin, val_end, hdr_end;
-                    if ((res = skip_header(call_profile.aleg_append_headers_reply, start_pos, name_end, val_begin,
-                                           val_end, hdr_end)) != 0)
-                    {
-                        ERROR("%s skip_header for '%s' pos: %ld, returned %d", getLocalTag().data(),
-                              call_profile.aleg_append_headers_reply.c_str(), start_pos, res);
-                        throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-                    }
-                    string hdr_name = call_profile.aleg_append_headers_reply.substr(start_pos, name_end - start_pos);
-                    start_pos       = hdr_end;
-                    while (!getHeader(reply.hdrs, hdr_name).empty()) {
-                        removeHeader(reply.hdrs, hdr_name);
-                    }
-                }
-                assertEndCRLF(call_profile.aleg_append_headers_reply);
-                reply.hdrs += call_profile.aleg_append_headers_reply;
+                for (const auto &[name, value] : call_profile.aleg_append_headers_reply)
+                    removeHeader(reply.hdrs, name);
+                reply.hdrs.insert(call_profile.aleg_append_headers_reply.begin(),
+                                  call_profile.aleg_append_headers_reply.end());
             }
 
             if (skip_sdp_processing) {
@@ -2320,7 +2288,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
         if (req.method == SIP_METH_OPTIONS &&
             ((a_leg && !call_profile.aleg_relay_options) || (!a_leg && !call_profile.bleg_relay_options)))
         {
-            dlg->reply(req, 200, "OK", nullptr, "", SIP_FLAGS_VERBATIM);
+            dlg->reply(req, 200, "OK", nullptr, {}, SIP_FLAGS_VERBATIM);
             return;
         } else if (req.method == SIP_METH_UPDATE) {
             bool is_local = (a_leg && !call_profile.aleg_relay_update) ||
@@ -2373,7 +2341,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
         } else if (req.method == SIP_METH_PRACK &&
                    ((a_leg && !call_profile.aleg_relay_prack) || (!a_leg && !call_profile.bleg_relay_prack)))
         {
-            dlg->reply(req, 200, "OK", nullptr, "", SIP_FLAGS_VERBATIM);
+            dlg->reply(req, 200, "OK", nullptr, {}, SIP_FLAGS_VERBATIM);
             return;
         } else if (req.method == SIP_METH_INVITE) {
             if ((a_leg && call_profile.aleg_relay_reinvite) || (!a_leg && call_profile.bleg_relay_reinvite)) {
@@ -2481,7 +2449,7 @@ void SBCCallLeg::onSipRequest(const AmSipRequest &req)
                 dlg->reply(req, 603, "Refer is not allowed");
                 return;
             }
-            string refer_to = getHeader(req.hdrs, SIP_HDR_REFER_TO, SIP_HDR_REFER_TO_COMPACT, true);
+            string refer_to = getHeader(req.hdrs, SIP_HDR_REFER_TO, true);
 
             if (refer_to.empty()) {
                 dlg->reply(req, 400, "Refer-To header missing");
@@ -2647,44 +2615,15 @@ void SBCCallLeg::onSendRequest(AmSipRequest &req, int &flags)
 
     if (a_leg) {
         if (!call_profile.aleg_append_headers_req.empty()) {
-            size_t start_pos = 0;
-            while (start_pos < call_profile.aleg_append_headers_req.length()) {
-                int    res;
-                size_t name_end, val_begin, val_end, hdr_end;
-                if ((res = skip_header(call_profile.aleg_append_headers_req, start_pos, name_end, val_begin, val_end,
-                                       hdr_end)) != 0)
-                {
-                    ERROR("%s skip_header for '%s' pos: %ld, returned %d", getLocalTag().data(),
-                          call_profile.aleg_append_headers_req.c_str(), start_pos, res);
-                    throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-                }
-                string hdr_name = call_profile.aleg_append_headers_req.substr(start_pos, name_end - start_pos);
-                start_pos       = hdr_end;
-                while (!getHeader(req.hdrs, hdr_name).empty()) {
-                    removeHeader(req.hdrs, hdr_name);
-                }
-            }
-            DBG("appending '%s' to outbound request (A leg)", call_profile.aleg_append_headers_req.c_str());
-            req.hdrs += call_profile.aleg_append_headers_req;
+            for (const auto &[name, value] : call_profile.aleg_append_headers_req)
+                removeHeader(req.hdrs, name);
+            DBG("appending '%s' to outbound request (A leg)",
+                headers2string(call_profile.aleg_append_headers_req).c_str());
+            req.hdrs.insert(call_profile.aleg_append_headers_req.begin(), call_profile.aleg_append_headers_req.end());
         }
     } else {
-        size_t start_pos = 0;
-        while (start_pos < call_profile.append_headers_req.length()) {
-            int    res;
-            size_t name_end, val_begin, val_end, hdr_end;
-            if ((res = skip_header(call_profile.append_headers_req, start_pos, name_end, val_begin, val_end,
-                                   hdr_end)) != 0)
-            {
-                ERROR("%s skip_header for '%s' pos: %ld, return %d", getLocalTag().data(),
-                      call_profile.append_headers_req.c_str(), start_pos, res);
-                throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-            }
-            string hdr_name = call_profile.append_headers_req.substr(start_pos, name_end - start_pos);
-            start_pos       = hdr_end;
-            while (!getHeader(req.hdrs, hdr_name).empty()) {
-                removeHeader(req.hdrs, hdr_name);
-            }
-        }
+        for (const auto &[name, value] : call_profile.append_headers_req)
+            removeHeader(req.hdrs, name);
 
         if (req.method == SIP_METH_INVITE && req.to_tag.empty()) {
             // initial INVITE on Bleg
@@ -2692,8 +2631,8 @@ void SBCCallLeg::onSendRequest(AmSipRequest &req, int &flags)
         }
 
         if (!call_profile.append_headers_req.empty()) {
-            DBG("appending '%s' to outbound request (B leg)", call_profile.append_headers_req.c_str());
-            req.hdrs += call_profile.append_headers_req;
+            DBG("appending '%s' to outbound request (B leg)", headers2string(call_profile.append_headers_req).c_str());
+            req.hdrs.insert(call_profile.append_headers_req.begin(), call_profile.append_headers_req.end());
         }
 
         if (call_ctx && req.to_tag.empty()) {
@@ -3154,33 +3093,18 @@ void SBCCallLeg::onInvite(const AmSipRequest &req)
 
     // process Identity headers
     if (yeti.isIdentityValidatorAvailbale() && ip_auth_data.require_identity_parsing) {
-        static string  identity_header_name("identity");
-        size_t         start_pos = 0;
         vector<string> ident_hdrs{};
-        while (start_pos < req.hdrs.length()) {
-            size_t name_end, val_begin, val_end, hdr_end;
-            if (skip_header(req.hdrs, start_pos, name_end, val_begin, val_end, hdr_end)) {
-                ERROR("failed to parse headers: %s", req.hdrs.data());
-                dlg->reply(req, 500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-                dlg->drop();
-                dlg->dropTransactions();
-                setStopped();
-                return;
-            }
-            string hdr_name = req.hdrs.substr(start_pos, name_end - start_pos);
-            std::transform(hdr_name.begin(), hdr_name.end(), hdr_name.begin(), ::tolower);
-            if (hdr_name == identity_header_name) {
-                string hdr_value = req.hdrs.substr(val_begin, val_end - val_begin);
-                if (hdr_value.find(',') != string::npos) {
-                    auto values = explode(hdr_value, ",", false);
-                    for (auto const &v : values) {
-                        ident_hdrs.emplace_back(trim(v, " \n"));
-                    }
-                } else {
-                    ident_hdrs.emplace_back(trim(hdr_value, " \n"));
+        auto [it, end] = req.hdrs.equal_range("Identity");
+        for (; it != end; ++it) {
+            const string &hdr_value = it->second;
+            if (hdr_value.find(',') != string::npos) {
+                auto values = explode(hdr_value, ",", false);
+                for (auto const &v : values) {
+                    ident_hdrs.emplace_back(trim(v, " \n"));
                 }
+            } else {
+                ident_hdrs.emplace_back(trim(hdr_value, " \n"));
             }
-            start_pos = hdr_end;
         }
 
         if (ident_hdrs.empty())
@@ -3270,7 +3194,8 @@ void SBCCallLeg::onRoutingReady()
     // prepare request to relay to the B leg(s)
 
     if (a_leg && call_profile.keep_vias)
-        modified_req.hdrs = modified_req.vias + modified_req.hdrs;
+        for (const auto &via : modified_req.vias)
+            modified_req.hdrs.emplace(SIP_HDR_VIA, via);
 
     est_invite_cseq = uac_req.cseq;
 
@@ -3282,29 +3207,12 @@ void SBCCallLeg::onRoutingReady()
         removeHeader(modified_req.hdrs, SIP_HDR_MIN_SE);
     }
 
-    size_t start_pos = 0;
-    while (start_pos < call_profile.append_headers.length()) {
-        int    res;
-        size_t name_end, val_begin, val_end, hdr_end;
-        if ((res = skip_header(call_profile.append_headers, start_pos, name_end, val_begin, val_end, hdr_end)) != 0) {
-            ERROR("%s skip_header for '%s' pos: %ld, return %d", getLocalTag().data(),
-                  call_profile.append_headers.c_str(), start_pos, res);
-            throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
-        }
-        string hdr_name = call_profile.append_headers.substr(start_pos, name_end - start_pos);
-        while (!getHeader(modified_req.hdrs, hdr_name).empty()) {
-            removeHeader(modified_req.hdrs, hdr_name);
-        }
-        start_pos = hdr_end;
-    }
+    for (const auto &[name, value] : call_profile.append_headers)
+        removeHeader(modified_req.hdrs, name);
 
     inplaceHeaderPatternFilter(modified_req.hdrs, call_profile.headerfilter_a2b);
 
-    if (call_profile.append_headers.size() > 2) {
-        string append_headers = call_profile.append_headers;
-        assertEndCRLF(append_headers);
-        modified_req.hdrs += append_headers;
-    }
+    modified_req.hdrs.insert(call_profile.append_headers.begin(), call_profile.append_headers.end());
 
 #undef REPLACE_VALS
 
@@ -3926,7 +3834,7 @@ bool SBCCallLeg::reinvite(const AmSdp &sdp, unsigned &request_cseq)
     sdp_body->parse(SIP_APPLICATION_SDP, reinterpret_cast<const unsigned char *>(body_str.c_str()),
                     static_cast<unsigned int>(body_str.length()));
 
-    if (dlg->reinvite("", &body, SIP_FLAGS_VERBATIM) != 0)
+    if (dlg->reinvite({}, &body, SIP_FLAGS_VERBATIM) != 0)
         return false;
     request_cseq = dlg->cseq - 1;
     return true;
@@ -4024,7 +3932,7 @@ void SBCCallLeg::processLocalRequest(AmSipRequest &req)
     if (auto *m = getMediaSession())
         m->setLocalOa(a_leg); // arm the "next OA on this leg is our own reply" flag
     updateLocalBody(req.body, req.method, req.cseq);
-    dlg->reply(req, 200, "OK", &req.body, "", SIP_FLAGS_VERBATIM);
+    dlg->reply(req, 200, "OK", &req.body, {}, SIP_FLAGS_VERBATIM);
 }
 
 void SBCCallLeg::createHoldRequest(AmSdp &sdp)
@@ -4337,8 +4245,7 @@ void SBCCallLeg::onOtherRefer(const B2BReferEvent &refer)
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
 
-    for (const auto &hdr : refer.append_headers)
-        modified_req.hdrs += hdr + CRLF;
+    modified_req.hdrs.insert(refer.append_headers.begin(), refer.append_headers.end());
 
     connectCallee(to, ruri, from, aleg_modified_req, modified_req, callee_dlg.release());
 }
@@ -4411,9 +4318,9 @@ void SBCCallLeg::httpCallDisconnectedHook()
 void SBCCallLeg::send_and_log_auth_challenge(const AmSipRequest &req, const string &internal_reason, bool post_auth_log,
                                              int auth_feedback_code)
 {
-    string hdrs;
+    AmSipHeaderMap hdrs;
     if (yeti.config.auth_feedback && auth_feedback_code) {
-        hdrs = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
+        hdrs.emplace(yeti_auth_feedback_header, int2str(auth_feedback_code));
     }
     router.send_and_log_auth_challenge(req, ip_auth_data, internal_reason, auth_feedback_code, hdrs, post_auth_log);
 }

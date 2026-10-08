@@ -70,7 +70,7 @@ class Auth {
     int auth_configure(cfg_t *cfg);
     int auth_init();
 
-    void send_auth_challenge(const AmSipRequest &req, const string &hdrs,
+    void send_auth_challenge(const AmSipRequest &req, const AmSipHeaderMap &hdrs,
                              const OriginationPreAuth::Reply &ip_auth_data);
 
   public:

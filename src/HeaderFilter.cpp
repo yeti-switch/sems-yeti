@@ -24,7 +24,6 @@
  */
 
 #include "HeaderFilter.h"
-#include "sip/parse_common.h"
 #include "log.h"
 #include "AmUtils.h"
 #include <algorithm>
@@ -91,142 +90,42 @@ bool readFilter(AmConfigReader &cfg, const char *cfg_key_filter, const char *cfg
     return true;
 }
 
-int skip_header(const std::string &hdr, size_t start_pos, size_t &name_end, size_t &val_begin, size_t &val_end,
-                size_t &hdr_end)
+/** erase headers whose lowercased name is (black list) or is not (white list) matched */
+template <typename Match> static void eraseHeaders(AmSipHeaderMap &hdrs, FilterType f_type, Match match)
 {
-    // adapted from sip/parse_header.cpp
+    for (auto it = hdrs.begin(); it != hdrs.end();) {
+        string hdr_name = it->first;
+        std::transform(hdr_name.begin(), hdr_name.end(), hdr_name.begin(), ::tolower);
 
-    name_end = val_begin = val_end = start_pos;
-    hdr_end                        = hdr.length();
+        bool erase = false;
+        if (f_type == Whitelist) {
+            erase = !match(hdr_name);
+        } else if (f_type == Blacklist) {
+            erase = match(hdr_name);
+        }
 
-    //
-    // Header states
-    //
-    enum {
-        H_NAME = 0,
-        H_HCOLON,
-        H_VALUE_SWS,
-        H_VALUE,
-    };
-
-    int st       = H_NAME;
-    int saved_st = 0;
-
-
-    size_t p = start_pos;
-    for (; p < hdr.length() && st != ST_LF && st != ST_CRLF; p++) {
-
-        switch (st) {
-
-        case H_NAME:
-            switch (hdr[p]) {
-
-                case_CR_LF;
-
-            case HCOLON:
-                st       = H_VALUE_SWS;
-                name_end = p;
-                break;
-
-            case SP:
-            case HTAB:
-                st       = H_HCOLON;
-                name_end = p;
-                break;
-            }
-            break;
-
-        case H_VALUE_SWS:
-            switch (hdr[p]) {
-
-                case_CR_LF;
-
-            case SP:
-            case HTAB: break;
-
-            default:
-                st        = H_VALUE;
-                val_begin = p;
-                break;
-            };
-            break;
-
-        case H_VALUE:
-            switch (hdr[p]) {
-                case_CR_LF;
-            };
-            if (st == ST_CR || st == ST_LF)
-                val_end = p;
-            break;
-
-        case H_HCOLON:
-            switch (hdr[p]) {
-            case HCOLON:
-                st        = H_VALUE_SWS;
-                val_begin = p;
-                break;
-
-            case SP:
-            case HTAB: break;
-
-            default:   DBG("Missing ':' after header name"); return MALFORMED_SIP_MSG;
-            }
-            break;
-
-            case_ST_CR(hdr[p]);
-
-            st      = saved_st;
-            hdr_end = p;
-            break;
+        if (erase) {
+            DBG("erasing header '%s' by %s", hdr_name.c_str(), FilterType2String(f_type));
+            it = hdrs.erase(it);
+        } else {
+            ++it;
         }
     }
-
-    hdr_end = p;
-    if (p == hdr.length() && st == H_VALUE) {
-        val_end = p;
-    }
-
-    return 0;
 }
 
-int inplaceHeaderFilter(string &hdrs, const vector<FilterEntry> &filter_list)
+int inplaceHeaderFilter(AmSipHeaderMap &hdrs, const vector<FilterEntry> &filter_list)
 {
-    if (!hdrs.length() || !filter_list.size())
+    if (hdrs.empty() || filter_list.empty())
         return 0;
 
     DBG("applying %zd header filters", filter_list.size());
 
-    for (vector<FilterEntry>::const_iterator fe = filter_list.begin(); fe != filter_list.end(); fe++) {
-        const set<string> &headerfilter_list = fe->filter_list;
-        const FilterType  &f_type            = fe->filter_type;
-
-        if (!isActiveFilter(f_type))
+    for (const auto &fe : filter_list) {
+        if (!isActiveFilter(fe.filter_type))
             continue;
-
-        // todo: multi-line header support
-
-        size_t start_pos = 0;
-        while (start_pos < hdrs.length()) {
-            size_t name_end, val_begin, val_end, hdr_end;
-            int    res;
-            if ((res = skip_header(hdrs, start_pos, name_end, val_begin, val_end, hdr_end)) != 0) {
-                return res;
-            }
-            string hdr_name = hdrs.substr(start_pos, name_end - start_pos);
-            std::transform(hdr_name.begin(), hdr_name.end(), hdr_name.begin(), ::tolower);
-            bool erase = false;
-            if (f_type == Whitelist) {
-                erase = headerfilter_list.find(hdr_name) == headerfilter_list.end();
-            } else if (f_type == Blacklist) {
-                erase = headerfilter_list.find(hdr_name) != headerfilter_list.end();
-            }
-            if (erase) {
-                DBG("erasing header '%s' by %s", hdr_name.c_str(), FilterType2String(f_type));
-                hdrs.erase(start_pos, hdr_end - start_pos);
-            } else {
-                start_pos = hdr_end;
-            }
-        }
+        const set<string> &headerfilter_list = fe.filter_list;
+        eraseHeaders(hdrs, fe.filter_type,
+                     [&](const string &name) { return headerfilter_list.find(name) != headerfilter_list.end(); });
     }
 
     return 0;
@@ -282,45 +181,19 @@ inline bool matchListPattern(const string &s, const set<string> &l)
     return std::find_if(l.begin(), l.end(), f) != l.end();
 }
 
-int inplaceHeaderPatternFilter(string &hdrs, const vector<FilterEntry> &filter_list)
+int inplaceHeaderPatternFilter(AmSipHeaderMap &hdrs, const vector<FilterEntry> &filter_list)
 {
-    if (!hdrs.length() || !filter_list.size())
+    if (hdrs.empty() || filter_list.empty())
         return 0;
 
     DBG("applying %zd header pattern filters", filter_list.size());
 
-    for (vector<FilterEntry>::const_iterator fe = filter_list.begin(); fe != filter_list.end(); fe++) {
-        const set<string> &headerfilter_list = fe->filter_list;
-        const FilterType  &f_type            = fe->filter_type;
-
-        if (!isActiveFilter(f_type))
+    for (const auto &fe : filter_list) {
+        if (!isActiveFilter(fe.filter_type))
             continue;
-
-        size_t start_pos = 0;
-        while (start_pos < hdrs.length()) {
-            int    res;
-            size_t name_end, val_begin, val_end, hdr_end;
-
-            if ((res = skip_header(hdrs, start_pos, name_end, val_begin, val_end, hdr_end)) != 0) {
-                return res;
-            }
-
-            string hdr_name = hdrs.substr(start_pos, name_end - start_pos);
-            std::transform(hdr_name.begin(), hdr_name.end(), hdr_name.begin(), ::tolower);
-
-            bool erase = false;
-            if (f_type == Whitelist) {
-                erase = !matchListPattern(hdr_name, headerfilter_list);
-            } else if (f_type == Blacklist) {
-                erase = matchListPattern(hdr_name, headerfilter_list);
-            }
-            if (erase) {
-                DBG("erasing header '%s' by %s", hdr_name.c_str(), FilterType2String(f_type));
-                hdrs.erase(start_pos, hdr_end - start_pos);
-            } else {
-                start_pos = hdr_end;
-            }
-        }
+        const set<string> &headerfilter_list = fe.filter_list;
+        eraseHeaders(hdrs, fe.filter_type,
+                     [&](const string &name) { return matchListPattern(name, headerfilter_list); });
     }
     return 0;
 }

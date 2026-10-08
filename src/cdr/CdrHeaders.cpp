@@ -73,23 +73,17 @@ int cdr_headers_t::add_snapshot_header(std::string header_name, const std::strin
     return 0;
 }
 
-AmArg cdr_headers_t::serialize_headers(const string &hdrs) const
+AmArg cdr_headers_t::serialize_headers(const AmSipHeaderMap &hdrs) const
 {
-    AmArg  a;
-    size_t start_pos = 0, name_end, val_begin, val_end, hdr_end;
+    AmArg a;
 
     a.assertStruct();
-    while (start_pos < hdrs.length()) {
-        if (skip_header(hdrs, start_pos, name_end, val_begin, val_end, hdr_end) != 0) {
-            break;
-        }
-
-        string hdr_name = hdrs.substr(start_pos, name_end - start_pos);
+    for (const auto &[name, hdr_value] : hdrs) {
+        string hdr_name = name;
         std::transform(hdr_name.begin(), hdr_name.end(), hdr_name.begin(), normalize_aleg_header_name);
 
         auto it = headers.find(hdr_name);
         if (it != headers.end()) {
-            auto hdr_value = hdrs.substr(val_begin, val_end - val_begin);
             switch (it->second) {
             case SerializeFirstAsString:
                 if (!a.hasMember(hdr_name)) {
@@ -158,7 +152,6 @@ AmArg cdr_headers_t::serialize_headers(const string &hdrs) const
             } break;
             } // switch
         }
-        start_pos = hdr_end;
     }
 
     // add null entries
@@ -170,24 +163,17 @@ AmArg cdr_headers_t::serialize_headers(const string &hdrs) const
     return a;
 }
 
-AmArg cdr_headers_t::serialize_headers_for_snapshot(const string &hdrs) const
+AmArg cdr_headers_t::serialize_headers_for_snapshot(const AmSipHeaderMap &hdrs) const
 {
     AmArg a;
 
-    size_t start_pos = 0, name_end, val_begin, val_end, hdr_end;
-
     a.assertStruct();
-    while (start_pos < hdrs.length()) {
-        if (skip_header(hdrs, start_pos, name_end, val_begin, val_end, hdr_end) != 0) {
-            break;
-        }
-
-        string hdr_name = hdrs.substr(start_pos, name_end - start_pos);
+    for (const auto &[name, hdr_value] : hdrs) {
+        string hdr_name = name;
         std::transform(hdr_name.begin(), hdr_name.end(), hdr_name.begin(), normalize_aleg_header_name);
 
         auto it = snapshot_headers.find(hdr_name);
         if (it != snapshot_headers.end()) {
-            auto hdr_value = hdrs.substr(val_begin, val_end - val_begin);
             switch (it->second.type) {
             case SnapshotSerializeFirstAsString:
                 if (!a.hasMember(it->second.snapshot_key)) {
@@ -195,7 +181,6 @@ AmArg cdr_headers_t::serialize_headers_for_snapshot(const string &hdrs) const
                 }
             } // switch
         }
-        start_pos = hdr_end;
     }
 
     // add null entries

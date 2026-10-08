@@ -213,20 +213,21 @@ inline void answer_100_trying(const AmSipRequest &req, fake_logger *logger)
 
 void SBCFactory::send_auth_error_reply(const AmSipRequest &req, AmArg &ret, int auth_feedback_code)
 {
-    string hdr;
+    AmSipHeaderMap hdrs;
     if (auth_feedback) {
-        hdr = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
+        hdrs.emplace(yeti_auth_feedback_header, int2str(auth_feedback_code));
     }
-    AmSipDialog::reply_error(req, static_cast<unsigned int>(ret[0].asInt()), ret[1].asCStr(), hdr + ret[2].asCStr());
+    parseHeadersString(ret[2].asCStr(), hdrs);
+    AmSipDialog::reply_error(req, static_cast<unsigned int>(ret[0].asInt()), ret[1].asCStr(), hdrs);
     yeti->router.log_auth(req, false, ret, auth_feedback_code, 0);
 }
 
 void SBCFactory::send_and_log_auth_challenge(const AmSipRequest &req, const OriginationPreAuth::Reply &ip_auth_data,
                                              const string &internal_reason, bool post_auth_log, int auth_feedback_code)
 {
-    string hdrs;
+    AmSipHeaderMap hdrs;
     if (auth_feedback) {
-        hdrs = yeti_auth_feedback_header + int2str(auth_feedback_code) + CRLF;
+        hdrs.emplace(yeti_auth_feedback_header, int2str(auth_feedback_code));
     }
     yeti->router.send_and_log_auth_challenge(req, ip_auth_data, internal_reason, auth_feedback_code, hdrs,
                                              post_auth_log);

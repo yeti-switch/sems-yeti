@@ -1,4 +1,5 @@
 #include "Auth.h"
+#include "HeaderFilter.h"
 #include "AmApi.h"
 #include "AmPlugIn.h"
 #include "AmSipDialog.h"
@@ -366,7 +367,7 @@ Auth::auth_id_type Auth::check_request_auth(const AmSipRequest &req, const Origi
     return -(UAC_AUTH_ERROR + ret[4].asInt()); // add uac_auth internal_code
 }
 
-void Auth::send_auth_challenge(const AmSipRequest &req, const string &hdrs,
+void Auth::send_auth_challenge(const AmSipRequest &req, const AmSipHeaderMap &hdrs,
                                const OriginationPreAuth::Reply &ip_auth_data)
 {
     AmArg args, ret;
@@ -387,7 +388,9 @@ void Auth::send_auth_challenge(const AmSipRequest &req, const string &hdrs,
     ret.clear();
     uac_auth->invoke("getChallenge", args, ret);
 
-    AmSipDialog::reply_error(req, 401, "Unauthorized", hdrs + ret.asCStr());
+    AmSipHeaderMap reply_hdrs(hdrs);
+    parseHeadersString(ret.asCStr(), reply_hdrs);
+    AmSipDialog::reply_error(req, 401, "Unauthorized", reply_hdrs);
 }
 
 void Auth::auth_info(AmArg &ret)

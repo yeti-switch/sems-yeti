@@ -33,7 +33,7 @@ class UsedHeaderFieldTest : public testing::TestWithParam<tparam> {};
 TEST_P(UsedHeaderFieldTest, getValue)
 {
     AmSipRequest req;
-    req.hdrs += good_diversion_hdrs;
+    req.hdrs = hdrs_from_string(good_diversion_hdrs);
 
     DBG("hdrs: %s", good_diversion_hdrs.data());
     auto &param = GetParam();

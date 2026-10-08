@@ -31,7 +31,7 @@ TEST_F(YetiTest, ReasonParserCommaSeparated)
     cfg.add_sip_reason  = true;
 
     ReasonParser p;
-    p.parse_headers(Reason_hdr_comma_separated);
+    p.parse_headers(hdrs_from_string(Reason_hdr_comma_separated));
 
     AmArg serialized_reasons;
     p.serialize(serialized_reasons, cfg);
@@ -45,7 +45,7 @@ TEST_F(YetiTest, ReasonParserCommaSeparatedFlat)
     cfg.add_sip_reason  = true;
 
     ReasonParser p;
-    p.parse_headers(Reason_hdr_comma_separated);
+    p.parse_headers(hdrs_from_string(Reason_hdr_comma_separated));
 
     AmArg serialized_reasons;
     p.serialize_flat(serialized_reasons, cfg, test_local_tag);
@@ -64,10 +64,10 @@ TEST_F(YetiTest, ReasonParserCommaSeparatedFlatParams)
     cfg.add_sip_reason  = true;
 
     ReasonParser p;
-    p.parse_headers("Reason: SIP; cause=200; sparam1; sparam2=test; sparam3=\"test\"; "
-                    "text=\"Call completed elsewhere\" , "
-                    "Q.850 ;cause=16; qparam1; qparam2=test; qparam3=\"test\"; "
-                    "text=\"Terminated\"");
+    p.parse_headers(hdrs_from_string("Reason: SIP; cause=200; sparam1; sparam2=test; sparam3=\"test\"; "
+                                     "text=\"Call completed elsewhere\" , "
+                                     "Q.850 ;cause=16; qparam1; qparam2=test; qparam3=\"test\"; "
+                                     "text=\"Terminated\""));
 
     AmArg serialized_reasons;
     p.serialize_flat(serialized_reasons, cfg, test_local_tag);
@@ -88,7 +88,7 @@ TEST_F(YetiTest, ReasonParserNewHeader)
     cfg.add_sip_reason  = true;
 
     ReasonParser p;
-    p.parse_headers(Reason_hdr_new_header);
+    p.parse_headers(hdrs_from_string(Reason_hdr_new_header));
 
     AmArg serialized_reasons;
     p.serialize(serialized_reasons, cfg);
@@ -102,7 +102,7 @@ TEST_F(YetiTest, ReasonParserCfgEmpty)
     cfg.add_sip_reason  = false;
 
     ReasonParser p;
-    p.parse_headers(Reason_hdr_comma_separated);
+    p.parse_headers(hdrs_from_string(Reason_hdr_comma_separated));
 
     AmArg serialized_reasons;
     p.serialize(serialized_reasons, cfg);
@@ -116,7 +116,7 @@ TEST_F(YetiTest, ReasonParserCfgSIPOnly)
     cfg.add_sip_reason  = true;
 
     ReasonParser p;
-    p.parse_headers(Reason_hdr_comma_separated);
+    p.parse_headers(hdrs_from_string(Reason_hdr_comma_separated));
 
     AmArg serialized_reasons;
     p.serialize(serialized_reasons, cfg);
@@ -132,7 +132,7 @@ TEST_F(YetiTest, ReasonParserCfgQ850Only)
     cfg.add_sip_reason  = false;
 
     ReasonParser p;
-    p.parse_headers(Reason_hdr_comma_separated);
+    p.parse_headers(hdrs_from_string(Reason_hdr_comma_separated));
 
     AmArg serialized_reasons;
     p.serialize(serialized_reasons, cfg);
@@ -148,9 +148,10 @@ TEST_F(YetiTest, ReasonParserAddUnknown)
     cfg.add_sip_reason  = true;
 
     ReasonParser p;
-    p.parse_headers("Reason: SIP; cause=200; test; test2=test3;test4=\"test5\";text=\"Call completed elsewhere\" , "
-                    "QWE; nameparam; cause=111; text=\"some reason\" , "
-                    "Q.850 ;cause=16 ;text=\"Terminated\"");
+    p.parse_headers(hdrs_from_string(
+        "Reason: SIP; cause=200; test; test2=test3;test4=\"test5\";text=\"Call completed elsewhere\" , "
+        "QWE; nameparam; cause=111; text=\"some reason\" , "
+        "Q.850 ;cause=16 ;text=\"Terminated\""));
 
     AmArg serialized_reasons;
     p.serialize(serialized_reasons, cfg);
@@ -169,7 +170,7 @@ TEST_F(YetiTest, ReasonParserNoCause)
     cfg.add_sip_reason  = true;
 
     ReasonParser p;
-    p.parse_headers("Reason: Q.850 ;text=\"Terminated\"");
+    p.parse_headers(hdrs_from_string("Reason: Q.850 ;text=\"Terminated\""));
 
     AmArg serialized_reasons;
     p.serialize(serialized_reasons, cfg);
@@ -183,7 +184,7 @@ TEST_F(YetiTest, ReasonParserNoText)
     cfg.add_sip_reason  = true;
 
     ReasonParser p;
-    p.parse_headers("Reason: Q.850 ;cause=16");
+    p.parse_headers(hdrs_from_string("Reason: Q.850 ;cause=16"));
 
     AmArg serialized_reasons;
     p.serialize(serialized_reasons, cfg);
@@ -199,7 +200,7 @@ TEST_F(YetiTest, ReasonParserQ850Flat)
     cfg.add_sip_reason  = true;
 
     ReasonParser p;
-    p.parse_headers("Reason: Q.850;cause=31;text=\"Normal, unspecified\"");
+    p.parse_headers(hdrs_from_string("Reason: Q.850;cause=31;text=\"Normal, unspecified\""));
 
     AmArg serialized_reasons;
     p.serialize_flat(serialized_reasons, cfg, test_local_tag);
@@ -216,7 +217,7 @@ TEST_F(YetiTest, ReasonParserSIPFlat)
     cfg.add_sip_reason  = true;
 
     ReasonParser p;
-    p.parse_headers("Reason: SIP;cause=200;text=\"Normal call clearing\"");
+    p.parse_headers(hdrs_from_string("Reason: SIP;cause=200;text=\"Normal call clearing\""));
 
     AmArg serialized_reasons;
     p.serialize_flat(serialized_reasons, cfg, test_local_tag);
@@ -234,8 +235,8 @@ TEST_F(YetiTest, ReasonParserProtoCaseInsensitive)
     cfg.add_sip_reason  = true;
 
     ReasonParser p;
-    p.parse_headers("Reason: SiP; cause=200; text=\"Call completed elsewhere\" , "
-                    "q.850 ;cause=16 ;text=\"Terminated\"");
+    p.parse_headers(hdrs_from_string("Reason: SiP; cause=200; text=\"Call completed elsewhere\" , "
+                                     "q.850 ;cause=16 ;text=\"Terminated\""));
 
     AmArg serialized_reasons;
     p.serialize(serialized_reasons, cfg);
@@ -249,8 +250,8 @@ TEST_F(YetiTest, ReasonParserSIPFlatCauseBorderValues)
     cfg.add_sip_reason  = true;
 
     ReasonParser p;
-    p.parse_headers(R"-(Reason: SIP; cause=32767; text="Call completed elsewhere", )-"
-                    R"-(Q.850 ;cause=-32768 ;text="Terminated")-");
+    p.parse_headers(hdrs_from_string(R"-(Reason: SIP; cause=32767; text="Call completed elsewhere", )-"
+                                     R"-(Q.850 ;cause=-32768 ;text="Terminated")-"));
 
     AmArg serialized_reasons;
     p.serialize_flat(serialized_reasons, cfg, test_local_tag);
@@ -269,8 +270,8 @@ TEST_F(YetiTest, ReasonParserSIPFlatCauseOutOfRange)
     cfg.add_sip_reason  = true;
 
     ReasonParser p;
-    p.parse_headers(R"-(Reason: SIP; cause=32768; text="Call completed elsewhere", )-"
-                    R"-(Q.850 ;cause=-32769 ;text="Terminated")-");
+    p.parse_headers(hdrs_from_string(R"-(Reason: SIP; cause=32768; text="Call completed elsewhere", )-"
+                                     R"-(Q.850 ;cause=-32769 ;text="Terminated")-"));
 
     AmArg serialized_reasons;
     p.serialize_flat(serialized_reasons, cfg, test_local_tag);

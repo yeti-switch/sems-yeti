@@ -178,7 +178,6 @@ void Cdr::update_with_profile_logging_recording(const SBCCallProfile &profile)
 
 void Cdr::update_with_aleg_sip_request(const AmSipRequest &req)
 {
-    size_t pos1, pos2, pos;
 
     DBG3("Cdr::%s(AmSipRequest)", FUNC_NAME);
 
@@ -192,11 +191,11 @@ void Cdr::update_with_aleg_sip_request(const AmSipRequest &req)
     legA_local_port            = req.local_port;
     orig_call_id               = req.callid;
 
-    if (findHeader(req.hdrs, user_agent_hdr, 0, pos1, pos2, pos))
-        aleg_versions.emplace(req.hdrs.substr(pos1, pos2 - pos1));
+    if (auto it = req.hdrs.find(user_agent_hdr); it != req.hdrs.end())
+        aleg_versions.emplace(it->second);
 
-    if (findHeader(req.hdrs, server_hdr, 0, pos1, pos2, pos))
-        aleg_versions.emplace(req.hdrs.substr(pos1, pos2 - pos1));
+    if (auto it = req.hdrs.find(server_hdr); it != req.hdrs.end())
+        aleg_versions.emplace(it->second);
 
     if (req.method == SIP_METH_INVITE) {
         const AmMimeBody *body = req.body.hasContentType(SIP_APPLICATION_ISUP);
@@ -215,7 +214,7 @@ void Cdr::update_with_aleg_sip_request(const AmSipRequest &req)
 
 void Cdr::update_with_bleg_sip_request(const AmSipRequest &req)
 {
-    DBG("UPDATE with hdrs: %s", req.hdrs.data());
+    DBG("UPDATE with hdrs: %s", headers2string(req.hdrs).c_str());
     bleg_headers_amarg = Yeti::instance().config.bleg_cdr_headers.serialize_headers(req.hdrs);
 }
 
@@ -235,7 +234,6 @@ inline void remove_ipv6_reference_inplace(string &s)
 
 void Cdr::update_with_bleg_sip_reply(const AmSipReply &reply)
 {
-    size_t pos1, pos2, pos;
 
     DBG3("Cdr::%s(AmSipReply)", FUNC_NAME);
 
@@ -264,11 +262,11 @@ void Cdr::update_with_bleg_sip_reply(const AmSipReply &reply)
     remove_ipv6_reference_inplace(legB_local_ip);
     legB_local_port = reply.actual_port;
 
-    if (findHeader(reply.hdrs, server_hdr, 0, pos1, pos2, pos))
-        bleg_versions.emplace(reply.hdrs.substr(pos1, pos2 - pos1));
+    if (auto it = reply.hdrs.find(server_hdr); it != reply.hdrs.end())
+        bleg_versions.emplace(it->second);
 
-    if (findHeader(reply.hdrs, user_agent_hdr, 0, pos1, pos2, pos))
-        bleg_versions.emplace(reply.hdrs.substr(pos1, pos2 - pos1));
+    if (auto it = reply.hdrs.find(user_agent_hdr); it != reply.hdrs.end())
+        bleg_versions.emplace(it->second);
 
 
     if (reply.code >= 100) {

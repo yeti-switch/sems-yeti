@@ -193,8 +193,8 @@ struct GatewayDataAleg : public GatewaysCacheDataBase {
 struct GatewayDataBleg : public GatewaysCacheDataBase {
     // tel: refer
     struct TelRedirectData {
-        string       transfer_tel_uri_host;
-        list<string> transfer_append_headers_req;
+        string         transfer_tel_uri_host;
+        AmSipHeaderMap transfer_append_headers_req;
     } tel_redirect_data;
 
     // RFC 5923: ';alias' in bleg Via

@@ -9,6 +9,23 @@
 #include "../src/resources/ResourceRedisClient.h"
 #include "../src/resources/ResourceRedisConnection.h"
 
+#include <AmSipMsg.h>
+#include <sip/parse_header.h>
+
+/** test input "Name: value CRLF ..." -> AmSipHeaderMap via sip parser */
+inline AmSipHeaderMap hdrs_from_string(const string &hdrs_str)
+{
+    AmSipHeaderMap     hdrs;
+    string             s = hdrs_str;
+    list<sip_header *> parsed;
+    char              *c = s.data();
+    if (!parse_headers(parsed, &c, c + s.size()))
+        for (const auto *h : parsed)
+            addHeader(hdrs, *h);
+    free_headers(parsed);
+    return hdrs;
+}
+
 const char invalidate_resources_default_path[] = "./etc/invalidate_resources.lua";
 const char get_all_resources_default_path[]    = "./etc/get_all_resources.lua";
 const char check_resources_default_path[]      = "./etc/check_resources.lua";

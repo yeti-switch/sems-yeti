@@ -33,11 +33,11 @@ class cdr_headers_t {
     bool enabled() const;
 
     int   add_header(std::string header_name, const std::string &serialization_type);
-    AmArg serialize_headers(const string &hdrs) const;
+    AmArg serialize_headers(const AmSipHeaderMap &hdrs) const;
 
     int   add_snapshot_header(std::string header_name, const std::string &snapshot_key,
                               const std::string &serialization_type);
-    AmArg serialize_headers_for_snapshot(const string &hdrs) const;
+    AmArg serialize_headers_for_snapshot(const AmSipHeaderMap &hdrs) const;
 
     const SnapshotHeaders &get_snapshot_headers() const { return snapshot_headers; }
 };

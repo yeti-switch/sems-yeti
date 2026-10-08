@@ -269,22 +269,11 @@ void ReasonParser::parse_reason(const std::string &hdrs, size_t reason_begin, si
     process_attribute_end(true);
 }
 
-void ReasonParser::parse_headers(const std::string &hdrs)
+void ReasonParser::parse_headers(const AmSipHeaderMap &hdrs)
 {
-    size_t start_pos = 0, name_end, val_begin, val_end, hdr_end;
-    while (start_pos < hdrs.length()) {
-        if (skip_header(hdrs, start_pos, name_end, val_begin, val_end, hdr_end) != 0) {
-            break;
-        }
-        auto hdr_length = name_end - start_pos;
-        if (hdr_length == reason_header_value.size() &&
-            0 == strncasecmp(hdrs.c_str() + start_pos, reason_header_value.c_str(), hdr_length))
-        {
-            parse_reason(hdrs, val_begin, val_end);
-        }
-
-        start_pos = hdr_end;
-    }
+    auto [it, end] = hdrs.equal_range(reason_header_value);
+    for (; it != end; ++it)
+        parse_reason(it->second, 0, it->second.size());
 }
 
 bool ReasonParser::has_data(const YetiCfg::headers_processing_config::leg_reasons &cfg)

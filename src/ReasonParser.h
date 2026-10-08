@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AmArg.h"
+#include "AmSipMsg.h"
 #include "cfg/YetiCfg.h"
 
 #include <string>
@@ -22,7 +23,7 @@ class ReasonParser {
     void parse_reason(const std::string &hdrs, size_t reason_begin, size_t reason_end);
 
   public:
-    void parse_headers(const std::string &hdrs);
+    void parse_headers(const AmSipHeaderMap &hdrs);
 
     bool has_data(const YetiCfg::headers_processing_config::leg_reasons &cfg);
 

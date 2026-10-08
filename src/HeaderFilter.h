@@ -26,6 +26,7 @@
 #define _HeaderFilter_h_
 
 #include "AmConfigReader.h"
+#include "AmSipMsg.h"
 
 #include <string>
 using std::string;
@@ -58,9 +59,8 @@ FilterType String2FilterType(const char *ft);
 bool isActiveFilter(FilterType ft);
 
 const char *FilterType2String(FilterType ft);
-int         skip_header(const std::string &hdr, size_t start_pos, size_t &name_end, size_t &val_begin, size_t &val_end,
-                        size_t &hdr_end);
-int         inplaceHeaderFilter(string &hdrs, const vector<FilterEntry> &filter_list);
-int         inplaceHeaderPatternFilter(string &hdrs, const vector<FilterEntry> &filter_list);
+int         inplaceHeaderFilter(AmSipHeaderMap &hdrs, const vector<FilterEntry> &filter_list);
+int         inplaceHeaderPatternFilter(AmSipHeaderMap &hdrs, const vector<FilterEntry> &filter_list);
+
 
 #endif

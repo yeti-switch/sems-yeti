@@ -1,4 +1,5 @@
 #include "GatewaysCache.h"
+#include "HeaderFilter.h"
 #include "AmUtils.h"
 
 #define SKIP_RATE_MIN 20.0
@@ -128,7 +129,9 @@ GatewayDataBleg::GatewayDataBleg(GatewayIdType gateway_id, const AmArg &r)
     const auto &transfer_append_headers_req_arg = r["transfer_append_headers_req"];
     if (isArgArray(transfer_append_headers_req_arg)) {
         for (auto i = 0u; i < transfer_append_headers_req_arg.size(); i++) {
-            tel_redirect_data.transfer_append_headers_req.push_back(transfer_append_headers_req_arg.get(i).asCStr());
+            const char *hdr = transfer_append_headers_req_arg.get(i).asCStr();
+            if (!parseHeadersString(hdr, tel_redirect_data.transfer_append_headers_req))
+                ERROR("gateway %lu: malformed transfer_append_headers_req entry '%s'", id, hdr);
         }
     }
 
@@ -193,8 +196,9 @@ GatewayDataBleg::GatewayDataBleg::operator AmArg() const
 
     auto &transfer           = a["transfer"];
     transfer["tel_uri_host"] = tel_redirect_data.transfer_tel_uri_host;
-    append_amrg_with_vector(tel_redirect_data.transfer_append_headers_req.begin(),
-                            tel_redirect_data.transfer_append_headers_req.end(), transfer["append_headers_req"]);
+    transfer["append_headers_req"].assertArray();
+    for (const auto &[name, value] : tel_redirect_data.transfer_append_headers_req)
+        transfer["append_headers_req"].push(name + ": " + value);
 
     // throttling
     auto &throttling = a["throttling"];

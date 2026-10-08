@@ -7,11 +7,11 @@
 #include <queue>
 
 struct PendingReinvite {
-    string     hdrs;
-    AmMimeBody body;
-    unsigned   r_cseq;
-    bool       relayed_invite;
-    bool       establishing;
+    AmSipHeaderMap hdrs;
+    AmMimeBody     body;
+    unsigned       r_cseq;
+    bool           relayed_invite;
+    bool           establishing;
 };
 
 /** composed AmB2BCalleeSession & AmB2BCallerSession
@@ -160,7 +160,7 @@ class CallLeg : public AmB2BSession {
 
     /* generate re-INVITE with given parameters (establishing means that the
      * INVITE is establishing a connection between two legs) */
-    void reinvite(const string &hdrs, const AmMimeBody &body, bool relayed, unsigned r_cseq, bool establishing);
+    void reinvite(const AmSipHeaderMap &hdrs, const AmMimeBody &body, bool relayed, unsigned r_cseq, bool establishing);
 
     // generate 200 reply on a pending INVITE (uses fake body)
     void acceptPendingInvite(AmSipRequest *invite);
@@ -238,7 +238,7 @@ class CallLeg : public AmB2BSession {
     virtual void setCallStatus(CallStatus new_status);
     CallStatus   getCallStatus() const { return call_status; }
 
-    void queueReinvite(const string &hdrs, const AmMimeBody &body, bool establishing = false,
+    void queueReinvite(const AmSipHeaderMap &hdrs, const AmMimeBody &body, bool establishing = false,
                        bool relayed_invite = false, unsigned int r_cseq = 0);
 
     // @see AmSession

@@ -238,10 +238,10 @@ struct SBCCallProfile : public AmObject
 
     ReplyTranslationMap reply_translations;
 
-    string append_headers;
-    string append_headers_req;
-    string aleg_append_headers_req;
-    string aleg_append_headers_reply;
+    AmSipHeaderMap append_headers;
+    AmSipHeaderMap append_headers_req;
+    AmSipHeaderMap aleg_append_headers_req;
+    AmSipHeaderMap aleg_append_headers_reply;
 
     bool rtprelay_enabled;
     bool force_symmetric_rtp;
@@ -504,6 +504,10 @@ struct SBCCallProfile : public AmObject
     void eval_sst_config(ParamReplacerCtx & ctx, const AmSipRequest &req, AmConfigReader &sst_cfg);
 
     void fix_append_hdrs(ParamReplacerCtx & ctx, const AmSipRequest &req);
+
+    /** copy of hdrs with parameters replaced in values. headers with empty result are dropped */
+    static AmSipHeaderMap evaluateHeaders(ParamReplacerCtx & ctx, const AmSipRequest &req, const AmSipHeaderMap &hdrs,
+                                          const char *field_name);
 };
 
 #endif // _SBCCallProfile_h

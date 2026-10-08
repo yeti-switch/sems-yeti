@@ -32,7 +32,7 @@
 
 #define LOG_BUF_SIZE 2048
 
-string yeti_auth_feedback_header("X-Yeti-Auth-Error: ");
+string yeti_auth_feedback_header("X-Yeti-Auth-Error");
 
 void cfg_reader_error(cfg_t *cfg, const char *fmt, va_list ap)
 {

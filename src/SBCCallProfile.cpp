@@ -192,7 +192,7 @@ string SBCCallProfile::print() const
 
         res += "reply_trans_codes:     " + reply_trans_codes + "\n";
     }
-    res += "append_headers:     " + append_headers + "\n";
+    res += "append_headers:     " + headers2string(append_headers) + "\n";
     res += "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
     return res;
 }
@@ -289,6 +289,17 @@ bool SBCCallProfile::is_empty_profile(const AmArg &a)
     return true;
 }
 
+/** profile headers field: "Name: value CRLF ..." string from DB -> map */
+static void read_append_hdrs(const AmArg &t, const char *field_name, AmSipHeaderMap &hdrs)
+{
+    string s = DbAmArg_hash_get_str(t, field_name);
+    if (s.empty())
+        return;
+    assertEndCRLF(s);
+    if (!parseHeadersString(s, hdrs))
+        ERROR("%s: malformed headers '%s'", field_name, s.c_str());
+}
+
 bool SBCCallProfile::readFromTuple(const AmArg &t, const string &local_tag, const DynFieldsT &df,
                                    const string &lega_gw_cache_key, const string &legb_gw_cache_key)
 {
@@ -309,7 +320,7 @@ bool SBCCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
         resources = DbAmArg_hash_get_str(t, "resources");
     }
 
-    append_headers = DbAmArg_hash_get_str(t, "append_headers");
+    read_append_hdrs(t, "append_headers", append_headers);
 
     time_limit       = DbAmArg_hash_get_int(t, "time_limit", 0);
     aleg_override_id = DbAmArg_hash_get_int(t, "aleg_policy_id", 0);
@@ -474,9 +485,9 @@ bool SBCCallProfile::readFromTuple(const AmArg &t, const string &local_tag, cons
         reply_translations[from_code] = make_pair(to_code, to_reply.substr(s_pos));
     }
 
-    append_headers_req        = DbAmArg_hash_get_str(t, "append_headers_req");
-    aleg_append_headers_req   = DbAmArg_hash_get_str(t, "aleg_append_headers_req");
-    aleg_append_headers_reply = DbAmArg_hash_get_str(t, "aleg_append_headers_reply");
+    read_append_hdrs(t, "append_headers_req", append_headers_req);
+    read_append_hdrs(t, "aleg_append_headers_req", aleg_append_headers_req);
+    read_append_hdrs(t, "aleg_append_headers_reply", aleg_append_headers_reply);
 
     rtprelay_enabled         = DbAmArg_hash_get_bool(t, "enable_rtprelay", false);
     force_symmetric_rtp      = DbAmArg_hash_get_bool(t, "bleg_force_symmetric_rtp", false);
@@ -803,7 +814,7 @@ void SBCCallProfile::info(AmArg &s)
     s["from"]               = from;
     s["to"]                 = to;
     s["resource_handler"]   = resource_handler;
-    s["append_headers"]     = append_headers;
+    s["append_headers"]     = headers2string(append_headers);
     s["outbound_interface"] = outbound_interface;
     for (const auto &f : dyn_fields)
         s[f.first] = f.second;
@@ -902,8 +913,6 @@ bool SBCCallProfile::evaluate(ParamReplacerCtx &ctx, const AmSipRequest &req)
         AmConfigReader &sst_cfg = sst_b_cfg;
         eval_sst_config(ctx, req, sst_cfg);
     }
-
-    REPLACE_NONEMPTY_STR(append_headers);
 
     REPLACE_IFACE_SIP(outbound_interface, outbound_interface_value);
 
@@ -1044,52 +1053,27 @@ bool SBCCallProfile::apply_b_routing(const string &ruri, AmBasicSipDialog &dlg) 
     return true;
 }
 
-/** removes headers with empty values from headers list separated by "\r\n" */
-static string remove_empty_headers(const string &s, const char *field_name)
+AmSipHeaderMap SBCCallProfile::evaluateHeaders(ParamReplacerCtx &ctx, const AmSipRequest &req,
+                                               const AmSipHeaderMap &hdrs, const char *field_name)
 {
-    string res(s), hdr;
-    size_t start = 0, end = 0, len = 0, col = 0;
-    DBG("%s: remove_empty_headers '%s'", field_name, s.c_str());
-
-    if (res.empty())
-        return res;
-
-    do {
-        end = res.find_first_of("\n", start);
-        len = (end == string::npos ? res.size() - start : end - start + 1);
-        hdr = res.substr(start, len);
-        col = hdr.find_first_of(':');
-
-        if (col && hdr.find_first_not_of(": \r\n", col) == string::npos) {
-            // remove empty header
-            DBG("%s: Ignored empty header: %s", field_name, res.substr(start, len).c_str());
-            res.erase(start, len);
-            // start remains the same
-        } else {
-            if (string::npos == col)
-                DBG("%s: Malformed append header: %s", field_name, hdr.c_str());
-            start = end + 1;
+    AmSipHeaderMap ret;
+    for (const auto &[name, value] : hdrs) {
+        string v = ctx.replaceParameters(value, field_name, req);
+        if (v.empty()) {
+            DBG("%s: ignored empty header: %s", field_name, name.c_str());
+            continue;
         }
-    } while (end != string::npos && start < res.size());
-
-    return res;
-}
-
-static void fix_append_hdr_list(const AmSipRequest &req, ParamReplacerCtx &ctx, string &append_hdr,
-                                const char *field_name)
-{
-    append_hdr = ctx.replaceParameters(append_hdr, field_name, req);
-    append_hdr = remove_empty_headers(append_hdr, field_name);
-    if (append_hdr.size() > 2)
-        assertEndCRLF(append_hdr);
+        ret.emplace(name, std::move(v));
+    }
+    return ret;
 }
 
 void SBCCallProfile::fix_append_hdrs(ParamReplacerCtx &ctx, const AmSipRequest &req)
 {
-    fix_append_hdr_list(req, ctx, append_headers, "append_headers");
-    fix_append_hdr_list(req, ctx, append_headers_req, "append_headers_req");
-    fix_append_hdr_list(req, ctx, aleg_append_headers_req, "aleg_append_headers_req");
-    fix_append_hdr_list(req, ctx, aleg_append_headers_reply, "aleg_append_headers_reply");
+    append_headers            = evaluateHeaders(ctx, req, append_headers, "append_headers");
+    append_headers_req        = evaluateHeaders(ctx, req, append_headers_req, "append_headers_req");
+    aleg_append_headers_req   = evaluateHeaders(ctx, req, aleg_append_headers_req, "aleg_append_headers_req");
+    aleg_append_headers_reply = evaluateHeaders(ctx, req, aleg_append_headers_reply, "aleg_append_headers_reply");
 }
 
 string SBCCallProfile::TranscoderSettings::print() const

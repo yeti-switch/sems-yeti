@@ -95,7 +95,7 @@ class SqlRouter : public Auth {
                   Auth::auth_id_type auth_id);
 
     void send_and_log_auth_challenge(const AmSipRequest &req, const OriginationPreAuth::Reply &ip_auth_data,
-                                     const string &internal_reason, int auth_feedback_code, const string &hdrs,
+                                     const string &internal_reason, int auth_feedback_code, const AmSipHeaderMap &hdrs,
                                      bool post_auth_log);
 
     void dump_config();

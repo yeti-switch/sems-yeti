@@ -139,11 +139,11 @@ string replaceParameters(const string &s, const char *r_type, const AmSipRequest
                          AmShallowUriParser &from_parser, AmShallowUriParser &to_parser, bool rebuild_ruri,
                          bool rebuild_from, bool rebuild_to)
 {
-    string        res;
-    bool          is_replaced = false;
-    size_t        p           = 0;
-    bool          is_escaped  = false;
-    const string &used_hdrs   = req.hdrs; //(hdrs == NULL) ? req.hdrs : *hdrs;
+    string                res;
+    bool                  is_replaced = false;
+    size_t                p           = 0;
+    bool                  is_escaped  = false;
+    const AmSipHeaderMap &used_hdrs   = req.hdrs;
     while (p < s.length()) {
         size_t skip_chars = 1;
 
