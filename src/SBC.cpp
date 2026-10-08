@@ -217,7 +217,8 @@ void SBCFactory::send_auth_error_reply(const AmSipRequest &req, AmArg &ret, int 
     if (auth_feedback) {
         hdrs.emplace(yeti_auth_feedback_header, int2str(auth_feedback_code));
     }
-    parseHeadersString(ret[2].asCStr(), hdrs);
+    if (!arg2headers(ret[2], hdrs))
+        ERROR("unexpected checkAuth reply: %s", AmArg::print(ret).c_str());
     AmSipDialog::reply_error(req, static_cast<unsigned int>(ret[0].asInt()), ret[1].asCStr(), hdrs);
     yeti->router.log_auth(req, false, ret, auth_feedback_code, 0);
 }

@@ -1,5 +1,4 @@
 #include "Auth.h"
-#include "HeaderFilter.h"
 #include "AmApi.h"
 #include "AmPlugIn.h"
 #include "AmSipDialog.h"
@@ -389,7 +388,8 @@ void Auth::send_auth_challenge(const AmSipRequest &req, const AmSipHeaderMap &hd
     uac_auth->invoke("getChallenge", args, ret);
 
     AmSipHeaderMap reply_hdrs(hdrs);
-    parseHeadersString(ret.asCStr(), reply_hdrs);
+    if (!arg2headers(ret, reply_hdrs))
+        ERROR("unexpected getChallenge reply: %s", AmArg::print(ret).c_str());
     AmSipDialog::reply_error(req, 401, "Unauthorized", reply_hdrs);
 }
 
