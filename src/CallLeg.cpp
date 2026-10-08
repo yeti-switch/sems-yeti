@@ -791,6 +791,17 @@ void CallLeg::onInitStreamFailed(const string &reason)
     AmB2BSession::onInitStreamFailed(reason);
 }
 
+void CallLeg::onIceConnectivityFailed()
+{
+    if (getStopped())
+        return;
+
+    // AmSession::onIceConnectivityFailed() terminates this leg only, the other legs must be terminated here
+    updateCallStatus(Disconnected, StatusChangeCause::IceConnectivityFailed);
+    terminateOtherLeg();
+    AmB2BSession::onIceConnectivityFailed();
+}
+
 void CallLeg::onSessionTimeout()
 {
     updateCallStatus(Disconnected, StatusChangeCause::SessionTimeout);

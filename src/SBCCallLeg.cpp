@@ -3365,6 +3365,28 @@ void SBCCallLeg::onInitStreamFailed(const string &reason)
     CallLeg::onInitStreamFailed(reason);
 }
 
+void SBCCallLeg::onIceConnectivityFailed()
+{
+    DBG("%s(%p,leg%s)", FUNC_NAME, to_void(this), a_leg ? "A" : "B");
+
+    if (call_ctx && !getStopped()) {
+        with_cdr_for_read
+        {
+            if (getCallStatus() == CallLeg::Connected) {
+                cdr->update_internal_reason(DisconnectByTS, "ICE connectivity failed", 200, 0);
+                cdr->update_aleg_reason("Bye", 200);
+                cdr->update_bleg_reason("Bye", 200);
+            } else {
+                cdr->update_internal_reason(DisconnectByTS, "ICE connectivity failed", 487, 0);
+                cdr->update_aleg_reason("Request terminated", 487);
+                cdr->update_bleg_reason("Cancel", 487);
+            }
+        }
+    }
+
+    CallLeg::onIceConnectivityFailed();
+}
+
 void SBCCallLeg::onB2BEvent(B2BEvent *ev)
 {
     try {
@@ -3726,9 +3748,10 @@ void SBCCallLeg::onCallStatusChange(const StatusChangeCause &cause)
         reason                   = "NoPrack";
         internal_disconnect_code = DC_NO_PRACK;
         break;
-    case CallLeg::StatusChangeCause::RtpTimeout:      reason = "RtpTimeout"; break;
-    case CallLeg::StatusChangeCause::RtpSendingError: reason = "RtpSendingError"; break;
-    case CallLeg::StatusChangeCause::MediaInitFailed: reason = "MediaInitFailed"; break;
+    case CallLeg::StatusChangeCause::RtpTimeout:            reason = "RtpTimeout"; break;
+    case CallLeg::StatusChangeCause::RtpSendingError:       reason = "RtpSendingError"; break;
+    case CallLeg::StatusChangeCause::MediaInitFailed:       reason = "MediaInitFailed"; break;
+    case CallLeg::StatusChangeCause::IceConnectivityFailed: reason = "IceConnectivityFailed"; break;
     case CallLeg::StatusChangeCause::SessionTimeout:
         reason                   = "SessionTimeout";
         internal_disconnect_code = DC_SESSION_TIMEOUT;
