@@ -253,6 +253,8 @@ static void _patch_uri_transport(string &uri, unsigned int transport_id, const c
     case sip_transport::UDP: break;
     case sip_transport::TCP:
     case sip_transport::TLS:
+    case sip_transport::WS:
+    case sip_transport::WSS:
     {
         AmShallowUriParser parser;
         auto               transport_name = transport_str(transport_id);
