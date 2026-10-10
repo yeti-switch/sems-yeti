@@ -279,6 +279,15 @@
         "o_silently_drop": false
     },
     {
+        "o_id": 147,
+        "o_code": 500,
+        "o_reason": "Media decode error",
+        "o_rewrited_code": null,
+        "o_rewrited_reason": null,
+        "o_store_cdr": true,
+        "o_silently_drop": false
+    },
+    {
         "o_id": 150,
         "o_code": 400,
         "o_reason": "Error reply for reINVITE",

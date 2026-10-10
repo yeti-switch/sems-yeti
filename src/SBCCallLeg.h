@@ -197,6 +197,7 @@ class SBCCallLeg : public CallLeg, public CredentialHolder {
     void onRtpSendingError() override;
     void onInitStreamFailed(const string &reason) override;
     void onIceConnectivityFailed() override;
+    void onAudioEvent(AmAudioEvent *audio_ev) override;
     void onFailure() override;
     void onInviteException(int code, string reason, bool no_reply) override;
     bool onException(int code, const string &reason) noexcept override;

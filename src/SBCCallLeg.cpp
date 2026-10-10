@@ -3384,6 +3384,25 @@ void SBCCallLeg::onIceConnectivityFailed()
     CallLeg::onIceConnectivityFailed();
 }
 
+void SBCCallLeg::onAudioEvent(AmAudioEvent *audio_ev)
+{
+    DBG("%s(%p,leg%s) event_id: %d", FUNC_NAME, to_void(this), a_leg ? "A" : "B", audio_ev->event_id);
+
+    if (audio_ev->event_id != AmAudioEvent::cleared) {
+        AmSession::onAudioEvent(audio_ev);
+        return;
+    }
+
+    InternalException e(DC_MEDIA_DECODE_ERROR, call_ctx ? call_ctx->getOverrideId(a_leg) : 0);
+    if (call_ctx) {
+        with_cdr_for_read
+        {
+            cdr->update_internal_reason(DisconnectByTS, e.internal_reason, e.internal_code, e.icode);
+        }
+    }
+    onException(e.response_code, e.response_reason);
+}
+
 void SBCCallLeg::onB2BEvent(B2BEvent *ev)
 {
     try {
