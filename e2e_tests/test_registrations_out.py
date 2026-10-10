@@ -101,6 +101,7 @@ def test_custom_contact(rpc, db_config, make_remote):
 def test_digest_auth(rpc, db_config, make_remote):
     server = make_remote()
     server.auth = ("auth-user", "auth-password")
+    server.REALM = f"{server.ip}:{server.port}"
     db_config.set("registrations", [reg_row(server)])
 
     r = wait_state(rpc, "RegisterActive")
