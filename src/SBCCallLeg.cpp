@@ -1126,7 +1126,7 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p, const string &pus
 
     AmShallowUriParser from_uri;
     // the From header as the caller sent it. the profile's own From is still a template ($Oi, ...) here
-    if (!from_uri.parse_nameaddr(call_ctx->initial_invite->from)) {
+    if (!from_uri.parse_nameaddr(aleg_modified_req.from)) {
         ERROR("Error parsing From-URI '%s'", from.c_str());
         throw AmSession::Exception(500, SIP_REPLY_SERVER_INTERNAL_ERROR);
     }
@@ -1194,7 +1194,7 @@ void SBCCallLeg::process_push_token_profile(SBCCallProfile &p, const string &pus
             { "from_tag", getLocalTag() },
             { "from_user", string{ from_uri.get_uri_user() } },
             { "from_display_name", string{ from_uri.get_display_name() } },
-            { "from", from },
+            { "from", aleg_modified_req.from },
             { "to", call_ctx->initial_invite->to },
             { "ruri", call_ctx->initial_invite->r_uri },
             { "aor_id", aor_id },
