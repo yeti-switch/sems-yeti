@@ -836,7 +836,7 @@ int filterSdpOffer(SBCCallLeg *call, _AmSipMsgInDlg &sip_msg, SBCCallProfile &ca
 }
 
 static void filterSdpAnswerMedia(SBCCallLeg *call, vector<SdpMedia> &negotiated_media, std::vector<SdpMedia> &media,
-                                 bool noaudio_streams_filtered, bool avoid_transcoding, bool single_codec, int ptime)
+                                 bool noaudio_streams_filtered, bool avoid_transcoding, bool single_codec)
 {
     int  override_id = 0;
     auto call_ctx    = call->getCallCtx();
@@ -964,9 +964,9 @@ static void filterSdpAnswerMedia(SBCCallLeg *call, vector<SdpMedia> &negotiated_
             m.payloads = new_pl;
 
             // check ptime
-            if (ptime && m.frame_size != ptime) {
-                DBG("override ptime from %d to %d", m.frame_size, ptime);
-                m.frame_size = ptime;
+            if (other_m.frame_size != m.frame_size) {
+                DBG("patch ptime from %d to %d", m.frame_size, other_m.frame_size);
+                m.frame_size = other_m.frame_size;
             }
 
             DBG("add filtered audio stream %d from reply", stream_idx);
@@ -1035,15 +1035,8 @@ int processSdpAnswer(SBCCallLeg *call, _AmSipMsgInDlg &sip_msg, AmMimeBody &body
         normalizeSDP(sdp);
         call->normalizeSdpVersion(sdp.origin.sessV, sip_msg.cseq, false);
 
-        int ptime = 0;
-        if (call_profile.rtprelay_enabled) {
-            CodecsGroupEntry codecs_group;
-            CodecsGroups::instance()->get(static_codecs_id, codecs_group);
-            ptime = codecs_group.get_ptime();
-        }
-
         filterSdpAnswerMedia(call, negotiated_media, sdp.media, noaudio_streams_filtered,
-                             call_profile.avoid_transcoding, single_codec, ptime);
+                             call_profile.avoid_transcoding, single_codec);
 
         fixDynamicPayloads(sdp, &negotiated_media);
 
