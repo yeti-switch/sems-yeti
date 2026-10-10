@@ -56,7 +56,7 @@ def run_sems(conf_path, log_path, control_port):
     """runs SEMS with the config, waits for OPTIONS reply on control_port.
     fails on startup error, crash or unclean shutdown"""
     log = open(log_path, "w")
-    proc = subprocess.Popen([SEMS, "-E", "-D3", "-f", conf_path], cwd=E2E_DIR, stdout=log, stderr=subprocess.STDOUT)
+    proc = subprocess.Popen([SEMS, "-D3", "-f", conf_path], cwd=E2E_DIR, stdout=log, stderr=subprocess.STDOUT)
 
     try:
         client = SipClient()
