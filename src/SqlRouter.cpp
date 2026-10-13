@@ -157,6 +157,12 @@ void SqlRouter::sanitize_query_params(QueryInfo &query_info, const std::string &
     }
 }
 
+void SqlRouter::preprocessPGParamExecute(PGParamExecute &e)
+{
+    if (pg_bindings)
+        e.query = pg_bindings.value().preproces_PGParamExecute(e);
+}
+
 void SqlRouter::apply_routing_headers(const AmArg &data)
 {
     if (isArgUndef(data))
@@ -482,6 +488,23 @@ int SqlRouter::configure(cfg_t *confuse_cfg, AmConfigReader &cfg)
 
     AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_config_auth_log);
 
+    // fill pg external bindings if aviailable
+    AmDynInvokeFactory *di_f = AmPlugIn::instance()->getFactory4Di("postgresql");
+    if (di_f) {
+        AmDynInvoke *pg_client = di_f->getInstance();
+        if (pg_client) {
+            AmArg args, ret;
+            pg_client->invoke("getBindings", args, ret);
+            if (isArgAObject(ret)) {
+                auto pg_bindings_ptr = dynamic_cast<PGBindings *>(ret.asObject());
+                if (pg_bindings_ptr) {
+                    DBG("set pg_bindings: %p", pg_bindings_ptr);
+                    pg_bindings = *pg_bindings_ptr;
+                }
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -626,6 +649,8 @@ AmArg SqlRouter::db_async_get_profiles(const std::string &local_tag, const AmSip
         }
     }
 
+    preprocessPGParamExecute(*pg_getprofile_event);
+
     if (!AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_getprofile_event.release())) {
         ERROR("failed to post getprofile query event");
         return 1;
@@ -675,6 +700,8 @@ void SqlRouter::write_cdr(std::unique_ptr<Cdr> &cdr, bool last)
 
         cdr.reset();
 
+        preprocessPGParamExecute(*pg_param_execute_event);
+
         AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_param_execute_event.release());
         // cdr_writer->postcdr(cdr);
     } else {
@@ -707,6 +734,8 @@ void SqlRouter::write_auth_log(const AuthCdr &auth_log)
                 AmArg::print(query_info.params[i]).data());
         }
     }
+
+    preprocessPGParamExecute(*pg_param_execute_event);
 
     AmEventDispatcher::instance()->post(POSTGRESQL_QUEUE, pg_param_execute_event.release());
 }

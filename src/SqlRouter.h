@@ -15,6 +15,7 @@
 #include "OriginationPreAuth.h"
 #include "GatewaysCache.h"
 #include "AmSession.h"
+#include "ampi/PostgreSqlAPI.h"
 
 #include <functional>
 
@@ -47,6 +48,8 @@ class UsageCounterHelper {
 };
 
 class SqlRouter : public Auth {
+    std::optional<PGBindings> pg_bindings;
+
     // stats
     AtomicCounter &db_hits, &db_hits_time, &hits, &active_requests;
     double         gt_min, gt_max;
@@ -77,6 +80,8 @@ class SqlRouter : public Auth {
 
     void sanitize_query_params(QueryInfo &query_info, const std::string &local_tag, const char *context_name,
                                std::function<const char *(unsigned int)> get_param_name);
+
+    void preprocessPGParamExecute(PGParamExecute &e);
 
   public:
     SqlRouter(GatewaysCacheALeg &gateways_cache_aleg);
