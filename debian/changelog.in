@@ -1,3 +1,11 @@
+sems-yeti (1.15.13) stable; urgency=medium
+  * add internal disconnect code 147: Media decode error
+  * SBCCallLeg::process_push_token_profile: fix empty 'from' for webhook token data
+  * sdp_filter: fix ptime replace on SDP answer filtering
+  * allow WS/WSS for bleg_transport_protocol_id
+  * use PGParamExecute preprocessing binding
+ -- dev <dev@yeti-switch.org>  Tue, 13 Oct 2026 16:51:48 +0300
+
 sems-yeti (1.15.12) stable; urgency=medium
   * fix CDRs unandled sequence reason on ICE connectivity issues
  -- dev <dev@yeti-switch.org>  Thu, 08 Oct 2026 16:37:24 +0300
