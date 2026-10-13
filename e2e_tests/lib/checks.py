@@ -75,11 +75,13 @@ class Cdrs:
         return [c for c in self.all() if is_unhandled(c)]
 
     def wait(self, orig_call_id, timeout=5):
-        """wait for CDRs of the call (one per routing attempt)"""
+        """wait for CDRs of the call (one per routing attempt) until the last one (is_last) is written.
+        CDRs of skipped/failed attempts are written before the final one and are delivered
+        asynchronously, so the call may be already gone from yeti sessions while its last CDR is not written yet"""
         deadline = time.monotonic() + timeout
         while True:
             found = [c for c in self.all() if c["orig_call_id"] == orig_call_id]
-            if found or time.monotonic() > deadline:
+            if any(c["is_last"] for c in found) or time.monotonic() > deadline:
                 return found
             time.sleep(0.1)
 
