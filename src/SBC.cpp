@@ -139,10 +139,13 @@ SBCFactory::SBCFactory(const string &_app_name)
     , core_options_handling(false)
     , callLegCreator(new CallLegCreator())
 {
-    pre_auth_ret[0] = 403;
-    pre_auth_ret[1] = "Forbidden";
-    pre_auth_ret[2] = "";
-    pre_auth_ret[3] = "IP auth";
+    AmArg empty_array;
+    empty_array.assertArray();
+    pre_auth_ret.assign_array(403,         // code
+                              "Forbidden", // reason
+                              empty_array, // hdrs
+                              "IP auth"    // internal_reason
+    );
 }
 
 SBCFactory::~SBCFactory()
