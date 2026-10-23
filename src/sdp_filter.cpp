@@ -292,6 +292,7 @@ inline void clear_media_params(AmSdp &sdp)
         m.ice_pwd.clear();
         m.ice_ufrag.clear();
         m.ice_candidate.clear();
+        m.ice_remote_candidates.clear();
         m.is_ice = false;
 #ifdef WITH_ZRTP
         m.zrtp_hash.is_use = false;
