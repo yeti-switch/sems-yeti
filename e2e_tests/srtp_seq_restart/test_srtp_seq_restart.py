@@ -11,6 +11,12 @@ the production calls:
   * back-105:   32331 -> 32226, within the 128 packets replay window, the already used
     32322..32331 come again later
   * forward-3163: 29165 -> 32328
+  * roc-wrap (not from the pcaps): no jump, the stream wraps the sequence number before the re-INVITE
+    (ROC 1) and goes on with the same key
+  * roc-wrap-rekey: the same, but the gateway answers the re-INVITE with a new key
+    both fail on SEMS 1.216.0-1.219.0: the SRTP receive context was recreated on the re-INVITE
+    (the keys compared as changed even when they were not) and the ROC was lost, so every following
+    packet failed authentication (production 2026-10-29; RFC 3711 3.3.1: the ROC survives re-keying)
 
 expected: the gateway audio reaches the caller after the restart and the only SRTP decrypt error
 of the B-leg (CDR media_stats rx_srtp_decrypt_errors) is the latching packet. it fails for back-29912
@@ -47,28 +53,32 @@ FRAME_INTERVAL = 0.02
 PACKETS_AFTER_RESTART = 120  # back-105 reaches the already used sequence numbers after 96 packets
 LATCHING_ERRORS = 1  # the plain RTP latching packet fails SRTP authentication
 
-# production calls: (first seq, packets before the re-INVITE, first seq after it)
+# (first seq, packets before the re-INVITE, first seq after it, new key in the re-INVITE answer)
 JUMPS = {
-    "back-29912": (32220, 9, 2316),  # 9-72434DFC-6AC8FE41000C5DDA-62EF26C0_9.pcap (no audio)
-    "back-105": (32322, 10, 32226),  # 8-220816C5-6AC8FE34000B42B8-9DEF46C0_8.pcap
-    "forward-3163": (29159, 7, 32328),  # 9-1FCC123C-6AC8FE2900090FE8-62EF26C0_9.pcap
+    "back-29912": (32220, 9, 2316, False),  # 9-72434DFC-6AC8FE41000C5DDA-62EF26C0_9.pcap (no audio)
+    "back-105": (32322, 10, 32226, False),  # 8-220816C5-6AC8FE34000B42B8-9DEF46C0_8.pcap
+    "forward-3163": (29159, 7, 32328, False),  # 9-1FCC123C-6AC8FE2900090FE8-62EF26C0_9.pcap
+    "roc-wrap": (65530, 10, 4, False),  # 65530..65539 wrap to 0..3 (ROC 1), the gateway goes on from 4
+    "roc-wrap-rekey": (65530, 10, 4, True),
 }
 
 
 class SdesGateway(TerminationGateway):
-    """answers RTP/SAVP offers with its own SDES key, the same one in all the answers of the dialog"""
+    """answers RTP/SAVP offers with its own SDES key, the same one in all the answers of the dialog
+    unless rekey is set"""
 
     def __init__(self, **kw):
         super().__init__(**kw)
         self.crypto = None  # (tag, suite, own inline key) of the last answer
         self.answered_keys = []
+        self.rekey = False
 
     def answer(self, offer_body, rtp=None):
         body = super().answer(offer_body, rtp)
         offered = [c for c in crypto_lines(offer_body) if c[1] in SUPPORTED_SUITES]
         assert offered, f"no supported a=crypto in the offer:\n{offer_body}"
         tag, suite, peer_key = offered[0]
-        key = self.crypto[2] if self.crypto and self.crypto[1] == suite else new_inline(suite)
+        key = self.crypto[2] if self.crypto and self.crypto[1] == suite and not self.rekey else new_inline(suite)
         self.crypto = (tag, suite, key)
         self.answered_keys.append(key)
         self.rtp.srtp_tx = SrtpContext(suite, key)
@@ -108,7 +118,8 @@ def latching_packet():
 
 @pytest.mark.parametrize("jump", JUMPS)
 def test_seq_restart_after_reinvite(variant, routing, cdrs, caller, sdes_gw, jump):
-    first_seq, packets_before, restart_seq = JUMPS[jump]
+    first_seq, packets_before, restart_seq, rekey = JUMPS[jump]
+    sdes_gw.rekey = rekey
     caller.codecs = sdes_gw.codecs = ["pcma", "telephone-event"]
     routing.set_profiles([route_to(sdes_gw, bleg_media_encryption_mode_id=SRTP_SDES), NO_ROUTES])
 
@@ -124,13 +135,14 @@ def test_seq_restart_after_reinvite(variant, routing, cdrs, caller, sdes_gw, jum
     assert caller.rtp.wait(PT_PCMA, packets=packets_before - 2), \
         f"SRTP from the gateway does not reach the caller: {dict(caller.rtp.received)}"
 
-    # caller re-INVITE relayed to the gateway, answered with the same key
+    # caller re-INVITE relayed to the gateway, answered with the same key (a new one for rekey)
     t = time.monotonic()
     reply = caller.reinvite()
     assert reply is not None and reply.code == 200, reply and reply.raw
     reinvite = sdes_gw.wait_request("INVITE", pred=lambda r: r.time >= t and r.tag("to") is not None)
     assert reinvite is not None, "re-INVITE is not relayed to the gateway"
-    assert len(set(sdes_gw.answered_keys)) == 1 and len(sdes_gw.answered_keys) == 2, sdes_gw.answered_keys
+    assert len(set(sdes_gw.answered_keys)) == (2 if rekey else 1) and len(sdes_gw.answered_keys) == 2, \
+        sdes_gw.answered_keys
 
     # the gateway continues the same SSRC from another sequence number
     time.sleep(0.05)

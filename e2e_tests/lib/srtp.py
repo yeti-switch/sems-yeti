@@ -2,7 +2,8 @@
 SDES SRTP (RFC 3711, RFC 4568, AES-256 suites RFC 6188) for e2e RTP endpoints: packets protection by the
 sender key, authentication and decryption by the remote key. requires 'cryptography' (python3-cryptography)
 
-  * one ROC per SSRC (ROC 0: test streams do not wrap), no MKI, key derivation rate 0
+  * ROC: the sender passes its own (RtpEndpoint.roc), the receiver assumes 0 (SEMS streams do not wrap
+    in the tests), no MKI, key derivation rate 0
   * receiver does not implement replay protection: the tests check what SEMS accepts
 """
 

@@ -19,6 +19,7 @@ class RtpEndpoint:
 
         self.ssrc = random.getrandbits(32)
         self.seq = random.getrandbits(16)
+        self.roc = 0  # SRTP rollover counter of the sent stream, advanced on the seq wrap
         self.ts = random.getrandbits(32)
 
         self._lock = threading.Lock()
@@ -63,7 +64,7 @@ class RtpEndpoint:
         assert self.remote, "remote RTP address is unknown"
         payload = bytes([0xff if pt == 0 else 0xd5]) * payload_size if pt in (0, 8) else bytes([0x40])
         for _ in range(count):
-            self.seq = (self.seq + 1) & 0xffff
+            self._next_seq()
             self.ts = (self.ts + 160) & 0xffffffff
             header = struct.pack("!BBHII", 0x80, pt & 0x7f, self.seq, self.ts, self.ssrc)
             self.send_raw(self._protect(header + payload))
@@ -74,15 +75,20 @@ class RtpEndpoint:
         are used unless seq/ts are given (e.g. to repeat an already sent packet). returns (seq, ts)"""
         assert self.remote, "remote RTP address is unknown"
         if seq is None:
-            self.seq = (self.seq + 1) & 0xffff
+            self._next_seq()
             self.ts = (self.ts + ts_step) & 0xffffffff
             seq, ts = self.seq, self.ts
         header = struct.pack("!BBHII", 0x80, pt & 0x7f, seq, ts, self.ssrc)
         self.send_raw(self._protect(header + payload))
         return seq, ts
 
+    def _next_seq(self):
+        if self.seq == 0xffff:
+            self.roc += 1
+        self.seq = (self.seq + 1) & 0xffff
+
     def _protect(self, packet):
-        return self.srtp_tx.protect(packet) if self.srtp_tx is not None else packet
+        return self.srtp_tx.protect(packet, self.roc) if self.srtp_tx is not None else packet
 
     def send_raw(self, data):
         """send the datagram as is (not protected by srtp_tx)"""

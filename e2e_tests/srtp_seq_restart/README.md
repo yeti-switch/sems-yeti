@@ -44,6 +44,13 @@ expects the gateway audio to reach the caller after the restart and the B-leg
 Lost packets counted as SRTP decrypt errors are reported as the production issue (`back-29912` fails
 so until fixed), lost packets without them fail the test as another issue.
 
+`roc-wrap` and `roc-wrap-rekey` are not from the pcaps: the gateway stream wraps the sequence number
+before the re-INVITE (ROC 1) and goes on without a jump, with the same key or with a new key in the
+re-INVITE answer. Both fail on SEMS 1.216.0-1.219.0: the SRTP receive context was recreated on the
+re-INVITE (the keys compared as changed even when they were not) and the ROC was lost, so every packet
+after it failed authentication (production call of 2026-10-29; RFC 3711 3.3.1: the ROC survives
+re-keying).
+
 Requires `python3-cryptography` (SRTP in `lib/srtp.py`), the test is skipped without it.
 
 ```
