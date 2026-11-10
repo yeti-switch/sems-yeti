@@ -1,3 +1,7 @@
+sems-yeti (1.15.16) stable; urgency=medium
+  * libsems1.220
+ -- dev <dev@yeti-switch.org>  Tue, 10 Nov 2026 12:22:49 +0200
+
 sems-yeti (1.15.15) stable; urgency=medium
   * fix "unexpected checkAuth reply" error on IP auth rejects
  -- dev <dev@yeti-switch.org>  Wed, 21 Oct 2026 01:07:33 +0300
